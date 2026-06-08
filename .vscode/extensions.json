@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "openai.chatgpt",
+    "golang.go",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "ms-azuretools.vscode-docker",
+    "eamodio.gitlens",
+    "humao.rest-client",
+    "qwtel.sqlite-viewer",
+    "ms-vscode-remote.remote-wsl"
+  ]
+}

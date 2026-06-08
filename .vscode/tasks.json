@@ -1,0 +1,65 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "backend: dev",
+      "type": "shell",
+      "command": "cd backend && air",
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: run",
+      "type": "shell",
+      "command": "cd backend && go run ./cmd/server",
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: test",
+      "type": "shell",
+      "command": "cd backend && go test ./...",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend: install",
+      "type": "shell",
+      "command": "cd frontend && pnpm install",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend: dev",
+      "type": "shell",
+      "command": "cd frontend && pnpm dev --host 0.0.0.0",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend: lint",
+      "type": "shell",
+      "command": "cd frontend && pnpm lint",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend: build",
+      "type": "shell",
+      "command": "cd frontend && pnpm build",
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: dev up",
+      "type": "shell",
+      "command": "docker compose up -d --build",
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: logs",
+      "type": "shell",
+      "command": "docker compose logs -f",
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: down",
+      "type": "shell",
+      "command": "docker compose down",
+      "problemMatcher": []
+    }
+  ]
+}

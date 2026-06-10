@@ -7,28 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	appErrors "ledger_two/internal/errors"
 )
-
-// AppError 全局统一的业务/参数校验错误
-type AppError struct {
-	Status  int
-	Code    string
-	Message string
-}
-
-func (e *AppError) Error() string {
-	return e.Message
-}
-
-// NewAppError 构造 AppError 实例
-// @brief 创建带状态码和错误码的业务异常
-// @param status int HTTP 状态码
-// @param code string 错误码
-// @param message string 描述语
-// @return *AppError 异常实例
-func NewAppError(status int, code string, message string) *AppError {
-	return &AppError{Status: status, Code: code, Message: message}
-}
 
 // Service 交易明细核心业务逻辑服务
 type Service struct {
@@ -53,29 +34,29 @@ func NewService(repo *Repository) *Service {
 func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTransactionRequest) (*TransactionResponse, error) {
 	// 1. 金额校验
 	if req.AmountCents <= 0 {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "金额必须大于 0")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "金额必须大于 0")
 	}
 
 	// 2. 类型校验
 	if req.Type != "expense" && req.Type != "income" {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "记账类型必须为 expense 或 income")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "记账类型必须为 expense 或 income")
 	}
 
 	// 3. 时间校验
 	occurredAt, err := time.Parse(time.RFC3339, req.OccurredAt)
 	if err != nil {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "交易时间格式必须符合 ISO8601 标准")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "交易时间格式必须符合 ISO8601 标准")
 	}
 
 	// 4. 用户存在校验
 	if req.PayerUserID == "" {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "付款人用户 ID 不能为空")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "付款人用户 ID 不能为空")
 	}
 
 	// 5. 获取全局唯一 LedgerID
 	ledgerID, err := s.getLedgerID(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
 	// 6. 可见性处理
@@ -84,7 +65,7 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 		visibility = "private"
 	}
 	if visibility != "private" && visibility != "partner_readable" && visibility != "shared" {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "无效的可见性属性值")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的可见性属性值")
 	}
 
 	// 7. 标题 fallback
@@ -156,12 +137,12 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 func (s *Service) GetByID(ctx context.Context, currentUserID string, id string) (*TransactionResponse, error) {
 	tx, tags, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, NewAppError(404, "NOT_FOUND", "账单未找到或已删除")
+		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到或已删除")
 	}
 
 	// 校验查看权限
 	if !s.CanViewTransaction(currentUserID, tx) {
-		return nil, NewAppError(403, "FORBIDDEN", "无权查看此账单")
+		return nil, appErrors.NewAppError(403, "FORBIDDEN", "无权查看此账单")
 	}
 
 	dto := s.toDTO(tx, tags)
@@ -187,12 +168,12 @@ func (s *Service) GetByID(ctx context.Context, currentUserID string, id string) 
 func (s *Service) Update(ctx context.Context, currentUserID string, id string, req UpdateTransactionRequest) (*TransactionResponse, error) {
 	tx, oldTags, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, NewAppError(404, "NOT_FOUND", "账单未找到")
+		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
 	}
 
 	// 校验编辑权限：谁创建谁编辑，被删除的拒绝编辑
 	if !s.CanEditTransaction(currentUserID, tx) {
-		return nil, NewAppError(403, "FORBIDDEN", "无权编辑此账单")
+		return nil, appErrors.NewAppError(403, "FORBIDDEN", "无权编辑此账单")
 	}
 
 	isShared := tx.Type == "shared_expense"
@@ -214,20 +195,20 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 	}
 	if req.AmountCents != nil {
 		if *req.AmountCents <= 0 {
-			return nil, NewAppError(400, "VALIDATION_ERROR", "金额必须大于 0")
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "金额必须大于 0")
 		}
 		tx.Amount = *req.AmountCents
 	}
 	if req.OccurredAt != nil {
 		occurredAt, err := time.Parse(time.RFC3339, *req.OccurredAt)
 		if err != nil {
-			return nil, NewAppError(400, "VALIDATION_ERROR", "交易时间格式错误")
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "交易时间格式错误")
 		}
 		tx.OccurredAt = occurredAt
 	}
 	if req.PayerUserID != nil {
 		if *req.PayerUserID == "" {
-			return nil, NewAppError(400, "VALIDATION_ERROR", "付款人用户 ID 不能为空")
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "付款人用户 ID 不能为空")
 		}
 		tx.PayerUserID = *req.PayerUserID
 	}
@@ -248,7 +229,7 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 	if req.Visibility != nil {
 		val := *req.Visibility
 		if val != "private" && val != "partner_readable" && val != "shared" {
-			return nil, NewAppError(400, "VALIDATION_ERROR", "无效的可见性属性值")
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的可见性属性值")
 		}
 		tx.Visibility = val
 	}
@@ -267,7 +248,7 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 		if req.SplitMethod != nil {
 			splitMethodVal = *req.SplitMethod
 			if splitMethodVal != "equal" && splitMethodVal != "payer_only" {
-				return nil, NewAppError(400, "VALIDATION_ERROR", "无效的分摊方式")
+				return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的分摊方式")
 			}
 			tx.SplitMethod = sql.NullString{String: splitMethodVal, Valid: true}
 		} else if tx.SplitMethod.Valid {
@@ -277,7 +258,7 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 		// 重新计算分摊金额
 		users, err := s.getSystemUsers(ctx)
 		if err != nil {
-			return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+			return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
 		}
 
 		payerID := tx.PayerUserID
@@ -291,7 +272,7 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 			}
 		}
 		if !foundPayer {
-			return nil, NewAppError(400, "VALIDATION_ERROR", "无效的付款人")
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的付款人")
 		}
 
 		var payerShare, otherShare int64
@@ -383,12 +364,12 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 func (s *Service) Delete(ctx context.Context, currentUserID string, id string) error {
 	tx, tags, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return NewAppError(404, "NOT_FOUND", "账单未找到")
+		return appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
 	}
 
 	// 校验编辑/删除权限：谁创建谁删除
 	if !s.CanEditTransaction(currentUserID, tx) {
-		return NewAppError(403, "FORBIDDEN", "无权删除此账单")
+		return appErrors.NewAppError(403, "FORBIDDEN", "无权删除此账单")
 	}
 
 	beforeDTO := s.toDTO(tx, tags)
@@ -440,7 +421,7 @@ func (s *Service) Delete(ctx context.Context, currentUserID string, id string) e
 func (s *Service) List(ctx context.Context, currentUserID string, filter TransactionFilter) ([]*TransactionResponse, error) {
 	ledgerID, err := s.getLedgerID(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
 	list, tagMap, err := s.repo.List(ctx, ledgerID, currentUserID, filter)
@@ -588,24 +569,24 @@ func (s *Service) getSystemUsers(ctx context.Context) ([]string, error) {
 func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string, req CreateSharedExpenseRequest) (*TransactionResponse, error) {
 	// 1. 金额校验
 	if req.AmountCents <= 0 {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "金额必须大于 0")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "金额必须大于 0")
 	}
 
 	// 2. 时间校验
 	occurredAt, err := time.Parse(time.RFC3339, req.OccurredAt)
 	if err != nil {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "交易时间格式必须符合 ISO8601 标准")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "交易时间格式必须符合 ISO8601 标准")
 	}
 
 	// 3. 分摊方式校验
 	if req.SplitMethod != "equal" && req.SplitMethod != "payer_only" {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "分摊类型必须为 equal 或 payer_only")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "分摊类型必须为 equal 或 payer_only")
 	}
 
 	// 4. 用户校验与分摊计算
 	users, err := s.getSystemUsers(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
 	}
 
 	// 校验付款人是否合法
@@ -620,7 +601,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	}
 
 	if !foundPayer {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "付款人用户不在当前账本成员中")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "付款人用户不在当前账本成员中")
 	}
 
 	// 计算分摊金额 (不能使用 float)
@@ -638,7 +619,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	// 5. 获取全局唯一 LedgerID
 	ledgerID, err := s.getLedgerID(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
 	// 6. 标题 fallback
@@ -736,7 +717,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 func (s *Service) ListCategories(ctx context.Context) ([]Category, error) {
 	ledgerID, err := s.getLedgerID(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 	return s.repo.ListCategories(ctx, ledgerID)
 }

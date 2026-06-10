@@ -32,11 +32,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	tokenString, err := h.svc.Login(r.Context(), req.Username, req.Password)
 	if err != nil {
-		if err == service.ErrInvalidCredentials {
-			response.Error(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "用户名或密码错误")
-			return
-		}
-		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "登录服务异常")
+		response.WriteError(w, err)
 		return
 	}
 
@@ -80,7 +76,7 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 
 	me, err := h.svc.GetMe(r.Context(), userID)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "获取用户信息失败")
+		response.WriteError(w, err)
 		return
 	}
 

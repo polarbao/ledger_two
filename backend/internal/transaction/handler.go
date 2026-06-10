@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 
@@ -44,7 +43,7 @@ func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.Create(r.Context(), currentUserID, req)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
@@ -70,7 +69,7 @@ func (h *Handler) HandleGetByID(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.GetByID(r.Context(), currentUserID, id)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
@@ -102,7 +101,7 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.Update(r.Context(), currentUserID, id, req)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
@@ -128,7 +127,7 @@ func (h *Handler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.Delete(r.Context(), currentUserID, id)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
@@ -161,7 +160,7 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.List(r.Context(), currentUserID, filter)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
@@ -187,7 +186,7 @@ func (h *Handler) HandleCreateSharedExpense(w http.ResponseWriter, r *http.Reque
 
 	res, err := h.service.CreateSharedExpense(r.Context(), currentUserID, req)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
@@ -212,17 +211,7 @@ func (h *Handler) HandleUpdateSharedExpense(w http.ResponseWriter, r *http.Reque
 	h.HandleUpdate(w, r)
 }
 
-// 统一解析业务 AppError 和系统级内部报错的转换器
-func (h *Handler) handleError(w http.ResponseWriter, err error) {
-	var appErr *AppError
-	if errors.As(err, &appErr) {
-		response.Error(w, appErr.Status, appErr.Code, appErr.Message)
-		return
-	}
 
-	// 兜底记录内部报错并返回 500
-	response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "内部服务错误，请重试")
-}
 
 // HandleListCategories 拉取系统分类列表接口
 // @brief 处理 GET /api/categories 请求，从 categories 表拉取本账本对应的系统分类
@@ -237,7 +226,7 @@ func (h *Handler) HandleListCategories(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.ListCategories(r.Context())
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 

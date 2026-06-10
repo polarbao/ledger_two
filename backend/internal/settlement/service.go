@@ -7,28 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	appErrors "ledger_two/internal/errors"
 )
-
-// AppError 结算模块内部业务/校验异常
-type AppError struct {
-	Status  int
-	Code    string
-	Message string
-}
-
-func (e *AppError) Error() string {
-	return e.Message
-}
-
-// NewAppError 构造 AppError 实例
-// @brief 创建带 HTTP 状态码及业务错误码的异常
-// @param status int HTTP 状态码
-// @param code string 内部错误码
-// @param message string 描述信息
-// @return *AppError 异常实例
-func NewAppError(status int, code string, message string) *AppError {
-	return &AppError{Status: status, Code: code, Message: message}
-}
 
 // Service 结算模块业务逻辑服务
 // @brief 实现双方共同支出差额统计及事务级结算记账
@@ -53,16 +34,16 @@ func (s *Service) GetBalance(ctx context.Context) (*BalanceResponse, error) {
 	// 1. 获取全局唯一 LedgerID
 	ledgerID, err := s.getLedgerID(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
 	// 2. 获取系统内仅有的两个用户 ID
 	users, err := s.getSystemUsers(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
 	}
 	if len(users) != 2 {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "系统初始化异常：用户数不等于2")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "系统初始化异常：用户数不等于2")
 	}
 	userAID := users[0]
 	userBID := users[1]
@@ -125,21 +106,21 @@ func (s *Service) GetBalance(ctx context.Context) (*BalanceResponse, error) {
 func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, req CreateSettlementRequest) (*SettlementResponse, error) {
 	// 1. 金额校验
 	if req.AmountCents <= 0 {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "结算金额必须大于 0")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "结算金额必须大于 0")
 	}
 
 	// 2. 参与人校验
 	if req.FromUserID == "" || req.ToUserID == "" {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "结算收付款人不能为空")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "结算收付款人不能为空")
 	}
 	if req.FromUserID == req.ToUserID {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "结算双方不能为同一个人")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "结算双方不能为同一个人")
 	}
 
 	// 验证用户在系统中是否存在
 	users, err := s.getSystemUsers(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
 	}
 	foundFrom := false
 	foundTo := false
@@ -152,19 +133,19 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 		}
 	}
 	if !foundFrom || !foundTo {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "结算用户不属于账本成员")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "结算用户不属于账本成员")
 	}
 
 	// 3. 时间校验
 	occurredAt, err := time.Parse(time.RFC3339, req.OccurredAt)
 	if err != nil {
-		return nil, NewAppError(400, "VALIDATION_ERROR", "交易时间格式必须符合 ISO8601 标准")
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "交易时间格式必须符合 ISO8601 标准")
 	}
 
 	// 4. 获取 LedgerID
 	ledgerID, err := s.getLedgerID(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
 	// 5. 构造结算与流水记录
@@ -231,7 +212,7 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 func (s *Service) List(ctx context.Context, month string) ([]*SettlementResponse, error) {
 	ledgerID, err := s.getLedgerID(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
 	list, err := s.repo.List(ctx, ledgerID, month)

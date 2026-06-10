@@ -2,16 +2,14 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"ledger_two/internal/db/repo"
+	appErrors "ledger_two/internal/errors"
 )
-
-var ErrInvalidCredentials = errors.New("invalid username or password")
 
 type AuthService struct {
 	repo      *repo.AuthRepo
@@ -28,11 +26,11 @@ func NewAuthService(r *repo.AuthRepo, secret string) *AuthService {
 func (s *AuthService) Login(ctx context.Context, username, password string) (string, error) {
 	user, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil {
-		return "", ErrInvalidCredentials
+		return "", appErrors.NewAppError(401, appErrors.ErrCodeInvalidCredentials, "用户名或密码错误")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", ErrInvalidCredentials
+		return "", appErrors.NewAppError(401, appErrors.ErrCodeInvalidCredentials, "用户名或密码错误")
 	}
 
 	// 签发 JWT (设置一星期的强有效性)

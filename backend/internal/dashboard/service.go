@@ -5,25 +5,10 @@ import (
 	"sort"
 	"time"
 
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/settlement"
 	"ledger_two/internal/transaction"
 )
-
-// AppError 统计模块内部业务校验异常
-type AppError struct {
-	Status  int
-	Code    string
-	Message string
-}
-
-func (e *AppError) Error() string {
-	return e.Message
-}
-
-// NewAppError 构造 AppError
-func NewAppError(status int, code string, message string) *AppError {
-	return &AppError{Status: status, Code: code, Message: message}
-}
 
 // Service Dashboard 与统计核心业务服务
 // @brief 串联结算轧差及本月多表汇总进行内存级高性能统计分析
@@ -56,14 +41,14 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 		// 校验格式为 YYYY-MM
 		_, err := time.Parse("2006-01", month)
 		if err != nil {
-			return nil, NewAppError(400, "VALIDATION_ERROR", "查询月份格式错误，应为 YYYY-MM")
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "查询月份格式错误，应为 YYYY-MM")
 		}
 	}
 
 	// 2. 获取全局唯一 LedgerID
 	ledgerID, err := s.getLedgerID(ctx)
 	if err != nil {
-		return nil, NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
 	// 3. 获取全局结算净额轧差（跨月份）

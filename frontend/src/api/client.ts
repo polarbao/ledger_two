@@ -1,11 +1,13 @@
 export class ApiError extends Error {
   code: string;
   status: number;
+  details: unknown;
 
-  constructor(code: string, message: string, status: number) {
+  constructor(code: string, message: string, status: number, details?: unknown) {
     super(message);
     this.code = code;
     this.status = status;
+    this.details = details;
     this.name = 'ApiError';
   }
 }
@@ -16,6 +18,7 @@ interface ApiResponse<T = unknown> {
   error?: {
     code: string;
     message: string;
+    details?: unknown;
   };
 }
 
@@ -44,13 +47,16 @@ export async function request<T>(
   if (!response.ok || !body.success) {
     const errCode = body?.error?.code || 'UNKNOWN_ERROR';
     const errMessage = body?.error?.message || '请求执行失败';
+    const errDetails = body?.error?.details || null;
 
-    if (response.status === 401 || errCode === 'UNAUTHORIZED') {
-      if (!window.location.pathname.endsWith('/login') && !window.location.pathname.endsWith('/init')) {
-        window.location.href = '/login';
+    if (response.status === 401 || errCode === 'UNAUTHORIZED' || errCode === 'SESSION_EXPIRED') {
+      if (typeof window !== 'undefined' && window.location) {
+        if (!window.location.pathname.endsWith('/login') && !window.location.pathname.endsWith('/init')) {
+          window.location.href = '/login';
+        }
       }
     }
-    throw new ApiError(errCode, errMessage, response.status);
+    throw new ApiError(errCode, errMessage, response.status, errDetails);
   }
 
   return body.data;

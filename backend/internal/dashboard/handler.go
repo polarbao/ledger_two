@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"errors"
 	"net/http"
 
 	"ledger_two/internal/http/middleware"
@@ -36,21 +35,10 @@ func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 	month := r.URL.Query().Get("month")
 	res, err := h.service.GetDashboardData(r.Context(), currentUserID, month)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
 	response.JSON(w, http.StatusOK, res)
 }
 
-// 统一解析统计模块 AppError 和系统级内部报错的转换器
-func (h *Handler) handleError(w http.ResponseWriter, err error) {
-	var appErr *AppError
-	if errors.As(err, &appErr) {
-		response.Error(w, appErr.Status, appErr.Code, appErr.Message)
-		return
-	}
-
-	// 兜底记录内部报错并返回 500
-	response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "内部服务错误，请重试")
-}

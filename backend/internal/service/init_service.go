@@ -2,14 +2,12 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"ledger_two/internal/db/repo"
+	appErrors "ledger_two/internal/errors"
 )
-
-var ErrAlreadyInitialized = errors.New("system is already initialized")
 
 type InitService struct {
 	repo *repo.InitRepo
@@ -42,7 +40,7 @@ func (s *InitService) RunSetup(ctx context.Context, req SetupRequest) error {
 		return err
 	}
 	if isInit {
-		return ErrAlreadyInitialized
+		return appErrors.NewAppError(409, appErrors.ErrCodeAppAlreadyInitialized, "账本已经初始化，无法重复设置")
 	}
 
 	if req.DefaultCurrency == "" {

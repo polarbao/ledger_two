@@ -2,7 +2,6 @@ package settlement
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"ledger_two/internal/http/middleware"
@@ -36,7 +35,7 @@ func (h *Handler) HandleGetBalance(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.GetBalance(r.Context())
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
@@ -62,7 +61,7 @@ func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.CreateSettlement(r.Context(), currentUserID, req)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
@@ -83,21 +82,10 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 	month := r.URL.Query().Get("month")
 	res, err := h.service.List(r.Context(), month)
 	if err != nil {
-		h.handleError(w, err)
+		response.WriteError(w, err)
 		return
 	}
 
 	response.JSON(w, http.StatusOK, res)
 }
 
-// 统一解析结算模块 AppError 和系统级内部报错的转换器
-func (h *Handler) handleError(w http.ResponseWriter, err error) {
-	var appErr *AppError
-	if errors.As(err, &appErr) {
-		response.Error(w, appErr.Status, appErr.Code, appErr.Message)
-		return
-	}
-
-	// 兜底记录内部报错并返回 500
-	response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "内部服务错误，请重试")
-}

@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"ledger_two/internal/http/response"
 )
 
 type contextKey string
@@ -14,15 +15,7 @@ const UserIDKey contextKey = "user_id"
 
 // authError 向客户端返回符合统一 {success, error} 规范的 401 响应
 func authError(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnauthorized)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": false,
-		"error": map[string]string{
-			"code":    "UNAUTHORIZED",
-			"message": "请先登录系统",
-		},
-	})
+	response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
 }
 
 // RequireAuth 是拦截器，从 HttpOnly Cookie 获取鉴权标识并验证 Token

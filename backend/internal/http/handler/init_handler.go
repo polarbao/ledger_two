@@ -36,12 +36,7 @@ func (h *InitHandler) HandleSetup(w http.ResponseWriter, r *http.Request) {
 
 	err := h.svc.RunSetup(r.Context(), req)
 	if err != nil {
-		// 拦截二次初始化异常，准确返回状态码 409
-		if err == service.ErrAlreadyInitialized {
-			response.Error(w, http.StatusConflict, "ALREADY_INITIALIZED", "账本已经初始化，无法重复设置")
-			return
-		}
-		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "初始化失败，请重试")
+		response.WriteError(w, err)
 		return
 	}
 

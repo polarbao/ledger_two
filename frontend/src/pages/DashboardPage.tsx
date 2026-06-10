@@ -60,6 +60,11 @@ export default function DashboardPage() {
     user_stats,
   } = dashboardData;
 
+  // 内存级计算从 ID 转换名字及债务状态，消除 DTO 不一致隐藏 Bug
+  const fromUserName = user_stats?.find((u) => u.user_id === shared_balance?.from_user_id)?.display_name || '对方';
+  const toUserName = user_stats?.find((u) => u.user_id === shared_balance?.to_user_id)?.display_name || '对方';
+  const hasDebt = shared_balance ? shared_balance.amount_cents > 0 : false;
+
   // 2. 查找伙伴的显示名字，用来优化列表里的 payer 展示
   const partner = user_stats?.find((u) => u.user_id !== currentUser?.id);
   const getPayerName = (payerId: string) => {
@@ -147,17 +152,17 @@ export default function DashboardPage() {
             <h3>全局未结余额 (跨月)</h3>
           </div>
           <div className="settlement-alert-body">
-            {shared_balance?.has_debt ? (
+            {hasDebt && shared_balance ? (
               <div className="debt-indicator">
                 <div className="debt-status-text">
                   {shared_balance.from_user_id === currentUser?.id ? (
                     <>
-                      <p className="debt-callout">你需要向 <strong className="partner-highlight">{shared_balance.to_user_name}</strong> 结清</p>
+                      <p className="debt-callout">你需要向 <strong className="partner-highlight">{toUserName}</strong> 结清</p>
                       <div className="debt-amount-big">¥{centsToYuan(shared_balance.amount_cents)}</div>
                     </>
                   ) : (
                     <>
-                      <p className="debt-callout"><strong className="partner-highlight">{shared_balance.from_user_name}</strong> 需要向你支付</p>
+                      <p className="debt-callout"><strong className="partner-highlight">{fromUserName}</strong> 需要向你支付</p>
                       <div className="debt-amount-big text-green">¥{centsToYuan(shared_balance.amount_cents)}</div>
                     </>
                   )}

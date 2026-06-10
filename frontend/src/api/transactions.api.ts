@@ -37,4 +37,7 @@ export const transactionsApi = {
 
   createSharedExpense: (payload: CreateSharedExpensePayload) =>
     api.post<TransactionResponse>('/api/shared-expenses', payload),
+
+  deleteTransaction: (id: string) =>
+    api.delete<void>(`/api/transactions/${id}`),
 };

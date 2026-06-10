@@ -15,6 +15,7 @@ import (
 	"ledger_two/internal/http/handler"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
+	"ledger_two/internal/reports"
 	"ledger_two/internal/safety"
 	"ledger_two/internal/service"
 	"ledger_two/internal/settlement"
@@ -56,6 +57,9 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 
 	safetySvc := safety.NewService(dbConn, cfg)
 	safetyHandler := safety.NewHandler(safetySvc)
+
+	reportsSvc := reports.NewService(dbConn, dashboardRepo, settlementSvc)
+	reportsHandler := reports.NewHandler(reportsSvc)
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/healthz", func(w http.ResponseWriter, req *http.Request) {
@@ -111,6 +115,14 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 			r.Route("/export", func(r chi.Router) {
 				r.Get("/transactions.csv", safetyHandler.HandleExportCSV)
 				r.Get("/full.json", safetyHandler.HandleExportJSON)
+			})
+
+			// 统计报表管理
+			r.Route("/reports", func(r chi.Router) {
+				r.Get("/monthly-summary", reportsHandler.HandleGetMonthlySummary)
+				r.Get("/category-summary", reportsHandler.HandleGetCategorySummary)
+				r.Get("/tag-summary", reportsHandler.HandleGetTagSummary)
+				r.Get("/member-summary", reportsHandler.HandleGetMemberSummary)
 			})
 
 			r.Get("/dashboard", dashboardHandler.HandleGetDashboard)

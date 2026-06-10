@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { DollarSign, HelpCircle, CheckCircle2, User, ArrowRight, Loader2, Calendar } from 'lucide-react';
+import { DollarSign, HelpCircle, CheckCircle2, User, ArrowRight, Loader2, Calendar, X, AlertTriangle } from 'lucide-react';
 import { useUIStore } from '../stores/ui.store';
 import { useAuthStore } from '../stores/auth.store';
 import { settlementApi } from '../api/settlement.api';
 import { dashboardApi } from '../api/dashboard.api';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
+import SkeletonCard from '../components/ui/SkeletonCard';
+import SkeletonTable from '../components/ui/SkeletonTable';
+import EmptyState from '../components/ui/EmptyState';
+import ErrorState from '../components/ui/ErrorState';
 
 /**
  * @brief 结算中心页面组件 (SettlementPage)
@@ -21,14 +25,14 @@ export default function SettlementPage() {
   const [note, setNote] = useState('');
 
   // 1. 获取结算轧差详情 (Balance)
-  const { data: balance, isLoading: isBalanceLoading } = useQuery({
+  const { data: balance, isLoading: isBalanceLoading, isError: isBalanceError, error: balanceError, refetch: refetchBalance } = useQuery({
     queryKey: ['settlement-balance'],
     queryFn: () => settlementApi.getBalance(),
     enabled: !!currentUser,
   });
 
   // 2. 获取当月结算明细列表
-  const { data: historyList, isLoading: isHistoryLoading } = useQuery({
+  const { data: historyList, isLoading: isHistoryLoading, isError: isHistoryError, error: historyError, refetch: refetchHistory } = useQuery({
     queryKey: ['settlements', currentMonth],
     queryFn: () => settlementApi.getSettlements(currentMonth),
     enabled: !!currentUser,
@@ -62,7 +66,6 @@ export default function SettlementPage() {
   const createSettlementMutation = useMutation({
     mutationFn: async () => {
       if (!balance) return;
-      // 组装 UTC 时间格式
       const occurredAt = new Date().toISOString();
 
       return settlementApi.createSettlement({
@@ -74,7 +77,6 @@ export default function SettlementPage() {
       });
     },
     onSuccess: () => {
-      // 成功后全局失效相关缓存，触发全链路数据更新
       queryClient.invalidateQueries({ queryKey: ['settlement-balance'] });
       queryClient.invalidateQueries({ queryKey: ['settlements'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -88,23 +90,11 @@ export default function SettlementPage() {
     createSettlementMutation.mutate();
   };
 
-  const isLoading = isBalanceLoading || isHistoryLoading;
-
-  if (isLoading) {
-    return (
-      <div className="app-loading">
-        <div className="loading-spinner"></div>
-        <p>结算中心数据加载中...</p>
-      </div>
-    );
-  }
-
   // 内存级计算个人对账单轧差
   const getPersonalNetDetails = () => {
     if (!balance || users.length === 0) return [];
 
     return users.map((u) => {
-      // 最终净额判定：如果是债务人，净额为负值；如果是债权人，净额为正值；已结清为 0
       let netCents = 0;
       if (hasDebt && balance) {
         if (u.user_id === balance.from_user_id) {
@@ -126,9 +116,16 @@ export default function SettlementPage() {
   };
 
   const personalDetails = getPersonalNetDetails();
+  const showPageError = isBalanceError || isHistoryError;
+  const pageErrorMsg = (balanceError instanceof Error ? balanceError.message : '') || (historyError instanceof Error ? historyError.message : '') || '获取结算对账信息失败';
+
+  const handleRetryAll = () => {
+    refetchBalance();
+    refetchHistory();
+  };
 
   return (
-    <div className="page-content animate-fade-in">
+    <div className="page-content animate-fade-in text-left">
       {/* 顶部迎宾 Banner */}
       <div className="glass-card header-banner">
         <DollarSign className="banner-icon" />
@@ -138,141 +135,166 @@ export default function SettlementPage() {
         </div>
       </div>
 
-      {/* 1. 当前未结清清偿看板 */}
-      <div className="glass-card settlement-glow-card balance-summary-card">
-        {hasDebt && balance ? (
-          <div className="balance-debt-state">
-            <HelpCircle size={44} className="status-icon text-warning animate-float" />
-            <div className="debt-details">
-              <h4>当前待结账目</h4>
-              <div className="debt-flow">
-                <span className="user-glow">{debtorName}</span>
-                <ArrowRight size={20} className="arrow-flow" />
-                <span className="user-glow">{creditorName}</span>
-              </div>
-              <div className="debt-amount-large">
-                ¥{centsToYuan(balance.amount_cents)}
-              </div>
-              <p className="dimmed-desc">
-                {isDebtor
-                  ? '这是您本期需要向对方汇款补款的最终差额。'
-                  : '这是对方本期需要向您转账汇款的最终差额。'}
-              </p>
-            </div>
-            <button
-              className="btn-primary btn-settle-action"
-              onClick={() => setShowConfirmModal(true)}
-            >
-              一键登记结算
-            </button>
-          </div>
-        ) : (
-          <div className="balance-settled-state">
-            <CheckCircle2 size={48} className="status-icon text-success" />
-            <div className="settled-details">
-              <h3>账目已完全结清</h3>
-              <p className="dimmed">本期共享记账对账单无任何未结欠款，继续保持吧！</p>
-            </div>
-          </div>
-        )}
-      </div>
+      {showPageError && (
+        <ErrorState title="对账数据加载失败" message={pageErrorMsg} onRetry={handleRetryAll} />
+      )}
 
-      {/* 2. 双方对账详细卡片 (双栏格栅) */}
-      <div className="dashboard-grid-2">
-        {personalDetails.map((item) => (
-          <div
-            key={item.userId}
-            className={`glass-card user-balance-card ${item.isMe ? 'my-balance-glow' : ''}`}
-          >
-            <div className="user-card-header">
-              <User size={18} className="user-card-icon" />
-              <h4>
-                {item.displayName} {item.isMe ? '(我)' : '(对方)'} 的对账单
-              </h4>
-            </div>
-            <div className="balance-card-body">
-              <div className="balance-row">
-                <span className="label">累计实际垫付</span>
-                <span className="value">¥{centsToYuan(item.paidCents)}</span>
+      {!showPageError && (
+        <>
+          {/* 1. 当前未结清清偿看板 */}
+          <div className="glass-card settlement-glow-card balance-summary-card">
+            {isBalanceLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '110px' }}>
+                <div className="skeleton-item" style={{ height: '70px', width: '90%', borderRadius: '12px' }}></div>
               </div>
-              <div className="balance-row">
-                <span className="label">累计应承担消费</span>
-                <span className="value">¥{centsToYuan(item.shareCents)}</span>
+            ) : hasDebt && balance ? (
+              <div className="balance-debt-state">
+                <HelpCircle size={44} className="status-icon text-warning animate-float" />
+                <div className="debt-details">
+                  <h4>当前待结账目</h4>
+                  <div className="debt-flow">
+                    <span className="user-glow">{debtorName}</span>
+                    <ArrowRight size={20} className="arrow-flow" />
+                    <span className="user-glow">{creditorName}</span>
+                  </div>
+                  <div className="debt-amount-large">
+                    ¥{centsToYuan(balance.amount_cents)}
+                  </div>
+                  <p className="dimmed-desc">
+                    {isDebtor
+                      ? '这是您本期需要向对方汇款补款的最终差额。'
+                      : '这是对方本期需要向您转账汇款的最终差额。'}
+                  </p>
+                </div>
+                <button
+                  className="btn-primary btn-settle-action"
+                  onClick={() => setShowConfirmModal(true)}
+                >
+                  一键登记结算
+                </button>
               </div>
-              <div className="balance-divider"></div>
-              <div className="balance-row net-row">
-                <span className="label">当期应收/应付轧差</span>
-                {item.netCents > 0 ? (
-                  <span className="value text-success font-heading">
-                    +¥{centsToYuan(item.netCents)} (应收)
-                  </span>
-                ) : item.netCents < 0 ? (
-                  <span className="value text-expense font-heading">
-                    -¥{centsToYuan(Math.abs(item.netCents))} (应付)
-                  </span>
-                ) : (
-                  <span className="value text-muted">¥0.00 (已结清)</span>
-                )}
+            ) : (
+              <div className="balance-settled-state">
+                <CheckCircle2 size={48} className="status-icon text-success" />
+                <div className="settled-details">
+                  <h3>账目已完全结清</h3>
+                  <p className="dimmed">本期共享记账对账单无任何未结欠款，继续保持吧！</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        ))}
-      </div>
 
-      {/* 3. 已结算记录历史列表 */}
-      <div className="glass-card history-settlement-card">
-        <div className="subcard-header">
-          <Calendar size={18} className="subcard-icon" />
-          <h3>当期结算流水历史 ({currentMonth})</h3>
-        </div>
-        <div className="timeline-list">
-          {historyList && historyList.length > 0 ? (
-            historyList.map((item) => (
-              <div className="timeline-item" key={item.id}>
-                <div className="item-left">
-                  <span className="type-badge badge-settle">结算</span>
-                  <div className="tx-details">
-                    <span className="tx-title">
-                      {getUserDisplayName(item.from_user_id)} ➔ {getUserDisplayName(item.to_user_id)}
-                    </span>
-                    <span className="tx-meta">
-                      {formatDate(item.occurred_at)}
-                      {item.note && ` · 备注: ${item.note}`}
-                    </span>
+          {/* 2. 双方对账详细卡片 (双栏格栅) */}
+          <div className="dashboard-grid-2">
+            {isBalanceLoading ? (
+              <SkeletonCard count={2} height="170px" />
+            ) : (
+              personalDetails.map((item) => (
+                <div
+                  key={item.userId}
+                  className={`glass-card user-balance-card ${item.isMe ? 'my-balance-glow' : ''}`}
+                >
+                  <div className="user-card-header">
+                    <User size={18} className="user-card-icon" />
+                    <h4>
+                      {item.displayName} {item.isMe ? '(我)' : '(对方)'} 的对账单
+                    </h4>
+                  </div>
+                  <div className="balance-card-body">
+                    <div className="balance-row">
+                      <span className="label">累计实际垫付</span>
+                      <span className="value">¥{centsToYuan(item.paidCents)}</span>
+                    </div>
+                    <div className="balance-row">
+                      <span className="label">累计应承担消费</span>
+                      <span className="value">¥{centsToYuan(item.shareCents)}</span>
+                    </div>
+                    <div className="balance-divider"></div>
+                    <div className="balance-row net-row">
+                      <span className="label">当期应收/应付轧差</span>
+                      {item.netCents > 0 ? (
+                        <span className="value text-success font-heading">
+                          +¥{centsToYuan(item.netCents)} (应收)
+                        </span>
+                      ) : item.netCents < 0 ? (
+                        <span className="value text-expense font-heading">
+                          -¥{centsToYuan(Math.abs(item.netCents))} (应付)
+                        </span>
+                      ) : (
+                        <span className="value text-muted">¥0.00 (已结清)</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="tx-amount val-settle">
-                  ¥{centsToYuan(item.amount_cents)}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="list-empty-state">
-              <p>该账期暂无已执行的结算记录</p>
-            </div>
-          )}
-        </div>
-      </div>
+              ))
+            )}
+          </div>
 
-      {/* 4. 二次确认模态框 */}
-      {showConfirmModal && balance && (
-        <div className="drawer-overlay glass-blur show" onClick={() => setShowConfirmModal(false)}>
-          <div
-            className="drawer-container glass-card confirm-modal-box"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="drawer-header">
-              <div className="header-title">
-                <DollarSign className="title-icon text-glow" />
-                <h3>确认登记结算补款</h3>
-              </div>
+          {/* 3. 已结算记录历史列表 */}
+          <div className="glass-card history-settlement-card">
+            <div className="subcard-header">
+              <Calendar size={18} className="subcard-icon" />
+              <h3>当期结算流水历史 ({currentMonth})</h3>
             </div>
-            <div className="drawer-body modal-body-padding">
+            {isHistoryLoading ? (
+              <SkeletonTable rows={3} />
+            ) : historyList && historyList.length > 0 ? (
+              <div className="timeline-list">
+                {historyList.map((item) => (
+                  <div className="timeline-item" key={item.id}>
+                    <div className="item-left">
+                      <span className="type-badge badge-settle">结算</span>
+                      <div className="tx-details">
+                        <span className="tx-title">
+                          {getUserDisplayName(item.from_user_id)} ➔ {getUserDisplayName(item.to_user_id)}
+                        </span>
+                        <span className="tx-meta">
+                          {formatDate(item.occurred_at).substring(5, 16)}
+                          {item.note && ` · 备注: ${item.note}`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="tx-amount val-settle">
+                      ¥{centsToYuan(item.amount_cents)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState 
+                title="暂无历史结算记录"
+                description="本月账期中双方尚未登记过清偿补款账单。在上方发起一键结算，或者新生成共同支出后即可自动激活。" 
+              />
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ==========================================
+         二次清偿确认模态框 Modal (Danger 危险操作按钮)
+         ========================================== */}
+      {showConfirmModal && balance && (
+        <div className="drawer-overlay show" style={{ alignItems: 'center', justifyContent: 'center' }}>
+          <div className="confirm-modal-box animate-fade-in">
+            <div className="drawer-header" style={{ padding: '16px 20px' }}>
+              <div className="header-title" style={{ color: 'var(--accent-purple)' }}>
+                <DollarSign className="title-icon" style={{ color: 'inherit' }} />
+                <h3 style={{ fontSize: '16px' }}>确认登记结算补款</h3>
+              </div>
+              <button 
+                className="btn-close-drawer" 
+                onClick={() => setShowConfirmModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body-padding" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <p className="modal-alert-text">
                 确认执行以下轧差清偿结算补款吗？该操作将建立结算补款凭证，并在交易流水中生成一条共享的结算明细记录。
               </p>
 
-              <div className="modal-transfer-card">
+              {/* 收付款关系卡片 */}
+              <div className="modal-transfer-card" style={{ margin: 0 }}>
                 <div className="transfer-party">
                   <span className="party-name">{debtorName}</span>
                   <span className="party-role">付款方</span>
@@ -284,45 +306,58 @@ export default function SettlementPage() {
                 </div>
               </div>
 
+              {/* 轧差大数额 */}
               <div className="modal-amount-display">
                 <span className="amount-label">结算清偿金额</span>
                 <span className="amount-val">¥{centsToYuan(balance.amount_cents)}</span>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">结算备注 (选填)</label>
+              {/* 备注表单 */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>结算备注 (选填)</label>
                 <input
                   type="text"
                   placeholder="例如: 微信已转账结清"
-                  className="form-input"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,12,16,0.6)', color: '#fff', fontSize: '13px' }}
                 />
               </div>
-            </div>
-            <div className="drawer-footer">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setShowConfirmModal(false)}
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                className="btn-primary btn-submit"
-                onClick={handleConfirmSettlement}
-                disabled={createSettlementMutation.isPending}
-              >
-                {createSettlementMutation.isPending ? (
-                  <>
-                    <Loader2 size={16} className="spinner" />
-                    <span>执行结算中...</span>
-                  </>
-                ) : (
-                  <span>确认已结算</span>
-                )}
-              </button>
+
+              {/* 审计日志提示 */}
+              <div style={{ background: 'rgba(147, 51, 234, 0.04)', border: '1px solid rgba(147, 51, 234, 0.15)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#c084fc', textAlign: 'left' }}>
+                <AlertTriangle size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span>此操作作为高风险数据变动动作，将被自动记录并同步写入系统的 `audit_logs` 审计表中以备历史追溯。</span>
+              </div>
+
+              {/* 模态框页脚操作 (Danger 样式按钮) */}
+              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={createSettlementMutation.isPending}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px', background: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)', boxShadow: '0 8px 32px 0 rgba(126, 34, 206, 0.2)', borderColor: 'rgba(126, 34, 206, 0.2)' }}
+                  onClick={handleConfirmSettlement}
+                  disabled={createSettlementMutation.isPending}
+                >
+                  {createSettlementMutation.isPending ? (
+                    <>
+                      <Loader2 size={16} className="spinner" />
+                      <span>登记结算中...</span>
+                    </>
+                  ) : (
+                    <span>确认已结算</span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

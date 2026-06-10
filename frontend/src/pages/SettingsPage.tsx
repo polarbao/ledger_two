@@ -12,6 +12,7 @@ import {
   X 
 } from 'lucide-react';
 import { api, ApiError } from '../api/client';
+import EmptyState from '../components/ui/EmptyState';
 
 interface BackupInfo {
   filename: string;
@@ -63,7 +64,6 @@ export default function SettingsPage() {
     try {
       const res = await api.post<{ filename: string }>('/api/admin/backup');
       setSuccessMsg(`备份创建成功: ${res.filename}`);
-      // 延时刷新列表以保证物理落盘及排序一致
       fetchBackups();
     } catch (err: unknown) {
       if (err instanceof ApiError) {
@@ -270,10 +270,10 @@ export default function SettingsPage() {
                 <span>扫描备份文件中...</span>
               </div>
             ) : backups.length === 0 ? (
-              <div className="list-empty-state" style={{ minHeight: '100px', background: 'rgba(255,255,255,0.01)', border: '1px dashed rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-                <Clock size={20} style={{ marginRight: '6px', color: 'var(--text-muted)' }} />
-                <span>暂无任何手动备份文件</span>
-              </div>
+              <EmptyState 
+                title="暂无手动备份"
+                description="系统暂未生成备份文件。建议在日常正式记账前，先创建一次手动备份以确保安全。"
+              />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto', paddingRight: '4px' }}>
                 {backups.map((b) => (
@@ -308,13 +308,13 @@ export default function SettingsPage() {
       </div>
 
       {/* ==========================================
-         UI 安全防范二次确认弹窗 Modal
+         UI 安全防范二次确认弹窗 Modal (Danger 警示样式按钮)
          ========================================== */}
       {modalType && (
         <div className="drawer-overlay show" style={{ alignItems: 'center', justifyContent: 'center' }}>
           <div className="confirm-modal-box animate-fade-in">
             <div className="drawer-header" style={{ padding: '16px 20px' }}>
-              <div className="header-title" style={{ color: modalType === 'backup' ? '#c084fc' : '#34d399' }}>
+              <div className="header-title" style={{ color: '#ef4444' }}>
                 <AlertTriangle className="title-icon" style={{ color: 'inherit' }} />
                 <h3 style={{ fontSize: '16px' }}>
                   {modalType === 'backup' && '立即创建手动备份？'}
@@ -334,24 +334,24 @@ export default function SettingsPage() {
                 {modalType === 'json' && '即将导出全量 JSON 账目归档。导出的 JSON 数据包中已经去除了所有用户的登录密码 Hash 等系统敏感密钥凭证。该文件包含核心财务流水，切勿随意发送给外部他人。'}
               </p>
 
-              <div style={{ background: 'rgba(255, 159, 67, 0.05)', border: '1px solid rgba(255, 159, 67, 0.15)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#fca5a5', textAlign: 'left' }}>
+              <div style={{ background: 'rgba(239, 68, 68, 0.04)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#fca5a5', textAlign: 'left' }}>
                 <AlertTriangle size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
                 <span>此操作作为高风险数据变动动作，将被自动记录并同步写入系统的 `audit_logs` 审计表中以备历史追溯。</span>
               </div>
 
-              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px' }}>
-                <button className="btn-secondary" style={{ padding: '10px' }} onClick={() => setModalType(null)}>
+              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button className="btn-secondary" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={() => setModalType(null)}>
                   取消
                 </button>
                 {modalType === 'backup' && (
-                  <button className="btn-primary" style={{ padding: '10px' }} onClick={handleBackupSubmit}>
+                  <button className="btn-danger" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={handleBackupSubmit}>
                     立即备份
                   </button>
                 )}
                 {modalType === 'csv' && (
                   <button 
-                    className="btn-primary text-green" 
-                    style={{ padding: '10px', background: 'rgba(16,185,129,0.15)', borderColor: 'rgba(16,185,129,0.3)', color: '#34d399' }} 
+                    className="btn-danger" 
+                    style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
                     onClick={() => {
                       setModalType(null);
                       triggerDownload(
@@ -365,8 +365,8 @@ export default function SettingsPage() {
                 )}
                 {modalType === 'json' && (
                   <button 
-                    className="btn-primary" 
-                    style={{ padding: '10px', background: 'rgba(59,130,246,0.15)', borderColor: 'rgba(59,130,246,0.3)', color: '#60a5fa' }} 
+                    className="btn-danger" 
+                    style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
                     onClick={() => {
                       setModalType(null);
                       triggerDownload('/api/export/full.json', 'ledger_full_export.json');

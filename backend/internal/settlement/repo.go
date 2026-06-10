@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Repository 结算模块数据库仓库
@@ -192,6 +194,43 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID str
 	}
 
 	return paidMap, shareMap, settledMap, nil
+}
+
+// CreateAuditLogWithTx 在事务内物理写入单笔审计日志
+func (r *Repository) CreateAuditLogWithTx(ctx context.Context, tx *sql.Tx, ledgerID, actorUserID, action, entityType, entityID, beforeJSON, afterJSON string) error {
+	var executor dbExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+
+	id := uuid.NewString()
+	now := time.Now().Format(time.RFC3339)
+
+	var beforeVal, afterVal interface{}
+	if beforeJSON != "" {
+		beforeVal = beforeJSON
+	} else {
+		beforeVal = nil
+	}
+	if afterJSON != "" {
+		afterVal = afterJSON
+	} else {
+		afterVal = nil
+	}
+
+	_, err := executor.ExecContext(ctx, `
+		INSERT INTO audit_logs (
+			id, ledger_id, actor_user_id, action, entity_type, entity_id, 
+			before_json, after_json, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		id, ledgerID, actorUserID, action, entityType, entityID,
+		beforeVal, afterVal, now,
+	)
+	if err != nil {
+		return fmt.Errorf("insert audit log failed: %w", err)
+	}
+	return nil
 }
 
 type dbExecutor interface {

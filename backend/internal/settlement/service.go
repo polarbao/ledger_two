@@ -3,6 +3,7 @@ package settlement
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -195,12 +196,20 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 		return nil, fmt.Errorf("insert settlement transaction stream failed: %w", err)
 	}
 
+	// 写入审计日志
+	afterDTO := s.toDTO(settleModel)
+	afterJSONBytes, _ := json.Marshal(afterDTO)
+	err = s.repo.CreateAuditLogWithTx(ctx, dbTx, ledgerID, currentUserID, "create", "settlement", settlementID, "", string(afterJSONBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create audit log for settlement failed: %w", err)
+	}
+
 	err = dbTx.Commit()
 	if err != nil {
 		return nil, err
 	}
 
-	return s.toDTO(settleModel), nil
+	return afterDTO, nil
 }
 
 // List 拉取历史结算明细列表

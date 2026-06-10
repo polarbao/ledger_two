@@ -212,6 +212,16 @@ func TestSettlementFlow(t *testing.T) {
 		t.Errorf("expected 1 settlement transaction stream record, got %d", count)
 	}
 
+	// 验证在 audit_logs 审计表中是否成功生成了一条 action = 'create' 且 entity_type = 'settlement' 的审计行
+	var auditCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE action = 'create' AND entity_type = 'settlement'").Scan(&auditCount)
+	if err != nil {
+		t.Fatalf("query audit logs error: %v", err)
+	}
+	if auditCount != 1 {
+		t.Errorf("expected 1 audit log for settlement creation, got %d", auditCount)
+	}
+
 	// ----------------------------------------------------
 	// 场景 5: 结算后重新查询待结算余额，预期结清（金额为 0）。
 	// ----------------------------------------------------

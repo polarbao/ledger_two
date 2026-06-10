@@ -50,6 +50,7 @@ func TestSettlementFlow(t *testing.T) {
 		r.Use(middleware.RequireAuth(jwtSecret))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Get("/", txHandler.HandleList)
+			r.Delete("/{id}", txHandler.HandleDelete)
 		})
 		r.Route("/api/shared-expenses", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreateSharedExpense)
@@ -259,5 +260,126 @@ func TestSettlementFlow(t *testing.T) {
 	historyData := historyResp.Data.([]interface{})
 	if len(historyData) != 1 {
 		t.Errorf("expected 1 history record, got %d", len(historyData))
+	}
+
+	// ----------------------------------------------------
+	// 场景 7: 100.01元奇数分平摊，付款人多承担 1 分。
+	// ----------------------------------------------------
+	payloadOdd := map[string]interface{}{
+		"title":         "奇数分费用",
+		"amount_cents":  int64(10001),
+		"currency":      "CNY",
+		"occurred_at":   time.Now().Format(time.RFC3339),
+		"payer_user_id": userAID,
+		"category_id":   categoryID,
+		"split_method":  "equal",
+	}
+	bodyOdd, _ := json.Marshal(payloadOdd)
+	reqOdd, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(bodyOdd))
+	reqOdd.AddCookie(cookieA)
+	rrOdd := httptest.NewRecorder()
+	r.ServeHTTP(rrOdd, reqOdd)
+	if rrOdd.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for odd cents, got %d", rrOdd.Code)
+	}
+
+	var oddResp response.SuccessResponse
+	json.Unmarshal(rrOdd.Body.Bytes(), &oddResp)
+	oddData := oddResp.Data.(map[string]interface{})
+	participants := oddData["participants"].([]interface{})
+
+	var shareA, shareB int64
+	for _, p := range participants {
+		pMap := p.(map[string]interface{})
+		uID := pMap["user_id"].(string)
+		shareAmt := int64(pMap["share_amount_cents"].(float64))
+		if uID == userAID {
+			shareA = shareAmt
+		} else if uID == userBID {
+			shareB = shareAmt
+		}
+	}
+	// 付款人 A 承担 5001 分，B 承担 5000 分
+	if shareA != 5001 || shareB != 5000 {
+		t.Errorf("expected A to share 5001 and B to share 5000, got A=%d, B=%d", shareA, shareB)
+	}
+
+	// 此时拉取余额，由于上一轮已经结清，当前应当只包含该交易的影响：B 欠 A 5000分
+	rrBalanceOdd := httptest.NewRecorder()
+	r.ServeHTTP(rrBalanceOdd, reqBalance)
+	if rrBalanceOdd.Code != http.StatusOK {
+		t.Fatalf("get balance for odd cents failed: %v", rrBalanceOdd.Body.String())
+	}
+	var balRespOdd response.SuccessResponse
+	json.Unmarshal(rrBalanceOdd.Body.Bytes(), &balRespOdd)
+	balDataOdd := balRespOdd.Data.(map[string]interface{})
+	if int64(balDataOdd["amount_cents"].(float64)) != 5000 {
+		t.Errorf("expected B to owe A 5000 cents, got %v", balDataOdd["amount_cents"])
+	}
+
+	// ----------------------------------------------------
+	// 场景 8: 删除共同支出后净额重新计算。
+	// ----------------------------------------------------
+	// A 再支付 4000分，平摊，B 额外分摊 2000分
+	payloadTemp := map[string]interface{}{
+		"title":         "测试临时删除账单",
+		"amount_cents":  int64(4000),
+		"currency":      "CNY",
+		"occurred_at":   time.Now().Format(time.RFC3339),
+		"payer_user_id": userAID,
+		"category_id":   categoryID,
+		"split_method":  "equal",
+	}
+	bodyTemp, _ := json.Marshal(payloadTemp)
+	reqTemp, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(bodyTemp))
+	reqTemp.AddCookie(cookieA)
+	rrTemp := httptest.NewRecorder()
+	r.ServeHTTP(rrTemp, reqTemp)
+	if rrTemp.Code != http.StatusCreated {
+		t.Fatalf("create temp shared expense failed: %d", rrTemp.Code)
+	}
+
+	var tempResp response.SuccessResponse
+	json.Unmarshal(rrTemp.Body.Bytes(), &tempResp)
+	tempData := tempResp.Data.(map[string]interface{})
+	tempTxID := tempData["id"].(string)
+
+	// 此时欠款应为 5000 + 2000 = 7000 分
+	rrBalanceBeforeDel := httptest.NewRecorder()
+	r.ServeHTTP(rrBalanceBeforeDel, reqBalance)
+	var balRespBD response.SuccessResponse
+	json.Unmarshal(rrBalanceBeforeDel.Body.Bytes(), &balRespBD)
+	balDataBD := balRespBD.Data.(map[string]interface{})
+	if int64(balDataBD["amount_cents"].(float64)) != 7000 {
+		t.Errorf("expected balance before deletion to be 7000, got %v", balDataBD["amount_cents"])
+	}
+
+	// 软删除该临时交易
+	reqDel, _ := http.NewRequest("DELETE", "/api/transactions/"+tempTxID, nil)
+	reqDel.AddCookie(cookieA)
+	rrDel := httptest.NewRecorder()
+	r.ServeHTTP(rrDel, reqDel)
+	if rrDel.Code != http.StatusOK {
+		t.Fatalf("delete transaction failed: %d", rrDel.Code)
+	}
+
+	// 删除后再次拉取余额，预期欠款恢复到删除前的 5000 分
+	rrBalanceAfterDel := httptest.NewRecorder()
+	r.ServeHTTP(rrBalanceAfterDel, reqBalance)
+	var balRespAD response.SuccessResponse
+	json.Unmarshal(rrBalanceAfterDel.Body.Bytes(), &balRespAD)
+	balDataAD := balRespAD.Data.(map[string]interface{})
+	if int64(balDataAD["amount_cents"].(float64)) != 5000 {
+		t.Errorf("expected balance after deletion to restore to 5000, got %v", balDataAD["amount_cents"])
+	}
+
+	// 验证在 audit_logs 表里产生了 delete 审计日志记录
+	var delAuditCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE action = 'delete' AND entity_id = ?", tempTxID).Scan(&delAuditCount)
+	if err != nil {
+		t.Fatalf("query delete audit log error: %v", err)
+	}
+	if delAuditCount != 1 {
+		t.Errorf("expected 1 audit log for delete action, got %d", delAuditCount)
 	}
 }

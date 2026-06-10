@@ -1,2 +1,33 @@
 .specstory/
 .DS_Store
+
+# SQLite 数据库文件（运行时数据，不应进入版本库）
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Go 编译产物
+backend/bin/
+backend/ledger-two
+
+# 前端构建产物
+frontend/dist/
+frontend/node_modules/
+frontend/.pnpm-store/
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 编辑器 / IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# Docker 数据卷本地目录
+data/
+backups/
+uploads/

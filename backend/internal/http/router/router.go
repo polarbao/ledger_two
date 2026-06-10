@@ -63,8 +63,18 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/healthz", func(w http.ResponseWriter, req *http.Request) {
+			dbStatus := "ok"
+			if dbConn != nil {
+				if err := dbConn.PingContext(req.Context()); err != nil {
+					dbStatus = "error"
+				}
+			} else {
+				dbStatus = "none"
+			}
 			response.JSON(w, http.StatusOK, map[string]string{
-				"status": "ok",
+				"status":  "ok",
+				"db":      dbStatus,
+				"version": "0.2.0",
 			})
 		})
 

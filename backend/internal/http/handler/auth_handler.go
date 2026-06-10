@@ -26,17 +26,17 @@ type LoginRequest struct {
 func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid payload", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "请求参数解析失败")
 		return
 	}
 
 	tokenString, err := h.svc.Login(r.Context(), req.Username, req.Password)
 	if err != nil {
 		if err == service.ErrInvalidCredentials {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			response.Error(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "用户名或密码错误")
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "登录服务异常")
 		return
 	}
 
@@ -51,7 +51,9 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+	// 登录成功：Cookie 已写入，返回成功响应
+	// 前端 App 启动逻辑会再调用 /api/auth/me 获取完整用户信息
+	response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
@@ -72,13 +74,13 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	// 被 middleware 拦截器包裹，提取身份标识
 	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
 		return
 	}
 
 	me, err := h.svc.GetMe(r.Context(), userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "获取用户信息失败")
 		return
 	}
 

@@ -68,9 +68,9 @@ export default function AppShell() {
 
         <div className="sidebar-footer">
           <div className="user-profile">
-            <div className="avatar">{user?.displayName?.charAt(0) || 'U'}</div>
+            <div className="avatar">{user?.display_name?.charAt(0) || 'U'}</div>
             <div className="info">
-              <span className="name">{user?.displayName}</span>
+              <span className="name">{user?.display_name}</span>
               <span className="role">@{user?.username}</span>
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function AppShell() {
 
           <div className="desktop-user-info">
             <span className="welcome-text">
-              你好, <strong className="text-glow">{user?.displayName}</strong>
+              你好, <strong className="text-glow">{user?.display_name}</strong>
             </span>
           </div>
         </header>

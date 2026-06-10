@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -11,13 +12,26 @@ type contextKey string
 
 const UserIDKey contextKey = "user_id"
 
+// authError 向客户端返回符合统一 {success, error} 规范的 401 响应
+func authError(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": false,
+		"error": map[string]string{
+			"code":    "UNAUTHORIZED",
+			"message": "请先登录系统",
+		},
+	})
+}
+
 // RequireAuth 是拦截器，从 HttpOnly Cookie 获取鉴权标识并验证 Token
 func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie("token")
 			if err != nil {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				authError(w)
 				return
 			}
 
@@ -27,19 +41,19 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 			})
 
 			if err != nil || !token.Valid {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				authError(w)
 				return
 			}
 
 			claims, ok := token.Claims.(jwt.MapClaims)
 			if !ok {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				authError(w)
 				return
 			}
 
 			userID, ok := claims["user_id"].(string)
 			if !ok {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				authError(w)
 				return
 			}
 

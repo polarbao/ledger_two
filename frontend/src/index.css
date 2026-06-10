@@ -1535,3 +1535,262 @@ body {
   }
 }
 
+/* ==========================================
+   结算中心 (SettlementPage) 拟物样式
+   ========================================== */
+
+.balance-summary-card {
+  padding: 32px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.balance-debt-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.debt-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.debt-details h4 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.debt-flow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.user-glow {
+  font-size: 16px;
+  font-weight: 600;
+  color: #c084fc;
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+}
+
+.arrow-flow {
+  color: var(--text-muted);
+}
+
+.debt-amount-large {
+  font-size: 48px;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  color: #fca5a5;
+  background: linear-gradient(90deg, #fca5a5 0%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -1.5px;
+}
+
+.btn-settle-action {
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.3);
+  transition: all 0.2s;
+}
+
+.btn-settle-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(147, 51, 234, 0.5);
+}
+
+.balance-settled-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.settled-details h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: #34d399;
+}
+
+/* 双方对账卡片 */
+.user-balance-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: border-color 0.3s;
+}
+
+.my-balance-glow {
+  border: 1px solid rgba(147, 51, 234, 0.15);
+  box-shadow: inset 0 0 16px rgba(147, 51, 234, 0.02), 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+}
+
+.user-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 12px;
+}
+
+.user-card-icon {
+  color: var(--text-secondary);
+}
+
+.user-card-header h4 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.balance-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.balance-row .label {
+  color: var(--text-secondary);
+}
+
+.balance-row .value {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.balance-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  margin: 4px 0;
+}
+
+.net-row {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* 结算模态框特定样式 */
+.confirm-modal-box {
+  width: 440px;
+  height: auto;
+  align-self: center;
+  transform: scale(0.9) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(20, 25, 38, 0.95);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+}
+
+.drawer-overlay.show .confirm-modal-box {
+  transform: scale(1) translateY(0);
+}
+
+.modal-body-padding {
+  padding: 24px;
+  gap: 16px;
+}
+
+.modal-alert-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.modal-transfer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(10, 12, 16, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 16px;
+  border-radius: 12px;
+  margin: 8px 0;
+}
+
+.transfer-party {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+  flex-basis: 0;
+}
+
+.transfer-party:first-child {
+  text-align: left;
+}
+
+.transfer-party:last-child {
+  text-align: right;
+}
+
+.party-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.party-role {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.transfer-arrow {
+  color: var(--text-muted);
+  margin: 0 12px;
+}
+
+.modal-amount-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px;
+  background: rgba(147, 51, 234, 0.05);
+  border: 1px solid rgba(147, 51, 234, 0.12);
+  border-radius: 12px;
+}
+
+.amount-label {
+  font-size: 12px;
+  color: #c084fc;
+}
+
+.amount-val {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+/* 历史卡片 */
+.history-settlement-card {
+  padding: 24px;
+}
+
+

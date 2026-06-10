@@ -1,0 +1,247 @@
+package transaction
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
+
+	"ledger_two/internal/http/middleware"
+	"ledger_two/internal/http/response"
+)
+
+// Handler 交易模块 HTTP 端点控制器
+type Handler struct {
+	service *Service
+}
+
+// NewHandler 实例化 Handler
+// @brief 创建 Transaction 的 Handler 控制器实例
+// @param service *Service 业务服务句柄
+// @return *Handler 控制器实例
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
+}
+
+// HandleCreate 记账流水接口
+// @brief 处理 POST /api/transactions 记一笔普通账单的请求
+// @param w http.ResponseWriter 响应写入句柄
+// @param r *http.Request 携带请求数据的 HTTP Request
+func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	var req CreateTransactionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		return
+	}
+
+	res, err := h.service.Create(r.Context(), currentUserID, req)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusCreated, res)
+}
+
+// HandleGetByID 查询流水详情接口
+// @brief 处理 GET /api/transactions/{id} 请求
+// @param w http.ResponseWriter 响应句柄
+// @param r *http.Request 请求句柄
+func (h *Handler) HandleGetByID(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "账单 ID 不能为空")
+		return
+	}
+
+	res, err := h.service.GetByID(r.Context(), currentUserID, id)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleUpdate 局部更新账单接口
+// @brief 处理 PATCH /api/transactions/{id} 编辑普通账单属性的请求
+// @param w http.ResponseWriter 响应句柄
+// @param r *http.Request 请求句柄
+func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "账单 ID 不能为空")
+		return
+	}
+
+	var req UpdateTransactionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		return
+	}
+
+	res, err := h.service.Update(r.Context(), currentUserID, id, req)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleDelete 软删除账单接口
+// @brief 处理 DELETE /api/transactions/{id} 软删除普通账单的请求
+// @param w http.ResponseWriter 响应句柄
+// @param r *http.Request 请求句柄
+func (h *Handler) HandleDelete(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "账单 ID 不能为空")
+		return
+	}
+
+	err := h.service.Delete(r.Context(), currentUserID, id)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// HandleList 查询流水列表接口
+// @brief 处理 GET /api/transactions 列表过滤查询请求
+// @param w http.ResponseWriter 响应句柄
+// @param r *http.Request 请求句柄
+func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	q := r.URL.Query()
+	page, _ := strconv.Atoi(q.Get("page"))
+	pageSize, _ := strconv.Atoi(q.Get("page_size"))
+
+	filter := TransactionFilter{
+		Month:      q.Get("month"),
+		Type:       q.Get("type"),
+		CategoryID: q.Get("category_id"),
+		Keyword:    q.Get("keyword"),
+		Page:       page,
+		PageSize:   pageSize,
+	}
+
+	res, err := h.service.List(r.Context(), currentUserID, filter)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleCreateSharedExpense 共同支出记账接口
+// @brief 处理 POST /api/shared-expenses 记一笔共同支出的请求
+// @param w http.ResponseWriter 响应写入句柄
+// @param r *http.Request 携带请求数据的 HTTP Request
+func (h *Handler) HandleCreateSharedExpense(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	var req CreateSharedExpenseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		return
+	}
+
+	res, err := h.service.CreateSharedExpense(r.Context(), currentUserID, req)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusCreated, res)
+}
+
+// HandleGetSharedExpenseByID 获取共同支出详情接口
+// @brief 处理 GET /api/shared-expenses/{id} 共同账单详情拉取请求
+// @param w http.ResponseWriter 响应写入句柄
+// @param r *http.Request 请求句柄
+func (h *Handler) HandleGetSharedExpenseByID(w http.ResponseWriter, r *http.Request) {
+	// 鉴权以及获取逻辑和普通流水详情完全一致，可以直接复用
+	h.HandleGetByID(w, r)
+}
+
+// HandleUpdateSharedExpense 更新共同支出接口
+// @brief 处理 PATCH /api/shared-expenses/{id} 共同账单编辑请求
+// @param w http.ResponseWriter 响应写入句柄
+// @param r *http.Request 请求句柄
+func (h *Handler) HandleUpdateSharedExpense(w http.ResponseWriter, r *http.Request) {
+	// 编辑的底层逻辑也已经在 service.Update 中完成，可以直接复用
+	h.HandleUpdate(w, r)
+}
+
+// 统一解析业务 AppError 和系统级内部报错的转换器
+func (h *Handler) handleError(w http.ResponseWriter, err error) {
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		response.Error(w, appErr.Status, appErr.Code, appErr.Message)
+		return
+	}
+
+	// 兜底记录内部报错并返回 500
+	response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "内部服务错误，请重试")
+}
+
+// HandleListCategories 拉取系统分类列表接口
+// @brief 处理 GET /api/categories 请求，从 categories 表拉取本账本对应的系统分类
+// @param w http.ResponseWriter 响应句柄
+// @param r *http.Request 请求句柄
+func (h *Handler) HandleListCategories(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	res, err := h.service.ListCategories(r.Context())
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+

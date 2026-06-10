@@ -142,7 +142,7 @@ func (s *Service) GetByID(ctx context.Context, currentUserID string, id string) 
 
 	// 校验查看权限
 	if !s.CanViewTransaction(currentUserID, tx) {
-		return nil, appErrors.NewAppError(403, "FORBIDDEN", "无权查看此账单")
+		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到或已删除")
 	}
 
 	dto := s.toDTO(tx, tags)
@@ -168,6 +168,11 @@ func (s *Service) GetByID(ctx context.Context, currentUserID string, id string) 
 func (s *Service) Update(ctx context.Context, currentUserID string, id string, req UpdateTransactionRequest) (*TransactionResponse, error) {
 	tx, oldTags, err := s.repo.GetByID(ctx, id)
 	if err != nil {
+		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
+	}
+
+	// 校验查看权限以防越权探测
+	if !s.CanViewTransaction(currentUserID, tx) {
 		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
 	}
 
@@ -364,6 +369,11 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 func (s *Service) Delete(ctx context.Context, currentUserID string, id string) error {
 	tx, tags, err := s.repo.GetByID(ctx, id)
 	if err != nil {
+		return appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
+	}
+
+	// 校验查看权限以防越权探测
+	if !s.CanViewTransaction(currentUserID, tx) {
 		return appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
 	}
 

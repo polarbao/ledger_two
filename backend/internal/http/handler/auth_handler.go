@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"time"
 
 	"ledger_two/internal/http/middleware"
@@ -43,7 +44,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Now().Add(24 * 7 * time.Hour),
 		HttpOnly: true,
-		Secure:   false, // 仅在本地 demo 下为 false
+		Secure:   os.Getenv("APP_ENV") == "production", // 生产环境下开启 Secure
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -53,7 +54,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
-	// 强制置空和设置负数的失效时间来摧毁 Session
+	// 强制置空和设置负数的失效时间来摧毁 Session，需与登录 Cookie 属性保持完全对齐
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token",
 		Value:    "",
@@ -61,6 +62,8 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   os.Getenv("APP_ENV") == "production",
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	response.JSON(w, http.StatusOK, map[string]bool{"success": true})

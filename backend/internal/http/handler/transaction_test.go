@@ -153,14 +153,14 @@ func TestTransactionFlow(t *testing.T) {
 	}
 
 	// 6. 测试可见性隔离：private 账单对方不可见
-	// 用户 B 尝试获取用户 A 的那个 private 账单
+	// 用户 B 尝试获取用户 A 的那个 private 账单，预期返回 404 Not Found 以防越权探测
 	reqGetB, _ := http.NewRequest("GET", "/api/transactions/"+txID, nil)
 	reqGetB.AddCookie(cookieB)
 	rrGetB := httptest.NewRecorder()
 	r.ServeHTTP(rrGetB, reqGetB)
 
-	if rrGetB.Code != http.StatusForbidden {
-		t.Errorf("expected 403 Forbidden for partner private bill, got %d", rrGetB.Code)
+	if rrGetB.Code != http.StatusNotFound {
+		t.Errorf("expected 404 Not Found for partner private bill, got %d", rrGetB.Code)
 	}
 
 	// 用户 B 拉取列表，预期 private 账单不应该在列表中出现

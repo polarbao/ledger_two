@@ -9,6 +9,7 @@
     "eamodio.gitlens",
     "humao.rest-client",
     "qwtel.sqlite-viewer",
-    "ms-vscode-remote.remote-wsl"
+    "ms-vscode-remote.remote-wsl",
+    "sitoi.ai-commit"
   ]
 }

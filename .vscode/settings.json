@@ -23,5 +23,6 @@
   "go.toolsManagement.autoUpdate": true,
   "go.useLanguageServer": true,
   "eslint.validate": ["javascript", "typescript", "typescriptreact"],
-  "typescript.tsdk": "frontend/node_modules/typescript/lib"
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "specstory.cloudSync.enabled": "always"
 }

@@ -84,7 +84,7 @@ export default function DashboardPage() {
         <div className="banner-title-area">
           <Sparkles className="banner-icon" />
           <div>
-            <h2>欢迎回来，{currentUser?.displayName}</h2>
+            <h2>欢迎回来，{currentUser?.display_name}</h2>
             <p className="dimmed">这是你们在 {currentMonth} 账期的共享记账空间。</p>
           </div>
         </div>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
           </div>
           <div className="stat-split-list">
             <div className="stat-split-item">
-              <span className="user-name">我 ({currentUser?.displayName})</span>
+              <span className="user-name">我 ({currentUser?.display_name})</span>
               <div className="amounts-line">
                 <span className="paid-val">垫付 ¥{centsToYuan(my_paid_cents)}</span>
                 <span className="divider">/</span>

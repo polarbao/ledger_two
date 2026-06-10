@@ -3,6 +3,8 @@ package router
 import (
 	"database/sql"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 	mid "github.com/go-chi/chi/v5/middleware"
@@ -97,5 +99,32 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 		})
 	})
 
+	// 生产环境下静态托管前端 SPA 页面，任何非 API 请求若找不到物理文件则 Fallback 重定向回 index.html
+	r.NotFound(spaHandler("./web/dist"))
+
 	return r
+}
+
+// spaHandler 返回一个用于托管前端单页应用（SPA）静态文件的 HandlerFunc
+func spaHandler(staticDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// 拼接物理磁盘文件路径
+		path := filepath.Join(staticDir, r.URL.Path)
+
+		// 检查路径是否存在
+		fi, err := os.Stat(path)
+		if os.IsNotExist(err) || fi.IsDir() {
+			// 如果文件不存在或者是目录，自动 Fallback 托管返回前端 index.html 入口
+			http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
+			return
+		}
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// 如果文件在磁盘中存在，提供正常的静态资源服务
+		http.FileServer(http.Dir(staticDir)).ServeHTTP(w, r)
+	}
 }

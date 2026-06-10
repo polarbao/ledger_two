@@ -15,6 +15,7 @@ import (
 	"ledger_two/internal/http/handler"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
+	"ledger_two/internal/safety"
 	"ledger_two/internal/service"
 	"ledger_two/internal/settlement"
 	"ledger_two/internal/transaction"
@@ -52,6 +53,9 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	dashboardRepo := dashboard.NewRepository(dbConn)
 	dashboardSvc := dashboard.NewService(dashboardRepo, settlementSvc)
 	dashboardHandler := dashboard.NewHandler(dashboardSvc)
+
+	safetySvc := safety.NewService(dbConn, cfg)
+	safetyHandler := safety.NewHandler(safetySvc)
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/healthz", func(w http.ResponseWriter, req *http.Request) {
@@ -93,6 +97,20 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Get("/balance", settlementHandler.HandleGetBalance)
 				r.Get("/", settlementHandler.HandleList)
 				r.Post("/", settlementHandler.HandleCreate)
+			})
+
+			// 备份与数据安全管理
+			r.Route("/admin", func(r chi.Router) {
+				r.Post("/backup", safetyHandler.HandleManualBackup)
+				r.Get("/backups", safetyHandler.HandleGetBackups)
+				r.Get("/backups/{filename}", safetyHandler.HandleDownloadBackup)
+				r.Get("/backups/*", safetyHandler.HandleDownloadBackup)
+			})
+
+			// 导出管理
+			r.Route("/export", func(r chi.Router) {
+				r.Get("/transactions.csv", safetyHandler.HandleExportCSV)
+				r.Get("/full.json", safetyHandler.HandleExportJSON)
 			})
 
 			r.Get("/dashboard", dashboardHandler.HandleGetDashboard)

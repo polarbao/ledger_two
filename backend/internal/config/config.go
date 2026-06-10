@@ -8,6 +8,7 @@ type Config struct {
 	Port      string
 	DSN       string
 	JWTSecret string
+	BackupDir string
 }
 
 func Load() *Config {
@@ -23,9 +24,14 @@ func Load() *Config {
 	if jwtSecret == "" {
 		jwtSecret = "ledger-two-secret-for-dev-only"
 	}
+	backupDir := os.Getenv("BACKUP_DIR")
+	if backupDir == "" {
+		backupDir = "data/backups"
+	}
 	return &Config{
 		Port:      port,
 		DSN:       dsn,
 		JWTSecret: jwtSecret,
+		BackupDir: backupDir,
 	}
 }

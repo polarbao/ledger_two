@@ -1,15 +1,25 @@
 export interface BalanceResponse {
-  paid_map: Record<string, number>;
-  share_map: Record<string, number>;
-  settled_map: Record<string, number>;
-  net_map: Record<string, number>;
-  has_debt: boolean;
+  user_a_paid_cents: number;
+  user_a_share_cents: number;
+  user_b_paid_cents: number;
+  user_b_share_cents: number;
+  user_a_settled_to_b_cents: number;
+  user_b_settled_to_a_cents: number;
+  user_a_net_cents: number;
+  user_b_net_cents: number;
   from_user_id: string;
-  from_user_name: string;
   to_user_id: string;
-  to_user_name: string;
   amount_cents: number;
 }
+
+export interface CreateSettlementPayload {
+  from_user_id: string;
+  to_user_id: string;
+  amount_cents: number;
+  occurred_at: string;
+  note: string;
+}
+
 
 export interface SettlementResponse {
   id: string;
@@ -18,6 +28,7 @@ export interface SettlementResponse {
   to_user_id: string;
   amount_cents: number;
   occurred_at: string;
+  note?: string;
   created_by_user_id: string;
   created_at: string;
 }

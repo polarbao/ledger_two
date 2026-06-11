@@ -262,19 +262,16 @@ export default function AnalyticsPage() {
                 <div className="form-row-2">
                   {memberData.map((m) => {
                     const finalNet = m.final_net;
-                    let statusLabel = '';
-                    let statusClass = '';
-
-                    if (finalNet > 0) {
-                      statusLabel = `本月仍应收款 ¥${centsToYuan(finalNet)}`;
-                      statusClass = 'text-green';
-                    } else if (finalNet < 0) {
-                      statusLabel = `本月仍应付款 ¥${centsToYuan(-finalNet)}`;
-                      statusClass = 'val-expense';
-                    } else {
-                      statusLabel = '本期账目已结清';
-                      statusClass = 'dimmed';
-                    }
+                    const statusLabel = finalNet > 0
+                      ? `本月仍应收款 ¥${centsToYuan(finalNet)}`
+                      : finalNet < 0
+                        ? `本月仍应付款 ¥${centsToYuan(-finalNet)}`
+                        : '本期账目已结清';
+                    const statusClass = finalNet > 0
+                      ? 'text-green'
+                      : finalNet < 0
+                        ? 'val-expense'
+                        : 'dimmed';
 
                     return (
                       <div 

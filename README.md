@@ -85,6 +85,35 @@ Docker：
 docker compose up -d --build
 ```
 
+## 本地测试与质量门禁
+
+为了确保业务计算、权限和结算逻辑的稳定性，建议在提交代码前进行本地测试与静态校验。
+
+### 1. 后端测试 (Go)
+由于后端使用 SQLite 且在编译时开启了 CGO，本地测试推荐且必须在 **WSL2** 或提供 GCC 编译的 Linux 虚拟机环境下运行：
+```bash
+# 进入后端目录，在 WSL2 下执行全部集成与单元测试
+wsl bash -c "cd backend && /usr/local/go/bin/go test -v ./..."
+```
+
+### 2. 前端测试与编译 (React)
+前端提供了 Lint 规约检查、TypeScript 静态类型检测以及单元测试：
+```bash
+cd frontend
+# 运行 ESLint 规约检查
+npx pnpm lint
+# 运行前端单元测试 (Vitest)
+npx pnpm test
+# 运行前端打包构建编译
+npx pnpm build
+```
+
+### 3. Docker 镜像本地构建校验
+校验生产多阶段 Docker 构建的完整性与稳定性：
+```bash
+docker compose build
+```
+
 ## AI 编码规则
 
 AI/Codex 开始编码前必须阅读：

@@ -52,7 +52,9 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    fetchBackups();
+    Promise.resolve().then(() => {
+      fetchBackups();
+    });
   }, []);
 
   // 执行手动备份
@@ -106,8 +108,12 @@ export default function SettingsPage() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(blobUrl);
       setSuccessMsg('文件下载成功！');
-    } catch (err: any) {
-      setErrorMsg(err.message || '文件下载失败，请重试');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg('文件下载失败，请重试');
+      }
     } finally {
       setActionLoading(false);
     }

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { UserStatItem } from '../types/dashboard';
 import { useAuthStore } from '../stores/auth.store';
 import { useUIStore } from '../stores/ui.store';
 import { dashboardApi } from '../api/dashboard.api';
@@ -33,7 +34,7 @@ export default function DashboardPage() {
     setAddDrawerOpen(true);
   };
 
-  const getPayerName = (payerId: string, userStats: any[] | undefined) => {
+  const getPayerName = (payerId: string, userStats: UserStatItem[] | undefined) => {
     if (payerId === currentUser?.id) return '我';
     const partner = userStats?.find((u) => u.user_id !== currentUser?.id);
     if (partner && payerId === partner.user_id) return partner.display_name;

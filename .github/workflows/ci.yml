@@ -1,70 +1,95 @@
-name: CI
+name: CI Quality Gate
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   backend-test:
+    name: Backend Tests & Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc libsqlite3-dev
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26.4'
-          cache-dependency-path: backend/go.sum
+          go-version-file: 'backend/go.mod'
+          cache-dependency-path: 'backend/go.sum'
 
-      - name: Run backend tests
-        working-directory: backend
-        run: go test -v ./...
+      - name: Run Go Tests
+        run: |
+          cd backend
+          go test -v ./...
 
-  frontend-lint-build:
+  frontend-build-lint:
+    name: Frontend Build, Lint & Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          version: 11
+          version: 9.15.4
 
-      - name: Install dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
+      - name: Get pnpm cache directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Run frontend lint
-        working-directory: frontend
-        run: pnpm lint
+      - name: Cache pnpm modules
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
-      - name: Run frontend unit tests
-        working-directory: frontend
-        run: pnpm test
+      - name: Install Dependencies
+        run: |
+          cd frontend
+          pnpm install --frozen-lockfile
 
-      - name: Run frontend build
-        working-directory: frontend
-        run: pnpm build
+      - name: Run Eslint
+        run: |
+          cd frontend
+          pnpm run lint
+
+      - name: Run Vitest
+        run: |
+          cd frontend
+          pnpm test
+
+      - name: Run Build
+        run: |
+          cd frontend
+          pnpm run build
 
   docker-build:
+    name: Docker Build Dry-Run
     runs-on: ubuntu-latest
+    needs: [backend-test, frontend-build-lint]
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t ledger-two:ci -f deploy/docker/Dockerfile .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image (Dry Run)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          push: false
+          tags: ledger-two:ci-test

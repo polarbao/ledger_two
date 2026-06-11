@@ -44,7 +44,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Now().Add(24 * 7 * time.Hour),
 		HttpOnly: true,
-		Secure:   os.Getenv("APP_ENV") == "production", // 生产环境下开启 Secure
+		Secure:   isCookieSecure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -62,7 +62,7 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   os.Getenv("APP_ENV") == "production",
+		Secure:   isCookieSecure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -84,4 +84,18 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, me)
+}
+
+func isCookieSecure(r *http.Request) bool {
+	secure := os.Getenv("APP_ENV") == "production"
+	if os.Getenv("COOKIE_SECURE") == "false" {
+		return false
+	} else if os.Getenv("COOKIE_SECURE") == "true" {
+		return true
+	}
+	// 如果在生产环境下使用非加密的 HTTP（例如内网 NAS 直接访问），自动将 Secure 降级为 false 允许保存 Cookie
+	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
+		return false
+	}
+	return secure
 }

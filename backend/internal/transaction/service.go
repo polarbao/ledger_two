@@ -1593,6 +1593,10 @@ func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchT
 		if err != nil {
 			return appErrors.NewAppError(404, "NOT_FOUND", "账单交易未找到: "+txID)
 		}
+		// 校验可见性，不可见直接返回 404 NOT_FOUND 避免越权探测
+		if !s.CanViewTransaction(currentUserID, txModel) {
+			return appErrors.NewAppError(404, "NOT_FOUND", "账单交易未找到: "+txID)
+		}
 		if txModel.LedgerID != ledgerID {
 			return appErrors.NewAppError(403, "FORBIDDEN", "无权操作该账单交易")
 		}
@@ -1602,7 +1606,7 @@ func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchT
 		txModels = append(txModels, txModel)
 	}
 
-	// 2. 开启事务执行写入
+	// 2. 开启事务进行写入
 	dbConn := s.repo.GetDB()
 	tx, err := dbConn.BeginTx(ctx, nil)
 	if err != nil {

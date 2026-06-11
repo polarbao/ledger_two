@@ -31,3 +31,4 @@ frontend/.pnpm-store/
 data/
 backups/
 uploads/
+#*.sh

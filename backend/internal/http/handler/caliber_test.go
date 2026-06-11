@@ -573,6 +573,9 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	if rrTx5.Code != http.StatusCreated {
 		t.Fatalf("create transaction 5 failed: %d", rrTx5.Code)
 	}
+	var resTx5 response.SuccessResponse
+	json.Unmarshal(rrTx5.Body.Bytes(), &resTx5)
+	tx5ID := resTx5.Data.(map[string]interface{})["id"].(string)
 
 	// 3. 多维度高级筛选测试 (GET /api/transactions)
 	// (a) A 视角拉取全量，应该看到 1, 2, 3, 5。看不到 4 (B的private)。共 4 笔
@@ -636,7 +639,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	}
 
 	// 4. 批量打标签越权测试 (POST /api/transactions/batch-tag)
-	// (a) B 试图给 A 的私有交易 1 打标签，预期返回 403 Forbidden
+	// (a) B 试图给 A 的私有交易 1 打标签，预期返回 404 Not Found (以防越权探测)
 	batchIllegalPayload := map[string]interface{}{
 		"transaction_ids": []string{tx1ID},
 		"tag_names":       []string{"illegal"},
@@ -646,8 +649,8 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	reqIllegal.AddCookie(cookieB)
 	rrIllegal := httptest.NewRecorder()
 	r.ServeHTTP(rrIllegal, reqIllegal)
-	if rrIllegal.Code != http.StatusForbidden {
-		t.Errorf("expected B tagging A's private transaction to return 403 Forbidden, got %d", rrIllegal.Code)
+	if rrIllegal.Code != http.StatusNotFound {
+		t.Errorf("expected B tagging A's private transaction to return 404 Not Found, got %d", rrIllegal.Code)
 	}
 
 	// 5. 批量打标签正常追加测试
@@ -691,7 +694,6 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	if len(tx2Tags) != 2 {
 		t.Errorf("expected tx2 tags length to be 2, got %d (tags: %v)", len(tx2Tags), tx2Tags)
 	}
-
 	// 校验审计日志：应该新增了 2 条 action = 'batch_tag' 的审计记录
 	var auditCount int
 	err := db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE action = 'batch_tag'").Scan(&auditCount)

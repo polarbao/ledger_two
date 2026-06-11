@@ -408,13 +408,29 @@ export default function TransactionFormDrawer() {
         </div>
 
         {/* 表单体 */}
-        <form onSubmit={handleSubmit(onSubmit)} className="drawer-body">
-          {isOffline && (
-            <div className="error-banner" style={{ background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.2)', color: '#ca8a04' }}>
-              <p>当前处于离线状态。您可以继续记账并保存为“离线草稿”，等网络恢复后手动提交。</p>
-            </div>
-          )}
-          {showSuccessBanner && !isOffline && (
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="drawer-form-wrapper"
+          style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }}
+        >
+          <div
+            className="drawer-body"
+            style={{
+              flexGrow: 1,
+              overflowY: 'auto',
+              padding: '24px 28px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+              textAlign: 'left',
+            }}
+          >
+            {isOffline && (
+              <div className="error-banner" style={{ background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.2)', color: '#ca8a04' }}>
+                <p>当前处于离线状态。您可以继续记账并保存为“离线草稿”，等网络恢复后手动提交。</p>
+              </div>
+            )}
+            {showSuccessBanner && !isOffline && (
             <div className="success-banner animate-fade-in" style={{
               background: 'rgba(53, 196, 137, 0.12)',
               border: '1px solid rgba(53, 196, 137, 0.25)',
@@ -970,9 +986,25 @@ export default function TransactionFormDrawer() {
               />
             </div>
           )}
+          </div>
 
-          {/* 底部操作区 */}
-          <div className="drawer-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+          {/* 底部操作区 (固定底部，带高保真玻璃拟物样式) */}
+          <div
+            className="drawer-footer"
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+              flexWrap: 'wrap',
+              padding: '20px 28px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+              background: 'rgba(15, 20, 32, 0.95)',
+              backdropFilter: 'blur(10px)',
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 10,
+            }}
+          >
             <button
               type="button"
               className="btn-secondary"
@@ -986,20 +1018,40 @@ export default function TransactionFormDrawer() {
               取消
             </button>
             <button
-              type="submit"
+              type="button"
               className="btn-secondary"
               style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
               disabled={isSubmitting || createTxMutation.isPending || isOffline}
-              onClick={() => setSubmitAction('continue')}
+              onClick={() => {
+                setSubmitAction('continue');
+                handleSubmit(onSubmit)();
+              }}
             >
               保存并继续
             </button>
             <button
               type="submit"
               className="btn-primary btn-submit"
-              style={{ width: 'auto', padding: '10px 24px' }}
+              style={{
+                width: 'auto',
+                padding: '10px 24px',
+                background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
+                border: 'none',
+                boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)',
+                color: '#fff',
+                fontWeight: 600,
+                transition: 'all 0.2s',
+              }}
               disabled={isSubmitting || createTxMutation.isPending}
               onClick={() => setSubmitAction('close')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(168, 85, 247, 0.5)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(168, 85, 247, 0.3)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
             >
               {(isSubmitting || createTxMutation.isPending) && submitAction === 'close' ? (
                 <>

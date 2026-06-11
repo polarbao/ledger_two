@@ -75,6 +75,50 @@ body {
   pointer-events: none;
 }
 
+/* 统一按钮浏览器重置 */
+button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+}
+
+/* 自定义暗黑玻璃拟物二级按钮 */
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-secondary) !important;
+  padding: 10px 20px !important;
+  border-radius: 12px !important;
+  font-family: var(--font-heading) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-1px) !important;
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(0) !important;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
 /* 自定义微光按钮 */
 .btn-primary {
   background: var(--gradient-brand);

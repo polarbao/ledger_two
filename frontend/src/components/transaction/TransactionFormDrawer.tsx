@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -43,12 +43,32 @@ export default function TransactionFormDrawer() {
   const currentUser = useAuthStore((state) => state.user);
   const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction } = useUIStore();
 
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [submitAction, setSubmitAction] = useState<'close' | 'continue'>('close');
+
+  const LAST_TYPE_KEY = 'ledger_two_last_type';
+  const LAST_CATEGORY_KEY = 'ledger_two_last_category_id';
+  const RECENT_CATEGORIES_KEY = 'ledger_two_recent_categories';
+  const LAST_TAGS_KEY = 'ledger_two_last_tag_names';
+  const RECENT_TAGS_KEY = 'ledger_two_recent_tags';
+  const LAST_PAYER_KEY = 'ledger_two_last_payer_id';
+  const LAST_VISIBILITY_KEY = 'ledger_two_last_visibility';
+
+  // 读取本地缓存的分类和标签列表以供快捷气泡使用
+  const recentCategories = JSON.parse(localStorage.getItem(RECENT_CATEGORIES_KEY) || '[]') as string[];
+  const recentTags = JSON.parse(localStorage.getItem(RECENT_TAGS_KEY) || '[]') as string[];
+
   // 1. 获取全量分类列表
   const { data: categories, isLoading: isCategoriesLoading } = useQuery({
     queryKey: ['categories'],
     queryFn: () => transactionsApi.getCategories(),
     enabled: addDrawerOpen,
   });
+
+  const catMap = categories?.reduce((acc, cat) => {
+    acc[cat.id] = cat.name;
+    return acc;
+  }, {} as Record<string, string>) || {};
 
   // 2. 获取成员用户列表（复用 Dashboard 返回的 user_stats）
   const { data: dashboardData } = useQuery({
@@ -97,12 +117,29 @@ export default function TransactionFormDrawer() {
   const watchPayer = watch('payer_user_id');
   const watchSplitMethod = watch('split_method');
 
-  // 当登录用户发生变化或抽屉打开时，更新默认付款人
+  // 打开抽屉时注入最近记账默认值 (仅在非复制一笔时)
   useEffect(() => {
-    if (currentUser?.id && !copySourceTransaction) {
-      setValue('payer_user_id', currentUser.id);
+    if (addDrawerOpen && !copySourceTransaction) {
+      const localType = (localStorage.getItem(LAST_TYPE_KEY) as FormValues['type']) || 'expense';
+      const localCategory = localStorage.getItem(LAST_CATEGORY_KEY) || '';
+      const localTags = localStorage.getItem(LAST_TAGS_KEY) || '';
+      const localPayer = localStorage.getItem(LAST_PAYER_KEY) || currentUser?.id || '';
+      const localVisibility = (localStorage.getItem(LAST_VISIBILITY_KEY) as FormValues['visibility']) || 'partner_readable';
+
+      reset({
+        type: localType,
+        amount: '',
+        title: '',
+        category_id: localCategory,
+        tag_names: localTags,
+        payer_user_id: localPayer,
+        split_method: 'equal',
+        occurred_at: getTodayString(),
+        note: '',
+        visibility: localVisibility,
+      });
     }
-  }, [currentUser, setValue, addDrawerOpen, copySourceTransaction]);
+  }, [addDrawerOpen, copySourceTransaction, currentUser, reset]);
 
   // 处理“复制一笔”回填逻辑
   useEffect(() => {
@@ -163,24 +200,72 @@ export default function TransactionFormDrawer() {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       // 自动失效相关缓存以触发现代大屏数据更新
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      setAddDrawerOpen(false);
-      setCopySourceTransaction(null);
-      reset({
-        type: 'expense',
-        amount: '',
-        title: '',
-        category_id: '',
-        tag_names: '',
-        payer_user_id: currentUser?.id || '',
-        split_method: 'equal',
-        occurred_at: getTodayString(),
-        note: '',
-        visibility: 'partner_readable',
-      });
+      
+      // 更新 LocalStorage 快捷缓存默认值
+      localStorage.setItem(LAST_TYPE_KEY, variables.type);
+      localStorage.setItem(LAST_PAYER_KEY, variables.payer_user_id);
+      localStorage.setItem(LAST_VISIBILITY_KEY, variables.visibility);
+
+      if (variables.category_id) {
+        localStorage.setItem(LAST_CATEGORY_KEY, variables.category_id);
+        const recentCats = JSON.parse(localStorage.getItem(RECENT_CATEGORIES_KEY) || '[]') as string[];
+        const updatedCats = [variables.category_id, ...recentCats.filter((id) => id !== variables.category_id)].slice(0, 3);
+        localStorage.setItem(RECENT_CATEGORIES_KEY, JSON.stringify(updatedCats));
+      } else {
+        localStorage.removeItem(LAST_CATEGORY_KEY);
+      }
+
+      if (variables.tag_names) {
+        localStorage.setItem(LAST_TAGS_KEY, variables.tag_names);
+        const currentTags = variables.tag_names.split(/[，, ；;]/).map((t) => t.trim()).filter(Boolean);
+        if (currentTags.length > 0) {
+          const recentTags = JSON.parse(localStorage.getItem(RECENT_TAGS_KEY) || '[]') as string[];
+          let updatedTags = [...recentTags];
+          currentTags.forEach((tag) => {
+            updatedTags = [tag, ...updatedTags.filter((t) => t !== tag)];
+          });
+          localStorage.setItem(RECENT_TAGS_KEY, JSON.stringify(updatedTags.slice(0, 3)));
+        }
+      } else {
+        localStorage.removeItem(LAST_TAGS_KEY);
+      }
+
+      if (submitAction === 'continue') {
+        setShowSuccessBanner(true);
+        setTimeout(() => setShowSuccessBanner(false), 3000);
+
+        reset({
+          type: variables.type,
+          amount: '',
+          title: '',
+          category_id: variables.category_id || '',
+          tag_names: variables.tag_names || '',
+          payer_user_id: variables.payer_user_id,
+          split_method: variables.split_method || 'equal',
+          occurred_at: variables.occurred_at ? variables.occurred_at.substring(0, 10) : getTodayString(),
+          note: '',
+          visibility: variables.visibility || 'partner_readable',
+        });
+      } else {
+        setAddDrawerOpen(false);
+        setCopySourceTransaction(null);
+        reset({
+          type: 'expense',
+          amount: '',
+          title: '',
+          category_id: '',
+          tag_names: '',
+          payer_user_id: currentUser?.id || '',
+          split_method: 'equal',
+          occurred_at: getTodayString(),
+          note: '',
+          visibility: 'partner_readable',
+        });
+      }
     },
   });
 
@@ -211,6 +296,24 @@ export default function TransactionFormDrawer() {
 
         {/* 表单体 */}
         <form onSubmit={handleSubmit(onSubmit)} className="drawer-body">
+          {showSuccessBanner && (
+            <div className="success-banner animate-fade-in" style={{
+              background: 'rgba(53, 196, 137, 0.12)',
+              border: '1px solid rgba(53, 196, 137, 0.25)',
+              color: 'var(--accent-green)',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backdropFilter: 'blur(8px)'
+            }}>
+              <Check size={16} />
+              <span>账单已成功保存！您可以继续录入下一笔。</span>
+            </div>
+          )}
           {createTxMutation.isError && (
             <div className="error-banner">
               <p>
@@ -258,15 +361,46 @@ export default function TransactionFormDrawer() {
           {/* 金额大输入框 */}
           <div className="form-group amount-group">
             <label className="form-label">交易金额 (元)</label>
-            <div className="amount-input-wrapper">
+            <div className="amount-input-wrapper" style={{ position: 'relative' }}>
               <span className="currency-symbol">¥</span>
               <input
                 type="number"
                 step="0.01"
+                inputMode="decimal"
+                pattern="[0-9]*\.?[0-9]*"
                 placeholder="0.00"
                 className={`amount-input ${errors.amount ? 'input-error' : ''}`}
+                style={{ paddingRight: '40px' }}
                 {...register('amount')}
               />
+              {watch('amount') && (
+                <button
+                  type="button"
+                  onClick={() => setValue('amount', '')}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '22px',
+                    height: '22px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    transition: 'background 0.2s',
+                    padding: 0
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
             {errors.amount && <span className="field-error">{errors.amount.message}</span>}
           </div>
@@ -294,14 +428,37 @@ export default function TransactionFormDrawer() {
                 <span>加载分类中...</span>
               </div>
             ) : (
-              <select className="form-select" {...register('category_id')}>
-                <option value="">-- 请选择分类 (选填) --</option>
-                {categories?.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select className="form-select" {...register('category_id')}>
+                  <option value="">-- 请选择分类 (选填) --</option>
+                  {categories?.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                {/* 快捷分类气泡 */}
+                {recentCategories.length > 0 && (
+                  <div className="recent-helpers" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    <span className="dimmed-desc" style={{ fontSize: '12px', alignSelf: 'center', color: 'var(--text-muted)' }}>最近使用:</span>
+                    {recentCategories.map((catId) => {
+                      const catName = catMap[catId];
+                      if (!catName) return null;
+                      return (
+                        <button
+                          key={catId}
+                          type="button"
+                          className="badge-shared"
+                          style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', cursor: 'pointer' }}
+                          onClick={() => setValue('category_id', catId)}
+                        >
+                          {catName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -323,6 +480,34 @@ export default function TransactionFormDrawer() {
               className="form-input"
               {...register('tag_names')}
             />
+            {/* 快捷标签气泡 */}
+            {recentTags.length > 0 && (
+              <div className="recent-helpers" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                <span className="dimmed-desc" style={{ fontSize: '12px', alignSelf: 'center', color: 'var(--text-muted)' }}>最近标签:</span>
+                {recentTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className="badge-shared"
+                    style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', cursor: 'pointer' }}
+                    onClick={() => {
+                      const currentVal = watch('tag_names') || '';
+                      const trimmed = currentVal.trim();
+                      if (!trimmed) {
+                        setValue('tag_names', tag);
+                      } else {
+                        const tagsList = trimmed.split(/[，, ；;]/).map((t) => t.trim()).filter(Boolean);
+                        if (!tagsList.includes(tag)) {
+                          setValue('tag_names', `${trimmed}, ${tag}`);
+                        }
+                      }
+                    }}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 共同支出特定字段 */}
@@ -445,16 +630,27 @@ export default function TransactionFormDrawer() {
           </div>
 
           {/* 底部操作区 */}
-          <div className="drawer-footer">
-            <button type="button" className="btn-secondary" onClick={handleClose}>
+          <div className="drawer-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <button type="button" className="btn-secondary" style={{ marginRight: 'auto' }} onClick={handleClose}>
               取消
             </button>
             <button
               type="submit"
-              className="btn-primary btn-submit"
+              className="btn-secondary"
+              style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
               disabled={isSubmitting || createTxMutation.isPending}
+              onClick={() => setSubmitAction('continue')}
             >
-              {(isSubmitting || createTxMutation.isPending) ? (
+              保存并继续
+            </button>
+            <button
+              type="submit"
+              className="btn-primary btn-submit"
+              style={{ width: 'auto', padding: '10px 24px' }}
+              disabled={isSubmitting || createTxMutation.isPending}
+              onClick={() => setSubmitAction('close')}
+            >
+              {(isSubmitting || createTxMutation.isPending) && submitAction === 'close' ? (
                 <>
                   <Loader2 size={16} className="spinner" />
                   <span>保存中...</span>

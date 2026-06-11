@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -1000,4 +1001,495 @@ func (s *Service) DeleteTemplate(ctx context.Context, currentUserID string, id s
 	}
 
 	return nil
+}
+
+// CreateRecurringRule 创建周期账单规则
+func (s *Service) CreateRecurringRule(ctx context.Context, currentUserID string, req CreateRecurringRuleRequest) (*RecurringRuleResponse, error) {
+	if req.Name == "" {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "规则名称不能为空")
+	}
+	if req.Type != "expense" && req.Type != "income" && req.Type != "shared_expense" {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的记账规则类型")
+	}
+	if req.Frequency != "weekly" && req.Frequency != "monthly" && req.Frequency != "yearly" {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的周期频次频率")
+	}
+	if _, err := time.Parse("2006-01-02", req.NextDueDate); err != nil {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "首次触发到期日期格式不正确")
+	}
+	if req.AmountCents != nil && *req.AmountCents < 0 {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "规则金额不能为负数")
+	}
+
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	ruleID := uuid.NewString()
+
+	var titleVal sql.NullString
+	if req.Title != nil {
+		titleVal = sql.NullString{String: *req.Title, Valid: true}
+	}
+	var amountVal sql.NullInt64
+	if req.AmountCents != nil {
+		amountVal = sql.NullInt64{Int64: *req.AmountCents, Valid: true}
+	}
+	var catVal sql.NullString
+	if req.CategoryID != nil {
+		catVal = sql.NullString{String: *req.CategoryID, Valid: true}
+	}
+	var payerVal sql.NullString
+	if req.PayerUserID != nil {
+		payerVal = sql.NullString{String: *req.PayerUserID, Valid: true}
+	}
+	var splitVal sql.NullString
+	if req.SplitMethod != nil {
+		splitVal = sql.NullString{String: *req.SplitMethod, Valid: true}
+	}
+	var noteVal sql.NullString
+	if req.Note != nil {
+		noteVal = sql.NullString{String: *req.Note, Valid: true}
+	}
+
+	tagsStr := strings.Join(req.TagNames, ",")
+	var tagsVal sql.NullString
+	if tagsStr != "" {
+		tagsVal = sql.NullString{String: tagsStr, Valid: true}
+	}
+
+	rule := &RecurringRule{
+		ID:              ruleID,
+		LedgerID:        ledgerID,
+		Name:            req.Name,
+		Type:            req.Type,
+		Title:           titleVal,
+		AmountCents:     amountVal,
+		CategoryID:      catVal,
+		PayerUserID:     payerVal,
+		SplitMethod:     splitVal,
+		TagNames:        tagsVal,
+		Note:            noteVal,
+		Frequency:       req.Frequency,
+		NextDueDate:     req.NextDueDate,
+		CreatedByUserID: currentUserID,
+	}
+
+	if err := s.repo.CreateRecurringRule(ctx, rule); err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "创建周期规则失败")
+	}
+
+	rule.CreatedAt = time.Now()
+	rule.UpdatedAt = time.Now()
+
+	return s.toRecurringRuleResponse(rule), nil
+}
+
+// ListRecurringRules 获取指定账本下的所有周期账单规则
+func (s *Service) ListRecurringRules(ctx context.Context, currentUserID string) ([]*RecurringRuleResponse, error) {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	rules, err := s.repo.ListRecurringRules(ctx, ledgerID)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取周期规则列表失败")
+	}
+
+	var res []*RecurringRuleResponse
+	for _, r := range rules {
+		res = append(res, s.toRecurringRuleResponse(r))
+	}
+	return res, nil
+}
+
+// DeleteRecurringRule 删除指定的周期规则
+func (s *Service) DeleteRecurringRule(ctx context.Context, currentUserID string, id string) error {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	rule, err := s.repo.GetRecurringRuleByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return appErrors.NewAppError(404, "NOT_FOUND", "欲删除的周期规则不存在")
+		}
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取周期规则失败")
+	}
+
+	if rule.LedgerID != ledgerID {
+		return appErrors.NewAppError(403, "FORBIDDEN", "无权删除该周期规则")
+	}
+
+	if err := s.repo.DeleteRecurringRule(ctx, id, ledgerID); err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "删除周期规则失败")
+	}
+
+	return nil
+}
+
+// ListRecurringReminders 获取账本下的待确认到期提醒列表（在获取前自动扫描并生成最新的 reminder 数据）
+func (s *Service) ListRecurringReminders(ctx context.Context, currentUserID string) ([]*RecurringReminderResponse, error) {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	// 1. 懒加载检测：生成因时间流逝而过期的提醒实例
+	if err := s.checkAndGenerateReminders(ctx, ledgerID); err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "生成到期提醒发生异常")
+	}
+
+	// 2. 从数据库拉取
+	details, err := s.repo.ListRecurringRemindersWithDetails(ctx, ledgerID)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取周期提醒列表失败")
+	}
+
+	var res []*RecurringReminderResponse
+	for _, d := range details {
+		res = append(res, s.toRecurringReminderResponse(d))
+	}
+	return res, nil
+}
+
+// ConfirmReminder 确认周期提醒并转为真实交易
+func (s *Service) ConfirmReminder(ctx context.Context, currentUserID string, reminderID string) error {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	reminder, err := s.repo.GetRecurringReminderByID(ctx, reminderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return appErrors.NewAppError(404, "NOT_FOUND", "欲确认的提醒不存在")
+		}
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取到期提醒失败")
+	}
+
+	if reminder.LedgerID != ledgerID {
+		return appErrors.NewAppError(403, "FORBIDDEN", "无权确认该到期提醒")
+	}
+
+	if reminder.Status != "pending" {
+		return appErrors.NewAppError(400, "VALIDATION_ERROR", "该周期提醒已非 pending 待确认状态")
+	}
+
+	rule, err := s.repo.GetRecurringRuleByID(ctx, reminder.RuleID)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取关联周期规则失败")
+	}
+
+	var users []string
+	if rule.Type == "shared_expense" {
+		var err error
+		users, err = s.getSystemUsers(ctx)
+		if err != nil {
+			return appErrors.NewAppError(500, "INTERNAL_ERROR", "拉取系统成员列表失败")
+		}
+	}
+
+	// 开始事务
+	dbConn := s.repo.GetDB()
+	tx, err := dbConn.BeginTx(ctx, nil)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "启动事务失败")
+	}
+	defer tx.Rollback()
+
+	occurredAt, err := time.Parse("2006-01-02", reminder.DueDate)
+	if err != nil {
+		occurredAt = time.Now()
+	}
+
+	txID := uuid.NewString()
+
+	if rule.Type == "shared_expense" {
+		amount := rule.AmountCents.Int64
+		payer := rule.PayerUserID.String
+		splitMethod := rule.SplitMethod.String
+		if splitMethod == "" {
+			splitMethod = "equal"
+		}
+
+		var otherUserID string
+		for _, u := range users {
+			if u != payer {
+				otherUserID = u
+				break
+			}
+		}
+
+		var payerShare, otherShare int64
+		if splitMethod == "equal" {
+			base := amount / 2
+			rem := amount % 2
+			payerShare = base + rem
+			otherShare = base
+		} else {
+			payerShare = amount
+			otherShare = 0
+		}
+
+		splits := []TransactionSplit{
+			{ID: uuid.NewString(), TransactionID: txID, UserID: payer, ShareAmount: payerShare},
+			{ID: uuid.NewString(), TransactionID: txID, UserID: otherUserID, ShareAmount: otherShare},
+		}
+
+		realTx := &Transaction{
+			ID:              txID,
+			LedgerID:        ledgerID,
+			Type:            "shared_expense",
+			Title:           rule.Title.String,
+			Amount:          amount,
+			Currency:        "CNY",
+			OccurredAt:      occurredAt,
+			OwnerUserID:     currentUserID,
+			CreatedByUserID: currentUserID,
+			PayerUserID:     payer,
+			CategoryID:      rule.CategoryID,
+			Visibility:      "shared",
+			SplitMethod:     sql.NullString{String: splitMethod, Valid: true},
+			Note:            rule.Note,
+		}
+
+		var tags []string
+		if rule.TagNames.String != "" {
+			tags = strings.Split(rule.TagNames.String, ",")
+		}
+
+		if err = s.repo.CreateWithTx(ctx, tx, realTx, tags); err != nil {
+			return appErrors.NewAppError(500, "INTERNAL_ERROR", "生成真实交易失败")
+		}
+
+		err = s.repo.CreateSplitsWithTx(ctx, tx, splits)
+		if err != nil {
+			return appErrors.NewAppError(500, "INTERNAL_ERROR", "生成账单分摊数据失败: " + err.Error())
+		}
+	} else {
+		amount := rule.AmountCents.Int64
+		payer := rule.PayerUserID.String
+		if payer == "" {
+			payer = currentUserID
+		}
+
+		realTx := &Transaction{
+			ID:              txID,
+			LedgerID:        ledgerID,
+			Type:            rule.Type,
+			Title:           rule.Title.String,
+			Amount:          amount,
+			Currency:        "CNY",
+			OccurredAt:      occurredAt,
+			OwnerUserID:     currentUserID,
+			CreatedByUserID: currentUserID,
+			PayerUserID:     payer,
+			CategoryID:      rule.CategoryID,
+			Visibility:      "partner_readable",
+			Note:            rule.Note,
+		}
+
+		var tags []string
+		if rule.TagNames.String != "" {
+			tags = strings.Split(rule.TagNames.String, ",")
+		}
+
+		if err = s.repo.CreateWithTx(ctx, tx, realTx, tags); err != nil {
+			return appErrors.NewAppError(500, "INTERNAL_ERROR", "生成真实交易失败")
+		}
+	}
+
+	err = s.repo.UpdateRecurringReminderStatusWithTx(ctx, tx, reminderID, ledgerID, "confirmed", sql.NullString{String: txID, Valid: true})
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "更新到期提醒状态失败")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "确认提醒事务提交失败")
+	}
+
+	return nil
+}
+
+// IgnoreReminder 忽略到期提醒
+func (s *Service) IgnoreReminder(ctx context.Context, currentUserID string, reminderID string) error {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	reminder, err := s.repo.GetRecurringReminderByID(ctx, reminderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return appErrors.NewAppError(404, "NOT_FOUND", "欲忽略的周期提醒不存在")
+		}
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取到期提醒失败")
+	}
+
+	if reminder.LedgerID != ledgerID {
+		return appErrors.NewAppError(403, "FORBIDDEN", "无权忽略该到期提醒")
+	}
+
+	if reminder.Status != "pending" {
+		return appErrors.NewAppError(400, "VALIDATION_ERROR", "该到期提醒已被处理，无法再次忽略")
+	}
+
+	err = s.repo.UpdateRecurringReminderStatusWithTx(ctx, nil, reminderID, ledgerID, "ignored", sql.NullString{Valid: false})
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "更新到期提醒状态为忽略失败")
+	}
+
+	return nil
+}
+
+// checkAndGenerateReminders 周期账单过期检测并自动生成待处理 Reminders
+func (s *Service) checkAndGenerateReminders(ctx context.Context, ledgerID string) error {
+	rules, err := s.repo.ListRecurringRules(ctx, ledgerID)
+	if err != nil {
+		return err
+	}
+
+	today := time.Now().Format("2006-01-02")
+
+	for _, rule := range rules {
+		for rule.NextDueDate <= today {
+			if err := s.generateSingleReminderTx(ctx, ledgerID, rule); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Service) generateSingleReminderTx(ctx context.Context, ledgerID string, rule *RecurringRule) error {
+	dbConn := s.repo.GetDB()
+	tx, err := dbConn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var count int
+	err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM recurring_reminders WHERE rule_id = ? AND due_date = ?", rule.ID, rule.NextDueDate).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		reminder := &RecurringReminder{
+			ID:       uuid.NewString(),
+			LedgerID: ledgerID,
+			RuleID:   rule.ID,
+			DueDate:  rule.NextDueDate,
+			Status:   "pending",
+		}
+		if err := s.repo.CreateRecurringReminder(ctx, tx, reminder); err != nil {
+			return err
+		}
+	}
+
+	nextDueDate, err := s.calculateNextDueDate(rule.NextDueDate, rule.Frequency)
+	if err != nil {
+		return err
+	}
+
+	err = s.repo.UpdateRecurringRuleNextDueDateWithTx(ctx, tx, rule.ID, nextDueDate)
+	if err != nil {
+		return err
+	}
+
+	rule.NextDueDate = nextDueDate
+
+	return tx.Commit()
+}
+
+func (s *Service) calculateNextDueDate(current string, frequency string) (string, error) {
+	t, err := time.Parse("2006-01-02", current)
+	if err != nil {
+		return "", err
+	}
+
+	var next time.Time
+	switch frequency {
+	case "weekly":
+		next = t.AddDate(0, 0, 7)
+	case "monthly":
+		next = t.AddDate(0, 1, 0)
+	case "yearly":
+		next = t.AddDate(1, 0, 0)
+	default:
+		return "", fmt.Errorf("invalid frequency: %s", frequency)
+	}
+
+	return next.Format("2006-01-02"), nil
+}
+
+// 辅助 DTO 映射方法
+func (s *Service) toRecurringRuleResponse(rule *RecurringRule) *RecurringRuleResponse {
+	var amount *int64
+	if rule.AmountCents.Valid {
+		val := rule.AmountCents.Int64
+		amount = &val
+	}
+
+	var tags []string
+	if rule.TagNames.Valid && rule.TagNames.String != "" {
+		tags = strings.Split(rule.TagNames.String, ",")
+	}
+
+	return &RecurringRuleResponse{
+		ID:              rule.ID,
+		Name:            rule.Name,
+		Type:            rule.Type,
+		Title:           rule.Title.String,
+		AmountCents:     amount,
+		CategoryID:      rule.CategoryID.String,
+		PayerUserID:     rule.PayerUserID.String,
+		SplitMethod:     rule.SplitMethod.String,
+		TagNames:        tags,
+		Note:            rule.Note.String,
+		Frequency:       rule.Frequency,
+		NextDueDate:     rule.NextDueDate,
+		CreatedByUserID: rule.CreatedByUserID,
+		CreatedAt:       rule.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:       rule.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func (s *Service) toRecurringReminderResponse(d *RecurringReminderDetail) *RecurringReminderResponse {
+	var amount *int64
+	if d.AmountCents.Valid {
+		val := d.AmountCents.Int64
+		amount = &val
+	}
+
+	var tags []string
+	if d.TagNames.Valid && d.TagNames.String != "" {
+		tags = strings.Split(d.TagNames.String, ",")
+	}
+
+	return &RecurringReminderResponse{
+		ID:            d.Reminder.ID,
+		RuleID:        d.Reminder.RuleID,
+		RuleName:      d.RuleName,
+		Type:          d.Type,
+		Title:         d.Title.String,
+		AmountCents:   amount,
+		CategoryID:    d.CategoryID.String,
+		CategoryName:  d.CategoryName.String,
+		PayerUserID:   d.PayerUserID.String,
+		SplitMethod:   d.SplitMethod.String,
+		TagNames:      tags,
+		Note:          d.Note.String,
+		Frequency:     d.Frequency,
+		DueDate:       d.Reminder.DueDate,
+		Status:        d.Reminder.Status,
+		TransactionID: d.Reminder.TransactionID.String,
+		CreatedAt:     d.Reminder.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:     d.Reminder.UpdatedAt.Format(time.RFC3339),
+	}
 }

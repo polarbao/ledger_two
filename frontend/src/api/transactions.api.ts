@@ -6,6 +6,9 @@ import type {
   CreateSharedExpensePayload,
   TransactionTemplateResponse,
   CreateTemplatePayload,
+  RecurringRuleResponse,
+  CreateRecurringRulePayload,
+  RecurringReminderResponse,
 } from '../types/transaction';
 
 export interface TransactionListFilter {
@@ -54,5 +57,23 @@ export const transactionsApi = {
 
   deleteTemplate: (id: string) =>
     api.delete<{ success: boolean }>(`/api/transaction-templates/${id}`),
+
+  listRecurringRules: () =>
+    api.get<RecurringRuleResponse[]>('/api/recurring-rules'),
+
+  createRecurringRule: (payload: CreateRecurringRulePayload) =>
+    api.post<RecurringRuleResponse>('/api/recurring-rules', payload),
+
+  deleteRecurringRule: (id: string) =>
+    api.delete<void>(`/api/recurring-rules/${id}`),
+
+  listRecurringReminders: () =>
+    api.get<RecurringReminderResponse[]>('/api/recurring-reminders'),
+
+  confirmReminder: (id: string) =>
+    api.post<void>(`/api/recurring-reminders/${id}/confirm`, {}),
+
+  ignoreReminder: (id: string) =>
+    api.post<void>(`/api/recurring-reminders/${id}/ignore`, {}),
 };
 

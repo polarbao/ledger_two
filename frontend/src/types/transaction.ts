@@ -86,3 +86,57 @@ export interface CreateTemplatePayload {
   tag_names?: string[];
   note?: string;
 }
+
+export interface RecurringRuleResponse {
+  id: string;
+  name: string;
+  type: 'expense' | 'income' | 'shared_expense';
+  title: string;
+  amount_cents?: number | null;
+  category_id: string;
+  payer_user_id: string;
+  split_method: string;
+  tag_names: string[];
+  note: string;
+  frequency: 'weekly' | 'monthly' | 'yearly';
+  next_due_date: string;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRecurringRulePayload {
+  name: string;
+  type: 'expense' | 'income' | 'shared_expense';
+  title?: string;
+  amount_cents?: number;
+  category_id?: string;
+  payer_user_id?: string;
+  split_method?: string;
+  tag_names?: string[];
+  note?: string;
+  frequency: 'weekly' | 'monthly' | 'yearly';
+  next_due_date: string;
+}
+
+export interface RecurringReminderResponse {
+  id: string;
+  rule_id: string;
+  rule_name: string;
+  type: 'expense' | 'income' | 'shared_expense';
+  title: string;
+  amount_cents?: number | null;
+  category_id: string;
+  category_name: string;
+  payer_user_id: string;
+  split_method: string;
+  tag_names: string[];
+  note: string;
+  frequency: 'weekly' | 'monthly' | 'yearly';
+  due_date: string;
+  status: 'pending' | 'confirmed' | 'ignored';
+  transaction_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+

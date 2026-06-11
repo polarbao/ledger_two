@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UserStatItem } from '../types/dashboard';
 import { useAuthStore } from '../stores/auth.store';
 import { useUIStore } from '../stores/ui.store';
 import { dashboardApi } from '../api/dashboard.api';
+import { transactionsApi } from '../api/transactions.api';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
 import SkeletonTable from '../components/ui/SkeletonTable';
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
+  const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const { currentMonth, setAddDrawerOpen } = useUIStore();
 
@@ -29,6 +31,39 @@ export default function DashboardPage() {
     queryFn: () => dashboardApi.getDashboard(currentMonth),
     enabled: !!currentUser,
   });
+
+  // 1.5. 获取到期账单提醒列表
+  const { data: reminders } = useQuery({
+    queryKey: ['recurring-reminders'],
+    queryFn: () => transactionsApi.listRecurringReminders(),
+    enabled: !!currentUser,
+  });
+
+  // 确认提醒的 Mutation
+  const confirmReminderMutation = useMutation({
+    mutationFn: (id: string) => transactionsApi.confirmReminder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['recurring-reminders'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    },
+  });
+
+  // 忽略提醒的 Mutation
+  const ignoreReminderMutation = useMutation({
+    mutationFn: (id: string) => transactionsApi.ignoreReminder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recurring-reminders'] });
+    },
+  });
+
+  const handleConfirmReminder = (id: string) => {
+    confirmReminderMutation.mutate(id);
+  };
+
+  const handleIgnoreReminder = (id: string) => {
+    ignoreReminderMutation.mutate(id);
+  };
 
   const handleQuickAdd = () => {
     setAddDrawerOpen(true);
@@ -76,6 +111,56 @@ export default function DashboardPage() {
 
       {!error && (
         <>
+          {/* 周期账单待确认提醒横幅 */}
+          {reminders && reminders.length > 0 && (
+            <div className="glass-card settlement-glow-card animate-fade-in" style={{ padding: '16px 20px', margin: '0 0 16px 0', border: '1px solid var(--accent-purple)', background: 'rgba(168, 85, 247, 0.04)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Clock className="animate-pulse text-purple-400" style={{ color: 'var(--accent-purple)' }} size={20} />
+                  <strong style={{ fontSize: '15px', color: 'var(--text-primary)' }}>您有 {reminders.length} 笔周期账单待确认</strong>
+                </div>
+                <span className="dimmed-desc" style={{ fontSize: '11px' }}>点击即可直接记账或忽略</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                {reminders.map((rem) => (
+                  <div key={rem.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{rem.rule_name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        到期日: {rem.due_date} · 频次: {rem.frequency === 'weekly' ? '每周' : rem.frequency === 'monthly' ? '每月' : '每年'} · {rem.type === 'expense' ? '个人支出' : rem.type === 'income' ? '个人收入' : '共同支出'}
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent-green)' }}>
+                        {rem.amount_cents != null ? `¥${centsToYuan(rem.amount_cents)}` : '未设定金额'}
+                      </span>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button 
+                          onClick={() => handleIgnoreReminder(rem.id)}
+                          className="btn-secondary" 
+                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px' }}
+                          disabled={confirmReminderMutation.isPending || ignoreReminderMutation.isPending}
+                        >
+                          忽略
+                        </button>
+                        <button 
+                          onClick={() => handleConfirmReminder(rem.id)}
+                          className="btn-primary" 
+                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: 'var(--accent-purple)', border: 'none', color: '#fff' }}
+                          disabled={confirmReminderMutation.isPending || ignoreReminderMutation.isPending}
+                        >
+                          {confirmReminderMutation.isPending && confirmReminderMutation.variables === rem.id ? '记账中...' : '确认记账'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* 本月收支大卡片 */}
           <div className="stats-grid">
             <div className="glass-card stat-card total-expense">

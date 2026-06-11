@@ -647,3 +647,193 @@ func (r *Repository) DeleteTemplate(ctx context.Context, id string, ledgerID str
 	`, id, ledgerID)
 	return err
 }
+
+// CreateRecurringRule 创建周期账单规则
+func (r *Repository) CreateRecurringRule(ctx context.Context, rule *RecurringRule) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO recurring_rules (
+			id, ledger_id, name, type, title, amount_cents,
+			category_id, payer_user_id, split_method, tag_names,
+			note, frequency, next_due_date, created_by_user_id,
+			created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, rule.ID, rule.LedgerID, rule.Name, rule.Type, rule.Title, rule.AmountCents,
+		rule.CategoryID, rule.PayerUserID, rule.SplitMethod, rule.TagNames,
+		rule.Note, rule.Frequency, rule.NextDueDate, rule.CreatedByUserID,
+		now, now)
+	return err
+}
+
+// GetRecurringRuleByID 根据 ID 获取周期账单规则
+func (r *Repository) GetRecurringRuleByID(ctx context.Context, id string) (*RecurringRule, error) {
+	var rule RecurringRule
+	var createdAtStr, updatedAtStr string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT 
+			id, ledger_id, name, type, title, amount_cents,
+			category_id, payer_user_id, split_method, tag_names,
+			note, frequency, next_due_date, created_by_user_id,
+			created_at, updated_at
+		FROM recurring_rules
+		WHERE id = ?
+	`, id).Scan(
+		&rule.ID, &rule.LedgerID, &rule.Name, &rule.Type, &rule.Title, &rule.AmountCents,
+		&rule.CategoryID, &rule.PayerUserID, &rule.SplitMethod, &rule.TagNames,
+		&rule.Note, &rule.Frequency, &rule.NextDueDate, &rule.CreatedByUserID,
+		&createdAtStr, &updatedAtStr,
+	)
+	if err != nil {
+		return nil, err
+	}
+	rule.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
+	rule.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
+	return &rule, nil
+}
+
+// ListRecurringRules 获取账本下的周期账单规则列表
+func (r *Repository) ListRecurringRules(ctx context.Context, ledgerID string) ([]*RecurringRule, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT 
+			id, ledger_id, name, type, title, amount_cents,
+			category_id, payer_user_id, split_method, tag_names,
+			note, frequency, next_due_date, created_by_user_id,
+			created_at, updated_at
+		FROM recurring_rules
+		WHERE ledger_id = ?
+		ORDER BY created_at DESC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rules []*RecurringRule
+	for rows.Next() {
+		var rule RecurringRule
+		var createdAtStr, updatedAtStr string
+		err := rows.Scan(
+			&rule.ID, &rule.LedgerID, &rule.Name, &rule.Type, &rule.Title, &rule.AmountCents,
+			&rule.CategoryID, &rule.PayerUserID, &rule.SplitMethod, &rule.TagNames,
+			&rule.Note, &rule.Frequency, &rule.NextDueDate, &rule.CreatedByUserID,
+			&createdAtStr, &updatedAtStr,
+		)
+		if err != nil {
+			return nil, err
+		}
+		rule.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
+		rule.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
+		rules = append(rules, &rule)
+	}
+	return rules, nil
+}
+
+// DeleteRecurringRule 删除指定的周期规则
+func (r *Repository) DeleteRecurringRule(ctx context.Context, id string, ledgerID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM recurring_rules
+		WHERE id = ? AND ledger_id = ?
+	`, id, ledgerID)
+	return err
+}
+
+// CreateRecurringReminder 创建待确认周期账单提醒
+func (r *Repository) CreateRecurringReminder(ctx context.Context, tx *sql.Tx, reminder *RecurringReminder) error {
+	executor := r.getExecutor(tx)
+	now := time.Now().Format(time.RFC3339)
+	_, err := executor.ExecContext(ctx, `
+		INSERT INTO recurring_reminders (
+			id, ledger_id, rule_id, due_date, status,
+			transaction_id, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, reminder.ID, reminder.LedgerID, reminder.RuleID, reminder.DueDate,
+		reminder.Status, reminder.TransactionID, now, now)
+	return err
+}
+
+// GetRecurringReminderByID 查询单条周期提醒
+func (r *Repository) GetRecurringReminderByID(ctx context.Context, id string) (*RecurringReminder, error) {
+	var reminder RecurringReminder
+	var createdAtStr, updatedAtStr string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT 
+			id, ledger_id, rule_id, due_date, status,
+			transaction_id, created_at, updated_at
+		FROM recurring_reminders
+		WHERE id = ?
+	`, id).Scan(
+		&reminder.ID, &reminder.LedgerID, &reminder.RuleID, &reminder.DueDate,
+		&reminder.Status, &reminder.TransactionID, &createdAtStr, &updatedAtStr,
+	)
+	if err != nil {
+		return nil, err
+	}
+	reminder.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
+	reminder.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
+	return &reminder, nil
+}
+
+// ListRecurringRemindersWithDetails 获取账本下的周期账单提醒（JOIN 包含规则详细参数，以便前端渲染）
+func (r *Repository) ListRecurringRemindersWithDetails(ctx context.Context, ledgerID string) ([]*RecurringReminderDetail, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT 
+			r.id, r.ledger_id, r.rule_id, r.due_date, r.status, r.transaction_id, r.created_at, r.updated_at,
+			u.name, u.type, u.title, u.amount_cents, u.category_id, c.name, u.payer_user_id, u.split_method,
+			u.tag_names, u.note, u.frequency
+		FROM recurring_reminders r
+		INNER JOIN recurring_rules u ON r.rule_id = u.id
+		LEFT JOIN categories c ON u.category_id = c.id
+		WHERE r.ledger_id = ? AND r.status = 'pending'
+		ORDER BY r.due_date DESC, r.created_at DESC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var details []*RecurringReminderDetail
+	for rows.Next() {
+		var reminder RecurringReminder
+		var detail RecurringReminderDetail
+		var catName sql.NullString
+		var createdAtStr, updatedAtStr string
+		err := rows.Scan(
+			&reminder.ID, &reminder.LedgerID, &reminder.RuleID, &reminder.DueDate, &reminder.Status, &reminder.TransactionID, &createdAtStr, &updatedAtStr,
+			&detail.RuleName, &detail.Type, &detail.Title, &detail.AmountCents, &detail.CategoryID, &catName, &detail.PayerUserID, &detail.SplitMethod,
+			&detail.TagNames, &detail.Note, &detail.Frequency,
+		)
+		if err != nil {
+			return nil, err
+		}
+		reminder.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
+		reminder.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
+		detail.Reminder = &reminder
+		detail.CategoryName = catName
+		details = append(details, &detail)
+	}
+	return details, nil
+}
+
+// UpdateRecurringReminderStatusWithTx 在事务（或非事务）中更新提醒状态
+func (r *Repository) UpdateRecurringReminderStatusWithTx(ctx context.Context, tx *sql.Tx, id string, ledgerID string, status string, txID sql.NullString) error {
+	executor := r.getExecutor(tx)
+	now := time.Now().Format(time.RFC3339)
+	_, err := executor.ExecContext(ctx, `
+		UPDATE recurring_reminders
+		SET status = ?, transaction_id = ?, updated_at = ?
+		WHERE id = ? AND ledger_id = ?
+	`, status, txID, now, id, ledgerID)
+	return err
+}
+
+// UpdateRecurringRuleNextDueDateWithTx 更新规则的下一次触发时间
+func (r *Repository) UpdateRecurringRuleNextDueDateWithTx(ctx context.Context, tx *sql.Tx, id string, nextDueDate string) error {
+	executor := r.getExecutor(tx)
+	now := time.Now().Format(time.RFC3339)
+	_, err := executor.ExecContext(ctx, `
+		UPDATE recurring_rules
+		SET next_due_date = ?, updated_at = ?
+		WHERE id = ?
+	`, nextDueDate, now, id)
+	return err
+}

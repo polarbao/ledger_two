@@ -345,3 +345,129 @@ func (h *Handler) HandleDeleteTemplate(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
 }
+
+// HandleCreateRecurringRule 创建周期账单规则接口
+func (h *Handler) HandleCreateRecurringRule(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	var req CreateRecurringRuleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		return
+	}
+
+	res, err := h.service.CreateRecurringRule(r.Context(), currentUserID, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusCreated, res)
+}
+
+// HandleListRecurringRules 获取周期账单规则列表接口
+func (h *Handler) HandleListRecurringRules(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	res, err := h.service.ListRecurringRules(r.Context(), currentUserID)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleDeleteRecurringRule 删除周期账单规则接口
+func (h *Handler) HandleDeleteRecurringRule(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "规则 ID 不能为空")
+		return
+	}
+
+	err := h.service.DeleteRecurringRule(r.Context(), currentUserID, id)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// HandleListRecurringReminders 获取周期提醒列表接口（拉取时底层会自动触发过期提醒生成）
+func (h *Handler) HandleListRecurringReminders(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	res, err := h.service.ListRecurringReminders(r.Context(), currentUserID)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleConfirmReminder 确认到期提醒接口
+func (h *Handler) HandleConfirmReminder(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "提醒 ID 不能为空")
+		return
+	}
+
+	err := h.service.ConfirmReminder(r.Context(), currentUserID, id)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// HandleIgnoreReminder 忽略到期提醒接口
+func (h *Handler) HandleIgnoreReminder(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "提醒 ID 不能为空")
+		return
+	}
+
+	err := h.service.IgnoreReminder(r.Context(), currentUserID, id)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+}

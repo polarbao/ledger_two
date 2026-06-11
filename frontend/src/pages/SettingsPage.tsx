@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Settings, 
   Download, 
@@ -213,6 +214,24 @@ export default function SettingsPage() {
                 已选择按月份：{selectedMonth} 导出
               </span>
             )}
+          </div>
+
+          {/* 周期账单规则管理 */}
+          <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock style={{ color: '#a855f7' }} size={20} />
+              <strong style={{ fontSize: '14px' }}>周期账单规则管理</strong>
+            </div>
+            <p className="dimmed-desc" style={{ fontSize: '12px', margin: 0 }}>
+              配置每周、每月、每年自动触发的待确认记账提醒，省去手动录入高频固定支出的麻烦。
+            </p>
+            <Link 
+              to="/recurring-rules"
+              className="btn-secondary" 
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
+            >
+              <Settings size={14} /> 进入管理周期规则
+            </Link>
           </div>
 
           {/* JSON 全量导出 */}

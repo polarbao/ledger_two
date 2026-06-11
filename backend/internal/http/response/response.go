@@ -72,6 +72,3 @@ func WriteError(w http.ResponseWriter, err error) {
 	}
 	Error(w, http.StatusInternalServerError, appErrors.ErrCodeInternalError, "内部服务错误，请重试")
 }
-
-
-

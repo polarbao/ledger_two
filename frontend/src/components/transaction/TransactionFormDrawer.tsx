@@ -3,12 +3,13 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Loader2, Sparkles, Check } from 'lucide-react';
+import { X, Loader2, Sparkles, Check, Trash2 } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { transactionsApi } from '../../api/transactions.api';
 import { dashboardApi } from '../../api/dashboard.api';
 import { yuanToCents } from '../../utils/money';
+import type { TransactionTemplateResponse, CreateTemplatePayload } from '../../types/transaction';
 
 /**
  * @brief 表单校验 Schema 结构定义
@@ -45,6 +46,10 @@ export default function TransactionFormDrawer() {
 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [submitAction, setSubmitAction] = useState<'close' | 'continue'>('close');
+  const [isSaveTmplOpen, setIsSaveTmplOpen] = useState(false);
+  const [tmplName, setTmplName] = useState('');
+  const [isManageTmplOpen, setIsManageTmplOpen] = useState(false);
+
 
   const LAST_TYPE_KEY = 'ledger_two_last_type';
   const LAST_CATEGORY_KEY = 'ledger_two_last_category_id';
@@ -79,7 +84,69 @@ export default function TransactionFormDrawer() {
 
   const users = dashboardData?.user_stats || [];
 
+  // 2.5 获取所有账单模板列表
+  const { data: templates } = useQuery({
+    queryKey: ['transaction-templates'],
+    queryFn: () => transactionsApi.listTemplates(),
+    enabled: addDrawerOpen,
+  });
+
+  // 创建模板 Mutation
+  const createTemplateMutation = useMutation({
+    mutationFn: (payload: CreateTemplatePayload) => transactionsApi.createTemplate(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transaction-templates'] });
+      setIsSaveTmplOpen(false);
+      setTmplName('');
+    },
+  });
+
+  // 删除模板 Mutation
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => transactionsApi.deleteTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transaction-templates'] });
+    },
+  });
+
+  const applyTemplate = (tmpl: TransactionTemplateResponse) => {
+    const amountYuan = tmpl.amount_cents != null ? (tmpl.amount_cents / 100).toFixed(2) : '';
+    const tagsStr = tmpl.tag_names ? tmpl.tag_names.join(', ') : '';
+    setValue('type', tmpl.type);
+    setValue('amount', amountYuan);
+    setValue('title', tmpl.title || '');
+    setValue('category_id', tmpl.category_id || '');
+    setValue('tag_names', tagsStr);
+    setValue('payer_user_id', tmpl.payer_user_id || currentUser?.id || '');
+    setValue('split_method', tmpl.split_method === 'payer_only' ? 'payer_only' : 'equal');
+    setValue('note', tmpl.note || '');
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (!tmplName.trim()) {
+      return;
+    }
+    const formVals = watch();
+    const cents = formVals.amount ? yuanToCents(formVals.amount) : undefined;
+    const tags = formVals.tag_names
+      ? formVals.tag_names.split(/[，, ；;]/).map((t) => t.trim()).filter(Boolean)
+      : [];
+
+    createTemplateMutation.mutate({
+      name: tmplName.trim(),
+      type: formVals.type,
+      title: formVals.title || undefined,
+      amount_cents: cents,
+      category_id: formVals.category_id || undefined,
+      payer_user_id: formVals.payer_user_id || undefined,
+      split_method: formVals.split_method || undefined,
+      tag_names: tags,
+      note: formVals.note || undefined,
+    });
+  };
+
   // 3. 表单初始化与 Zod Resolver 挂载
+
   const getTodayString = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -323,6 +390,68 @@ export default function TransactionFormDrawer() {
               </p>
             </div>
           )}
+
+          {/* 模板快速填充 */}
+          <div className="form-group template-select-group">
+            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>使用模板快速填入</span>
+              {templates && templates.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsManageTmplOpen(true)}
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--accent-purple)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                >
+                  管理模板
+                </button>
+              )}
+            </label>
+            <div style={{ display: 'flex', gap: '8px', width: '100%', flexDirection: 'column' }}>
+              <select
+                className="form-select"
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  if (selectedId) {
+                    const found = templates?.find((t) => t.id === selectedId);
+                    if (found) {
+                      applyTemplate(found);
+                    }
+                    e.target.value = ''; // 重置选择框
+                  }
+                }}
+                defaultValue=""
+              >
+                <option value="">-- 选择模板一键回填表单 --</option>
+                {templates?.map((tmpl) => (
+                  <option key={tmpl.id} value={tmpl.id}>
+                    {tmpl.name} ({tmpl.type === 'expense' ? '支出' : tmpl.type === 'income' ? '收入' : '共同支出'})
+                  </option>
+                ))}
+              </select>
+
+              {/* 快捷模板气泡滚动 */}
+              {templates && templates.length > 0 && (
+                <div className="template-badge-scroll">
+                  {templates.slice(0, 5).map((tmpl) => (
+                    <button
+                      key={tmpl.id}
+                      type="button"
+                      className="template-badge-btn"
+                      onClick={() => applyTemplate(tmpl)}
+                    >
+                      ⚡ {tmpl.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* 类型分段选择器 */}
           <div className="form-group">
@@ -630,8 +759,16 @@ export default function TransactionFormDrawer() {
           </div>
 
           {/* 底部操作区 */}
-          <div className="drawer-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button type="button" className="btn-secondary" style={{ marginRight: 'auto' }} onClick={handleClose}>
+          <div className="drawer-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ marginRight: 'auto', borderColor: 'rgba(255, 255, 255, 0.12)' }}
+              onClick={() => setIsSaveTmplOpen(true)}
+            >
+              存为模板
+            </button>
+            <button type="button" className="btn-secondary" onClick={handleClose}>
               取消
             </button>
             <button
@@ -662,6 +799,116 @@ export default function TransactionFormDrawer() {
           </div>
         </form>
       </div>
+
+      {/* 另存为模板对话框 */}
+      {isSaveTmplOpen && (
+        <div className="modal-overlay" onClick={() => setIsSaveTmplOpen(false)}>
+          <div className="modal-content glass-card" style={{ maxWidth: '380px' }} onClick={(e) => e.stopPropagation()}>
+            <h4 style={{ margin: '0 0 16px 0', fontSize: '18px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <Sparkles size={18} className="text-glow" style={{ color: 'var(--accent-purple)' }} />
+              另存为账单模板
+            </h4>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+              将当前填写的金额、分类、标签等参数保存为模板，方便下次一键填入。
+            </p>
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label">模板名称</label>
+              <input
+                type="text"
+                placeholder="例如: 每周吃黄焖鸡、日常午餐"
+                className="form-input"
+                value={tmplName}
+                onChange={(e) => setTmplName(e.target.value)}
+                style={{ width: '100%' }}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIsSaveTmplOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={createTemplateMutation.isPending || !tmplName.trim()}
+                onClick={handleSaveAsTemplate}
+              >
+                {createTemplateMutation.isPending ? '保存中...' : '确认保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 模板管理器对话框 */}
+      {isManageTmplOpen && (
+        <div className="modal-overlay" onClick={() => setIsManageTmplOpen(false)}>
+          <div className="modal-content glass-card" style={{ maxWidth: '420px', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
+            <h4 style={{ margin: '0 0 16px 0', fontSize: '18px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span>管理账单模板</span>
+            </h4>
+            
+            <div className="template-manager-list">
+              {templates && templates.length > 0 ? (
+                templates.map((tmpl) => (
+                  <div key={tmpl.id} className="template-item">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tmpl.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        类型: {tmpl.type === 'expense' ? '支出' : tmpl.type === 'income' ? '收入' : '共同支出'}
+                        {tmpl.amount_cents != null && ` · ¥${(tmpl.amount_cents / 100).toFixed(2)}`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`确认删除模板 "${tmpl.name}" 吗？此操作不可撤销且不影响已有交易。`)) {
+                          deleteTemplateMutation.mutate(tmpl.id);
+                        }
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        transition: 'opacity 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                    >
+                      <Trash2 size={14} />
+                      <span>删除</span>
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-muted)' }}>
+                  暂无模板，可在记账后点击“存为模板”保存。
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIsManageTmplOpen(false)}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

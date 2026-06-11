@@ -41,4 +41,3 @@ func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, res)
 }
-

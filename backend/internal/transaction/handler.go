@@ -211,8 +211,6 @@ func (h *Handler) HandleUpdateSharedExpense(w http.ResponseWriter, r *http.Reque
 	h.HandleUpdate(w, r)
 }
 
-
-
 // HandleListCategories 拉取系统分类列表接口
 // @brief 处理 GET /api/categories 请求，从 categories 表拉取本账本对应的系统分类
 // @param w http.ResponseWriter 响应句柄
@@ -233,4 +231,117 @@ func (h *Handler) HandleListCategories(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, res)
 }
 
+// HandleCreateTemplate 创建账单模板接口
+func (h *Handler) HandleCreateTemplate(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
 
+	var req CreateTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		return
+	}
+
+	res, err := h.service.CreateTemplate(r.Context(), currentUserID, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusCreated, res)
+}
+
+// HandleListTemplates 获取模板列表接口
+func (h *Handler) HandleListTemplates(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	res, err := h.service.ListTemplates(r.Context(), currentUserID)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleGetTemplate 获取单个模板详情接口
+func (h *Handler) HandleGetTemplate(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "模板 ID 不能为空")
+		return
+	}
+
+	res, err := h.service.GetTemplate(r.Context(), currentUserID, id)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleUpdateTemplate 更新模板接口
+func (h *Handler) HandleUpdateTemplate(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "模板 ID 不能为空")
+		return
+	}
+
+	var req CreateTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		return
+	}
+
+	res, err := h.service.UpdateTemplate(r.Context(), currentUserID, id, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleDeleteTemplate 删除模板接口
+func (h *Handler) HandleDeleteTemplate(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "模板 ID 不能为空")
+		return
+	}
+
+	err := h.service.DeleteTemplate(r.Context(), currentUserID, id)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+}

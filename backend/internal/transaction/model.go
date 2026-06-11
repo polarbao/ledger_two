@@ -132,13 +132,64 @@ type UpdateSharedExpenseRequest struct {
 // AuditLog 核心审计日志结构
 // @brief 记录账务金额修改和删除动作的审计行
 type AuditLog struct {
-	ID         string
-	LedgerID   string
+	ID          string
+	LedgerID    string
 	ActorUserID string
-	Action     string // create, update, delete
-	EntityType string // transaction
-	EntityID   string
-	BeforeJSON sql.NullString
-	AfterJSON  sql.NullString
-	CreatedAt  time.Time
+	Action      string // create, update, delete
+	EntityType  string // transaction
+	EntityID    string
+	BeforeJSON  sql.NullString
+	AfterJSON   sql.NullString
+	CreatedAt   time.Time
+}
+
+// TransactionTemplate 账单模板实体
+type TransactionTemplate struct {
+	ID              string
+	LedgerID        string
+	Name            string
+	Type            string // expense, income, shared_expense
+	Title           sql.NullString
+	AmountCents     sql.NullInt64
+	CategoryID      sql.NullString
+	AccountID       sql.NullString
+	PayerUserID     sql.NullString
+	SplitMethod     sql.NullString
+	TagNames        sql.NullString // 逗号分隔的标签名列表
+	Note            sql.NullString
+	CreatedByUserID string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// CreateTemplateRequest 创建与更新模板的请求结构
+type CreateTemplateRequest struct {
+	Name        string   `json:"name"`
+	Type        string   `json:"type"` // expense, income, shared_expense
+	Title       *string  `json:"title"`
+	AmountCents *int64   `json:"amount_cents"`
+	CategoryID  *string  `json:"category_id"`
+	AccountID   *string  `json:"account_id"`
+	PayerUserID *string  `json:"payer_user_id"`
+	SplitMethod *string  `json:"split_method"`
+	TagNames    []string `json:"tag_names"`
+	Note        *string  `json:"note"`
+}
+
+// TemplateResponse 模板输出统一 DTO
+type TemplateResponse struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Type            string   `json:"type"`
+	Title           string   `json:"title"`
+	AmountCents     *int64   `json:"amount_cents,omitempty"`
+	CategoryID      string   `json:"category_id"`
+	AccountID       string   `json:"account_id"`
+	PayerUserID     string   `json:"payer_user_id"`
+	SplitMethod     string   `json:"split_method"`
+	TagNames        []string `json:"tag_names"`
+	Note            string   `json:"note"`
+	CreatedByUserID string   `json:"created_by_user_id"`
+	CreatedAt       string   `json:"created_at"`
+	UpdatedAt       string   `json:"updated_at"`
 }

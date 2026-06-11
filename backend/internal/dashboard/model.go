@@ -8,16 +8,16 @@ import (
 // DashboardResponse 首页 Dashboard 聚合返回 DTO
 // @brief 包含月度总收支、两端垫付消费总额、最近流水以及分类、标签和成员统计数据
 type DashboardResponse struct {
-	Month              string                           `json:"month"`
-	TotalExpenseCents  int64                            `json:"total_expense_cents"`
-	TotalIncomeCents   int64                            `json:"total_income_cents"`
-	MyPaidCents        int64                            `json:"my_paid_cents"`
-	PartnerPaidCents   int64                            `json:"partner_paid_cents"`
-	SharedBalance      settlement.BalanceResponse       `json:"shared_balance"`
+	Month              string                            `json:"month"`
+	TotalExpenseCents  int64                             `json:"total_expense_cents"`
+	TotalIncomeCents   int64                             `json:"total_income_cents"`
+	MyPaidCents        int64                             `json:"my_paid_cents"`
+	PartnerPaidCents   int64                             `json:"partner_paid_cents"`
+	SharedBalance      settlement.BalanceResponse        `json:"shared_balance"`
 	RecentTransactions []transaction.TransactionResponse `json:"recent_transactions"`
-	CategorySummary    []SummaryItem                    `json:"category_summary"`
-	TagSummary         []SummaryItem                    `json:"tag_summary"`
-	UserStats          []UserStatItem                   `json:"user_stats"`
+	CategorySummary    []SummaryItem                     `json:"category_summary"`
+	TagSummary         []SummaryItem                     `json:"tag_summary"`
+	UserStats          []UserStatItem                    `json:"user_stats"`
 }
 
 // SummaryItem 分类或标签支出汇总 DTO

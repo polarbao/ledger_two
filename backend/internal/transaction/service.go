@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -732,4 +734,270 @@ func (s *Service) ListCategories(ctx context.Context) ([]Category, error) {
 	return s.repo.ListCategories(ctx, ledgerID)
 }
 
+// toTemplateResponse 辅助实体转换为统一 DTO 输出模型
+func (s *Service) toTemplateResponse(tmpl *TransactionTemplate) *TemplateResponse {
+	var amount *int64
+	if tmpl.AmountCents.Valid {
+		val := tmpl.AmountCents.Int64
+		amount = &val
+	}
 
+	tags := []string{}
+	if tmpl.TagNames.Valid && tmpl.TagNames.String != "" {
+		tags = strings.Split(tmpl.TagNames.String, ",")
+	}
+
+	return &TemplateResponse{
+		ID:              tmpl.ID,
+		Name:            tmpl.Name,
+		Type:            tmpl.Type,
+		Title:           tmpl.Title.String,
+		AmountCents:     amount,
+		CategoryID:      tmpl.CategoryID.String,
+		AccountID:       tmpl.AccountID.String,
+		PayerUserID:     tmpl.PayerUserID.String,
+		SplitMethod:     tmpl.SplitMethod.String,
+		TagNames:        tags,
+		Note:            tmpl.Note.String,
+		CreatedByUserID: tmpl.CreatedByUserID,
+		CreatedAt:       tmpl.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:       tmpl.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+// CreateTemplate 创建模板业务逻辑
+func (s *Service) CreateTemplate(ctx context.Context, currentUserID string, req CreateTemplateRequest) (*TemplateResponse, error) {
+	if req.Name == "" {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "模板名称不能为空")
+	}
+
+	if req.Type != "expense" && req.Type != "income" && req.Type != "shared_expense" {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的记账模板类型")
+	}
+
+	if req.AmountCents != nil && *req.AmountCents < 0 {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "模板金额必须大于或等于 0")
+	}
+
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	// 拼装实体
+	tmplID := uuid.NewString()
+	var titleVal sql.NullString
+	if req.Title != nil {
+		titleVal = sql.NullString{String: *req.Title, Valid: true}
+	}
+	var amountVal sql.NullInt64
+	if req.AmountCents != nil {
+		amountVal = sql.NullInt64{Int64: *req.AmountCents, Valid: true}
+	}
+	var categoryVal sql.NullString
+	if req.CategoryID != nil {
+		categoryVal = sql.NullString{String: *req.CategoryID, Valid: true}
+	}
+	var accountVal sql.NullString
+	if req.AccountID != nil {
+		accountVal = sql.NullString{String: *req.AccountID, Valid: true}
+	}
+	var payerVal sql.NullString
+	if req.PayerUserID != nil {
+		payerVal = sql.NullString{String: *req.PayerUserID, Valid: true}
+	}
+	var splitVal sql.NullString
+	if req.SplitMethod != nil {
+		splitVal = sql.NullString{String: *req.SplitMethod, Valid: true}
+	}
+	var noteVal sql.NullString
+	if req.Note != nil {
+		noteVal = sql.NullString{String: *req.Note, Valid: true}
+	}
+
+	tagsStr := strings.Join(req.TagNames, ",")
+	var tagsVal sql.NullString
+	if tagsStr != "" {
+		tagsVal = sql.NullString{String: tagsStr, Valid: true}
+	}
+
+	tmpl := &TransactionTemplate{
+		ID:              tmplID,
+		LedgerID:        ledgerID,
+		Name:            req.Name,
+		Type:            req.Type,
+		Title:           titleVal,
+		AmountCents:     amountVal,
+		CategoryID:      categoryVal,
+		AccountID:       accountVal,
+		PayerUserID:     payerVal,
+		SplitMethod:     splitVal,
+		TagNames:        tagsVal,
+		Note:            noteVal,
+		CreatedByUserID: currentUserID,
+	}
+
+	if err := s.repo.CreateTemplate(ctx, tmpl); err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "创建交易模板失败")
+	}
+
+	tmpl.CreatedAt = time.Now()
+	tmpl.UpdatedAt = time.Now()
+
+	return s.toTemplateResponse(tmpl), nil
+}
+
+// GetTemplate 查询单个模板并进行越权校验
+func (s *Service) GetTemplate(ctx context.Context, currentUserID string, id string) (*TemplateResponse, error) {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	tmpl, err := s.repo.GetTemplateByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单模板未找到")
+		}
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
+	}
+
+	if tmpl.LedgerID != ledgerID {
+		return nil, appErrors.NewAppError(403, "FORBIDDEN", "无权查看该模板")
+	}
+
+	return s.toTemplateResponse(tmpl), nil
+}
+
+// ListTemplates 获取该账本下的所有模板列表
+func (s *Service) ListTemplates(ctx context.Context, currentUserID string) ([]*TemplateResponse, error) {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	templates, err := s.repo.ListTemplates(ctx, ledgerID)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取模板列表失败")
+	}
+
+	var res []*TemplateResponse
+	for _, t := range templates {
+		res = append(res, s.toTemplateResponse(t))
+	}
+	return res, nil
+}
+
+// UpdateTemplate 更新模板业务逻辑
+func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id string, req CreateTemplateRequest) (*TemplateResponse, error) {
+	if req.Name == "" {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "模板名称不能为空")
+	}
+
+	if req.Type != "expense" && req.Type != "income" && req.Type != "shared_expense" {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的记账模板类型")
+	}
+
+	if req.AmountCents != nil && *req.AmountCents < 0 {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "模板金额必须大于或等于 0")
+	}
+
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	// 1. 先读取并校验越权
+	tmpl, err := s.repo.GetTemplateByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(404, "NOT_FOUND", "欲更新的模板不存在")
+		}
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
+	}
+
+	if tmpl.LedgerID != ledgerID {
+		return nil, appErrors.NewAppError(403, "FORBIDDEN", "无权更新该模板")
+	}
+
+	// 2. 覆盖更新
+	tmpl.Name = req.Name
+	tmpl.Type = req.Type
+
+	if req.Title != nil {
+		tmpl.Title = sql.NullString{String: *req.Title, Valid: true}
+	} else {
+		tmpl.Title = sql.NullString{Valid: false}
+	}
+	if req.AmountCents != nil {
+		tmpl.AmountCents = sql.NullInt64{Int64: *req.AmountCents, Valid: true}
+	} else {
+		tmpl.AmountCents = sql.NullInt64{Valid: false}
+	}
+	if req.CategoryID != nil {
+		tmpl.CategoryID = sql.NullString{String: *req.CategoryID, Valid: true}
+	} else {
+		tmpl.CategoryID = sql.NullString{Valid: false}
+	}
+	if req.AccountID != nil {
+		tmpl.AccountID = sql.NullString{String: *req.AccountID, Valid: true}
+	} else {
+		tmpl.AccountID = sql.NullString{Valid: false}
+	}
+	if req.PayerUserID != nil {
+		tmpl.PayerUserID = sql.NullString{String: *req.PayerUserID, Valid: true}
+	} else {
+		tmpl.PayerUserID = sql.NullString{Valid: false}
+	}
+	if req.SplitMethod != nil {
+		tmpl.SplitMethod = sql.NullString{String: *req.SplitMethod, Valid: true}
+	} else {
+		tmpl.SplitMethod = sql.NullString{Valid: false}
+	}
+	if req.Note != nil {
+		tmpl.Note = sql.NullString{String: *req.Note, Valid: true}
+	} else {
+		tmpl.Note = sql.NullString{Valid: false}
+	}
+
+	tagsStr := strings.Join(req.TagNames, ",")
+	if tagsStr != "" {
+		tmpl.TagNames = sql.NullString{String: tagsStr, Valid: true}
+	} else {
+		tmpl.TagNames = sql.NullString{Valid: false}
+	}
+
+	if err := s.repo.UpdateTemplate(ctx, tmpl); err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "更新账单模板失败")
+	}
+
+	tmpl.UpdatedAt = time.Now()
+
+	return s.toTemplateResponse(tmpl), nil
+}
+
+// DeleteTemplate 删除模板逻辑
+func (s *Service) DeleteTemplate(ctx context.Context, currentUserID string, id string) error {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	tmpl, err := s.repo.GetTemplateByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return appErrors.NewAppError(404, "NOT_FOUND", "欲删除的模板不存在")
+		}
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
+	}
+
+	if tmpl.LedgerID != ledgerID {
+		return appErrors.NewAppError(403, "FORBIDDEN", "无权删除该模板")
+	}
+
+	if err := s.repo.DeleteTemplate(ctx, id, ledgerID); err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "删除模板失败")
+	}
+
+	return nil
+}

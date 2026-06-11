@@ -4,6 +4,8 @@ import type {
   Category,
   CreateTransactionPayload,
   CreateSharedExpensePayload,
+  TransactionTemplateResponse,
+  CreateTemplatePayload,
 } from '../types/transaction';
 
 export interface TransactionListFilter {
@@ -40,4 +42,17 @@ export const transactionsApi = {
 
   deleteTransaction: (id: string) =>
     api.delete<void>(`/api/transactions/${id}`),
+
+  listTemplates: () =>
+    api.get<TransactionTemplateResponse[]>('/api/transaction-templates'),
+
+  createTemplate: (payload: CreateTemplatePayload) =>
+    api.post<TransactionTemplateResponse>('/api/transaction-templates', payload),
+
+  updateTemplate: (id: string, payload: CreateTemplatePayload) =>
+    api.put<TransactionTemplateResponse>(`/api/transaction-templates/${id}`, payload),
+
+  deleteTemplate: (id: string) =>
+    api.delete<{ success: boolean }>(`/api/transaction-templates/${id}`),
 };
+

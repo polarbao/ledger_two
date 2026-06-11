@@ -88,4 +88,3 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, res)
 }
-

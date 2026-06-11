@@ -57,3 +57,32 @@ export interface CreateSharedExpensePayload {
   note?: string;
 }
 
+export interface TransactionTemplateResponse {
+  id: string;
+  name: string;
+  type: 'expense' | 'income' | 'shared_expense';
+  title: string;
+  amount_cents?: number | null;
+  category_id: string;
+  account_id: string;
+  payer_user_id: string;
+  split_method: string;
+  tag_names: string[];
+  note: string;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTemplatePayload {
+  name: string;
+  type: 'expense' | 'income' | 'shared_expense';
+  title?: string;
+  amount_cents?: number;
+  category_id?: string;
+  account_id?: string;
+  payer_user_id?: string;
+  split_method?: string;
+  tag_names?: string[];
+  note?: string;
+}

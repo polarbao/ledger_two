@@ -546,3 +546,104 @@ func (r *Repository) ListCategories(ctx context.Context, ledgerID string) ([]Cat
 	return list, nil
 }
 
+// CreateTemplate 创建账单模板
+func (r *Repository) CreateTemplate(ctx context.Context, tmpl *TransactionTemplate) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO transaction_templates (
+			id, ledger_id, name, type, title, amount_cents,
+			category_id, account_id, payer_user_id, split_method,
+			tag_names, note, created_by_user_id, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, tmpl.ID, tmpl.LedgerID, tmpl.Name, tmpl.Type, tmpl.Title, tmpl.AmountCents,
+		tmpl.CategoryID, tmpl.AccountID, tmpl.PayerUserID, tmpl.SplitMethod,
+		tmpl.TagNames, tmpl.Note, tmpl.CreatedByUserID, now, now)
+	return err
+}
+
+// GetTemplateByID 根据 ID 查询单个账单模板
+func (r *Repository) GetTemplateByID(ctx context.Context, id string) (*TransactionTemplate, error) {
+	var tmpl TransactionTemplate
+	var occurredAtStr string // 未使用，占位符或为类型兼容性
+	_ = occurredAtStr
+	err := r.db.QueryRowContext(ctx, `
+		SELECT 
+			id, ledger_id, name, type, title, amount_cents,
+			category_id, account_id, payer_user_id, split_method,
+			tag_names, note, created_by_user_id, created_at, updated_at
+		FROM transaction_templates
+		WHERE id = ?
+	`, id).Scan(
+		&tmpl.ID, &tmpl.LedgerID, &tmpl.Name, &tmpl.Type, &tmpl.Title, &tmpl.AmountCents,
+		&tmpl.CategoryID, &tmpl.AccountID, &tmpl.PayerUserID, &tmpl.SplitMethod,
+		&tmpl.TagNames, &tmpl.Note, &tmpl.CreatedByUserID, &occurredAtStr, &occurredAtStr, // 实际上是 createdAt/updatedAt 对应 TEXT，以格式兼容存入即可
+	)
+	if err != nil {
+		return nil, err
+	}
+	// 解析时间
+	tmpl.CreatedAt, _ = time.Parse(time.RFC3339, occurredAtStr)
+	tmpl.UpdatedAt, _ = time.Parse(time.RFC3339, occurredAtStr)
+	return &tmpl, nil
+}
+
+// ListTemplates 获取指定账本下的所有模板列表
+func (r *Repository) ListTemplates(ctx context.Context, ledgerID string) ([]*TransactionTemplate, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT 
+			id, ledger_id, name, type, title, amount_cents,
+			category_id, account_id, payer_user_id, split_method,
+			tag_names, note, created_by_user_id, created_at, updated_at
+		FROM transaction_templates
+		WHERE ledger_id = ?
+		ORDER BY created_at DESC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var templates []*TransactionTemplate
+	for rows.Next() {
+		var tmpl TransactionTemplate
+		var createdAtStr, updatedAtStr string
+		err := rows.Scan(
+			&tmpl.ID, &tmpl.LedgerID, &tmpl.Name, &tmpl.Type, &tmpl.Title, &tmpl.AmountCents,
+			&tmpl.CategoryID, &tmpl.AccountID, &tmpl.PayerUserID, &tmpl.SplitMethod,
+			&tmpl.TagNames, &tmpl.Note, &tmpl.CreatedByUserID, &createdAtStr, &updatedAtStr,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tmpl.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
+		tmpl.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
+		templates = append(templates, &tmpl)
+	}
+	return templates, nil
+}
+
+// UpdateTemplate 全量更新指定模板属性
+func (r *Repository) UpdateTemplate(ctx context.Context, tmpl *TransactionTemplate) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE transaction_templates
+		SET 
+			name = ?, type = ?, title = ?, amount_cents = ?,
+			category_id = ?, account_id = ?, payer_user_id = ?,
+			split_method = ?, tag_names = ?, note = ?, updated_at = ?
+		WHERE id = ? AND ledger_id = ?
+	`, tmpl.Name, tmpl.Type, tmpl.Title, tmpl.AmountCents,
+		tmpl.CategoryID, tmpl.AccountID, tmpl.PayerUserID,
+		tmpl.SplitMethod, tmpl.TagNames, tmpl.Note, now,
+		tmpl.ID, tmpl.LedgerID)
+	return err
+}
+
+// DeleteTemplate 删除指定模板
+func (r *Repository) DeleteTemplate(ctx context.Context, id string, ledgerID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM transaction_templates
+		WHERE id = ? AND ledger_id = ?
+	`, id, ledgerID)
+	return err
+}

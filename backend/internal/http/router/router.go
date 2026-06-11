@@ -101,6 +101,14 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Delete("/{id}", transactionHandler.HandleDelete)
 			})
 
+			r.Route("/transaction-templates", func(r chi.Router) {
+				r.Post("/", transactionHandler.HandleCreateTemplate)
+				r.Get("/", transactionHandler.HandleListTemplates)
+				r.Get("/{id}", transactionHandler.HandleGetTemplate)
+				r.Put("/{id}", transactionHandler.HandleUpdateTemplate)
+				r.Delete("/{id}", transactionHandler.HandleDeleteTemplate)
+			})
+
 			r.Route("/shared-expenses", func(r chi.Router) {
 				r.Post("/", transactionHandler.HandleCreateSharedExpense)
 				r.Get("/{id}", transactionHandler.HandleGetSharedExpenseByID)

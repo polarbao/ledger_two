@@ -193,3 +193,10 @@ type TemplateResponse struct {
 	CreatedAt       string   `json:"created_at"`
 	UpdatedAt       string   `json:"updated_at"`
 }
+
+// BatchTagRequest 批量打标签请求结构
+type BatchTagRequest struct {
+	TransactionIDs []string `json:"transaction_ids"`
+	TagNames       []string `json:"tag_names"`
+}
+

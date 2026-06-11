@@ -149,13 +149,32 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(q.Get("page"))
 	pageSize, _ := strconv.Atoi(q.Get("page_size"))
 
+	var minAmount *int64
+	if minStr := q.Get("min_amount"); minStr != "" {
+		if val, err := strconv.ParseInt(minStr, 10, 64); err == nil {
+			minAmount = &val
+		}
+	}
+
+	var maxAmount *int64
+	if maxStr := q.Get("max_amount"); maxStr != "" {
+		if val, err := strconv.ParseInt(maxStr, 10, 64); err == nil {
+			maxAmount = &val
+		}
+	}
+
 	filter := TransactionFilter{
-		Month:      q.Get("month"),
-		Type:       q.Get("type"),
-		CategoryID: q.Get("category_id"),
-		Keyword:    q.Get("keyword"),
-		Page:       page,
-		PageSize:   pageSize,
+		Month:       q.Get("month"),
+		Type:        q.Get("type"),
+		CategoryID:  q.Get("category_id"),
+		Keyword:     q.Get("keyword"),
+		MinAmount:   minAmount,
+		MaxAmount:   maxAmount,
+		PayerUserID: q.Get("payer_user_id"),
+		Visibility:  q.Get("visibility"),
+		Tag:         q.Get("tag"),
+		Page:        page,
+		PageSize:    pageSize,
 	}
 
 	res, err := h.service.List(r.Context(), currentUserID, filter)
@@ -471,3 +490,27 @@ func (h *Handler) HandleIgnoreReminder(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
 }
+
+// HandleBatchTag 批量打标签接口
+func (h *Handler) HandleBatchTag(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	var req BatchTagRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		return
+	}
+
+	err := h.service.BatchTag(r.Context(), currentUserID, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+

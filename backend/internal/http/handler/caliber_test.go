@@ -371,3 +371,334 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 		t.Errorf("expected total_expense after delete private tx to be 33000, got %v", dataSummaryA3["total_expense"])
 	}
 }
+
+// TestAdvancedFilterAndBatchTag 验证 Task 15 高级筛选与批量打标签功能
+func TestAdvancedFilterAndBatchTag(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	jwtSecret := "test-secret-caliber-advanced"
+
+	// 初始化 Handler 与 Service 层
+	initRepo := repo.NewInitRepo(db)
+	initSvc := service.NewInitService(initRepo)
+	initHandler := handler.NewInitHandler(initSvc)
+
+	authRepo := repo.NewAuthRepo(db)
+	authSvc := service.NewAuthService(authRepo, jwtSecret)
+	authHandler := handler.NewAuthHandler(authSvc)
+
+	txRepo := transaction.NewRepository(db)
+	txSvc := transaction.NewService(txRepo)
+	txHandler := transaction.NewHandler(txSvc)
+
+	settleRepo := settlement.NewRepository(db)
+	settleSvc := settlement.NewService(settleRepo)
+	settleHandler := settlement.NewHandler(settleSvc)
+
+	dashRepo := dashboard.NewRepository(db)
+	dashSvc := dashboard.NewService(dashRepo, settleSvc)
+	dashHandler := dashboard.NewHandler(dashSvc)
+
+	reportsSvc := reports.NewService(db, dashRepo, settleSvc)
+	reportsHandler := reports.NewHandler(reportsSvc)
+
+	r := chi.NewRouter()
+	r.Post("/api/init/setup", initHandler.HandleSetup)
+	r.Post("/api/auth/login", authHandler.HandleLogin)
+
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Get("/api/dashboard", dashHandler.HandleGetDashboard)
+		r.Route("/api/transactions", func(r chi.Router) {
+			r.Get("/", txHandler.HandleList)
+			r.Post("/", txHandler.HandleCreate)
+			r.Post("/batch-tag", txHandler.HandleBatchTag)
+			r.Get("/{id}", txHandler.HandleGetByID)
+			r.Delete("/{id}", txHandler.HandleDelete)
+			r.Patch("/{id}", txHandler.HandleUpdate)
+		})
+		r.Route("/api/shared-expenses", func(r chi.Router) {
+			r.Post("/", txHandler.HandleCreateSharedExpense)
+		})
+		r.Route("/api/settlements", func(r chi.Router) {
+			r.Get("/balance", settleHandler.HandleGetBalance)
+			r.Post("/", settleHandler.HandleCreate)
+		})
+		r.Route("/api/reports", func(r chi.Router) {
+			r.Get("/monthly-summary", reportsHandler.HandleGetMonthlySummary)
+			r.Get("/member-summary", reportsHandler.HandleGetMemberSummary)
+		})
+	})
+
+	// 1. 初始化系统，注入 A、B 两个用户
+	setupPayload := map[string]string{
+		"ledger_name":         "Advanced Filter Ledger",
+		"user_a_username":     "userA",
+		"user_a_display_name": "User A",
+		"user_a_password":     "pass123",
+		"user_b_username":     "userB",
+		"user_b_display_name": "User B",
+		"user_b_password":     "pass456",
+	}
+	body, _ := json.Marshal(setupPayload)
+	reqSetup, _ := http.NewRequest("POST", "/api/init/setup", bytes.NewBuffer(body))
+	rrSetup := httptest.NewRecorder()
+	r.ServeHTTP(rrSetup, reqSetup)
+	if rrSetup.Code != http.StatusOK {
+		t.Fatalf("setup failed: %v", rrSetup.Body.String())
+	}
+
+	cookieA := getLoginCookie(t, r, "userA", "pass123")
+	cookieB := getLoginCookie(t, r, "userB", "pass456")
+
+	// 查出用户 A 和 B 的实际 UUID 标识
+	var userAID, userBID string
+	_ = db.QueryRow("SELECT id FROM users WHERE username = 'userA'").Scan(&userAID)
+	_ = db.QueryRow("SELECT id FROM users WHERE username = 'userB'").Scan(&userBID)
+
+	var categoryID string
+	_ = db.QueryRow("SELECT id FROM categories LIMIT 1").Scan(&categoryID)
+
+	// 2. 创建 5 笔测试数据
+	// 交易 1：A 创建, type: expense, amount: 1000, private, tags: ["food", "lunch"]
+	tx1Payload := map[string]interface{}{
+		"type":          "expense",
+		"title":         "A私有午餐",
+		"amount_cents":  int64(1000),
+		"currency":      "CNY",
+		"occurred_at":   time.Now().Format(time.RFC3339),
+		"payer_user_id": userAID,
+		"category_id":   categoryID,
+		"visibility":    "private",
+		"tag_names":     []string{"food", "lunch"},
+	}
+	bodyTx1, _ := json.Marshal(tx1Payload)
+	reqTx1, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx1))
+	reqTx1.AddCookie(cookieA)
+	rrTx1 := httptest.NewRecorder()
+	r.ServeHTTP(rrTx1, reqTx1)
+	if rrTx1.Code != http.StatusCreated {
+		t.Fatalf("create transaction 1 failed: %d", rrTx1.Code)
+	}
+	var resTx1 response.SuccessResponse
+	json.Unmarshal(rrTx1.Body.Bytes(), &resTx1)
+	tx1ID := resTx1.Data.(map[string]interface{})["id"].(string)
+
+	// 交易 2：A 创建, type: expense, amount: 2000, partner_readable, tags: ["food"]
+	tx2Payload := map[string]interface{}{
+		"type":          "expense",
+		"title":         "A共享晚餐",
+		"amount_cents":  int64(2000),
+		"currency":      "CNY",
+		"occurred_at":   time.Now().Format(time.RFC3339),
+		"payer_user_id": userAID,
+		"category_id":   categoryID,
+		"visibility":    "partner_readable",
+		"tag_names":     []string{"food"},
+	}
+	bodyTx2, _ := json.Marshal(tx2Payload)
+	reqTx2, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx2))
+	reqTx2.AddCookie(cookieA)
+	rrTx2 := httptest.NewRecorder()
+	r.ServeHTTP(rrTx2, reqTx2)
+	if rrTx2.Code != http.StatusCreated {
+		t.Fatalf("create transaction 2 failed: %d", rrTx2.Code)
+	}
+	var resTx2 response.SuccessResponse
+	json.Unmarshal(rrTx2.Body.Bytes(), &resTx2)
+	tx2ID := resTx2.Data.(map[string]interface{})["id"].(string)
+
+	// 交易 3：B 创建, type: shared_expense, amount: 3000, split_method: equal, tags: ["rent"]
+	tx3Payload := map[string]interface{}{
+		"title":         "B平摊租房",
+		"amount_cents":  int64(3000),
+		"currency":      "CNY",
+		"occurred_at":   time.Now().Format(time.RFC3339),
+		"payer_user_id": userBID,
+		"category_id":   categoryID,
+		"split_method":  "equal",
+		"tag_names":     []string{"rent"},
+	}
+	bodyTx3, _ := json.Marshal(tx3Payload)
+	reqTx3, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(bodyTx3))
+	reqTx3.AddCookie(cookieB)
+	rrTx3 := httptest.NewRecorder()
+	r.ServeHTTP(rrTx3, reqTx3)
+	if rrTx3.Code != http.StatusCreated {
+		t.Fatalf("create transaction 3 failed: %d", rrTx3.Code)
+	}
+	var resTx3 response.SuccessResponse
+	json.Unmarshal(rrTx3.Body.Bytes(), &resTx3)
+	tx3ID := resTx3.Data.(map[string]interface{})["id"].(string)
+
+	// 交易 4：B 创建, type: expense, amount: 5000, private, tags: ["game"]
+	tx4Payload := map[string]interface{}{
+		"type":          "expense",
+		"title":         "B私有游戏",
+		"amount_cents":  int64(5000),
+		"currency":      "CNY",
+		"occurred_at":   time.Now().Format(time.RFC3339),
+		"payer_user_id": userBID,
+		"category_id":   categoryID,
+		"visibility":    "private",
+		"tag_names":     []string{"game"},
+	}
+	bodyTx4, _ := json.Marshal(tx4Payload)
+	reqTx4, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx4))
+	reqTx4.AddCookie(cookieB)
+	rrTx4 := httptest.NewRecorder()
+	r.ServeHTTP(rrTx4, reqTx4)
+	if rrTx4.Code != http.StatusCreated {
+		t.Fatalf("create transaction 4 failed: %d", rrTx4.Code)
+	}
+
+	// 交易 5：A 创建, type: income, amount: 10000, partner_readable, tags: ["salary"]
+	tx5Payload := map[string]interface{}{
+		"type":          "income",
+		"title":         "A个人工资",
+		"amount_cents":  int64(10000),
+		"currency":      "CNY",
+		"occurred_at":   time.Now().Format(time.RFC3339),
+		"payer_user_id": userAID,
+		"category_id":   categoryID,
+		"visibility":    "partner_readable",
+		"tag_names":     []string{"salary"},
+	}
+	bodyTx5, _ := json.Marshal(tx5Payload)
+	reqTx5, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx5))
+	reqTx5.AddCookie(cookieA)
+	rrTx5 := httptest.NewRecorder()
+	r.ServeHTTP(rrTx5, reqTx5)
+	if rrTx5.Code != http.StatusCreated {
+		t.Fatalf("create transaction 5 failed: %d", rrTx5.Code)
+	}
+
+	// 3. 多维度高级筛选测试 (GET /api/transactions)
+	// (a) A 视角拉取全量，应该看到 1, 2, 3, 5。看不到 4 (B的private)。共 4 笔
+	reqListAllA, _ := http.NewRequest("GET", "/api/transactions", nil)
+	reqListAllA.AddCookie(cookieA)
+	rrListAllA := httptest.NewRecorder()
+	r.ServeHTTP(rrListAllA, reqListAllA)
+	var resListAllA response.SuccessResponse
+	json.Unmarshal(rrListAllA.Body.Bytes(), &resListAllA)
+	listAllA := resListAllA.Data.([]interface{})
+	if len(listAllA) != 4 {
+		t.Errorf("expected A to see 4 transactions, got %d", len(listAllA))
+	}
+
+	// (b) A 视角筛选金额：min_amount=1500&max_amount=4000。预期得到 2 (2000), 3 (3000)。共 2 笔
+	reqListAmountA, _ := http.NewRequest("GET", "/api/transactions?min_amount=1500&max_amount=4000", nil)
+	reqListAmountA.AddCookie(cookieA)
+	rrListAmountA := httptest.NewRecorder()
+	r.ServeHTTP(rrListAmountA, reqListAmountA)
+	var resListAmountA response.SuccessResponse
+	json.Unmarshal(rrListAmountA.Body.Bytes(), &resListAmountA)
+	listAmountA := resListAmountA.Data.([]interface{})
+	if len(listAmountA) != 2 {
+		t.Errorf("expected A to see 2 transactions in amount range [1500, 4000], got %d", len(listAmountA))
+	}
+
+	// (c) A 视角过滤标签：tag=food。预期得到 1 (food, lunch), 2 (food)。共 2 笔
+	reqListTagA, _ := http.NewRequest("GET", "/api/transactions?tag=food", nil)
+	reqListTagA.AddCookie(cookieA)
+	rrListTagA := httptest.NewRecorder()
+	r.ServeHTTP(rrListTagA, reqListTagA)
+	var resListTagA response.SuccessResponse
+	json.Unmarshal(rrListTagA.Body.Bytes(), &resListTagA)
+	listTagA := resListTagA.Data.([]interface{})
+	if len(listTagA) != 2 {
+		t.Errorf("expected A to see 2 transactions with tag=food, got %d", len(listTagA))
+	}
+
+	// (d) A 视角过滤付款人与可见性：payer_user_id=userBID, visibility=shared。预期得到 3 (shared)。共 1 笔
+	reqListMultiA, _ := http.NewRequest("GET", "/api/transactions?payer_user_id="+userBID+"&visibility=shared", nil)
+	reqListMultiA.AddCookie(cookieA)
+	rrListMultiA := httptest.NewRecorder()
+	r.ServeHTTP(rrListMultiA, reqListMultiA)
+	var resListMultiA response.SuccessResponse
+	json.Unmarshal(rrListMultiA.Body.Bytes(), &resListMultiA)
+	listMultiA := resListMultiA.Data.([]interface{})
+	if len(listMultiA) != 1 {
+		t.Errorf("expected A to see 1 transaction with B payer and shared visibility, got %d", len(listMultiA))
+	}
+
+	// (e) B 视角拉取全量，应该看不到 1 (A的private)。共 4 笔 (2, 3, 4, 5)
+	reqListAllB, _ := http.NewRequest("GET", "/api/transactions", nil)
+	reqListAllB.AddCookie(cookieB)
+	rrListAllB := httptest.NewRecorder()
+	r.ServeHTTP(rrListAllB, reqListAllB)
+	var resListAllB response.SuccessResponse
+	json.Unmarshal(rrListAllB.Body.Bytes(), &resListAllB)
+	listAllB := resListAllB.Data.([]interface{})
+	if len(listAllB) != 4 {
+		t.Errorf("expected B to see 4 transactions, got %d", len(listAllB))
+	}
+
+	// 4. 批量打标签越权测试 (POST /api/transactions/batch-tag)
+	// (a) B 试图给 A 的私有交易 1 打标签，预期返回 403 Forbidden
+	batchIllegalPayload := map[string]interface{}{
+		"transaction_ids": []string{tx1ID},
+		"tag_names":       []string{"illegal"},
+	}
+	bodyIllegal, _ := json.Marshal(batchIllegalPayload)
+	reqIllegal, _ := http.NewRequest("POST", "/api/transactions/batch-tag", bytes.NewBuffer(bodyIllegal))
+	reqIllegal.AddCookie(cookieB)
+	rrIllegal := httptest.NewRecorder()
+	r.ServeHTTP(rrIllegal, reqIllegal)
+	if rrIllegal.Code != http.StatusForbidden {
+		t.Errorf("expected B tagging A's private transaction to return 403 Forbidden, got %d", rrIllegal.Code)
+	}
+
+	// 5. 批量打标签正常追加测试
+	// A 批量给交易 2 (原有: ["food"]) 和交易 3 (原有: ["rent"]) 打上标签 ["batch1", "food"]
+	batchPayload := map[string]interface{}{
+		"transaction_ids": []string{tx2ID, tx3ID},
+		"tag_names":       []string{"batch1", "food"},
+	}
+	bodyBatch, _ := json.Marshal(batchPayload)
+	reqBatch, _ := http.NewRequest("POST", "/api/transactions/batch-tag", bytes.NewBuffer(bodyBatch))
+	reqBatch.AddCookie(cookieA)
+	rrBatch := httptest.NewRecorder()
+	r.ServeHTTP(rrBatch, reqBatch)
+	if rrBatch.Code != http.StatusOK {
+		t.Fatalf("batch tag failed, got code %d, body: %s", rrBatch.Code, rrBatch.Body.String())
+	}
+
+	// 校验交易 2 和交易 3 的标签状态
+	// 交易 2 应包含：food, batch1 (去重追加，无重复)
+	reqTx2Detail, _ := http.NewRequest("GET", "/api/transactions/"+tx2ID, nil)
+	reqTx2Detail.AddCookie(cookieA)
+	rrTx2Detail := httptest.NewRecorder()
+	r.ServeHTTP(rrTx2Detail, reqTx2Detail)
+	var resTx2Detail response.SuccessResponse
+	json.Unmarshal(rrTx2Detail.Body.Bytes(), &resTx2Detail)
+	tx2Data := resTx2Detail.Data.(map[string]interface{})
+	tx2Tags := tx2Data["tags"].([]interface{})
+	if len(tx2Tags) != 2 {
+		t.Errorf("expected tx2 tags length to be 2, got %d (tags: %v)", len(tx2Tags), tx2Tags)
+	}
+
+	// 交易 3 应包含：rent, batch1, food
+	reqTx3Detail, _ := http.NewRequest("GET", "/api/transactions/"+tx3ID, nil)
+	reqTx3Detail.AddCookie(cookieA)
+	rrTx3Detail := httptest.NewRecorder()
+	r.ServeHTTP(rrTx3Detail, reqTx3Detail)
+	var resTx3Detail response.SuccessResponse
+	json.Unmarshal(rrTx3Detail.Body.Bytes(), &resTx3Detail)
+	tx3Data := resTx3Detail.Data.(map[string]interface{})
+	tx3Tags := tx3Data["tags"].([]interface{})
+	if len(tx3Tags) != 3 {
+		t.Errorf("expected tx3 tags length to be 3, got %d (tags: %v)", len(tx3Tags), tx3Tags)
+	}
+
+	// 校验审计日志：应该新增了 2 条 action = 'batch_tag' 的审计记录
+	var auditCount int
+	err := db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE action = 'batch_tag'").Scan(&auditCount)
+	if err != nil {
+		t.Fatalf("query audit logs count failed: %v", err)
+	}
+	if auditCount != 2 {
+		t.Errorf("expected 2 batch_tag audit logs, got %d", auditCount)
+	}
+}

@@ -1493,3 +1493,68 @@ func (s *Service) toRecurringReminderResponse(d *RecurringReminderDetail) *Recur
 		UpdatedAt:     d.Reminder.UpdatedAt.Format(time.RFC3339),
 	}
 }
+
+// BatchTag 批量为多条账单追加标签并写入审计记录
+func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchTagRequest) error {
+	if len(req.TransactionIDs) == 0 {
+		return appErrors.NewAppError(400, "VALIDATION_ERROR", "请选择至少一笔交易")
+	}
+	if len(req.TagNames) == 0 {
+		return appErrors.NewAppError(400, "VALIDATION_ERROR", "标签名称不能为空")
+	}
+
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	// 开启事务
+	dbConn := s.repo.GetDB()
+	tx, err := dbConn.BeginTx(ctx, nil)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "启动事务失败")
+	}
+	defer tx.Rollback()
+
+	now := time.Now().Format(time.RFC3339)
+
+	for _, txID := range req.TransactionIDs {
+		// 校验越权：查询这笔交易是否属于当前账本
+		txModel, _, err := s.repo.GetByID(ctx, txID)
+		if err != nil {
+			return appErrors.NewAppError(404, "NOT_FOUND", "账单交易未找到: "+txID)
+		}
+		if txModel.LedgerID != ledgerID {
+			return appErrors.NewAppError(403, "FORBIDDEN", "无权操作该账单交易")
+		}
+		if !s.CanEditTransaction(currentUserID, txModel) {
+			return appErrors.NewAppError(403, "FORBIDDEN", "无权操作该账单交易")
+		}
+
+		// 追加标签 (associateTags 会 INSERT OR IGNORE 关联，起到追加且去重效果)
+		if err = s.repo.associateTags(ctx, tx, txID, ledgerID, req.TagNames, now); err != nil {
+			return appErrors.NewAppError(500, "INTERNAL_ERROR", "关联标签失败: "+err.Error())
+		}
+
+		// 写入审计日志记录
+		auditLog := &AuditLog{
+			LedgerID:    ledgerID,
+			ActorUserID: currentUserID,
+			Action:      "batch_tag",
+			EntityType:  "transaction",
+			EntityID:    txID,
+			BeforeJSON:  sql.NullString{String: "{}", Valid: true},
+			AfterJSON:   sql.NullString{String: fmt.Sprintf(`{"added_tags":%v}`, req.TagNames), Valid: true},
+		}
+		if err = s.repo.CreateAuditLogWithTx(ctx, tx, auditLog); err != nil {
+			return appErrors.NewAppError(500, "INTERNAL_ERROR", "记录审计日志失败")
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "提交事务失败")
+	}
+
+	return nil
+}
+

@@ -204,12 +204,17 @@ func (r *Repository) SoftDeleteWithTx(ctx context.Context, tx *sql.Tx, id string
 
 // TransactionFilter 查询过滤参数
 type TransactionFilter struct {
-	Month      string
-	Type       string
-	CategoryID string
-	Keyword    string
-	Page       int
-	PageSize   int
+	Month       string
+	Type        string
+	CategoryID  string
+	Keyword     string
+	MinAmount   *int64 // 分为单位
+	MaxAmount   *int64 // 分为单位
+	PayerUserID string
+	Visibility  string
+	Tag         string
+	Page        int
+	PageSize    int
 }
 
 // List 拉取流水列表 (加入安全可见性审计)
@@ -260,6 +265,36 @@ func (r *Repository) List(ctx context.Context, ledgerID string, userID string, f
 	if filter.Keyword != "" {
 		query += " AND (title LIKE ? OR note LIKE ?)"
 		args = append(args, "%"+filter.Keyword+"%", "%"+filter.Keyword+"%")
+	}
+
+	// 金额下限过滤
+	if filter.MinAmount != nil {
+		query += " AND amount >= ?"
+		args = append(args, *filter.MinAmount)
+	}
+
+	// 金额上限过滤
+	if filter.MaxAmount != nil {
+		query += " AND amount <= ?"
+		args = append(args, *filter.MaxAmount)
+	}
+
+	// 付款人过滤
+	if filter.PayerUserID != "" {
+		query += " AND payer_user_id = ?"
+		args = append(args, filter.PayerUserID)
+	}
+
+	// 可见性过滤
+	if filter.Visibility != "" {
+		query += " AND visibility = ?"
+		args = append(args, filter.Visibility)
+	}
+
+	// 标签名称过滤
+	if filter.Tag != "" {
+		query += " AND id IN (SELECT tt.transaction_id FROM transaction_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tg.name = ?)"
+		args = append(args, filter.Tag)
 	}
 
 	// 按时间倒序排序

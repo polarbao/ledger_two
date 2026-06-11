@@ -26,6 +26,10 @@ export default function TransactionsPage() {
 
   const [selectedTx, setSelectedTx] = useState<TransactionResponse | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const setCopySourceTransaction = useUIStore((state) => state.setCopySourceTransaction);
+  const setAddDrawerOpen = useUIStore((state) => state.setAddDrawerOpen);
 
   // 1. 获取分类名称列表映射
   const { data: categories } = useQuery({
@@ -160,8 +164,9 @@ export default function TransactionsPage() {
                     return (
                       <tr 
                         key={tx.id} 
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s' }}
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s', cursor: 'pointer' }}
                         className="table-row-hover"
+                        onClick={() => { setSelectedTx(tx); setDetailOpen(true); }}
                       >
                         <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>
                           {formatDate(tx.occurred_at).substring(5, 16)}
@@ -194,7 +199,7 @@ export default function TransactionsPage() {
                         <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                           {canDelete ? (
                             <button 
-                              onClick={() => handleDeleteClick(tx)}
+                              onClick={(e) => { e.stopPropagation(); handleDeleteClick(tx); }}
                               className="btn-logout" 
                               style={{ 
                                 padding: '6px 12px', 
@@ -247,6 +252,149 @@ export default function TransactionsPage() {
           </div>
         )}
       </PageState>
+
+      {/* ==========================================
+         账单详情抽屉 (TransactionDetailDrawer)
+         ========================================== */}
+      {detailOpen && selectedTx && (
+        <div className="drawer-overlay glass-blur show" onClick={() => { setDetailOpen(false); setSelectedTx(null); }}>
+          <div className="drawer-container glass-card text-left" onClick={(e) => e.stopPropagation()}>
+            {/* 头部 */}
+            <div className="drawer-header">
+              <div className="header-title">
+                <ReceiptText className="title-icon text-glow" />
+                <h3>账单详情</h3>
+              </div>
+              <button className="btn-close-drawer" onClick={() => { setDetailOpen(false); setSelectedTx(null); }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* 详情内容 */}
+            <div className="drawer-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* 金额大字号展示 */}
+              <div style={{ textAlign: 'center', padding: '24px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <span className="dimmed" style={{ fontSize: '13px' }}>交易金额</span>
+                <div style={{ fontSize: '36px', fontWeight: 700, marginTop: '8px', color: selectedTx.type === 'income' ? 'var(--accent-green)' : 'var(--accent-purple)' }}>
+                  {selectedTx.type === 'income' ? '+' : '-'}¥{centsToYuan(selectedTx.amount_cents)}
+                </div>
+              </div>
+
+              {/* 核心信息网格 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="dimmed">账单标题</span>
+                  <span style={{ fontWeight: 500 }}>{selectedTx.title || '无标题'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="dimmed">账单类型</span>
+                  <span>
+                    {selectedTx.type === 'expense' && '个人支出'}
+                    {selectedTx.type === 'income' && '个人收入'}
+                    {selectedTx.type === 'shared_expense' && '共同支出'}
+                    {selectedTx.type === 'settlement' && '结算记录'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="dimmed">所属分类</span>
+                  <span>{selectedTx.category_id ? catMap[selectedTx.category_id] || '已设分类' : '未分类'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="dimmed">发生日期</span>
+                  <span>{formatDate(selectedTx.occurred_at).substring(0, 16)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="dimmed">付款人</span>
+                  <span>{getPayerName(selectedTx.payer_user_id)}</span>
+                </div>
+
+                {selectedTx.type === 'shared_expense' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span className="dimmed">分摊方式</span>
+                      <span>{selectedTx.split_method === 'equal' ? '均等平分 (Equal)' : '付款人全额承担'}</span>
+                    </div>
+                    {/* 分摊明细展示 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '12px', marginTop: '6px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 500 }} className="dimmed">分摊明细：</span>
+                      {selectedTx.participants?.map((p) => (
+                        <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span>{p.user_id === currentUser?.id ? '我 (承担)' : '伙伴 (承担)'}</span>
+                          <strong>¥{centsToYuan(p.share_amount_cents)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {selectedTx.type !== 'shared_expense' && selectedTx.type !== 'settlement' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="dimmed">可见性</span>
+                    <span>{selectedTx.visibility === 'private' ? '仅自己可见' : '对方可见 (只读)'}</span>
+                  </div>
+                )}
+
+                {selectedTx.tags && selectedTx.tags.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <span className="dimmed" style={{ minWidth: '80px' }}>账单标签</span>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {selectedTx.tags.map((t) => (
+                        <span key={t} className="badge-shared" style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px' }}>
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedTx.note && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed rgba(255,255,255,0.05)', paddingTop: '12px', marginTop: '6px' }}>
+                    <span className="dimmed">备注</span>
+                    <p style={{ margin: 0, fontSize: '13px', background: 'rgba(255,255,255,0.01)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
+                      {selectedTx.note}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 页脚操作按钮 */}
+            <div className="drawer-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              {/* 删除按钮 (仅创建者允许) */}
+              {selectedTx.created_by_user_id === currentUser?.id && selectedTx.type !== 'settlement' && (
+                <button 
+                  className="btn-secondary" 
+                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+                  onClick={() => {
+                    setDetailOpen(false);
+                    handleDeleteClick(selectedTx);
+                  }}
+                >
+                  <Trash2 size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                  删除账单
+                </button>
+              )}
+
+              {/* 复制一笔 */}
+              {selectedTx.type !== 'settlement' && (
+                <button 
+                  className="btn-primary" 
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+                  onClick={() => {
+                    setCopySourceTransaction(selectedTx);
+                    setAddDrawerOpen(true);
+                    setDetailOpen(false);
+                  }}
+                >
+                  复制一笔
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
       {/* ==========================================
          账单/共同支出删除高风险二次确认模态弹窗

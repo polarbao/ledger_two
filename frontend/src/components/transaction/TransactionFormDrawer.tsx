@@ -41,7 +41,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function TransactionFormDrawer() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const { addDrawerOpen, setAddDrawerOpen, currentMonth } = useUIStore();
+  const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction } = useUIStore();
 
   // 1. 获取全量分类列表
   const { data: categories, isLoading: isCategoriesLoading } = useQuery({
@@ -99,10 +99,31 @@ export default function TransactionFormDrawer() {
 
   // 当登录用户发生变化或抽屉打开时，更新默认付款人
   useEffect(() => {
-    if (currentUser?.id) {
+    if (currentUser?.id && !copySourceTransaction) {
       setValue('payer_user_id', currentUser.id);
     }
-  }, [currentUser, setValue, addDrawerOpen]);
+  }, [currentUser, setValue, addDrawerOpen, copySourceTransaction]);
+
+  // 处理“复制一笔”回填逻辑
+  useEffect(() => {
+    if (addDrawerOpen && copySourceTransaction) {
+      const amountYuan = (copySourceTransaction.amount_cents / 100).toFixed(2);
+      const tagsStr = copySourceTransaction.tags ? copySourceTransaction.tags.join(', ') : '';
+      
+      reset({
+        type: copySourceTransaction.type === 'settlement' ? 'expense' : copySourceTransaction.type,
+        amount: amountYuan,
+        title: copySourceTransaction.title || '',
+        category_id: copySourceTransaction.category_id || '',
+        tag_names: tagsStr,
+        payer_user_id: copySourceTransaction.payer_user_id || currentUser?.id || '',
+        split_method: copySourceTransaction.split_method || 'equal',
+        occurred_at: getTodayString(),
+        note: copySourceTransaction.note || '',
+        visibility: copySourceTransaction.visibility === 'shared' ? 'partner_readable' : copySourceTransaction.visibility,
+      });
+    }
+  }, [addDrawerOpen, copySourceTransaction, reset, currentUser]);
 
   // 4. 定义创建账单的 Mutation
   const createTxMutation = useMutation({
@@ -147,6 +168,7 @@ export default function TransactionFormDrawer() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setAddDrawerOpen(false);
+      setCopySourceTransaction(null);
       reset({
         type: 'expense',
         amount: '',
@@ -168,6 +190,7 @@ export default function TransactionFormDrawer() {
 
   const handleClose = () => {
     setAddDrawerOpen(false);
+    setCopySourceTransaction(null);
   };
 
   if (!addDrawerOpen) return null;

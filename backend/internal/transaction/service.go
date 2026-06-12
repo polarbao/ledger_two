@@ -2,7 +2,9 @@ package transaction
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1561,4 +1563,268 @@ func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchT
 
 	return nil
 }
+
+// calculateImportHash 根据账本ID和交易详情计算SHA256唯一指纹哈希
+func calculateImportHash(ledgerID string, item ImportItemRequest) string {
+	rawStr := fmt.Sprintf("%s|%s|%d|%s|%s|%s",
+		ledgerID,
+		item.OccurredAt,
+		item.AmountCents,
+		item.Merchant,
+		item.Title,
+		item.Note,
+	)
+	hash := sha256.Sum256([]byte(rawStr))
+	return hex.EncodeToString(hash[:])
+}
+
+// AnalyzeImport 分析待导入数据的去重状态
+func (s *Service) AnalyzeImport(ctx context.Context, req AnalyzeImportRequest) (*AnalyzeImportResponse, error) {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	hashes := make([]string, len(req.Items))
+	for i, item := range req.Items {
+		hashes[i] = calculateImportHash(ledgerID, item)
+	}
+
+	existing, err := s.repo.FilterExistingHashes(ctx, hashes)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", fmt.Sprintf("分析去重数据失败: %v", err))
+	}
+
+	skipCount := 0
+	for _, h := range hashes {
+		if existing[h] {
+			skipCount++
+		}
+	}
+
+	return &AnalyzeImportResponse{
+		TotalCount:  len(req.Items),
+		ImportCount: len(req.Items) - skipCount,
+		SkipCount:   skipCount,
+	}, nil
+}
+
+// CommitImport 事务批量安全落库
+func (s *Service) CommitImport(ctx context.Context, currentUserID string, req CommitImportRequest) error {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	users, err := s.getSystemUsers(ctx)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+	}
+
+	dbConn := s.repo.GetDB()
+	dbTx, err := dbConn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer dbTx.Rollback()
+
+	batchID := uuid.NewString()
+	now := time.Now().Format(time.RFC3339)
+
+	// 1. 创建导入批次
+	_, err = dbTx.ExecContext(ctx, `
+		INSERT INTO import_batches (id, ledger_id, filename, created_by_user_id, status, created_at)
+		VALUES (?, ?, ?, ?, 'completed', ?)
+	`, batchID, ledgerID, req.Filename, currentUserID, now)
+	if err != nil {
+		return fmt.Errorf("failed to create import batch: %w", err)
+	}
+
+	// 2. 迭代写入各交易项
+	for _, item := range req.Items {
+		hash := calculateImportHash(ledgerID, item)
+
+		// 检查哈希去重
+		var exists bool
+		err = dbTx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM import_items WHERE status = 'imported' AND import_hash = ?)", hash).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("failed to check import hash: %w", err)
+		}
+
+		if exists {
+			// 如果已存在，静默跳过，仅生成 skipped 类型的 import_items 记录
+			itemID := uuid.NewString()
+			_, err = dbTx.ExecContext(ctx, `
+				INSERT INTO import_items (id, batch_id, transaction_id, import_hash, status, created_at)
+				VALUES (?, ?, NULL, ?, 'skipped', ?)
+			`, itemID, batchID, hash, now)
+			if err != nil {
+				return fmt.Errorf("failed to create skipped import item: %w", err)
+			}
+			continue
+		}
+
+		// 解析发生时间
+		occurredAt, err := time.Parse(time.RFC3339, item.OccurredAt)
+		if err != nil {
+			t, err2 := time.Parse("2006-01-02", item.OccurredAt)
+			if err2 != nil {
+				t3, err3 := time.Parse("2006-01-02 15:04:05", item.OccurredAt)
+				if err3 != nil {
+					return appErrors.NewAppError(400, "VALIDATION_ERROR", "交易时间格式必须符合 ISO8601 标准，或为 YYYY-MM-DD/YYYY-MM-DD HH:mm:ss")
+				}
+				occurredAt = t3
+			} else {
+				occurredAt = t
+			}
+		}
+
+		// 校验付款人
+		foundPayer := false
+		var otherUserID string
+		for _, u := range users {
+			if u == item.PayerUserID {
+				foundPayer = true
+			} else {
+				otherUserID = u
+			}
+		}
+		if !foundPayer {
+			return appErrors.NewAppError(400, "VALIDATION_ERROR", "付款人用户不在当前账本成员中")
+		}
+
+		txID := uuid.NewString()
+		var categoryVal sql.NullString
+		if item.CategoryID != "" {
+			categoryVal = sql.NullString{String: item.CategoryID, Valid: true}
+		}
+		var accountVal sql.NullString
+		if item.AccountID != "" {
+			accountVal = sql.NullString{String: item.AccountID, Valid: true}
+		}
+
+		// 标题兜底
+		title := item.Title
+		if title == "" {
+			if item.CategoryID != "" {
+				title = s.getCategoryName(ctx, item.CategoryID)
+			}
+			if title == "" {
+				if item.Type == "shared_expense" {
+					title = "未分类共同支出"
+				} else {
+					title = "未分类流水"
+				}
+			}
+		}
+
+		// 区分个人支出和共同支出
+		if item.Type == "expense" {
+			txModel := &Transaction{
+				ID:              txID,
+				LedgerID:        ledgerID,
+				Type:            "expense",
+				Title:           title,
+				Amount:          item.AmountCents,
+				Currency:        "CNY",
+				OccurredAt:      occurredAt,
+				OwnerUserID:     currentUserID,
+				CreatedByUserID: currentUserID,
+				PayerUserID:     item.PayerUserID,
+				AccountID:       accountVal,
+				CategoryID:      categoryVal,
+				Visibility:      "private", // 个人支出默认可见性为私有
+				Note:            sql.NullString{String: item.Note, Valid: item.Note != ""},
+			}
+
+			err = s.repo.CreateWithTx(ctx, dbTx, txModel, item.TagNames)
+			if err != nil {
+				return fmt.Errorf("failed to create import transaction: %w", err)
+			}
+		} else if item.Type == "shared_expense" {
+			splitMethod := "equal"
+			base := item.AmountCents / 2
+			rem := item.AmountCents % 2
+			payerShare := base + rem
+			otherShare := base
+
+			txModel := &Transaction{
+				ID:              txID,
+				LedgerID:        ledgerID,
+				Type:            "shared_expense",
+				Title:           title,
+				Amount:          item.AmountCents,
+				Currency:        "CNY",
+				OccurredAt:      occurredAt,
+				OwnerUserID:     currentUserID,
+				CreatedByUserID: currentUserID,
+				PayerUserID:     item.PayerUserID,
+				CategoryID:      categoryVal,
+				Visibility:      "shared",
+				SplitMethod:     sql.NullString{String: splitMethod, Valid: true},
+				Note:            sql.NullString{String: item.Note, Valid: item.Note != ""},
+			}
+
+			err = s.repo.CreateWithTx(ctx, dbTx, txModel, item.TagNames)
+			if err != nil {
+				return fmt.Errorf("failed to create import shared transaction: %w", err)
+			}
+
+			splits := []TransactionSplit{
+				{
+					ID:            uuid.NewString(),
+					TransactionID: txID,
+					UserID:        item.PayerUserID,
+					ShareAmount:   payerShare,
+				},
+				{
+					ID:            uuid.NewString(),
+					TransactionID: txID,
+					UserID:        otherUserID,
+					ShareAmount:   otherShare,
+				},
+			}
+
+			err = s.repo.CreateSplitsWithTx(ctx, dbTx, splits)
+			if err != nil {
+				return fmt.Errorf("failed to create import splits: %w", err)
+			}
+		} else {
+			return appErrors.NewAppError(400, "VALIDATION_ERROR", "记账类型必须为 expense 或 shared_expense")
+		}
+
+		// 创建 import_items 记录
+		itemID := uuid.NewString()
+		_, err = dbTx.ExecContext(ctx, `
+			INSERT INTO import_items (id, batch_id, transaction_id, import_hash, status, created_at)
+			VALUES (?, ?, ?, ?, 'imported', ?)
+		`, itemID, batchID, txID, hash, now)
+		if err != nil {
+			return fmt.Errorf("failed to create imported import item: %w", err)
+		}
+	}
+
+	// 3. 记录审计日志
+	auditLog := &AuditLog{
+		LedgerID:    ledgerID,
+		ActorUserID: currentUserID,
+		Action:      "import",
+		EntityType:  "import_batch",
+		EntityID:    batchID,
+		BeforeJSON:  sql.NullString{Valid: false},
+		AfterJSON:   sql.NullString{String: fmt.Sprintf(`{"filename":"%s","total":%d}`, req.Filename, len(req.Items)), Valid: true},
+	}
+	err = s.repo.CreateAuditLogWithTx(ctx, dbTx, auditLog)
+	if err != nil {
+		return fmt.Errorf("failed to create import audit log: %w", err)
+	}
+
+	// 4. 提交事务
+	if err = dbTx.Commit(); err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "提交事务失败: "+err.Error())
+	}
+
+	return nil
+}
+
 

@@ -1,0 +1,23 @@
+feat(导入功能): 实现 CSV 导入的去重分析与事务确认批量安全落库 (Task 17)
+
+本提交在 Task 16 内存账单预览的基础上，补齐了 CSV 账单导入的第二阶段核心能力：
+
+1. 数据库迁移：
+   - 新增 `004_add_import_tables.sql` 迁移文件，创建 `import_batches` 与 `import_items` 表。
+   - 为了支持在不同批次下记录 `skipped` 跳过流水且保证不触发 UNIQUE 物理冲突，`import_items.import_hash` 仅挂载普通检索索引 `idx_import_items_hash`，在逻辑层基于状态过滤实现精准去重。
+
+2. 后端核心去重服务与事务安全：
+   - 制定了 SHA256 哈希指纹提取算法，对 ledger_id、发生时间、金额分、商户、标题与备注进行拼接防冲突。
+   - 实现 `AnalyzeImport`，提取指纹并在已成功落库（status = 'imported'）的历史哈希中检索，统计待导入与跳过的笔数。
+   - 实现 `CommitImport` 并使用 `sql.Tx` 进行五表原子打包写入。对于冲突哈希，静默跳过写入 transactions 且只将 `import_items` 中的状态置为 `skipped` 并归档到当前批次；对于未导入项，生成对应个人支出或共同支出并转录 splits 分摊与 tags 标签。
+   - 数据入库成功后向 `audit_logs` 写入导入操作日志以备合规审计。事务内发生任何参数与权限报错自动整体 Rollback。
+
+3. 前端类型、API 与安全交互：
+   - 在 `transaction.ts` 类型定义中补齐了 `ImportItemPayload` 等相关的 DTO 载荷。
+   - 挂载 `analyzeImport` 与 `commitImport` 两大网络端点。
+   - 重构 `ImportPage.tsx` 中 Step 3 的确认导入流程：点击时优先请求去重分析，完成后弹起符合安全规范的二次确认 Modal，提供“总笔数”、“新增待导入”和“跳过重复”的三维网格看板，并搭载批量写入审计黄牌告知。
+   - 提交写入成功后自动调用 TanStack 的 `invalidateQueries` 使 `transactions` 及 `dashboard` 数据缓存失效，重新自动拉取新账期看板，并在最终弹出绿色 Check Modal 后关闭状态，一键重置导入工作区。
+
+4. 回归与质量：
+   - 在 `import_test.go` 中新增 `TestCSVImportDeduplicationAndCommit` 集成测试，对去重分析过滤数量、去重落库状态追踪、以及出错事务自动 Rollback 进行全量用例回归。
+   - 在 WSL2 环境中运行后端 `go test ./...` 绿牌通过；运行前端类型校验 `tsc -b`、Lint 静态规则扫描 `npm run lint`、以及生产打包 `npm run build` 全线无 error 通过。

@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -171,3 +172,60 @@ func (h *Handler) HandleParseCSV(w http.ResponseWriter, r *http.Request) {
 		Rows:    dataRows,
 	})
 }
+
+// HandleAnalyzeImport 处理待导入 CSV 数据去重分析
+func (h *Handler) HandleAnalyzeImport(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	var req AnalyzeImportRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "请求体格式无效")
+		return
+	}
+
+	res, err := h.service.AnalyzeImport(r.Context(), req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleCommitImport 处理 CSV 账单批量事务确认写入
+func (h *Handler) HandleCommitImport(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	var req CommitImportRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "请求体格式无效")
+		return
+	}
+
+	if req.Filename == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "导入文件名 filename 不能为空")
+		return
+	}
+
+	if len(req.Items) == 0 {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "导入账单列表不能为空")
+		return
+	}
+
+	err := h.service.CommitImport(r.Context(), currentUserID, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+

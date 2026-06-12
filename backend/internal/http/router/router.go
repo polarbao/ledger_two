@@ -98,6 +98,8 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Post("/", transactionHandler.HandleCreate)
 				r.Post("/batch-tag", transactionHandler.HandleBatchTag)
 				r.Post("/import/parse", transactionHandler.HandleParseCSV)
+				r.Post("/import/analyze", transactionHandler.HandleAnalyzeImport)
+				r.Post("/import/commit", transactionHandler.HandleCommitImport)
 				r.Get("/{id}", transactionHandler.HandleGetByID)
 				r.Patch("/{id}", transactionHandler.HandleUpdate)
 				r.Delete("/{id}", transactionHandler.HandleDelete)

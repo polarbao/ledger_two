@@ -10,6 +10,9 @@ import type {
   CreateRecurringRulePayload,
   RecurringReminderResponse,
   CSVParseResponse,
+  AnalyzeImportPayload,
+  AnalyzeImportResponse,
+  CommitImportPayload,
 } from '../types/transaction';
 
 export interface TransactionListFilter {
@@ -100,5 +103,11 @@ export const transactionsApi = {
     formData.append('file', file);
     return api.post<CSVParseResponse>('/api/transactions/import/parse', formData);
   },
+
+  analyzeImport: (payload: AnalyzeImportPayload) =>
+    api.post<AnalyzeImportResponse>('/api/transactions/import/analyze', payload),
+
+  commitImport: (payload: CommitImportPayload) =>
+    api.post<{ status: string }>('/api/transactions/import/commit', payload),
 };
 

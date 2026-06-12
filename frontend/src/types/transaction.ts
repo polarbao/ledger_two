@@ -145,4 +145,33 @@ export interface CSVParseResponse {
   rows: string[][];
 }
 
+export interface ImportItemPayload {
+  occurred_at: string;
+  amount_cents: number;
+  title: string;
+  merchant: string;
+  category_id: string;
+  account_id: string;
+  payer_user_id: string;
+  type: 'expense' | 'shared_expense';
+  tag_names: string[];
+  note: string;
+}
+
+export interface AnalyzeImportPayload {
+  items: ImportItemPayload[];
+}
+
+export interface AnalyzeImportResponse {
+  total_count: number;
+  import_count: number;
+  skip_count: number;
+}
+
+export interface CommitImportPayload {
+  filename: string;
+  items: ImportItemPayload[];
+}
+
+
 

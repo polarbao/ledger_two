@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ImportItemPayload } from '../types/transaction';
 import { 
 	Upload, 
 	ArrowRight, 
@@ -42,8 +43,13 @@ export default function ImportPage() {
 	// 当前月份，用于拉取成员
 	const currentMonth = new Date().toISOString().substring(0, 7);
 
+	const queryClient = useQueryClient();
+
 	// 1. 状态管理
 	const [step, setStep] = useState<1 | 2 | 3>(1);
+	const [submitting, setSubmitting] = useState(false);
+	const [showConfirmModal, setShowConfirmModal] = useState(false);
+	const [analyzeResult, setAnalyzeResult] = useState<{ total_count: number; import_count: number; skip_count: number } | null>(null);
 	const [file, setFile] = useState<File | null>(null);
 	const [headers, setHeaders] = useState<string[]>([]);
 	const [rows, setRows] = useState<string[][]>([]);
@@ -220,6 +226,70 @@ export default function ImportPage() {
 	// 6. 预览删除单行
 	const handleRemovePreviewItem = (id: string) => {
 		setPreviewList((prev) => prev.filter((item) => item.id !== id));
+	};
+
+	// 7. 去重分析与提交事务落库
+	const getPayloadItems = (): ImportItemPayload[] => {
+		return previewList.map((item) => ({
+			occurred_at: item.occurred_at,
+			amount_cents: Math.round(item.amount * 100),
+			title: item.title,
+			merchant: item.merchant,
+			category_id: item.category_id,
+			account_id: '',
+			payer_user_id: defaultPayer,
+			type: defaultType,
+			tag_names: [],
+			note: item.note,
+		}));
+	};
+
+	const handleAnalyzeImport = async () => {
+		setErrorMsg(null);
+		setParsing(true);
+		try {
+			const items = getPayloadItems();
+			const res = await transactionsApi.analyzeImport({ items });
+			setAnalyzeResult(res);
+			setShowConfirmModal(true);
+		} catch (err: unknown) {
+			if (err instanceof ApiError) {
+				setErrorMsg(err.message);
+			} else {
+				setErrorMsg('去重预分析失败，请稍后重试');
+			}
+		} finally {
+			setParsing(false);
+		}
+	};
+
+	const handleCommitImport = async () => {
+		setErrorMsg(null);
+		setSubmitting(true);
+		try {
+			const items = getPayloadItems();
+			await transactionsApi.commitImport({
+				filename: file?.name || 'statement.csv',
+				items,
+			});
+			setShowConfirmModal(false);
+			
+			// 刷新 TanStack 缓存
+			queryClient.invalidateQueries({ queryKey: ['transactions'] });
+			queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			
+			// 显示成功弹窗
+			setShowSuccessModal(true);
+		} catch (err: unknown) {
+			if (err instanceof ApiError) {
+				setErrorMsg(err.message);
+			} else {
+				setErrorMsg('账单写入失败，事务已安全回滚');
+			}
+			setShowConfirmModal(false);
+		} finally {
+			setSubmitting(false);
+		}
 	};
 
 	return (
@@ -539,47 +609,131 @@ export default function ImportPage() {
 					)}
 
 					<div style={{ display: 'flex', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px', justifyContent: 'flex-end' }}>
-						<button className="btn-secondary" style={{ padding: '10px 24px', fontSize: '13px' }} onClick={handleReset}>
+						<button className="btn-secondary" style={{ padding: '10px 24px', fontSize: '13px' }} onClick={handleReset} disabled={parsing || submitting}>
 							取消并返回
 						</button>
 						<button 
 							className="btn-primary" 
-							style={{ padding: '10px 24px', fontSize: '13px' }} 
-							onClick={() => setShowSuccessModal(true)}
-							disabled={previewList.length === 0}
+							style={{ padding: '10px 24px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }} 
+							onClick={handleAnalyzeImport}
+							disabled={previewList.length === 0 || parsing || submitting}
 						>
-							确认导入 (体验演示)
+							{parsing ? (
+								<>
+									<div className="shimmer-block" style={{ width: '12px', height: '12px', borderRadius: '50%' }} />
+									<span>去重分析中...</span>
+								</>
+							) : (
+								'确认导入'
+							)}
 						</button>
 					</div>
 				</div>
 			)}
 
-			{/* 演示体验成功提示 Modal */}
-			{showSuccessModal && (
-				<div className="modal-overlay" onClick={() => setShowSuccessModal(false)}>
-					<div className="modal-content glass-card animate-fade-in text-left" style={{ maxWidth: '460px' }} onClick={(e) => e.stopPropagation()}>
+			{/* 二次高风险批量入账确认 Modal */}
+			{showConfirmModal && analyzeResult && (
+				<div className="modal-overlay" onClick={() => setShowConfirmModal(false)}>
+					<div className="modal-content glass-card animate-fade-in text-left" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
 						<div className="drawer-header" style={{ padding: '0 0 16px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
 							<div className="header-title" style={{ color: 'var(--accent-purple)' }}>
-								<Check size={20} />
-								<h3 style={{ fontSize: '16px' }}>CSV 第一阶段解析成功！</h3>
+								<AlertTriangle size={20} style={{ color: '#fbbf24' }} />
+								<h3 style={{ fontSize: '16px', fontWeight: 600 }}>确认导入这些账单？</h3>
 							</div>
-							<button className="btn-close-drawer" onClick={() => setShowSuccessModal(false)}>
+							<button className="btn-close-drawer" onClick={() => setShowConfirmModal(false)} disabled={submitting}>
+								<X size={18} />
+							</button>
+						</div>
+
+						<div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
+							<p style={{ fontSize: '13px', margin: 0, lineHeight: 1.6, color: 'var(--dimmed-desc)' }}>
+								系统将分析并导入当前工作区中的交易，若有在系统中已存在相同指纹的交易，将会被自动跳过以保障账本的唯一性与统计口径稳定。
+							</p>
+
+							{/* 去重对比指标数据卡片 */}
+							<div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+								<strong style={{ fontSize: '12px', color: 'var(--dimmed-desc)' }}>📊 去重筛选结果统计：</strong>
+								<div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', textAlign: 'center' }}>
+									<div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', padding: '10px' }}>
+										<div style={{ fontSize: '18px', fontWeight: 700, color: '#e2e8f0' }}>{analyzeResult.total_count}</div>
+										<div style={{ fontSize: '10px', color: 'var(--dimmed-desc)', marginTop: '2px' }}>总笔数</div>
+									</div>
+									<div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '8px', padding: '10px' }}>
+										<div style={{ fontSize: '18px', fontWeight: 700, color: '#34d399' }}>{analyzeResult.import_count}</div>
+										<div style={{ fontSize: '10px', color: '#10b981', marginTop: '2px' }}>待导入 (新增)</div>
+									</div>
+									<div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '8px', padding: '10px' }}>
+										<div style={{ fontSize: '18px', fontWeight: 700, color: '#f87171' }}>{analyzeResult.skip_count}</div>
+										<div style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>重复跳过</div>
+									</div>
+								</div>
+							</div>
+
+							{/* 高风险操作审计日志告警 */}
+							<div style={{ background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.15)', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '11px', color: '#fbbf24', lineHeight: 1.5 }}>
+								<Info size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+								<span>此操作为批量写入动作。一旦确认，待导入项将在完整的原子事务（sql.Tx）内落库并记录至全局操作审计日志中以做备查。</span>
+							</div>
+
+							<div className="drawer-footer" style={{ borderTop: 'none', padding: 0, marginTop: '12px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+								<button 
+									className="btn-secondary" 
+									style={{ padding: '8px 20px', fontSize: '13px', borderRadius: '10px' }} 
+									onClick={() => setShowConfirmModal(false)}
+									disabled={submitting}
+								>
+									取消
+								</button>
+								<button 
+									className="btn-primary" 
+									style={{ padding: '8px 24px', fontSize: '13px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }} 
+									onClick={handleCommitImport}
+									disabled={submitting}
+								>
+									{submitting ? (
+										<>
+											<div className="shimmer-block" style={{ width: '12px', height: '12px', borderRadius: '50%' }} />
+											<span>正在安全入账...</span>
+										</>
+									) : (
+										'确认写入'
+									)}
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* 账单真正导入成功提示 Modal */}
+			{showSuccessModal && (
+				<div className="modal-overlay" onClick={() => { setShowSuccessModal(false); handleReset(); }}>
+					<div className="modal-content glass-card animate-fade-in text-left" style={{ maxWidth: '460px' }} onClick={(e) => e.stopPropagation()}>
+						<div className="drawer-header" style={{ padding: '0 0 16px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+							<div className="header-title" style={{ color: 'var(--accent-green)' }}>
+								<Check size={20} style={{ color: '#10b981' }} />
+								<h3 style={{ fontSize: '16px', fontWeight: 600 }}>CSV 账单导入成功！</h3>
+							</div>
+							<button className="btn-close-drawer" onClick={() => { setShowSuccessModal(false); handleReset(); }}>
 								<X size={18} />
 							</button>
 						</div>
 
 						<div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
 							<p style={{ fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
-								恭喜！CSV 导入预览全链路联调已 100% 跑通。
+								恭喜！CSV 账单导入已安全完成。
 							</p>
-							<p style={{ fontSize: '13px', margin: 0, color: 'var(--dimmed-desc)', lineHeight: 1.6 }}>
-								系统在内存中为您格式化并核对了 <strong style={{ color: 'var(--accent-purple)' }}>{previewList.length}</strong> 笔账单。
-								所有账单均成功匹配了默认付款人、默认分类与选定类型，且支持按行删除过滤。
-							</p>
+							{analyzeResult && (
+								<p style={{ fontSize: '13px', margin: 0, color: 'var(--dimmed-desc)', lineHeight: 1.6 }}>
+									系统已处理并记录 <strong style={{ color: 'var(--accent-purple)' }}>{analyzeResult.total_count}</strong> 笔账单：
+									成功新增导入了 <strong style={{ color: 'var(--accent-green)' }}>{analyzeResult.import_count}</strong> 笔交易流向账表，
+									并自动跳过了 <strong style={{ color: '#f87171' }}>{analyzeResult.skip_count}</strong> 笔重复存在的账单。
+								</p>
+							)}
 							
 							<div style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#34d399' }}>
 								<Info size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
-								<span>依照 Task 16 规定的红线，本次预览未写入数据库，对账本的统计口径无任何侵入。在下一步 Task 17 中，我们将引入去重检测并确认正式写入。</span>
+								<span>依照设计，本次批量导入已经包裹在事务内安全落库，并在系统中生成了导入审计日志。流水表和主仪表盘已刷新缓存。</span>
 							</div>
 
 							<div className="drawer-footer" style={{ borderTop: 'none', padding: 0, marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
@@ -591,7 +745,7 @@ export default function ImportPage() {
 										handleReset();
 									}}
 								>
-									好的，体验完毕
+									好的，导入完成
 								</button>
 							</div>
 						</div>

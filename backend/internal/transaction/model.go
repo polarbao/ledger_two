@@ -200,3 +200,36 @@ type BatchTagRequest struct {
 	TagNames       []string `json:"tag_names"`
 }
 
+// ImportItemRequest 单条导入交易请求结构
+type ImportItemRequest struct {
+	OccurredAt  string   `json:"occurred_at"`
+	AmountCents int64    `json:"amount_cents"`
+	Title       string   `json:"title"`
+	Merchant    string   `json:"merchant"`
+	CategoryID  string   `json:"category_id"`
+	AccountID   string   `json:"account_id"`
+	PayerUserID string   `json:"payer_user_id"`
+	Type        string   `json:"type"` // expense, shared_expense
+	TagNames    []string `json:"tag_names"`
+	Note        string   `json:"note"`
+}
+
+// AnalyzeImportRequest 导入去重分析请求结构
+type AnalyzeImportRequest struct {
+	Items []ImportItemRequest `json:"items"`
+}
+
+// AnalyzeImportResponse 导入去重分析响应结构
+type AnalyzeImportResponse struct {
+	TotalCount  int `json:"total_count"`
+	ImportCount int `json:"import_count"`
+	SkipCount   int `json:"skip_count"`
+}
+
+// CommitImportRequest 提交导入请求结构
+type CommitImportRequest struct {
+	Filename string              `json:"filename"`
+	Items    []ImportItemRequest `json:"items"`
+}
+
+

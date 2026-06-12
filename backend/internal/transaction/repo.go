@@ -872,3 +872,39 @@ func (r *Repository) UpdateRecurringRuleNextDueDateWithTx(ctx context.Context, t
 	`, nextDueDate, now, id)
 	return err
 }
+
+// FilterExistingHashes 批量筛选已存在的去重哈希
+func (r *Repository) FilterExistingHashes(ctx context.Context, hashes []string) (map[string]bool, error) {
+	existing := make(map[string]bool)
+	if len(hashes) == 0 {
+		return existing, nil
+	}
+
+	// 构造 IN (?, ?, ...) 占位符
+	query := "SELECT import_hash FROM import_items WHERE status = 'imported' AND import_hash IN ("
+	args := make([]interface{}, len(hashes))
+	for i, h := range hashes {
+		if i > 0 {
+			query += ","
+		}
+		query += "?"
+		args[i] = h
+	}
+	query += ")"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var h string
+		if err := rows.Scan(&h); err != nil {
+			return nil, err
+		}
+		existing[h] = true
+	}
+	return existing, nil
+}
+

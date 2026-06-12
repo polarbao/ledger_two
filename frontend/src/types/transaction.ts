@@ -23,6 +23,7 @@ export interface TransactionResponse {
   status: 'active' | 'deleted';
   tags?: string[];
   participants?: TransactionSplitResponse[]; // 后端 json:"participants,omitempty"
+  attachment_paths?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +44,7 @@ export interface CreateTransactionPayload {
   visibility?: 'private' | 'partner_readable';
   tag_names?: string[];
   note?: string;
+  attachment_paths?: string[];
 }
 
 export interface CreateSharedExpensePayload {

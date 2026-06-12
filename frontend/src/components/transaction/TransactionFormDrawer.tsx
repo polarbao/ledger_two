@@ -30,6 +30,7 @@ const formSchema = z.object({
   occurred_at: z.string().min(1, '请选择发生日期'),
   note: z.string().max(200, '备注最多支持 200 字').optional(),
   visibility: z.enum(['private', 'partner_readable']),
+  attachment_paths: z.array(z.string()).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -176,6 +177,7 @@ export default function TransactionFormDrawer() {
       occurred_at: getTodayString(),
       note: '',
       visibility: 'partner_readable',
+      attachment_paths: [],
     },
   });
 
@@ -183,6 +185,10 @@ export default function TransactionFormDrawer() {
   const watchType = watch('type');
   const watchPayer = watch('payer_user_id');
   const watchSplitMethod = watch('split_method');
+  const watchAttachmentPaths = watch('attachment_paths');
+
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // 打开抽屉时注入最近记账默认值 (仅在非复制一笔时)
   useEffect(() => {
@@ -204,6 +210,7 @@ export default function TransactionFormDrawer() {
         occurred_at: getTodayString(),
         note: '',
         visibility: localVisibility,
+        attachment_paths: [],
       });
     }
   }, [addDrawerOpen, copySourceTransaction, currentUser, reset]);
@@ -225,6 +232,7 @@ export default function TransactionFormDrawer() {
         occurred_at: getTodayString(),
         note: copySourceTransaction.note || '',
         visibility: copySourceTransaction.visibility === 'shared' ? 'partner_readable' : copySourceTransaction.visibility,
+        attachment_paths: copySourceTransaction.attachment_paths || [],
       });
     }
   }, [addDrawerOpen, copySourceTransaction, reset, currentUser]);
@@ -264,6 +272,7 @@ export default function TransactionFormDrawer() {
           visibility: values.visibility,
           tag_names: tags,
           note: values.note || '',
+          attachment_paths: values.attachment_paths || [],
         });
       }
     },
@@ -316,6 +325,7 @@ export default function TransactionFormDrawer() {
           occurred_at: variables.occurred_at ? variables.occurred_at.substring(0, 10) : getTodayString(),
           note: '',
           visibility: variables.visibility || 'partner_readable',
+          attachment_paths: [],
         });
       } else {
         setAddDrawerOpen(false);
@@ -331,6 +341,7 @@ export default function TransactionFormDrawer() {
           occurred_at: getTodayString(),
           note: '',
           visibility: 'partner_readable',
+          attachment_paths: [],
         });
       }
     },
@@ -757,6 +768,168 @@ export default function TransactionFormDrawer() {
             />
             {errors.note && <span className="field-error">{errors.note.message}</span>}
           </div>
+
+          {/* 图片附件 (仅对普通收支展示) */}
+          {watchType !== 'shared_expense' && (
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>图片附件与小票 ({watchAttachmentPaths?.length || 0}/5)</span>
+                {uploadError && <span className="field-error" style={{ margin: 0 }}>{uploadError}</span>}
+              </label>
+              <Controller
+                name="attachment_paths"
+                control={control}
+                render={({ field }) => {
+                  const paths = field.value || [];
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {/* 已上传图片缩略图 */}
+                        {paths.map((p, idx) => (
+                          <div
+                            key={p}
+                            style={{
+                              position: 'relative',
+                              width: '72px',
+                              height: '72px',
+                              borderRadius: '8px',
+                              overflow: 'hidden',
+                              border: '1px solid rgba(255, 255, 255, 0.12)',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                            }}
+                          >
+                            <img
+                              src={p}
+                              alt={`attachment-${idx}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                field.onChange(paths.filter((item) => item !== p));
+                              }}
+                              style={{
+                                position: 'absolute',
+                                top: '2px',
+                                right: '2px',
+                                background: 'rgba(0, 0, 0, 0.6)',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '18px',
+                                height: '18px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#fff',
+                                cursor: 'pointer',
+                                padding: 0,
+                              }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+
+                        {/* 上传中的骨架屏 */}
+                        {Array.from({ length: uploadingCount }).map((_, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              width: '72px',
+                              height: '72px',
+                              borderRadius: '8px',
+                              border: '1px dashed rgba(255, 255, 255, 0.2)',
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            className="animate-pulse"
+                          >
+                            <Loader2 size={16} className="spinner" style={{ color: 'var(--accent-purple)' }} />
+                          </div>
+                        ))}
+
+                        {/* 上传按钮 */}
+                        {paths.length + uploadingCount < 5 && (
+                          <label
+                            style={{
+                              width: '72px',
+                              height: '72px',
+                              borderRadius: '8px',
+                              border: '1px dashed rgba(255, 255, 255, 0.2)',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--accent-purple)';
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                            }}
+                          >
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              style={{ color: 'var(--text-secondary)' }}
+                            >
+                              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                              <circle cx="9" cy="9" r="2" />
+                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                            </svg>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>添加图片</span>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/jpg,image/png,image/webp"
+                              style={{ display: 'none' }}
+                              onChange={async (e) => {
+                                const files = e.target.files;
+                                if (!files || files.length === 0) return;
+                                const file = files[0];
+
+                                if (file.size > 10 * 1024 * 1024) {
+                                  setUploadError('文件大小不能超过 10MB');
+                                  return;
+                                }
+
+                                setUploadError(null);
+                                setUploadingCount((prev) => prev + 1);
+                                try {
+                                  const res = await transactionsApi.uploadAttachment(file);
+                                  if (res.path) {
+                                    field.onChange([...paths, res.path]);
+                                  }
+                                } catch (err) {
+                                  console.error(err);
+                                  setUploadError(err instanceof Error ? err.message : '上传文件失败，请重试');
+                                } finally {
+                                  setUploadingCount((prev) => prev - 1);
+                                }
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+            </div>
+          )}
 
           {/* 底部操作区 */}
           <div className="drawer-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>

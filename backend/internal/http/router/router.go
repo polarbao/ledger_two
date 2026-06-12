@@ -166,9 +166,13 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Get("/member-summary", reportsHandler.HandleGetMemberSummary)
 			})
 
+			r.Post("/attachments", transactionHandler.HandleUploadAttachment)
 			r.Get("/dashboard", dashboardHandler.HandleGetDashboard)
 		})
 	})
+
+	// 托管上传的物理文件附件
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	// 生产环境下静态托管前端 SPA 页面，任何非 API 请求若找不到物理文件则 Fallback 重定向回 index.html
 	r.NotFound(spaHandler("./web/dist"))

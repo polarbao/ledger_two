@@ -107,6 +107,12 @@ export const transactionsApi = {
     return api.post<CSVParseResponse>('/api/transactions/import/parse', formData);
   },
 
+  uploadAttachment: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<{ path: string }>('/api/attachments', formData);
+  },
+
   analyzeImport: (payload: AnalyzeImportPayload) =>
     api.post<AnalyzeImportResponse>('/api/transactions/import/analyze', payload),
 

@@ -84,7 +84,27 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 		}
 	}
 
-	// 8. 构造实体并执行写入
+	// 8. 附件路径校验与序列化
+	if len(req.AttachmentPaths) > 5 {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "附件数量最多允许 5 个")
+	}
+	cleanPaths := make([]string, 0, len(req.AttachmentPaths))
+	for _, p := range req.AttachmentPaths {
+		pClean := strings.TrimSpace(p)
+		if pClean != "" {
+			if !strings.HasPrefix(pClean, "/uploads/") || strings.Contains(pClean, "..") {
+				return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "不合法的附件路径")
+			}
+			cleanPaths = append(cleanPaths, pClean)
+		}
+	}
+	var attachmentVal sql.NullString
+	if len(cleanPaths) > 0 {
+		pathsJSON, _ := json.Marshal(cleanPaths)
+		attachmentVal = sql.NullString{String: string(pathsJSON), Valid: true}
+	}
+
+	// 9. 构造实体并执行写入
 	txID := uuid.NewString()
 	var accountVal sql.NullString
 	if req.AccountID != nil {
@@ -110,6 +130,7 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 		CategoryID:      categoryVal,
 		Visibility:      visibility,
 		Note:            sql.NullString{String: req.Note, Valid: req.Note != ""},
+		AttachmentPaths: attachmentVal,
 	}
 
 	dbConn := s.repo.GetDB()
@@ -245,6 +266,27 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 	}
 	if req.Note != nil {
 		tx.Note = sql.NullString{String: *req.Note, Valid: *req.Note != ""}
+	}
+	if req.AttachmentPaths != nil {
+		if len(*req.AttachmentPaths) > 5 {
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "附件数量最多允许 5 个")
+		}
+		cleanPaths := make([]string, 0, len(*req.AttachmentPaths))
+		for _, p := range *req.AttachmentPaths {
+			pClean := strings.TrimSpace(p)
+			if pClean != "" {
+				if !strings.HasPrefix(pClean, "/uploads/") || strings.Contains(pClean, "..") {
+					return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "不合法的附件路径")
+				}
+				cleanPaths = append(cleanPaths, pClean)
+			}
+		}
+		var attachmentVal sql.NullString
+		if len(cleanPaths) > 0 {
+			pathsJSON, _ := json.Marshal(cleanPaths)
+			attachmentVal = sql.NullString{String: string(pathsJSON), Valid: true}
+		}
+		tx.AttachmentPaths = attachmentVal
 	}
 
 	tags := oldTags
@@ -515,6 +557,11 @@ func (s *Service) toDTO(tx *Transaction, tags []string) *TransactionResponse {
 		note = tx.Note.String
 	}
 
+	attachmentPaths := []string{}
+	if tx.AttachmentPaths.Valid && tx.AttachmentPaths.String != "" {
+		_ = json.Unmarshal([]byte(tx.AttachmentPaths.String), &attachmentPaths)
+	}
+
 	return &TransactionResponse{
 		ID:              tx.ID,
 		Type:            tx.Type,
@@ -531,6 +578,7 @@ func (s *Service) toDTO(tx *Transaction, tags []string) *TransactionResponse {
 		Note:            note,
 		Status:          tx.Status,
 		Tags:            tags,
+		AttachmentPaths: attachmentPaths,
 		CreatedAt:       tx.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:       tx.UpdatedAt.Format(time.RFC3339),
 	}

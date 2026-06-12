@@ -47,15 +47,15 @@ func (r *Repository) CreateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 		INSERT INTO transactions (
 			id, ledger_id, type, title, amount, currency, occurred_at,
 			owner_user_id, created_by_user_id, payer_user_id, account_id, category_id,
-			visibility, split_method, note, status, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'normal', ?, ?)
+			visibility, split_method, note, attachment_paths, status, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'normal', ?, ?)
 	`,
 		transaction.ID, transaction.LedgerID, transaction.Type, transaction.Title,
 		transaction.Amount, transaction.Currency, transaction.OccurredAt.Format(time.RFC3339),
 		transaction.OwnerUserID, transaction.CreatedByUserID, transaction.PayerUserID,
 		r.nullString(transaction.AccountID), r.nullString(transaction.CategoryID),
 		transaction.Visibility, r.nullString(transaction.SplitMethod),
-		r.nullString(transaction.Note), now, now,
+		r.nullString(transaction.Note), r.nullString(transaction.AttachmentPaths), now, now,
 	)
 	if err != nil {
 		return fmt.Errorf("insert transaction failed: %w", err)
@@ -81,7 +81,7 @@ func (r *Repository) CreateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 // @return error 错误信息
 func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []string, error) {
 	var tx Transaction
-	var accountID, categoryID, splitMethod, note sql.NullString
+	var accountID, categoryID, splitMethod, note, attachmentPaths sql.NullString
 	var occurredAtStr, createdAtStr, updatedAtStr string
 	var deletedAtStr sql.NullString
 
@@ -89,13 +89,13 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []st
 		SELECT 
 			id, ledger_id, type, title, amount, currency, occurred_at,
 			owner_user_id, created_by_user_id, payer_user_id, account_id, category_id,
-			visibility, split_method, note, status, created_at, updated_at, deleted_at
+			visibility, split_method, note, attachment_paths, status, created_at, updated_at, deleted_at
 		FROM transactions
 		WHERE id = ?
 	`, id).Scan(
 		&tx.ID, &tx.LedgerID, &tx.Type, &tx.Title, &tx.Amount, &tx.Currency, &occurredAtStr,
 		&tx.OwnerUserID, &tx.CreatedByUserID, &tx.PayerUserID, &accountID, &categoryID,
-		&tx.Visibility, &splitMethod, &note, &tx.Status, &createdAtStr, &updatedAtStr, &deletedAtStr,
+		&tx.Visibility, &splitMethod, &note, &attachmentPaths, &tx.Status, &createdAtStr, &updatedAtStr, &deletedAtStr,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -117,6 +117,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []st
 	tx.CategoryID = categoryID
 	tx.SplitMethod = splitMethod
 	tx.Note = note
+	tx.AttachmentPaths = attachmentPaths
 
 	// 查询标签名
 	rows, err := r.db.QueryContext(ctx, `
@@ -156,12 +157,12 @@ func (r *Repository) UpdateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 		UPDATE transactions
 		SET type = ?, title = ?, amount = ?, occurred_at = ?,
 			payer_user_id = ?, account_id = ?, category_id = ?,
-			visibility = ?, note = ?, updated_at = ?
+			visibility = ?, note = ?, attachment_paths = ?, updated_at = ?
 		WHERE id = ?
 	`,
 		transaction.Type, transaction.Title, transaction.Amount, transaction.OccurredAt.Format(time.RFC3339),
 		transaction.PayerUserID, r.nullString(transaction.AccountID), r.nullString(transaction.CategoryID),
-		transaction.Visibility, r.nullString(transaction.Note), now, transaction.ID,
+		transaction.Visibility, r.nullString(transaction.Note), r.nullString(transaction.AttachmentPaths), now, transaction.ID,
 	)
 	if err != nil {
 		return err
@@ -231,7 +232,7 @@ func (r *Repository) List(ctx context.Context, ledgerID string, userID string, f
 		SELECT 
 			id, ledger_id, type, title, amount, currency, occurred_at,
 			owner_user_id, created_by_user_id, payer_user_id, account_id, category_id,
-			visibility, split_method, note, status, created_at, updated_at
+			visibility, split_method, note, attachment_paths, status, created_at, updated_at
 		FROM transactions
 		WHERE ledger_id = ? AND status != 'deleted'
 		AND (
@@ -323,13 +324,13 @@ func (r *Repository) List(ctx context.Context, ledgerID string, userID string, f
 	var ids []string
 	for rows.Next() {
 		var tx Transaction
-		var accountID, categoryID, splitMethod, note sql.NullString
+		var accountID, categoryID, splitMethod, note, attachmentPaths sql.NullString
 		var occurredAtStr, createdAtStr, updatedAtStr string
 
 		err := rows.Scan(
 			&tx.ID, &tx.LedgerID, &tx.Type, &tx.Title, &tx.Amount, &tx.Currency, &occurredAtStr,
 			&tx.OwnerUserID, &tx.CreatedByUserID, &tx.PayerUserID, &accountID, &categoryID,
-			&tx.Visibility, &splitMethod, &note, &tx.Status, &createdAtStr, &updatedAtStr,
+			&tx.Visibility, &splitMethod, &note, &attachmentPaths, &tx.Status, &createdAtStr, &updatedAtStr,
 		)
 		if err != nil {
 			return nil, nil, err
@@ -342,6 +343,7 @@ func (r *Repository) List(ctx context.Context, ledgerID string, userID string, f
 		tx.CategoryID = categoryID
 		tx.SplitMethod = splitMethod
 		tx.Note = note
+		tx.AttachmentPaths = attachmentPaths
 
 		list = append(list, &tx)
 		ids = append(ids, tx.ID)

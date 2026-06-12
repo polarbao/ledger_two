@@ -80,6 +80,7 @@ export default function TransactionsPage() {
   const [selectedTx, setSelectedTx] = useState<TransactionResponse | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
 
   // 移动端筛选控制
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -682,6 +683,39 @@ export default function TransactionsPage() {
                     </p>
                   </div>
                 )}
+
+                {/* 图片附件回显 */}
+                {selectedTx.attachment_paths && selectedTx.attachment_paths.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed rgba(255,255,255,0.05)', paddingTop: '12px', marginTop: '6px' }}>
+                    <span className="dimmed">图片附件与小票</span>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      {selectedTx.attachment_paths.map((p, idx) => (
+                        <div
+                          key={p}
+                          style={{
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            cursor: 'pointer',
+                            transition: 'transform 0.2s',
+                          }}
+                          onClick={() => setActiveLightboxImg(p)}
+                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          <img
+                            src={p}
+                            alt={`attachment-${idx}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -717,6 +751,68 @@ export default function TransactionsPage() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 图片附件大图灯箱 (Lightbox Modal) */}
+      {activeLightboxImg && (
+        <div
+          className="drawer-overlay show"
+          style={{
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(12px)',
+            zIndex: 9999,
+          }}
+          onClick={() => setActiveLightboxImg(null)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={activeLightboxImg}
+              alt="Lightbox Large"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '80vh',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+              }}
+            />
+            <button
+              onClick={() => setActiveLightboxImg(null)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+            >
+              <X size={18} />
+            </button>
           </div>
         </div>
       )}

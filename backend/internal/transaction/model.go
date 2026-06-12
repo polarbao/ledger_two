@@ -23,6 +23,7 @@ type Transaction struct {
 	Visibility      string // private, partner_readable, shared
 	SplitMethod     sql.NullString
 	Note            sql.NullString
+	AttachmentPaths sql.NullString // 附件相对路径 JSON 数组或列表
 	Status          string // normal, deleted
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -32,32 +33,34 @@ type Transaction struct {
 // CreateTransactionRequest 记账请求结构
 // @brief 创建普通账单的传参对象
 type CreateTransactionRequest struct {
-	Type        string   `json:"type"`
-	Title       string   `json:"title"`
-	AmountCents int64    `json:"amount_cents"`
-	Currency    string   `json:"currency"`
-	OccurredAt  string   `json:"occurred_at"`
-	PayerUserID string   `json:"payer_user_id"`
-	AccountID   *string  `json:"account_id"`
-	CategoryID  *string  `json:"category_id"`
-	Visibility  string   `json:"visibility"`
-	TagNames    []string `json:"tag_names"`
-	Note        string   `json:"note"`
+	Type            string   `json:"type"`
+	Title           string   `json:"title"`
+	AmountCents     int64    `json:"amount_cents"`
+	Currency        string   `json:"currency"`
+	OccurredAt      string   `json:"occurred_at"`
+	PayerUserID     string   `json:"payer_user_id"`
+	AccountID       *string  `json:"account_id"`
+	CategoryID      *string  `json:"category_id"`
+	Visibility      string   `json:"visibility"`
+	TagNames        []string `json:"tag_names"`
+	Note            string   `json:"note"`
+	AttachmentPaths []string `json:"attachment_paths"`
 }
 
 // UpdateTransactionRequest 编辑账单请求结构
 // @brief 局部编辑普通账单的传参对象
 type UpdateTransactionRequest struct {
-	Title       *string   `json:"title"`
-	AmountCents *int64    `json:"amount_cents"`
-	OccurredAt  *string   `json:"occurred_at"`
-	PayerUserID *string   `json:"payer_user_id"`
-	AccountID   **string  `json:"account_id"`  // 允许传空以置 null
-	CategoryID  **string  `json:"category_id"` // 允许传空以置 null
-	Visibility  *string   `json:"visibility"`
-	TagNames    *[]string `json:"tag_names"`
-	Note        *string   `json:"note"`
-	SplitMethod *string   `json:"split_method"` // 新增，用于共同支出编辑
+	Title           *string   `json:"title"`
+	AmountCents     *int64    `json:"amount_cents"`
+	OccurredAt      *string   `json:"occurred_at"`
+	PayerUserID     *string   `json:"payer_user_id"`
+	AccountID       **string  `json:"account_id"`  // 允许传空以置 null
+	CategoryID      **string  `json:"category_id"` // 允许传空以置 null
+	Visibility      *string   `json:"visibility"`
+	TagNames        *[]string `json:"tag_names"`
+	Note            *string   `json:"note"`
+	SplitMethod     *string   `json:"split_method"` // 新增，用于共同支出编辑
+	AttachmentPaths *[]string `json:"attachment_paths"`
 }
 
 // TransactionResponse 统一输出的账单明细 DTO
@@ -80,6 +83,7 @@ type TransactionResponse struct {
 	Tags            []string        `json:"tags"`
 	SplitMethod     *string         `json:"split_method,omitempty"`
 	Participants    []SplitResponse `json:"participants,omitempty"`
+	AttachmentPaths []string        `json:"attachment_paths"`
 	CreatedAt       string          `json:"created_at"`
 	UpdatedAt       string          `json:"updated_at"`
 }

@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useUIStore } from '../stores/ui.store';
 import { useAuthStore } from '../stores/auth.store';
 import { transactionsApi } from '../api/transactions.api';
+import { dashboardApi } from '../api/dashboard.api';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
 import PageState from '../components/ui/PageState';
@@ -12,7 +14,10 @@ import {
   ChevronLeft, 
   ChevronRight, 
   X, 
-  Info
+  Info,
+  SlidersHorizontal,
+  RotateCcw,
+  Tags
 } from 'lucide-react';
 import type { TransactionResponse } from '../types/transaction';
 
@@ -21,15 +26,94 @@ export default function TransactionsPage() {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // 从 URL 读取筛选参数
+  const month = searchParams.get('month') || currentMonth;
+  const type = searchParams.get('type') || '';
+  const categoryId = searchParams.get('category_id') || '';
+  const keyword = searchParams.get('keyword') || '';
+  const minAmountStr = searchParams.get('min_amount') || ''; // 元
+  const maxAmountStr = searchParams.get('max_amount') || ''; // 元
+  const payerUserId = searchParams.get('payer_user_id') || '';
+  const visibility = searchParams.get('visibility') || '';
+  const tag = searchParams.get('tag') || '';
+  const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = 15;
+
+  // 局部输入框状态（防止打字时频繁触发 API 请求）
+  const [localMinAmount, setLocalMinAmount] = useState(minAmountStr);
+  const [localMaxAmount, setLocalMaxAmount] = useState(maxAmountStr);
+  const [localKeyword, setLocalKeyword] = useState(keyword);
+  const [localTag, setLocalTag] = useState(tag);
+
+  // 渲染期间同步外部 URL 的筛选值到局部输入框状态，防范 eslint/set-state-in-effect 规则报错
+  const [prevMinAmount, setPrevMinAmount] = useState(minAmountStr);
+  const [prevMaxAmount, setPrevMaxAmount] = useState(maxAmountStr);
+  const [prevKeyword, setPrevKeyword] = useState(keyword);
+  const [prevTag, setPrevTag] = useState(tag);
+
+  if (minAmountStr !== prevMinAmount) {
+    setPrevMinAmount(minAmountStr);
+    setLocalMinAmount(minAmountStr);
+  }
+  if (maxAmountStr !== prevMaxAmount) {
+    setPrevMaxAmount(maxAmountStr);
+    setLocalMaxAmount(maxAmountStr);
+  }
+  if (keyword !== prevKeyword) {
+    setPrevKeyword(keyword);
+    setLocalKeyword(keyword);
+  }
+  if (tag !== prevTag) {
+    setPrevTag(tag);
+    setLocalTag(tag);
+  }
+
+  // 0. 获取账本成员信息
+  const { data: dashboardData } = useQuery({
+    queryKey: ['dashboard', month],
+    queryFn: () => dashboardApi.getDashboard(month),
+  });
+  const users = dashboardData?.user_stats || [];
 
   const [selectedTx, setSelectedTx] = useState<TransactionResponse | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // 移动端筛选控制
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+
+  // 批量操作状态
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
+  const [showBatchTagModal, setShowBatchTagModal] = useState(false);
+  const [batchTagsInput, setBatchTagsInput] = useState('');
+
   const setCopySourceTransaction = useUIStore((state) => state.setCopySourceTransaction);
   const setAddDrawerOpen = useUIStore((state) => state.setAddDrawerOpen);
+
+  const updateFilter = (newFilters: Record<string, string | number | undefined>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (!('page' in newFilters)) {
+      nextParams.set('page', '1');
+    }
+    Object.entries(newFilters).forEach(([key, val]) => {
+      if (val === undefined || val === '') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, String(val));
+      }
+    });
+    setSearchParams(nextParams);
+  };
+
+  const handleClearFilters = () => {
+    const nextParams = new URLSearchParams();
+    nextParams.set('month', month);
+    nextParams.set('page', '1');
+    setSearchParams(nextParams);
+  };
 
   // 1. 获取分类名称列表映射
   const { data: categories } = useQuery({
@@ -50,12 +134,37 @@ export default function TransactionsPage() {
     error,
     refetch 
   } = useQuery({
-    queryKey: ['transactions', currentMonth, page],
-    queryFn: () => transactionsApi.list({
-      month: currentMonth,
-      page,
-      page_size: pageSize,
-    }),
+    queryKey: ['transactions', month, type, categoryId, keyword, minAmountStr, maxAmountStr, payerUserId, visibility, tag, page],
+    queryFn: () => {
+      const min_amount = minAmountStr ? Math.round(parseFloat(minAmountStr) * 100) : undefined;
+      const max_amount = maxAmountStr ? Math.round(parseFloat(maxAmountStr) * 100) : undefined;
+      return transactionsApi.list({
+        month,
+        type: type || undefined,
+        category_id: categoryId || undefined,
+        keyword: keyword || undefined,
+        min_amount,
+        max_amount,
+        payer_user_id: payerUserId || undefined,
+        visibility: visibility || undefined,
+        tag: tag || undefined,
+        page,
+        page_size: pageSize,
+      });
+    },
+  });
+
+  // 批量打标签 Mutation
+  const batchTagMutation = useMutation({
+    mutationFn: (payload: { transaction_ids: string[]; tag_names: string[] }) =>
+      transactionsApi.batchTag(payload),
+    onSuccess: () => {
+      setShowBatchTagModal(false);
+      setBatchTagsInput('');
+      setSelectedTxIds([]);
+      setBatchMode(false);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    },
   });
 
   // 3. 删除流水 Mutation
@@ -87,6 +196,21 @@ export default function TransactionsPage() {
     return '伙伴';
   };
 
+  const handleSelectTx = (id: string) => {
+    setSelectedTxIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && transactions) {
+      const selectable = transactions.filter((tx) => tx.created_by_user_id === currentUser?.id).map((tx) => tx.id);
+      setSelectedTxIds(selectable);
+    } else {
+      setSelectedTxIds([]);
+    }
+  };
+
   return (
     <div className="page-content animate-fade-in text-left">
       {/* 头部 Banner */}
@@ -98,13 +222,194 @@ export default function TransactionsPage() {
         </div>
       </div>
 
+      {/* 快捷控制条：高级筛选与批量管理开关 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', margin: '20px 0', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className="btn-secondary mobile-filter-trigger" 
+            onClick={() => setMobileFilterOpen(true)}
+          >
+            <SlidersHorizontal size={15} />
+            高级筛选
+          </button>
+        </div>
+
+        <button 
+          className={`btn-secondary ${batchMode ? 'active' : ''}`}
+          style={{ 
+            padding: '8px 16px', 
+            borderRadius: '8px', 
+            fontSize: '13px', 
+            borderColor: batchMode ? 'var(--accent-purple)' : 'rgba(255,255,255,0.08)',
+            background: batchMode ? 'rgba(147, 51, 234, 0.15)' : 'none',
+            color: batchMode ? '#c084fc' : 'var(--text-primary)'
+          }}
+          onClick={() => {
+            setBatchMode(!batchMode);
+            setSelectedTxIds([]);
+          }}
+        >
+          {batchMode ? '退出批量管理' : '批量管理'}
+        </button>
+      </div>
+
+      {/* 桌面端筛选栏面板 */}
+      <div className="glass-card filter-panel desktop-filters">
+        <div className="filter-grid" style={{ marginBottom: '16px' }}>
+          <div className="filter-item">
+            <label>账单类型</label>
+            <select 
+              className="filter-input" 
+              value={type} 
+              onChange={(e) => updateFilter({ type: e.target.value })}
+            >
+              <option value="">全部类型</option>
+              <option value="expense">个人支出</option>
+              <option value="income">个人收入</option>
+              <option value="shared_expense">共同支出</option>
+            </select>
+          </div>
+
+          <div className="filter-item">
+            <label>所属分类</label>
+            <select 
+              className="filter-input" 
+              value={categoryId} 
+              onChange={(e) => updateFilter({ category_id: e.target.value })}
+            >
+              <option value="">全部分类</option>
+              {categories?.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-item">
+            <label>付款人</label>
+            <select 
+              className="filter-input" 
+              value={payerUserId} 
+              onChange={(e) => updateFilter({ payer_user_id: e.target.value })}
+            >
+              <option value="">全部付款人</option>
+              {users.map((u) => (
+                <option key={u.user_id} value={u.user_id}>
+                  {u.display_name} {u.user_id === currentUser?.id ? '(我)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-item">
+            <label>可见性</label>
+            <select 
+              className="filter-input" 
+              value={visibility} 
+              onChange={(e) => updateFilter({ visibility: e.target.value })}
+            >
+              <option value="">全部可见性</option>
+              <option value="private">仅自己可见</option>
+              <option value="partner_readable">对方可见 (只读)</option>
+            </select>
+          </div>
+
+          <div className="filter-item">
+            <label>关联标签</label>
+            <input 
+              type="text" 
+              placeholder="模糊搜索标签..." 
+              className="filter-input"
+              value={localTag}
+              onChange={(e) => setLocalTag(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && updateFilter({ tag: localTag })}
+            />
+          </div>
+
+          <div className="filter-item">
+            <label>最小金额 (元)</label>
+            <input 
+              type="number" 
+              placeholder="最小金额..." 
+              className="filter-input"
+              value={localMinAmount}
+              onChange={(e) => setLocalMinAmount(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && updateFilter({ min_amount: localMinAmount })}
+            />
+          </div>
+
+          <div className="filter-item">
+            <label>最大金额 (元)</label>
+            <input 
+              type="number" 
+              placeholder="最大金额..." 
+              className="filter-input"
+              value={localMaxAmount}
+              onChange={(e) => setLocalMaxAmount(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && updateFilter({ max_amount: localMaxAmount })}
+            />
+          </div>
+
+          <div className="filter-item">
+            <label>关键词</label>
+            <input 
+              type="text" 
+              placeholder="搜索标题或备注..." 
+              className="filter-input"
+              value={localKeyword}
+              onChange={(e) => setLocalKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && updateFilter({ keyword: localKeyword })}
+            />
+          </div>
+        </div>
+
+        <div className="filter-buttons">
+          <button 
+            className="btn-secondary" 
+            style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            onClick={handleClearFilters}
+          >
+            <RotateCcw size={14} />
+            清空筛选
+          </button>
+          <button 
+            className="btn-primary" 
+            style={{ padding: '6px 16px', fontSize: '13px', borderRadius: '8px' }}
+            onClick={() => updateFilter({ 
+              min_amount: localMinAmount, 
+              max_amount: localMaxAmount, 
+              keyword: localKeyword,
+              tag: localTag
+            })}
+          >
+            应用筛选
+          </button>
+        </div>
+      </div>
+
+      {/* 批量操作悬浮控制条 */}
+      <div className={`glass-card batch-actions-bar ${batchMode && selectedTxIds.length > 0 ? 'show' : ''}`}>
+        <span style={{ fontSize: '14px', fontWeight: 500 }}>
+          已选择 <strong style={{ color: 'var(--accent-purple)' }}>{selectedTxIds.length}</strong> 笔账单
+        </span>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className="btn-primary" 
+            style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            onClick={() => setShowBatchTagModal(true)}
+          >
+            <Tags size={15} />
+            批量打标签
+          </button>
+        </div>
+      </div>
+
       {/* 主展示区域 */}
       <PageState 
         isLoading={isLoading} 
         isError={isError} 
         isEmpty={transactions ? transactions.length === 0 : true}
         errorMsg={error instanceof Error ? error.message : '拉取流水明细失败'}
-        emptyMessage="本月账期暂无任何流水明细。点击上方「记一笔」开启首笔记账。"
+        emptyMessage="暂无任何匹配的流水明细。请尝试调整筛选条件，或点击上方「记一笔」开启首笔记账。"
         skeletonType="table"
         onRetry={refetch}
       >
@@ -114,6 +419,16 @@ export default function TransactionsPage() {
               <table className="transaction-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>
+                    {batchMode && (
+                      <th className="checkbox-col">
+                        <input 
+                          type="checkbox" 
+                          className="checkbox-input"
+                          checked={transactions.length > 0 && transactions.filter(tx => tx.created_by_user_id === currentUser?.id).length > 0 && selectedTxIds.length === transactions.filter(tx => tx.created_by_user_id === currentUser?.id).length}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                        />
+                      </th>
+                    )}
                     <th style={{ padding: '16px 20px', textAlign: 'left', fontWeight: 500 }}>记账日期</th>
                     <th style={{ padding: '16px 20px', textAlign: 'left', fontWeight: 500 }}>类型</th>
                     <th style={{ padding: '16px 20px', textAlign: 'left', fontWeight: 500 }}>分类</th>
@@ -158,8 +473,9 @@ export default function TransactionsPage() {
                         break;
                     }
 
-                    // 权限控制：仅允许创建者删除
+                    // 权限控制：仅允许创建者删除，且不能删除结算
                     const canDelete = tx.created_by_user_id === currentUser?.id && tx.type !== 'settlement';
+                    const canEdit = tx.created_by_user_id === currentUser?.id;
 
                     return (
                       <tr 
@@ -168,6 +484,17 @@ export default function TransactionsPage() {
                         className="table-row-hover"
                         onClick={() => { setSelectedTx(tx); setDetailOpen(true); }}
                       >
+                        {batchMode && (
+                          <td className="checkbox-col" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              className="checkbox-input"
+                              checked={selectedTxIds.includes(tx.id)}
+                              disabled={!canEdit}
+                              onChange={() => handleSelectTx(tx.id)}
+                            />
+                          </td>
+                        )}
                         <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>
                           {formatDate(tx.occurred_at).substring(5, 16)}
                         </td>
@@ -232,7 +559,7 @@ export default function TransactionsPage() {
               </span>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button 
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  onClick={() => updateFilter({ page: Math.max(1, page - 1) })}
                   className="btn-secondary"
                   style={{ padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
                   disabled={!hasPrevPage}
@@ -240,7 +567,7 @@ export default function TransactionsPage() {
                   <ChevronLeft size={16} /> 上一页
                 </button>
                 <button 
-                  onClick={() => setPage(p => p + 1)}
+                  onClick={() => updateFilter({ page: page + 1 })}
                   className="btn-secondary"
                   style={{ padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
                   disabled={!hasNextPage}
@@ -467,6 +794,237 @@ export default function TransactionsPage() {
                   disabled={deleteMutation.isPending}
                 >
                   {deleteMutation.isPending ? '正在删除...' : selectedTx.type === 'shared_expense' ? '删除共同支出' : '删除账单'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+         移动端高级筛选底部 Sheet (MobileFilterDrawer)
+         ========================================== */}
+      {mobileFilterOpen && (
+        <div className="drawer-overlay glass-blur show" onClick={() => setMobileFilterOpen(false)}>
+          <div className="drawer-container glass-card text-left" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <div className="header-title">
+                <SlidersHorizontal className="title-icon text-glow" />
+                <h3>高级筛选</h3>
+              </div>
+              <button className="btn-close-drawer" onClick={() => setMobileFilterOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="drawer-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>账单类型</label>
+                <select 
+                  className="filter-input" 
+                  style={{ padding: '10px' }}
+                  value={type} 
+                  onChange={(e) => updateFilter({ type: e.target.value })}
+                >
+                  <option value="">全部类型</option>
+                  <option value="expense">个人支出</option>
+                  <option value="income">个人收入</option>
+                  <option value="shared_expense">共同支出</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>所属分类</label>
+                <select 
+                  className="filter-input"
+                  style={{ padding: '10px' }}
+                  value={categoryId} 
+                  onChange={(e) => updateFilter({ category_id: e.target.value })}
+                >
+                  <option value="">全部分类</option>
+                  {categories?.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>付款人</label>
+                <select 
+                  className="filter-input"
+                  style={{ padding: '10px' }}
+                  value={payerUserId} 
+                  onChange={(e) => updateFilter({ payer_user_id: e.target.value })}
+                >
+                  <option value="">全部付款人</option>
+                  {users.map((u) => (
+                    <option key={u.user_id} value={u.user_id}>
+                      {u.display_name} {u.user_id === currentUser?.id ? '(我)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>可见性</label>
+                <select 
+                  className="filter-input"
+                  style={{ padding: '10px' }}
+                  value={visibility} 
+                  onChange={(e) => updateFilter({ visibility: e.target.value })}
+                >
+                  <option value="">全部可见性</option>
+                  <option value="private">仅自己可见</option>
+                  <option value="partner_readable">对方可见 (只读)</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>关联标签</label>
+                <input 
+                  type="text" 
+                  placeholder="搜索标签名称..." 
+                  className="filter-input"
+                  style={{ padding: '10px' }}
+                  value={localTag}
+                  onChange={(e) => setLocalTag(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>最小金额 (元)</label>
+                <input 
+                  type="number" 
+                  placeholder="最少金额..." 
+                  className="filter-input"
+                  style={{ padding: '10px' }}
+                  value={localMinAmount}
+                  onChange={(e) => setLocalMinAmount(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>最大金额 (元)</label>
+                <input 
+                  type="number" 
+                  placeholder="最多金额..." 
+                  className="filter-input"
+                  style={{ padding: '10px' }}
+                  value={localMaxAmount}
+                  onChange={(e) => setLocalMaxAmount(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>标题/备注关键词</label>
+                <input 
+                  type="text" 
+                  placeholder="搜索标题或备注关键词..." 
+                  className="filter-input"
+                  style={{ padding: '10px' }}
+                  value={localKeyword}
+                  onChange={(e) => setLocalKeyword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="drawer-footer" style={{ display: 'flex', gap: '10px', padding: '16px 20px' }}>
+              <button 
+                className="btn-secondary" 
+                style={{ flex: 1, padding: '10px' }}
+                onClick={() => {
+                  handleClearFilters();
+                  setMobileFilterOpen(false);
+                }}
+              >
+                重置
+              </button>
+              <button 
+                className="btn-primary" 
+                style={{ flex: 2, padding: '10px' }}
+                onClick={() => {
+                  updateFilter({
+                    min_amount: localMinAmount,
+                    max_amount: localMaxAmount,
+                    keyword: localKeyword,
+                    tag: localTag
+                  });
+                  setMobileFilterOpen(false);
+                }}
+              >
+                应用筛选
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+         批量打标签 Modal (BatchTagModal)
+         ========================================== */}
+      {showBatchTagModal && (
+        <div className="modal-overlay" onClick={() => setShowBatchTagModal(false)}>
+          <div className="modal-content glass-card animate-fade-in text-left" style={{ maxWidth: '440px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header" style={{ padding: '0 0 16px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="header-title" style={{ color: 'var(--accent-purple)' }}>
+                <Tags size={18} />
+                <h3 style={{ fontSize: '16px' }}>批量追加标签</h3>
+              </div>
+              <button className="btn-close-drawer" onClick={() => setShowBatchTagModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
+              <p className="modal-alert-text" style={{ fontSize: '13px', margin: 0 }}>
+                将为已选中的 <strong style={{ color: 'var(--accent-purple)' }}>{selectedTxIds.length}</strong> 笔账单追加新标签。历史已有标签会被保留并由系统自动去重。
+              </p>
+
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label>输入追加标签 (空格或逗号分隔)</label>
+                <input 
+                  type="text" 
+                  placeholder="如: 报销 餐饮 六月" 
+                  className="filter-input"
+                  style={{ padding: '12px' }}
+                  value={batchTagsInput}
+                  onChange={(e) => setBatchTagsInput(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              {/* 审计日志提示 */}
+              <div style={{ background: 'rgba(147, 51, 234, 0.04)', border: '1px solid rgba(147, 51, 234, 0.15)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#c084fc', textAlign: 'left' }}>
+                <Info size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span>此操作属于批量操作，修改结果及标签流水变化将由系统后台记录并同步写入 `audit_logs` 审计表中以备历史追溯。</span>
+              </div>
+
+              <div className="drawer-footer" style={{ borderTop: 'none', padding: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button 
+                  className="btn-secondary" 
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+                  onClick={() => setShowBatchTagModal(false)}
+                  disabled={batchTagMutation.isPending}
+                >
+                  取消
+                </button>
+                <button 
+                  className="btn-primary" 
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+                  onClick={() => {
+                    const tag_names = batchTagsInput
+                      .split(/[\s,，]+/)
+                      .map((t) => t.trim())
+                      .filter((t) => t.length > 0);
+                    if (tag_names.length === 0) return;
+                    batchTagMutation.mutate({
+                      transaction_ids: selectedTxIds,
+                      tag_names
+                    });
+                  }}
+                  disabled={batchTagMutation.isPending || !batchTagsInput.trim()}
+                >
+                  {batchTagMutation.isPending ? '追加中...' : '确认追加'}
                 </button>
               </div>
             </div>

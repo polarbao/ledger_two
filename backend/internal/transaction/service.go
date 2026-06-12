@@ -1508,18 +1508,9 @@ func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchT
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
-	// 开启事务
-	dbConn := s.repo.GetDB()
-	tx, err := dbConn.BeginTx(ctx, nil)
-	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "启动事务失败")
-	}
-	defer tx.Rollback()
-
-	now := time.Now().Format(time.RFC3339)
-
+	// 1. 预先校验所有交易的存在性及编辑权限，防止在事务内部查询触发 CGO sqlite 内存数据库连接池问题
+	txModels := make([]*Transaction, 0, len(req.TransactionIDs))
 	for _, txID := range req.TransactionIDs {
-		// 校验越权：查询这笔交易是否属于当前账本
 		txModel, _, err := s.repo.GetByID(ctx, txID)
 		if err != nil {
 			return appErrors.NewAppError(404, "NOT_FOUND", "账单交易未找到: "+txID)
@@ -1530,9 +1521,22 @@ func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchT
 		if !s.CanEditTransaction(currentUserID, txModel) {
 			return appErrors.NewAppError(403, "FORBIDDEN", "无权操作该账单交易")
 		}
+		txModels = append(txModels, txModel)
+	}
 
+	// 2. 开启事务执行写入
+	dbConn := s.repo.GetDB()
+	tx, err := dbConn.BeginTx(ctx, nil)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "启动事务失败")
+	}
+	defer tx.Rollback()
+
+	now := time.Now().Format(time.RFC3339)
+
+	for _, txModel := range txModels {
 		// 追加标签 (associateTags 会 INSERT OR IGNORE 关联，起到追加且去重效果)
-		if err = s.repo.associateTags(ctx, tx, txID, ledgerID, req.TagNames, now); err != nil {
+		if err = s.repo.associateTags(ctx, tx, txModel.ID, ledgerID, req.TagNames, now); err != nil {
 			return appErrors.NewAppError(500, "INTERNAL_ERROR", "关联标签失败: "+err.Error())
 		}
 
@@ -1542,7 +1546,7 @@ func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchT
 			ActorUserID: currentUserID,
 			Action:      "batch_tag",
 			EntityType:  "transaction",
-			EntityID:    txID,
+			EntityID:    txModel.ID,
 			BeforeJSON:  sql.NullString{String: "{}", Valid: true},
 			AfterJSON:   sql.NullString{String: fmt.Sprintf(`{"added_tags":%v}`, req.TagNames), Valid: true},
 		}

@@ -530,7 +530,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	}
 	var resTx3 response.SuccessResponse
 	json.Unmarshal(rrTx3.Body.Bytes(), &resTx3)
-	tx3ID := resTx3.Data.(map[string]interface{})["id"].(string)
+	_ = resTx3.Data.(map[string]interface{})["id"].(string)
 
 	// 交易 4：B 创建, type: expense, amount: 5000, private, tags: ["game"]
 	tx4Payload := map[string]interface{}{
@@ -651,9 +651,9 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	}
 
 	// 5. 批量打标签正常追加测试
-	// A 批量给交易 2 (原有: ["food"]) 和交易 3 (原有: ["rent"]) 打上标签 ["batch1", "food"]
+	// A 批量给交易 1 (原有: ["food", "lunch"]) 和交易 2 (原有: ["food"]) 打上标签 ["batch1", "food"]
 	batchPayload := map[string]interface{}{
-		"transaction_ids": []string{tx2ID, tx3ID},
+		"transaction_ids": []string{tx1ID, tx2ID},
 		"tag_names":       []string{"batch1", "food"},
 	}
 	bodyBatch, _ := json.Marshal(batchPayload)
@@ -665,7 +665,20 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 		t.Fatalf("batch tag failed, got code %d, body: %s", rrBatch.Code, rrBatch.Body.String())
 	}
 
-	// 校验交易 2 和交易 3 的标签状态
+	// 校验交易 1 和交易 2 的标签状态
+	// 交易 1 应包含：food, lunch, batch1 (去重追加，无重复)
+	reqTx1Detail, _ := http.NewRequest("GET", "/api/transactions/"+tx1ID, nil)
+	reqTx1Detail.AddCookie(cookieA)
+	rrTx1Detail := httptest.NewRecorder()
+	r.ServeHTTP(rrTx1Detail, reqTx1Detail)
+	var resTx1Detail response.SuccessResponse
+	json.Unmarshal(rrTx1Detail.Body.Bytes(), &resTx1Detail)
+	tx1Data := resTx1Detail.Data.(map[string]interface{})
+	tx1Tags := tx1Data["tags"].([]interface{})
+	if len(tx1Tags) != 3 {
+		t.Errorf("expected tx1 tags length to be 3, got %d (tags: %v)", len(tx1Tags), tx1Tags)
+	}
+
 	// 交易 2 应包含：food, batch1 (去重追加，无重复)
 	reqTx2Detail, _ := http.NewRequest("GET", "/api/transactions/"+tx2ID, nil)
 	reqTx2Detail.AddCookie(cookieA)
@@ -677,19 +690,6 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	tx2Tags := tx2Data["tags"].([]interface{})
 	if len(tx2Tags) != 2 {
 		t.Errorf("expected tx2 tags length to be 2, got %d (tags: %v)", len(tx2Tags), tx2Tags)
-	}
-
-	// 交易 3 应包含：rent, batch1, food
-	reqTx3Detail, _ := http.NewRequest("GET", "/api/transactions/"+tx3ID, nil)
-	reqTx3Detail.AddCookie(cookieA)
-	rrTx3Detail := httptest.NewRecorder()
-	r.ServeHTTP(rrTx3Detail, reqTx3Detail)
-	var resTx3Detail response.SuccessResponse
-	json.Unmarshal(rrTx3Detail.Body.Bytes(), &resTx3Detail)
-	tx3Data := resTx3Detail.Data.(map[string]interface{})
-	tx3Tags := tx3Data["tags"].([]interface{})
-	if len(tx3Tags) != 3 {
-		t.Errorf("expected tx3 tags length to be 3, got %d (tags: %v)", len(tx3Tags), tx3Tags)
 	}
 
 	// 校验审计日志：应该新增了 2 条 action = 'batch_tag' 的审计记录

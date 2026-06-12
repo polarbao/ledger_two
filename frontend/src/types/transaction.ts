@@ -173,5 +173,34 @@ export interface CommitImportPayload {
   items: ImportItemPayload[];
 }
 
+export interface Account {
+  id: string;
+  ledger_id: string;
+  owner_user_id: string;
+  name: string;
+  type: string;
+  currency: string;
+  initial_balance: number;
+  is_archived: boolean;
+}
+
+export interface ImportRuleResponse {
+  id: string;
+  keyword: string;
+  category_id: string;
+  tag_names: string[];
+  account_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateImportRulePayload {
+  keyword: string;
+  category_id?: string;
+  tag_names?: string[];
+  account_id?: string;
+}
+
+
 
 

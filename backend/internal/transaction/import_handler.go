@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/go-chi/chi/v5"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 
@@ -228,4 +229,85 @@ func (h *Handler) HandleCommitImport(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
+
+// HandleListAccounts 处理 GET /api/accounts 拉取当前账本下可用账户
+func (h *Handler) HandleListAccounts(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	list, err := h.service.ListAccounts(r.Context())
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, list)
+}
+
+// HandleCreateImportRule 处理 POST /api/import-rules 创建一条新的分类关键词规则
+func (h *Handler) HandleCreateImportRule(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	var req CreateImportRuleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "请求体格式无效")
+		return
+	}
+
+	res, err := h.service.CreateImportRule(r.Context(), currentUserID, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusCreated, res)
+}
+
+// HandleListImportRules 处理 GET /api/import-rules 拉取分类匹配规则列表
+func (h *Handler) HandleListImportRules(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	list, err := h.service.ListImportRules(r.Context())
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, list)
+}
+
+// HandleDeleteImportRule 处理 DELETE /api/import-rules/{id} 删除规则并增加防御隔离
+func (h *Handler) HandleDeleteImportRule(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "规则 ID 不能为空")
+		return
+	}
+
+	err := h.service.DeleteImportRule(r.Context(), id)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
 

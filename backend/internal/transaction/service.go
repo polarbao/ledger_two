@@ -1827,4 +1827,151 @@ func (s *Service) CommitImport(ctx context.Context, currentUserID string, req Co
 	return nil
 }
 
+// ListAccounts 列出当前账本的所有可用账户
+func (s *Service) ListAccounts(ctx context.Context) ([]Account, error) {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+	return s.repo.ListAccounts(ctx, ledgerID)
+}
+
+// CreateImportRule 创建导入分类规则并执行业务校验与越权拦截
+func (s *Service) CreateImportRule(ctx context.Context, currentUserID string, req CreateImportRuleRequest) (*ImportRuleResponse, error) {
+	// 1. 规则校验
+	req.Keyword = strings.TrimSpace(req.Keyword)
+	if req.Keyword == "" {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "规则匹配关键词 keyword 不能为空")
+	}
+	if req.CategoryID == "" && req.AccountID == "" && len(req.TagNames) == 0 {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "分类、账户和标签列表必须至少配置一项")
+	}
+
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	// 2. 检查分类和账户是否存在以确保关联的合法性
+	if req.CategoryID != "" {
+		categories, err := s.repo.ListCategories(ctx, ledgerID)
+		if err != nil {
+			return nil, err
+		}
+		foundCat := false
+		for _, cat := range categories {
+			if cat.ID == req.CategoryID {
+				foundCat = true
+				break
+			}
+		}
+		if !foundCat {
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "配置的目标消费分类 ID 不合法或不属于当前账本")
+		}
+	}
+
+	if req.AccountID != "" {
+		accounts, err := s.repo.ListAccounts(ctx, ledgerID)
+		if err != nil {
+			return nil, err
+		}
+		foundAcc := false
+		for _, acc := range accounts {
+			if acc.ID == req.AccountID {
+				foundAcc = true
+				break
+			}
+		}
+		if !foundAcc {
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "配置的支付账户 ID 不合法或不属于当前账本")
+		}
+	}
+
+	// 3. 构造并存入数据库
+	ruleID := uuid.NewString()
+	cleanTags := make([]string, 0, len(req.TagNames))
+	for _, t := range req.TagNames {
+		tClean := strings.TrimSpace(t)
+		if tClean != "" {
+			cleanTags = append(cleanTags, tClean)
+		}
+	}
+	tagNamesStr := strings.Join(cleanTags, ",")
+
+	rule := &ImportRule{
+		ID:              ruleID,
+		LedgerID:        ledgerID,
+		Keyword:         req.Keyword,
+		CategoryID:      req.CategoryID,
+		TagNames:        tagNamesStr,
+		AccountID:       req.AccountID,
+		CreatedByUserID: currentUserID,
+	}
+
+	err = s.repo.CreateImportRule(ctx, rule)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "创建导入匹配规则失败: "+err.Error())
+	}
+
+	nowStr := time.Now().Format(time.RFC3339)
+	return &ImportRuleResponse{
+		ID:         ruleID,
+		Keyword:    req.Keyword,
+		CategoryID: req.CategoryID,
+		TagNames:   cleanTags,
+		AccountID:  req.AccountID,
+		CreatedAt:  nowStr,
+		UpdatedAt:  nowStr,
+	}, nil
+}
+
+// ListImportRules 获取当前账本下所有的导入分类匹配规则
+func (s *Service) ListImportRules(ctx context.Context) ([]*ImportRuleResponse, error) {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	rules, err := s.repo.ListImportRules(ctx, ledgerID)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "查询规则列表失败: "+err.Error())
+	}
+
+	var list []*ImportRuleResponse
+	for _, r := range rules {
+		var tags []string
+		if r.TagNames != "" {
+			tags = strings.Split(r.TagNames, ",")
+		}
+		list = append(list, &ImportRuleResponse{
+			ID:         r.ID,
+			Keyword:    r.Keyword,
+			CategoryID: r.CategoryID,
+			TagNames:   tags,
+			AccountID:  r.AccountID,
+			CreatedAt:  r.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:  r.UpdatedAt.Format(time.RFC3339),
+		})
+	}
+	return list, nil
+}
+
+// DeleteImportRule 删除指定导入匹配规则并增加账本级隔离防御
+func (s *Service) DeleteImportRule(ctx context.Context, id string) error {
+	ledgerID, err := s.getLedgerID(ctx)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	err = s.repo.DeleteImportRule(ctx, id, ledgerID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return appErrors.NewAppError(404, "NOT_FOUND", "指定的规则 ID 不存在或无操作权限")
+		}
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "删除导入分类规则失败: "+err.Error())
+	}
+	return nil
+}
+
+
 

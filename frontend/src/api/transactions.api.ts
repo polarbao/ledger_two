@@ -13,6 +13,9 @@ import type {
   AnalyzeImportPayload,
   AnalyzeImportResponse,
   CommitImportPayload,
+  Account,
+  ImportRuleResponse,
+  CreateImportRulePayload,
 } from '../types/transaction';
 
 export interface TransactionListFilter {
@@ -109,5 +112,17 @@ export const transactionsApi = {
 
   commitImport: (payload: CommitImportPayload) =>
     api.post<{ status: string }>('/api/transactions/import/commit', payload),
+
+  listAccounts: () =>
+    api.get<Account[]>('/api/accounts'),
+
+  listImportRules: () =>
+    api.get<ImportRuleResponse[]>('/api/import-rules'),
+
+  createImportRule: (payload: CreateImportRulePayload) =>
+    api.post<ImportRuleResponse>('/api/import-rules', payload),
+
+  deleteImportRule: (id: string) =>
+    api.delete<void>(`/api/import-rules/${id}`),
 };
 

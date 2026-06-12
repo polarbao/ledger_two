@@ -10,7 +10,9 @@ import {
 	Trash2, 
 	AlertTriangle, 
 	Info, 
-	X 
+	X,
+	Target,
+	Sliders
 } from 'lucide-react';
 import { transactionsApi } from '../api/transactions.api';
 import { dashboardApi } from '../api/dashboard.api';
@@ -26,7 +28,11 @@ interface PreviewTransaction {
 	merchant: string;
 	category_name: string;
 	category_id: string;
+	account_name: string;
+	account_id: string;
+	tag_names: string[];
 	note: string;
+	rule_matched_keyword?: string;
 }
 
 interface MappingConfig {
@@ -69,7 +75,15 @@ export default function ImportPage() {
 	// 默认兜底项
 	const [defaultPayer, setDefaultPayer] = useState('');
 	const [defaultCategory, setDefaultCategory] = useState('');
+	const [defaultAccount, setDefaultAccount] = useState('');
 	const [defaultType, setDefaultType] = useState<'expense' | 'shared_expense'>('expense');
+
+	// 新建匹配规则表单状态
+	const [newRuleKeyword, setNewRuleKeyword] = useState('');
+	const [newRuleCategory, setNewRuleCategory] = useState('');
+	const [newRuleAccount, setNewRuleAccount] = useState('');
+	const [newRuleTags, setNewRuleTags] = useState('');
+	const [ruleSubmitting, setRuleSubmitting] = useState(false);
 
 	// 预览数据列表
 	const [previewList, setPreviewList] = useState<PreviewTransaction[]>([]);
@@ -87,11 +101,29 @@ export default function ImportPage() {
 		enabled: step === 2 && !!currentUser,
 	});
 
+	const { data: importRules, isLoading: isRulesLoading, refetch: refetchImportRules } = useQuery({
+		queryKey: ['importRules'],
+		queryFn: () => transactionsApi.listImportRules(),
+		enabled: step === 2,
+	});
+
+	const { data: accounts, isLoading: isAccountsLoading, isError: isAccountsError } = useQuery({
+		queryKey: ['accounts'],
+		queryFn: () => transactionsApi.listAccounts(),
+		enabled: step === 2,
+	});
+
 	const users = dashboardData?.user_stats || [];
 	const categoriesList = categories || [];
+	const accountsList = accounts || [];
 
 	const catMap = categoriesList.reduce((acc, cat) => {
 		acc[cat.id] = cat.name;
+		return acc;
+	}, {} as Record<string, string>);
+
+	const accountMap = accountsList.reduce((acc, act) => {
+		acc[act.id] = act.name;
 		return acc;
 	}, {} as Record<string, string>);
 
@@ -178,6 +210,10 @@ export default function ImportPage() {
 			return;
 		}
 
+		const currentDefaultCategory = defaultCategory || (categoriesList[0]?.id || '');
+		const currentDefaultAccount = defaultAccount || (accountsList[0]?.id || '');
+		const rules = importRules || [];
+
 		const list: PreviewTransaction[] = [];
 		rows.forEach((row, index) => {
 			// 读取时间
@@ -204,7 +240,33 @@ export default function ImportPage() {
 			const rawMerchant = merchantIdx !== -1 ? row[merchantIdx] : '';
 			const rawNote = noteIdx !== -1 ? row[noteIdx] : '';
 
-			const catName = catMap[defaultCategory] || '未分类';
+			let catId = currentDefaultCategory;
+			let actId = currentDefaultAccount;
+			let tagNames: string[] = [];
+			let matchedKeyword: string | undefined = undefined;
+
+			const targetTitle = (rawTitle.trim() || rawMerchant.trim() || '').toLowerCase();
+			const targetMerchant = rawMerchant.trim().toLowerCase();
+
+			for (const rule of rules) {
+				const ruleKw = rule.keyword.toLowerCase();
+				if (targetTitle.includes(ruleKw) || targetMerchant.includes(ruleKw)) {
+					if (rule.category_id) {
+						catId = rule.category_id;
+					}
+					if (rule.account_id) {
+						actId = rule.account_id;
+					}
+					if (rule.tag_names && rule.tag_names.length > 0) {
+						tagNames = rule.tag_names;
+					}
+					matchedKeyword = rule.keyword;
+					break;
+				}
+			}
+
+			const catName = catMap[catId] || '未分类';
+			const actName = accountMap[actId] || '未选账户';
 
 			list.push({
 				id: `temp-${index}-${Math.random().toString(36).substring(2, 9)}`,
@@ -213,8 +275,12 @@ export default function ImportPage() {
 				title: rawTitle.trim() || rawMerchant.trim() || '未命名账单',
 				merchant: rawMerchant.trim(),
 				category_name: catName,
-				category_id: defaultCategory,
+				category_id: catId,
+				account_name: actName,
+				account_id: actId,
+				tag_names: tagNames,
 				note: rawNote.trim(),
+				rule_matched_keyword: matchedKeyword,
 			});
 		});
 
@@ -236,10 +302,10 @@ export default function ImportPage() {
 			title: item.title,
 			merchant: item.merchant,
 			category_id: item.category_id,
-			account_id: '',
+			account_id: item.account_id,
 			payer_user_id: defaultPayer,
 			type: defaultType,
-			tag_names: [],
+			tag_names: item.tag_names || [],
 			note: item.note,
 		}));
 	};
@@ -377,8 +443,8 @@ export default function ImportPage() {
 			{/* 步骤 2: 映射区 */}
 			{step === 2 && (
 				<PageState 
-					isLoading={isCategoriesLoading || isDashboardLoading}
-					isError={isCategoriesError || isDashboardError}
+					isLoading={isCategoriesLoading || isDashboardLoading || isAccountsLoading}
+					isError={isCategoriesError || isDashboardError || isAccountsError}
 				>
 					<div className="form-row-2">
 						{/* 左栏：配置映射关系 */}
@@ -475,11 +541,24 @@ export default function ImportPage() {
 								<label>默认导入分类 <span style={{ color: 'var(--accent-purple)' }}>*</span></label>
 								<select 
 									className="filter-input"
-									value={defaultCategory}
+									value={defaultCategory || (categoriesList[0]?.id || '')}
 									onChange={(e) => setDefaultCategory(e.target.value)}
 								>
 									{categoriesList.map((c) => (
 										<option key={c.id} value={c.id}>{c.name}</option>
+									))}
+								</select>
+							</div>
+
+							<div className="form-group">
+								<label>默认导入账户 <span style={{ color: 'var(--accent-purple)' }}>*</span></label>
+								<select 
+									className="filter-input"
+									value={defaultAccount || (accountsList[0]?.id || '')}
+									onChange={(e) => setDefaultAccount(e.target.value)}
+								>
+									{accountsList.map((a) => (
+										<option key={a.id} value={a.id}>{a.name}</option>
 									))}
 								</select>
 							</div>
@@ -537,6 +616,184 @@ export default function ImportPage() {
 							</div>
 						</div>
 					</div>
+
+					{/* 导入分类规则管理器 */}
+					<div className="glass-card" style={{ marginTop: '20px', padding: '24px' }}>
+						<div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px', marginBottom: '20px' }}>
+							<Sliders size={18} style={{ color: 'var(--accent-purple)' }} />
+							<h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>导入分类规则管理器</h3>
+						</div>
+
+						<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px' }}>
+							{/* 规则列表 */}
+							<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+								<span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--dimmed-desc)' }}>📋 当前已配置规则：</span>
+								
+								{isRulesLoading ? (
+									<div style={{ padding: '20px 0', fontSize: '12px', color: 'var(--dimmed-desc)' }}>加载规则列表中...</div>
+								) : !importRules || importRules.length === 0 ? (
+									<div style={{ padding: '20px 10px', fontSize: '12px', color: 'var(--dimmed-desc)', border: '1px dashed rgba(255,255,255,0.06)', borderRadius: '8px', textAlign: 'center' }}>
+										暂无匹配规则，您可以在右侧配置并新增。
+									</div>
+								) : (
+									<div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+										{importRules.map((rule) => (
+											<div 
+												key={rule.id} 
+												style={{ 
+													display: 'flex', 
+													alignItems: 'center', 
+													justifyContent: 'space-between', 
+													background: 'rgba(255, 255, 255, 0.01)', 
+													border: '1px solid rgba(255, 255, 255, 0.04)', 
+													borderRadius: '10px', 
+													padding: '10px 14px', 
+													fontSize: '12px' 
+												}}
+											>
+												<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+													<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+														<span style={{ fontWeight: 600, background: 'rgba(147, 51, 234, 0.1)', border: '1px solid rgba(147, 51, 234, 0.2)', padding: '2px 6px', borderRadius: '4px', color: '#c084fc' }}>
+															🔍 '{rule.keyword}'
+														</span>
+														<span className="dimmed-desc">自动归类为：</span>
+														<span style={{ fontWeight: 500 }}>{catMap[rule.category_id] || '未分类'}</span>
+													</div>
+													<div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', color: 'var(--dimmed-desc)' }}>
+														<span>🏦 账户: {accountMap[rule.account_id] || '未关联账户'}</span>
+														{rule.tag_names && rule.tag_names.length > 0 && (
+															<span style={{ display: 'flex', gap: '4px' }}>
+																🏷️ 标签:
+																{rule.tag_names.map(tag => (
+																	<span key={tag} style={{ background: 'rgba(255,255,255,0.05)', padding: '0px 4px', borderRadius: '3px' }}>{tag}</span>
+																))}
+															</span>
+														)}
+													</div>
+												</div>
+												<button 
+													className="btn-close-drawer" 
+													style={{ color: '#ef4444', padding: '6px', cursor: 'pointer' }}
+													onClick={async () => {
+														try {
+															await transactionsApi.deleteImportRule(rule.id);
+															refetchImportRules();
+														} catch {
+															setErrorMsg('删除匹配规则失败');
+														}
+													}}
+												>
+													<Trash2 size={14} />
+												</button>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+
+							{/* 新增表单 */}
+							<div 
+								style={{ 
+									background: 'rgba(255, 255, 255, 0.01)', 
+									border: '1px solid rgba(255, 255, 255, 0.04)', 
+									borderRadius: '12px', 
+									padding: '16px', 
+									display: 'flex', 
+									flexDirection: 'column', 
+									gap: '12px' 
+								}}
+							>
+								<span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--dimmed-desc)' }}>➕ 新增自动匹配规则：</span>
+								
+								<div className="form-group" style={{ margin: 0 }}>
+									<label style={{ fontSize: '11px', marginBottom: '4px' }}>商户/商品关键词 <span style={{ color: 'var(--accent-purple)' }}>*</span></label>
+									<input 
+										type="text" 
+										className="filter-input" 
+										style={{ padding: '8px 10px', fontSize: '12px' }}
+										placeholder="例如：星巴克、滴滴、美团"
+										value={newRuleKeyword}
+										onChange={(e) => setNewRuleKeyword(e.target.value)}
+									/>
+								</div>
+
+								<div className="form-group" style={{ margin: 0 }}>
+									<label style={{ fontSize: '11px', marginBottom: '4px' }}>自动设置分类</label>
+									<select 
+										className="filter-input" 
+										style={{ padding: '8px 10px', fontSize: '12px' }}
+										value={newRuleCategory || (categoriesList[0]?.id || '')}
+										onChange={(e) => setNewRuleCategory(e.target.value)}
+									>
+										{categoriesList.map((c) => (
+											<option key={c.id} value={c.id}>{c.name}</option>
+										))}
+									</select>
+								</div>
+
+								<div className="form-group" style={{ margin: 0 }}>
+									<label style={{ fontSize: '11px', marginBottom: '4px' }}>自动匹配账户</label>
+									<select 
+										className="filter-input" 
+										style={{ padding: '8px 10px', fontSize: '12px' }}
+										value={newRuleAccount || (accountsList[0]?.id || '')}
+										onChange={(e) => setNewRuleAccount(e.target.value)}
+									>
+										{accountsList.map((a) => (
+											<option key={a.id} value={a.id}>{a.name}</option>
+										))}
+									</select>
+								</div>
+
+								<div className="form-group" style={{ margin: 0 }}>
+									<label style={{ fontSize: '11px', marginBottom: '4px' }}>自动追加标签 (逗号分隔)</label>
+									<input 
+										type="text" 
+										className="filter-input" 
+										style={{ padding: '8px 10px', fontSize: '12px' }}
+										placeholder="例如：咖啡, 餐饮 (可选)"
+										value={newRuleTags}
+										onChange={(e) => setNewRuleTags(e.target.value)}
+									/>
+								</div>
+
+								<button 
+									className="btn-primary" 
+									style={{ padding: '8px', fontSize: '12px', marginTop: '4px', width: '100%' }}
+									disabled={ruleSubmitting}
+									onClick={async () => {
+										if (!newRuleKeyword.trim()) {
+											setErrorMsg('商户/商品关键词不能为空');
+											return;
+										}
+										setRuleSubmitting(true);
+										try {
+											const catVal = newRuleCategory || categoriesList[0]?.id;
+											const actVal = newRuleAccount || accountsList[0]?.id;
+											const tagsVal = newRuleTags.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+											
+											await transactionsApi.createImportRule({
+												keyword: newRuleKeyword.trim(),
+												category_id: catVal,
+												account_id: actVal,
+												tag_names: tagsVal,
+											});
+
+											setNewRuleKeyword('');
+											setNewRuleTags('');
+											refetchImportRules();
+										} catch {
+											setErrorMsg('创建匹配规则失败，请检查参数');
+										} finally {
+											setRuleSubmitting(false);
+										}
+									}}
+								>
+									{ruleSubmitting ? '正在添加...' : '添加规则'}
+								</button>
+							</div>
+						</div>
+					</div>
 				</PageState>
 			)}
 
@@ -570,7 +827,9 @@ export default function ImportPage() {
 										<th style={{ padding: '12px 16px', textAlign: 'left' }}>交易时间</th>
 										<th style={{ padding: '12px 16px', textAlign: 'left' }}>账单商品/商户</th>
 										<th style={{ padding: '12px 16px', textAlign: 'left' }}>默认分类</th>
+										<th style={{ padding: '12px 16px', textAlign: 'left' }}>划账账户</th>
 										<th style={{ padding: '12px 16px', textAlign: 'right' }}>金额 (元)</th>
+										<th style={{ padding: '12px 16px', textAlign: 'left' }}>标签</th>
 										<th style={{ padding: '12px 16px', textAlign: 'left' }}>备注</th>
 										<th style={{ padding: '12px 16px', textAlign: 'center' }}>操作</th>
 									</tr>
@@ -582,14 +841,72 @@ export default function ImportPage() {
 											<td style={{ padding: '12px 16px' }}>
 												<div style={{ fontWeight: 500 }}>{item.title}</div>
 												{item.merchant && <div className="dimmed-desc" style={{ fontSize: '11px', marginTop: '2px' }}>商户: {item.merchant}</div>}
+												{item.rule_matched_keyword && (
+													<div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '4px', padding: '1px 6px', marginTop: '4px', color: '#34d399' }}>
+														<Target size={10} />
+														<span>规则匹配: '{item.rule_matched_keyword}'</span>
+													</div>
+												)}
 											</td>
 											<td style={{ padding: '12px 16px' }}>
-												<span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px 8px' }}>
-													🏷️ {item.category_name}
-												</span>
+												<select
+													className="filter-input"
+													style={{ padding: '4px 8px', fontSize: '12px', width: 'auto', minWidth: '110px' }}
+													value={item.category_id}
+													onChange={(e) => {
+														const newCatId = e.target.value;
+														const newCatName = catMap[newCatId] || '未分类';
+														setPreviewList((prev) =>
+															prev.map((p) =>
+																p.id === item.id
+																	? { ...p, category_id: newCatId, category_name: newCatName }
+																	: p
+															)
+														);
+													}}
+												>
+													{categoriesList.map((c) => (
+														<option key={c.id} value={c.id}>{c.name}</option>
+													))}
+												</select>
+											</td>
+											<td style={{ padding: '12px 16px' }}>
+												<select
+													className="filter-input"
+													style={{ padding: '4px 8px', fontSize: '12px', width: 'auto', minWidth: '110px' }}
+													value={item.account_id}
+													onChange={(e) => {
+														const newAccId = e.target.value;
+														const newAccName = accountMap[newAccId] || '未选账户';
+														setPreviewList((prev) =>
+															prev.map((p) =>
+																p.id === item.id
+																	? { ...p, account_id: newAccId, account_name: newAccName }
+																	: p
+															)
+														);
+													}}
+												>
+													{accountsList.map((a) => (
+														<option key={a.id} value={a.id}>{a.name}</option>
+													))}
+												</select>
 											</td>
 											<td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: 'var(--accent-green)' }}>
 												¥{item.amount.toFixed(2)}
+											</td>
+											<td style={{ padding: '12px 16px' }}>
+												{item.tag_names && item.tag_names.length > 0 ? (
+													<div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+														{item.tag_names.map((tag) => (
+															<span key={tag} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', padding: '1px 5px' }}>
+																{tag}
+															</span>
+														))}
+													</div>
+												) : (
+													<span className="dimmed-desc">-</span>
+												)}
 											</td>
 											<td style={{ padding: '12px 16px', color: 'var(--dimmed-desc)' }}>{item.note || '-'}</td>
 											<td style={{ padding: '12px 16px', textAlign: 'center' }}>

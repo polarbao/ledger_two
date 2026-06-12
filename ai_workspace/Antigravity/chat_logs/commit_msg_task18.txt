@@ -1,0 +1,12 @@
+feat(导入): 支持基于商户与描述关键词的自动分类及账户匹配规则 (Task 18)
+
+- 数据库迁移：编写并运行 `005_add_import_rules.sql` 脚本，新增 `import_rules` 表，声明关联 ledger_id、category_id、account_id 和 created_by_user_id 的级联与置空外键，并建立索引。
+- 后端账户接口补齐：提供受鉴权保护的 `GET /api/accounts` REST 端点，以暴露系统自动初始化的可用账户。
+- 后端规则服务与接口：实现规则的 CRUD（新增、列表展示、物理删除）业务逻辑，并在 HTTP Handler 中挂载对应鉴权路由。
+- 安全与越权防护：在 Service 层强制拦截并限定 ledger_id 隔离范围，防止非本账本用户获取或删除规则，并校验导入分类和账户存在性。
+- 后端测试覆盖：编写 `import_rules_test.go` 集成测试，对非空验证、跨账本越权获取及删除的 403 机制、正常 CRUD 进行全覆盖断言测试。
+- 前端契约与网络层：在 `types/transaction.ts` 补齐账户和规则 DTO 类型声明，在 `transactions.api.ts` 封装对应的接口调用方法。
+- 前端自动规则匹配回填：重构 `ImportPage.tsx` 中的 `handleGeneratePreview` 逻辑，在解析 CSV 时自动对比当前账本的规则集，若匹配则回填预设分类、账户与追加标签。
+- 前端表格微调与靶心徽标：将预览表格中的分类和账户改为受控的 `<select>` 下拉框，允许用户在入库前手动微调，不覆盖已有的手动调整结果。命中规则的商品名称下方高亮渲染“🎯 规则匹配: 'xxx'”徽章。
+- 前端规则管理卡片：在 Step 2 整体映射表单下方开发毛玻璃（glassmorphism）材质的“自动分类规则管理器”组件，支持现有匹配规则的列表展示、一键删除及新规则极简表单新增。
+- 前端质量校验：修正 catch 块中未使用的 e 变量以通过 ESLint 门禁，并在 WSL2 中成功完成生产环境打包 build 验证。

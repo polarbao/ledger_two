@@ -908,3 +908,109 @@ func (r *Repository) FilterExistingHashes(ctx context.Context, hashes []string) 
 	return existing, nil
 }
 
+// ListAccounts 列出当前账本下未归档的可用账户
+func (r *Repository) ListAccounts(ctx context.Context, ledgerID string) ([]Account, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, ledger_id, owner_user_id, name, type, currency, initial_balance, is_archived
+		FROM accounts
+		WHERE ledger_id = ? AND is_archived = 0
+		ORDER BY created_at ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []Account
+	for rows.Next() {
+		var a Account
+		var isArchivedInt int
+		err := rows.Scan(&a.ID, &a.LedgerID, &a.OwnerUserID, &a.Name, &a.Type, &a.Currency, &a.InitialBalance, &isArchivedInt)
+		if err != nil {
+			return nil, err
+		}
+		a.IsArchived = isArchivedInt == 1
+		list = append(list, a)
+	}
+	return list, nil
+}
+
+// CreateImportRule 创建导入分类匹配规则
+func (r *Repository) CreateImportRule(ctx context.Context, rule *ImportRule) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO import_rules (
+			id, ledger_id, keyword, category_id, tag_names, account_id,
+			created_by_user_id, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		rule.ID, rule.LedgerID, rule.Keyword,
+		r.nullString(sql.NullString{String: rule.CategoryID, Valid: rule.CategoryID != ""}),
+		r.nullString(sql.NullString{String: rule.TagNames, Valid: rule.TagNames != ""}),
+		r.nullString(sql.NullString{String: rule.AccountID, Valid: rule.AccountID != ""}),
+		rule.CreatedByUserID, now, now,
+	)
+	return err
+}
+
+// ListImportRules 列出特定账本下的所有匹配规则
+func (r *Repository) ListImportRules(ctx context.Context, ledgerID string) ([]*ImportRule, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, ledger_id, keyword, category_id, tag_names, account_id, created_by_user_id, created_at, updated_at
+		FROM import_rules
+		WHERE ledger_id = ?
+		ORDER BY created_at DESC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*ImportRule
+	for rows.Next() {
+		var rule ImportRule
+		var categoryID, tagNames, accountID sql.NullString
+		var createdAtStr, updatedAtStr string
+		err := rows.Scan(
+			&rule.ID, &rule.LedgerID, &rule.Keyword, &categoryID, &tagNames, &accountID,
+			&rule.CreatedByUserID, &createdAtStr, &updatedAtStr,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if categoryID.Valid {
+			rule.CategoryID = categoryID.String
+		}
+		if tagNames.Valid {
+			rule.TagNames = tagNames.String
+		}
+		if accountID.Valid {
+			rule.AccountID = accountID.String
+		}
+		rule.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
+		rule.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
+		list = append(list, &rule)
+	}
+	return list, nil
+}
+
+// DeleteImportRule 删除指定导入匹配规则并增加账本级隔离防御
+func (r *Repository) DeleteImportRule(ctx context.Context, id string, ledgerID string) error {
+	res, err := r.db.ExecContext(ctx, `
+		DELETE FROM import_rules
+		WHERE id = ? AND ledger_id = ?
+	`, id, ledgerID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+

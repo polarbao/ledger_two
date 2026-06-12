@@ -93,6 +93,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireAuth(jwtSecret))
 			r.Get("/categories", transactionHandler.HandleListCategories)
+			r.Get("/accounts", transactionHandler.HandleListAccounts)
 			r.Route("/transactions", func(r chi.Router) {
 				r.Get("/", transactionHandler.HandleList)
 				r.Post("/", transactionHandler.HandleCreate)
@@ -103,6 +104,12 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Get("/{id}", transactionHandler.HandleGetByID)
 				r.Patch("/{id}", transactionHandler.HandleUpdate)
 				r.Delete("/{id}", transactionHandler.HandleDelete)
+			})
+
+			r.Route("/import-rules", func(r chi.Router) {
+				r.Post("/", transactionHandler.HandleCreateImportRule)
+				r.Get("/", transactionHandler.HandleListImportRules)
+				r.Delete("/{id}", transactionHandler.HandleDeleteImportRule)
 			})
 
 			r.Route("/transaction-templates", func(r chi.Router) {

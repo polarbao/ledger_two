@@ -232,4 +232,49 @@ type CommitImportRequest struct {
 	Items    []ImportItemRequest `json:"items"`
 }
 
+// Account 账户实体
+type Account struct {
+	ID             string `json:"id"`
+	LedgerID       string `json:"ledger_id"`
+	OwnerUserID    string `json:"owner_user_id"`
+	Name           string `json:"name"`
+	Type           string `json:"type"`
+	Currency       string `json:"currency"`
+	InitialBalance int64  `json:"initial_balance"`
+	IsArchived     bool   `json:"is_archived"`
+}
+
+// ImportRule 导入去重与分类规则实体
+type ImportRule struct {
+	ID              string    `json:"id"`
+	LedgerID        string    `json:"ledger_id"`
+	Keyword         string    `json:"keyword"`
+	CategoryID      string    `json:"category_id"`
+	TagNames        string    `json:"tag_names"` // 逗号分隔的标签
+	AccountID       string    `json:"account_id"`
+	CreatedByUserID string    `json:"created_by_user_id"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// CreateImportRuleRequest 创建规则请求
+type CreateImportRuleRequest struct {
+	Keyword    string   `json:"keyword"`
+	CategoryID string   `json:"category_id"`
+	TagNames   []string `json:"tag_names"`
+	AccountID  string   `json:"account_id"`
+}
+
+// ImportRuleResponse 导入规则响应 DTO
+type ImportRuleResponse struct {
+	ID         string   `json:"id"`
+	Keyword    string   `json:"keyword"`
+	CategoryID string   `json:"category_id"`
+	TagNames   []string `json:"tag_names"`
+	AccountID  string   `json:"account_id"`
+	CreatedAt  string   `json:"created_at"`
+	UpdatedAt  string   `json:"updated_at"`
+}
+
+
 

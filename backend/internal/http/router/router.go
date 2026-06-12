@@ -97,6 +97,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Get("/", transactionHandler.HandleList)
 				r.Post("/", transactionHandler.HandleCreate)
 				r.Post("/batch-tag", transactionHandler.HandleBatchTag)
+				r.Post("/import/parse", transactionHandler.HandleParseCSV)
 				r.Get("/{id}", transactionHandler.HandleGetByID)
 				r.Patch("/{id}", transactionHandler.HandleUpdate)
 				r.Delete("/{id}", transactionHandler.HandleDelete)

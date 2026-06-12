@@ -140,3 +140,9 @@ export interface RecurringReminderResponse {
   updated_at: string;
 }
 
+export interface CSVParseResponse {
+  headers: string[];
+  rows: string[][];
+}
+
+

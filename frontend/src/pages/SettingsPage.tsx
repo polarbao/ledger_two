@@ -234,6 +234,24 @@ export default function SettingsPage() {
             </Link>
           </div>
 
+          {/* CSV 账单导入中心 */}
+          <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileSpreadsheet style={{ color: 'var(--accent-purple)' }} size={20} />
+              <strong style={{ fontSize: '14px' }}>CSV 账单导入中心</strong>
+            </div>
+            <p className="dimmed-desc" style={{ fontSize: '12px', margin: 0 }}>
+              支持将微信、支付宝等导出的外部账单 CSV 批量上传。在预览工作区进行字段关联与核对。
+            </p>
+            <Link 
+              to="/import"
+              className="btn-secondary" 
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
+            >
+              <RefreshCw size={14} /> 进入 CSV 导入工作区
+            </Link>
+          </div>
+
           {/* JSON 全量导出 */}
           <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

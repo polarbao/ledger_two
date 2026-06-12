@@ -26,13 +26,19 @@ export async function request<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const isFormData = options.body instanceof FormData;
+  const headers: Record<string, string> = {};
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
+
   const mergedOptions: RequestInit = {
     ...options,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   };
 
   const response = await fetch(url, mergedOptions);
@@ -69,19 +75,19 @@ export const api = {
     request<T>(url, {
       ...options,
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
     }),
   put: <T>(url: string, body?: unknown, options?: RequestInit) =>
     request<T>(url, {
       ...options,
       method: 'PUT',
-      body: body ? JSON.stringify(body) : undefined,
+      body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
     }),
   patch: <T>(url: string, body?: unknown, options?: RequestInit) =>
     request<T>(url, {
       ...options,
       method: 'PATCH',
-      body: body ? JSON.stringify(body) : undefined,
+      body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
     }),
   delete: <T>(url: string, options?: RequestInit) =>
     request<T>(url, { ...options, method: 'DELETE' }),

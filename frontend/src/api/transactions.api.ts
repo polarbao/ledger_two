@@ -9,6 +9,7 @@ import type {
   RecurringRuleResponse,
   CreateRecurringRulePayload,
   RecurringReminderResponse,
+  CSVParseResponse,
 } from '../types/transaction';
 
 export interface TransactionListFilter {
@@ -93,5 +94,11 @@ export const transactionsApi = {
 
   batchTag: (payload: BatchTagPayload) =>
     api.post<{ success: boolean }>('/api/transactions/batch-tag', payload),
+
+  parseCSV: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<CSVParseResponse>('/api/transactions/import/parse', formData);
+  },
 };
 

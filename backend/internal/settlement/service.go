@@ -31,9 +31,9 @@ func NewService(repo *Repository) *Service {
 // @param ctx context.Context 上下文
 // @return *BalanceResponse 结算净额报表 DTO
 // @return error 错误信息
-func (s *Service) GetBalance(ctx context.Context) (*BalanceResponse, error) {
+func (s *Service) GetBalance(ctx context.Context, currentUserID string) (*BalanceResponse, error) {
 	// 1. 获取全局唯一 LedgerID
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -144,7 +144,7 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 	}
 
 	// 4. 获取 LedgerID
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -218,8 +218,8 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 // @param month string 月份过滤参数 (如 '2026-06')
 // @return []*SettlementResponse 结算明细 DTO 列表
 // @return error 错误信息
-func (s *Service) List(ctx context.Context, month string) ([]*SettlementResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+func (s *Service) List(ctx context.Context, currentUserID string, month string) ([]*SettlementResponse, error) {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -256,10 +256,10 @@ func (s *Service) toDTO(m *Settlement) *SettlementResponse {
 }
 
 // 辅助方法：查询唯一 LedgerID
-func (s *Service) getLedgerID(ctx context.Context) (string, error) {
+func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
 	dbConn := s.repo.GetDB()
-	err := dbConn.QueryRowContext(ctx, "SELECT id FROM ledgers LIMIT 1").Scan(&id)
+	err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
 }
 

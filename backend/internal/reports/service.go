@@ -58,22 +58,22 @@ type MemberStatItem struct {
 	FinalNet           int64  `json:"final_net"`
 }
 
-// getLedgerID 辅助获取 Ledger ID
-func (s *Service) getLedgerID(ctx context.Context) (string, error) {
+// getUserLedgerID 辅助获取 Ledger ID
+func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
-	err := s.db.QueryRowContext(ctx, "SELECT id FROM ledgers LIMIT 1").Scan(&id)
+	err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
 }
 
 // GetMonthlySummary 获取月度汇总
 func (s *Service) GetMonthlySummary(ctx context.Context, currentUserID string, month string) (*MonthlySummaryResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "获取系统账本失败")
 	}
 
 	// 拉取结算中心轧差 (全局)
-	sharedBalance, err := s.settleSvc.GetBalance(ctx)
+	sharedBalance, err := s.settleSvc.GetBalance(ctx, currentUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (s *Service) GetMonthlySummary(ctx context.Context, currentUserID string, m
 
 // GetCategorySummary 获取分类汇总
 func (s *Service) GetCategorySummary(ctx context.Context, currentUserID string, month string) ([]CategorySummaryItem, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "获取系统账本失败")
 	}
@@ -164,7 +164,7 @@ func (s *Service) GetCategorySummary(ctx context.Context, currentUserID string, 
 
 // GetTagSummary 获取标签汇总 (每个标签计入全额)
 func (s *Service) GetTagSummary(ctx context.Context, currentUserID string, month string) ([]TagSummaryItem, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "获取系统账本失败")
 	}
@@ -210,7 +210,7 @@ func (s *Service) GetTagSummary(ctx context.Context, currentUserID string, month
 
 // GetMemberSummary 获取成员消费及结算汇总
 func (s *Service) GetMemberSummary(ctx context.Context, currentUserID string, month string) ([]MemberStatItem, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "获取系统账本失败")
 	}

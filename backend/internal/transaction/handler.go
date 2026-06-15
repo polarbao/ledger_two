@@ -241,7 +241,7 @@ func (h *Handler) HandleListCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.service.ListCategories(r.Context())
+	res, err := h.service.ListCategories(r.Context(), currentUserID)
 	if err != nil {
 		response.WriteError(w, err)
 		return

@@ -188,7 +188,7 @@ func (h *Handler) HandleAnalyzeImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.service.AnalyzeImport(r.Context(), req)
+	res, err := h.service.AnalyzeImport(r.Context(), currentUserID, req)
 	if err != nil {
 		response.WriteError(w, err)
 		return
@@ -238,7 +238,7 @@ func (h *Handler) HandleListAccounts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	list, err := h.service.ListAccounts(r.Context())
+	list, err := h.service.ListAccounts(r.Context(), currentUserID)
 	if err != nil {
 		response.WriteError(w, err)
 		return
@@ -278,7 +278,7 @@ func (h *Handler) HandleListImportRules(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	list, err := h.service.ListImportRules(r.Context())
+	list, err := h.service.ListImportRules(r.Context(), currentUserID)
 	if err != nil {
 		response.WriteError(w, err)
 		return
@@ -301,7 +301,7 @@ func (h *Handler) HandleDeleteImportRule(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err := h.service.DeleteImportRule(r.Context(), id)
+	err := h.service.DeleteImportRule(r.Context(), currentUserID, id)
 	if err != nil {
 		response.WriteError(w, err)
 		return

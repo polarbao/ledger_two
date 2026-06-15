@@ -67,6 +67,14 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 			return err
 		}
 
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
+			VALUES (?, ?, 'editor', ?, ?)
+		`, ledgerID, userID, now, now)
+		if err != nil {
+			return err
+		}
+
 		accountID := uuid.NewString()
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO accounts (id, ledger_id, owner_user_id, name, type, currency, created_at, updated_at)

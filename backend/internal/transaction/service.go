@@ -59,7 +59,7 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 	}
 
 	// 5. 获取全局唯一 LedgerID
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -476,7 +476,7 @@ func (s *Service) Delete(ctx context.Context, currentUserID string, id string) e
 // @return []*TransactionResponse 明细列表
 // @return error 异常
 func (s *Service) List(ctx context.Context, currentUserID string, filter TransactionFilter) ([]*TransactionResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -585,10 +585,10 @@ func (s *Service) toDTO(tx *Transaction, tags []string) *TransactionResponse {
 }
 
 // 辅助方法：查询唯一 LedgerID
-func (s *Service) getLedgerID(ctx context.Context) (string, error) {
+func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
 	dbConn := s.repo.GetDB()
-	err := dbConn.QueryRowContext(ctx, "SELECT id FROM ledgers LIMIT 1").Scan(&id)
+	err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
 }
 
@@ -680,7 +680,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	}
 
 	// 5. 获取全局唯一 LedgerID
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -772,13 +772,13 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	return dto, nil
 }
 
-// ListCategories 获取当前账本下所有的系统分类列表
-// @brief 获取当前账本的 ledgerID 并通过 repo 读取消费分类
-// @param ctx context.Context 上下文
+// ListCategories 获取可用分类数据
+// @brief 获取当前账本下所有的系统通用分类和用户自定义分类
+// @param ctx context.Context
 // @return []Category 分类数据列表
 // @return error 错误信息
-func (s *Service) ListCategories(ctx context.Context) ([]Category, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+func (s *Service) ListCategories(ctx context.Context, currentUserID string) ([]Category, error) {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -830,7 +830,7 @@ func (s *Service) CreateTemplate(ctx context.Context, currentUserID string, req 
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "模板金额必须大于或等于 0")
 	}
 
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -900,7 +900,7 @@ func (s *Service) CreateTemplate(ctx context.Context, currentUserID string, req 
 
 // GetTemplate 查询单个模板并进行越权校验
 func (s *Service) GetTemplate(ctx context.Context, currentUserID string, id string) (*TemplateResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -922,7 +922,7 @@ func (s *Service) GetTemplate(ctx context.Context, currentUserID string, id stri
 
 // ListTemplates 获取该账本下的所有模板列表
 func (s *Service) ListTemplates(ctx context.Context, currentUserID string) ([]*TemplateResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -953,7 +953,7 @@ func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id s
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "模板金额必须大于或等于 0")
 	}
 
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1029,7 +1029,7 @@ func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id s
 
 // DeleteTemplate 删除模板逻辑
 func (s *Service) DeleteTemplate(ctx context.Context, currentUserID string, id string) error {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1071,7 +1071,7 @@ func (s *Service) CreateRecurringRule(ctx context.Context, currentUserID string,
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "规则金额不能为负数")
 	}
 
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1138,7 +1138,7 @@ func (s *Service) CreateRecurringRule(ctx context.Context, currentUserID string,
 
 // ListRecurringRules 获取指定账本下的所有周期账单规则
 func (s *Service) ListRecurringRules(ctx context.Context, currentUserID string) ([]*RecurringRuleResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1157,7 +1157,7 @@ func (s *Service) ListRecurringRules(ctx context.Context, currentUserID string) 
 
 // DeleteRecurringRule 删除指定的周期规则
 func (s *Service) DeleteRecurringRule(ctx context.Context, currentUserID string, id string) error {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1183,7 +1183,7 @@ func (s *Service) DeleteRecurringRule(ctx context.Context, currentUserID string,
 
 // ListRecurringReminders 获取账本下的待确认到期提醒列表（在获取前自动扫描并生成最新的 reminder 数据）
 func (s *Service) ListRecurringReminders(ctx context.Context, currentUserID string) ([]*RecurringReminderResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1208,7 +1208,7 @@ func (s *Service) ListRecurringReminders(ctx context.Context, currentUserID stri
 
 // ConfirmReminder 确认周期提醒并转为真实交易
 func (s *Service) ConfirmReminder(ctx context.Context, currentUserID string, reminderID string) error {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1367,7 +1367,7 @@ func (s *Service) ConfirmReminder(ctx context.Context, currentUserID string, rem
 
 // IgnoreReminder 忽略到期提醒
 func (s *Service) IgnoreReminder(ctx context.Context, currentUserID string, reminderID string) error {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1553,7 +1553,7 @@ func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchT
 		return appErrors.NewAppError(400, "VALIDATION_ERROR", "标签名称不能为空")
 	}
 
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1627,8 +1627,8 @@ func calculateImportHash(ledgerID string, item ImportItemRequest) string {
 }
 
 // AnalyzeImport 分析待导入数据的去重状态
-func (s *Service) AnalyzeImport(ctx context.Context, req AnalyzeImportRequest) (*AnalyzeImportResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+func (s *Service) AnalyzeImport(ctx context.Context, currentUserID string, req AnalyzeImportRequest) (*AnalyzeImportResponse, error) {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1659,7 +1659,7 @@ func (s *Service) AnalyzeImport(ctx context.Context, req AnalyzeImportRequest) (
 
 // CommitImport 事务批量安全落库
 func (s *Service) CommitImport(ctx context.Context, currentUserID string, req CommitImportRequest) error {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1876,8 +1876,8 @@ func (s *Service) CommitImport(ctx context.Context, currentUserID string, req Co
 }
 
 // ListAccounts 列出当前账本的所有可用账户
-func (s *Service) ListAccounts(ctx context.Context) ([]Account, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+func (s *Service) ListAccounts(ctx context.Context, currentUserID string) ([]Account, error) {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1895,7 +1895,7 @@ func (s *Service) CreateImportRule(ctx context.Context, currentUserID string, re
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "分类、账户和标签列表必须至少配置一项")
 	}
 
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -1974,8 +1974,8 @@ func (s *Service) CreateImportRule(ctx context.Context, currentUserID string, re
 }
 
 // ListImportRules 获取当前账本下所有的导入分类匹配规则
-func (s *Service) ListImportRules(ctx context.Context) ([]*ImportRuleResponse, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+func (s *Service) ListImportRules(ctx context.Context, currentUserID string) ([]*ImportRuleResponse, error) {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
@@ -2005,8 +2005,8 @@ func (s *Service) ListImportRules(ctx context.Context) ([]*ImportRuleResponse, e
 }
 
 // DeleteImportRule 删除指定导入匹配规则并增加账本级隔离防御
-func (s *Service) DeleteImportRule(ctx context.Context, id string) error {
-	ledgerID, err := s.getLedgerID(ctx)
+func (s *Service) DeleteImportRule(ctx context.Context, currentUserID string, id string) error {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}

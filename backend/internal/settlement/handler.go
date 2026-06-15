@@ -33,7 +33,7 @@ func (h *Handler) HandleGetBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.service.GetBalance(r.Context())
+	res, err := h.service.GetBalance(r.Context(), currentUserID)
 	if err != nil {
 		response.WriteError(w, err)
 		return
@@ -80,7 +80,7 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	month := r.URL.Query().Get("month")
-	res, err := h.service.List(r.Context(), month)
+	res, err := h.service.List(r.Context(), currentUserID, month)
 	if err != nil {
 		response.WriteError(w, err)
 		return

@@ -15,8 +15,8 @@ func NewSharedExpenseService(r *repo.SharedExpenseRepo) *SharedExpenseService {
 	return &SharedExpenseService{repo: r}
 }
 
-func (s *SharedExpenseService) GetDefaultLedgerID(ctx context.Context) (string, error) {
-	return s.repo.GetDefaultLedgerID(ctx)
+func (s *SharedExpenseService) GetUserLedgerID(ctx context.Context, userID string) (string, error) {
+	return s.repo.GetUserLedgerID(ctx, userID)
 }
 
 type CreateSharedExpenseReq struct {

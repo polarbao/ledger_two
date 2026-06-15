@@ -53,8 +53,8 @@ func (r *AuthRepo) GetMe(ctx context.Context, userID string) (*MeData, error) {
 		me.AvatarURL = avatar.String
 	}
 
-	// 注入系统的唯一 Ledger 以方便后续鉴权
-	err = r.db.QueryRowContext(ctx, "SELECT id FROM ledgers LIMIT 1").Scan(&me.LedgerID)
+	// 注入系统获取用户所绑定的 Ledger 以方便后续鉴权
+	err = r.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&me.LedgerID)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}

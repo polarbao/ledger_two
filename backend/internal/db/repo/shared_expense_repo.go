@@ -21,9 +21,7 @@ type SimpleUser struct {
 }
 
 func (r *SharedExpenseRepo) GetLedgerUsers(ctx context.Context, ledgerID string) ([]SimpleUser, error) {
-	// 因为是在 demo 环境的限定下，可以通过查找存在于默认账户的所有持有人确定 ledger 内的合法成员
-	// 这里最直接的方式是根据 users 查询，如果系统只有两个用户直接拉取全部用户即可
-	rows, err := r.db.QueryContext(ctx, "SELECT id FROM users")
+	rows, err := r.db.QueryContext(ctx, "SELECT user_id FROM ledger_members WHERE ledger_id = ?", ledgerID)
 	if err != nil {
 		return nil, err
 	}
@@ -40,9 +38,9 @@ func (r *SharedExpenseRepo) GetLedgerUsers(ctx context.Context, ledgerID string)
 	return users, nil
 }
 
-func (r *SharedExpenseRepo) GetDefaultLedgerID(ctx context.Context) (string, error) {
+func (r *SharedExpenseRepo) GetUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
-	err := r.db.QueryRowContext(ctx, "SELECT id FROM ledgers LIMIT 1").Scan(&id)
+	err := r.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
 }
 

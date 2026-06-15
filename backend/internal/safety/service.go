@@ -49,10 +49,10 @@ func (s *Service) checkBackupDirWritable(dir string) error {
 	return nil
 }
 
-// getLedgerID 获取唯一的账本 ID
-func (s *Service) getLedgerID(ctx context.Context) (string, error) {
+// getUserLedgerID 获取唯一的账本 ID
+func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
-	err := s.db.QueryRowContext(ctx, "SELECT id FROM ledgers LIMIT 1").Scan(&id)
+	err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +86,7 @@ func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string,
 		sizeBytes = fi.Size()
 	}
 
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, actorUserID)
 	if err != nil {
 		_ = os.Remove(backupPath)
 		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "failed to get default ledger: "+err.Error())
@@ -159,7 +159,7 @@ func (s *Service) GetBackups(ctx context.Context) ([]BackupInfo, error) {
 
 // ExportCSV 导出当前登录用户有权查看的交易流水为 CSV 内容
 func (s *Service) ExportCSV(ctx context.Context, actorUserID string, month string) ([]byte, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, actorUserID)
 	if err != nil {
 		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "failed to get default ledger: "+err.Error())
 	}
@@ -344,7 +344,7 @@ func escapeCSVField(f string) string {
 
 // ExportJSON 导出当前用户可见的所有数据块并进行脱敏
 func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, error) {
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, actorUserID)
 	if err != nil {
 		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "failed to get default ledger: "+err.Error())
 	}

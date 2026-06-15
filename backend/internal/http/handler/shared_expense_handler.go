@@ -30,7 +30,7 @@ func (h *SharedExpenseHandler) HandleCreate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ledgerID, err := h.svc.GetDefaultLedgerID(r.Context())
+	ledgerID, err := h.svc.GetUserLedgerID(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "failed to get ledger", http.StatusInternalServerError)
 		return

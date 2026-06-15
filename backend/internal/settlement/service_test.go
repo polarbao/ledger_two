@@ -93,7 +93,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 	}
 
 	// 验证余额：B 欠 A 10000分 (100.00元)
-	balance, err := svc.GetBalance(context.Background())
+	balance, err := svc.GetBalance(context.Background(), userAID)
 	if err != nil {
 		t.Fatalf("get balance failed: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 	}
 
 	// 验证累计：B 欠 A 6000分 (60.00元)
-	balance2, err := svc.GetBalance(context.Background())
+	balance2, err := svc.GetBalance(context.Background(), userBID)
 	if err != nil {
 		t.Fatalf("get balance 2 failed: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 	}
 
 	// 验证余额：结清 (0分)
-	balance3, err := svc.GetBalance(context.Background())
+	balance3, err := svc.GetBalance(context.Background(), userAID)
 	if err != nil {
 		t.Fatalf("get balance 3 failed: %v", err)
 	}

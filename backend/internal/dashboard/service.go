@@ -46,13 +46,13 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 	}
 
 	// 2. 获取全局唯一 LedgerID
-	ledgerID, err := s.getLedgerID(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
 	// 3. 获取全局结算净额轧差（跨月份）
-	sharedBalance, err := s.settleSvc.GetBalance(ctx)
+	sharedBalance, err := s.settleSvc.GetBalance(ctx, currentUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -220,10 +220,10 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 }
 
 // 辅助方法：查询唯一 LedgerID
-func (s *Service) getLedgerID(ctx context.Context) (string, error) {
+func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
 	dbConn := s.repo.db
-	err := dbConn.QueryRowContext(ctx, "SELECT id FROM ledgers LIMIT 1").Scan(&id)
+	err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
 }
 

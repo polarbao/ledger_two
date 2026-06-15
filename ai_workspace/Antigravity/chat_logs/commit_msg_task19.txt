@@ -1,0 +1,28 @@
+feat(attachments): 实现交易账单附件与小票图片上传及大图灯箱预览功能
+
+1. 数据库与数据访问层适配：
+   - 编写迁移脚本增加 `transactions.attachment_paths` TEXT 字段，并同步执行数据库迁移；
+   - 重构 `repo.go` 的 SQL 查询与写入逻辑，实现附件路径的 JSON 序列化与反序列化字段自动扫描；
+   - 升级 `model.go` 的 DTO 结构，在 `TransactionResponse` 和 `CreateTransactionPayload` 中集成 `attachment_paths` 切片。
+
+2. 后端服务逻辑及安全性防御机制：
+   - 在 `service.go` 的交易创建与更新（Create/Update）流程中，加入严格的附件安全性核查；
+   - 限制单笔交易关联附件最多 5 个；
+   - 限制参数路径的前缀必须符合 `/uploads/`，且执行路径穿越检测（`..`），拦截潜在的越权参数篡改漏洞。
+
+3. 上传 Handler 控制器与物理托管路由：
+   - 创建 `attachment_handler.go` 实现受 JWT 鉴权保护的上传接口 `POST /api/attachments`；
+   - 限制上传大小不得超过 10MB，若超出则抛出统一的 `VALIDATION_ERROR`；
+   - 利用 `http.DetectContentType` 嗅探上传文件前 512 字节头部魔数，限制仅支持 `jpg`、`jpeg`·、`png`、`webp` 图片格式；
+   - 生成唯一的 UUID 文件名防止碰撞，存放在物理目录 `./uploads/` 中；
+   - 在 `router.go` 注册 `/uploads/*` 静态托管文件路由，并于 NAS 部署文档中将其确立为必须持久化备份的核心目录。
+
+4. 前端表单上传联动与详情灯箱效果：
+   - 更新前端 API 客户端，封装并引入 `uploadAttachment` 接口；
+   - 在记账表单备注下方增设上传区，内置上传中的骨架屏（Skeleton Loader）动画与一键解绑功能；
+   - 支持连记时自动清空附件、复制一笔时自动无感带入源交易附件；
+   - 在流水详情抽屉中以网格形式回显缩略图，点击拉起以 `backdrop-filter: blur(12px)` 实现的毛玻璃拟物大图灯箱预览模态框。
+
+5. 测试覆盖与质量门禁校验：
+   - 编写 `attachment_test.go` 集成测试，全面覆盖未鉴权阻断、合法图片上传、超限拦截、路径防御、事务内更新等全套断言；
+   - 在 WSL2 环境下通过了后端的 `go test ./...` 与前端的静态 `pnpm run lint` 及 `pnpm run build` 打包构建，保证质量门禁全绿通过。

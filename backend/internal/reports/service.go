@@ -8,6 +8,7 @@ import (
 
 	"ledger_two/internal/dashboard"
 	"ledger_two/internal/errors"
+	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/settlement"
 )
 
@@ -61,6 +62,13 @@ type MemberStatItem struct {
 // getUserLedgerID 辅助获取 Ledger ID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
+
+	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
+	if headerLedgerID != "" {
+		err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
+		return id, err
+	}
+
 	err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
 }

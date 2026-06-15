@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth.store';
 import { useUIStore } from '../stores/ui.store';
 import { dashboardApi } from '../api/dashboard.api';
 import { transactionsApi } from '../api/transactions.api';
+import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
 import SkeletonTable from '../components/ui/SkeletonTable';
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const { currentMonth, setAddDrawerOpen } = useUIStore();
+  const activeRole = useLedgerStore((state) => state.activeRole);
 
   // 1. 请求数据并绑定依赖 currentMonth 自动重载
   const { data: dashboardData, isLoading, error, refetch } = useQuery({
@@ -94,7 +96,13 @@ export default function DashboardPage() {
             <p className="dimmed">这是你们在 {currentMonth} 账期的共享记账空间。</p>
           </div>
         </div>
-        <button className="btn-primary quick-add-btn" onClick={handleQuickAdd}>
+        <button 
+          className="btn-primary quick-add-btn" 
+          onClick={handleQuickAdd}
+          disabled={activeRole === 'viewer'}
+          style={activeRole === 'viewer' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          title={activeRole === 'viewer' ? '您当前为观察者权限，无法记账' : ''}
+        >
           <PlusCircle size={18} />
           <span>记一笔</span>
         </button>
@@ -211,8 +219,8 @@ export default function DashboardPage() {
             <EmptyState 
               title="本月账期暂无账单数据"
               description="你们在这个月份还没有记录过任何消费或收入流水。点击右上角「记一笔」，记录这笔账单吧！"
-              actionText="开始记账"
-              onAction={handleQuickAdd}
+              actionText={activeRole === 'viewer' ? undefined : "开始记账"}
+              onAction={activeRole === 'viewer' ? undefined : handleQuickAdd}
             />
           ) : (
             <>

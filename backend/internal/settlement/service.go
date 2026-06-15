@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	appErrors "ledger_two/internal/errors"
+	"ledger_two/internal/http/middleware"
 )
 
 // Service 结算模块业务逻辑服务
@@ -149,6 +150,10 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
+	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
+		return nil, err
+	}
+
 	// 5. 构造结算与流水记录
 	settlementID := uuid.NewString()
 	settleModel := &Settlement{
@@ -259,8 +264,31 @@ func (s *Service) toDTO(m *Settlement) *SettlementResponse {
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
 	dbConn := s.repo.GetDB()
+
+	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
+	if headerLedgerID != "" {
+		err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
+		return id, err
+	}
+
 	err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
+}
+
+// 辅助方法：校验用户在账本中的角色
+func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string, allowedRoles ...string) error {
+	var role string
+	err := s.repo.GetDB().QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
+	if err != nil {
+		return appErrors.NewAppError(403, "FORBIDDEN", "您不是该账本的成员")
+	}
+	
+	for _, r := range allowedRoles {
+		if role == r {
+			return nil
+		}
+	}
+	return appErrors.NewAppError(403, "FORBIDDEN", "当前角色无权执行此操作")
 }
 
 // 辅助方法：查询所有用户 ID

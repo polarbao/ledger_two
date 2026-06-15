@@ -17,9 +17,10 @@ import {
 } from 'lucide-react';
 import { transactionsApi } from '../api/transactions.api';
 import type { CreateRecurringRulePayload } from '../types/transaction';
-import { dashboardApi } from '../api/dashboard.api';
 import { useAuthStore } from '../stores/auth.store';
+import { dashboardApi } from '../api/dashboard.api';
 import { centsToYuan, yuanToCents } from '../utils/money';
+import { useLedgerStore } from '../stores/ledger.store';
 import PageState from '../components/ui/PageState';
 import EmptyState from '../components/ui/EmptyState';
 
@@ -47,6 +48,7 @@ type RuleFormValues = z.infer<typeof ruleSchema>;
 export default function RecurringRulesPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
+  const activeRole = useLedgerStore((state) => state.activeRole);
   
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -428,7 +430,8 @@ export default function RecurringRulesPage() {
                 type="submit" 
                 className="btn-primary" 
                 style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, marginTop: '8px' }}
-                disabled={isSubmitting || createMutation.isPending}
+                disabled={isSubmitting || createMutation.isPending || activeRole === 'viewer'}
+                title={activeRole === 'viewer' ? '观察者无法创建规则' : ''}
               >
                 {isSubmitting || createMutation.isPending ? '创建中...' : '保存并启用该周期规则'}
               </button>
@@ -509,9 +512,14 @@ export default function RecurringRulesPage() {
                           onClick={() => setDeleteTargetId(rule.id)}
                           className="btn-close-drawer"
                           style={{ padding: '6px', color: 'var(--text-muted)' }}
-                          title="删除规则"
-                          onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
-                          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                          title={activeRole === 'viewer' ? '观察者无法删除' : "删除规则"}
+                          disabled={activeRole === 'viewer'}
+                          onMouseEnter={(e) => {
+                            if (activeRole !== 'viewer') e.currentTarget.style.color = '#ef4444';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (activeRole !== 'viewer') e.currentTarget.style.color = 'var(--text-muted)';
+                          }}
                         >
                           <Trash2 size={16} />
                         </button>

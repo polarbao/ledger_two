@@ -15,6 +15,7 @@ import (
 	"ledger_two/internal/http/handler"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
+	"ledger_two/internal/ledger"
 	"ledger_two/internal/reports"
 	"ledger_two/internal/safety"
 	"ledger_two/internal/service"
@@ -55,6 +56,10 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	dashboardSvc := dashboard.NewService(dashboardRepo, settlementSvc)
 	dashboardHandler := dashboard.NewHandler(dashboardSvc)
 
+	ledgerRepo := ledger.NewRepository(dbConn)
+	ledgerSvc := ledger.NewService(ledgerRepo)
+	ledgerHandler := ledger.NewHandler(ledgerSvc)
+
 	safetySvc := safety.NewService(dbConn, cfg)
 	safetyHandler := safety.NewHandler(safetySvc)
 
@@ -92,6 +97,16 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 		// 重点：加入受保护组，为了未来事务及设置等模块保留
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireAuth(jwtSecret))
+			
+			r.Route("/ledgers", func(r chi.Router) {
+				r.Post("/", ledgerHandler.CreateLedger)
+				r.Get("/", ledgerHandler.ListUserLedgers)
+				r.Get("/{id}/members", ledgerHandler.GetLedgerMembers)
+				r.Post("/{id}/members", ledgerHandler.AddMember)
+				r.Put("/{id}/members/{userId}", ledgerHandler.UpdateMemberRole)
+				r.Delete("/{id}/members/{userId}", ledgerHandler.RemoveMember)
+			})
+
 			r.Get("/categories", transactionHandler.HandleListCategories)
 			r.Get("/accounts", transactionHandler.HandleListAccounts)
 			r.Route("/transactions", func(r chi.Router) {

@@ -12,6 +12,7 @@ import (
 type contextKey string
 
 const UserIDKey contextKey = "user_id"
+const HeaderLedgerIDKey contextKey = "header_ledger_id"
 
 // authError 向客户端返回符合统一 {success, error} 规范的 401 响应
 func authError(w http.ResponseWriter) {
@@ -52,14 +53,28 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 
 			// 将 user_id 注入上下文，向下游透传
 			ctx := context.WithValue(r.Context(), UserIDKey, userID)
+
+			// 尝试获取 X-Ledger-Id Header 并注入
+			ledgerID := r.Header.Get("X-Ledger-Id")
+			if ledgerID != "" {
+				ctx = context.WithValue(ctx, HeaderLedgerIDKey, ledgerID)
+			}
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
-// GetUserIDFromContext 从上游拦截器存放的 Context 中抽取 user_id
 func GetUserIDFromContext(ctx context.Context) string {
 	if val, ok := ctx.Value(UserIDKey).(string); ok {
+		return val
+	}
+	return ""
+}
+
+// GetHeaderLedgerIDFromContext 从上游拦截器存放的 Context 中抽取前台传递的 X-Ledger-Id
+func GetHeaderLedgerIDFromContext(ctx context.Context) string {
+	if val, ok := ctx.Value(HeaderLedgerIDKey).(string); ok {
 		return val
 	}
 	return ""

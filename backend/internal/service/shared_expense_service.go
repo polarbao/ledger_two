@@ -45,6 +45,10 @@ func (s *SharedExpenseService) Create(ctx context.Context, ledgerID, currentUser
 		return "", errors.New("shared expense requires exactly 2 users in the system")
 	}
 
+	if err := s.repo.CheckRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
+		return "", err
+	}
+
 	var splits []repo.SplitPayload
 
 	if req.SplitMethod == "payer_only" {

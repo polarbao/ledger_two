@@ -5,6 +5,7 @@ import { useUIStore } from '../stores/ui.store';
 import { useAuthStore } from '../stores/auth.store';
 import { settlementApi } from '../api/settlement.api';
 import { dashboardApi } from '../api/dashboard.api';
+import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
 import SkeletonCard from '../components/ui/SkeletonCard';
@@ -21,6 +22,7 @@ export default function SettlementPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const { currentMonth } = useUIStore();
+  const activeRole = useLedgerStore((state) => state.activeRole);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [note, setNote] = useState('');
 
@@ -169,6 +171,9 @@ export default function SettlementPage() {
                 <button
                   className="btn-primary btn-settle-action"
                   onClick={() => setShowConfirmModal(true)}
+                  disabled={activeRole === 'viewer'}
+                  style={activeRole === 'viewer' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                  title={activeRole === 'viewer' ? '观察者无法发起结算' : ''}
                 >
                   一键登记结算
                 </button>

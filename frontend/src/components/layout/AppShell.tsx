@@ -1,7 +1,10 @@
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth.store';
 import { useUIStore } from '../../stores/ui.store';
+import { useLedgerStore } from '../../stores/ledger.store';
+import { ledgerApi, LedgerWithRole } from '../../api/ledger.api';
 import { authApi } from '../../api/auth.api';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   ReceiptText,
@@ -20,6 +23,21 @@ export default function AppShell() {
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clear);
   const { currentMonth, setCurrentMonth } = useUIStore();
+  const { activeLedgerId, setActiveLedger } = useLedgerStore();
+  const [ledgers, setLedgers] = useState<LedgerWithRole[]>([]);
+
+  useEffect(() => {
+    ledgerApi.listUserLedgers().then(setLedgers).catch(console.error);
+  }, []);
+
+  const handleLedgerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const lId = e.target.value;
+    const l = ledgers.find((item) => item.id === lId);
+    if (l) {
+      setActiveLedger(l.id, l.role);
+      window.location.reload(); // Reload to refresh all data for new ledger
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -47,6 +65,18 @@ export default function AppShell() {
         <div className="sidebar-brand">
           <Sparkles className="brand-logo" />
           <span>LedgerTwo</span>
+        </div>
+
+        <div style={{ padding: '0 1rem', marginBottom: '1rem' }}>
+          <select 
+            value={activeLedgerId || ''} 
+            onChange={handleLedgerChange}
+            style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', background: 'var(--surface-color)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+          >
+            {ledgers.map(l => (
+              <option key={l.id} value={l.id}>{l.name} ({l.role})</option>
+            ))}
+          </select>
         </div>
 
         <nav className="sidebar-nav">

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { api, ApiError } from '../api/client';
 import EmptyState from '../components/ui/EmptyState';
+import LedgerSettings from '../components/ledger/LedgerSettings';
 
 interface BackupInfo {
   filename: string;
@@ -349,6 +350,9 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Ledger Settings */}
+      <LedgerSettings />
 
       {/* ==========================================
          UI 安全防范二次确认弹窗 Modal (Danger 警示样式按钮)

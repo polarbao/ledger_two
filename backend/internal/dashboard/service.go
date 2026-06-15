@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appErrors "ledger_two/internal/errors"
+	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/settlement"
 	"ledger_two/internal/transaction"
 )
@@ -222,8 +223,14 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 // 辅助方法：查询唯一 LedgerID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
-	dbConn := s.repo.db
-	err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
+
+	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
+	if headerLedgerID != "" {
+		err := s.repo.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
+		return id, err
+	}
+
+	err := s.repo.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
 }
 

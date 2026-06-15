@@ -3,6 +3,8 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth.store';
 import { initApi } from '../../api/init.api';
 import { authApi } from '../../api/auth.api';
+import { ledgerApi } from '../../api/ledger.api';
+import { useLedgerStore } from '../../stores/ledger.store';
 
 export default function AppInitGuard() {
   const { user, isInitialized, setUser, setIsInitialized } = useAuthStore();
@@ -19,6 +21,18 @@ export default function AppInitGuard() {
           try {
             const me = await authApi.getMe();
             setUser(me);
+
+            const { activeLedgerId, setActiveLedger } = useLedgerStore.getState();
+            const ledgers = await ledgerApi.listUserLedgers();
+            
+            if (ledgers.length > 0) {
+              const activeLedger = ledgers.find((l) => l.id === activeLedgerId);
+              if (activeLedger) {
+                setActiveLedger(activeLedger.id, activeLedger.role);
+              } else {
+                setActiveLedger(ledgers[0].id, ledgers[0].role);
+              }
+            }
           } catch {
             setUser(null);
           }

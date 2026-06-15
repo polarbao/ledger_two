@@ -14,6 +14,7 @@ import (
 
 	"ledger_two/internal/config"
 	"ledger_two/internal/errors"
+	"ledger_two/internal/http/middleware"
 
 	"github.com/google/uuid"
 )
@@ -52,6 +53,16 @@ func (s *Service) checkBackupDirWritable(dir string) error {
 // getUserLedgerID 获取唯一的账本 ID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
+
+	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
+	if headerLedgerID != "" {
+		err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
+		if err != nil {
+			return "", err
+		}
+		return id, nil
+	}
+
 	err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	if err != nil {
 		return "", err

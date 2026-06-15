@@ -1,3 +1,5 @@
+import { useLedgerStore } from '../stores/ledger.store';
+
 export class ApiError extends Error {
   code: string;
   status: number;
@@ -33,6 +35,11 @@ export async function request<T>(
   }
   if (options.headers) {
     Object.assign(headers, options.headers);
+  }
+
+  const { activeLedgerId } = useLedgerStore.getState();
+  if (activeLedgerId) {
+    headers['X-Ledger-Id'] = activeLedgerId;
   }
 
   const mergedOptions: RequestInit = {

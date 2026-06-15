@@ -3,9 +3,12 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
+
+	"ledger_two/internal/http/middleware"
 )
 
 type SharedExpenseRepo struct {
@@ -40,8 +43,29 @@ func (r *SharedExpenseRepo) GetLedgerUsers(ctx context.Context, ledgerID string)
 
 func (r *SharedExpenseRepo) GetUserLedgerID(ctx context.Context, userID string) (string, error) {
 	var id string
+	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
+	if headerLedgerID != "" {
+		err := r.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
+		return id, err
+	}
+
 	err := r.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
 	return id, err
+}
+
+func (r *SharedExpenseRepo) CheckRole(ctx context.Context, ledgerID string, userID string, allowedRoles ...string) error {
+	var role string
+	err := r.db.QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
+	if err != nil {
+		return errors.New("FORBIDDEN: 您不是该账本的成员")
+	}
+	
+	for _, allowed := range allowedRoles {
+		if role == allowed {
+			return nil
+		}
+	}
+	return errors.New("FORBIDDEN: 当前角色无权执行此操作")
 }
 
 type SplitPayload struct {

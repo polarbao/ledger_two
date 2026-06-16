@@ -13,11 +13,12 @@ docs/
 
 ## 推荐阅读顺序
 
-1. `docs/prd/README.md`
-2. `docs/prd/00-product-roadmap.md`
-3. `docs/tech/01-architecture-stack.md`
-4. `docs/ui/01-layout-navigation.md`
-5. 进入具体业务模块文档。
+1. `../CHANGELOG.md` (版本发布说明)
+2. `docs/prd/README.md`
+3. `docs/prd/00-product-roadmap.md`
+4. `docs/tech/01-architecture-stack.md`
+5. `docs/ui/01-layout-navigation.md`
+6. 进入具体业务模块文档。
 
 ## AI 开发使用方式
 

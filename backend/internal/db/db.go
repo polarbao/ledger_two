@@ -3,7 +3,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
@@ -23,6 +26,29 @@ func Init(dsn string) (*sql.DB, error) {
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		database.Close()
 		return nil, fmt.Errorf("failed to set goose dialect: %w", err)
+	}
+
+	currentVersion, err := goose.GetDBVersion(database)
+	if err == nil && currentVersion > 0 {
+		// 在执行可能有风险的 Migration 之前进行防破坏自动备份
+		// 提取物理路径 (粗略移除可能存在的 URI 协议与参数)
+		dbPath := dsn
+		if idx := strings.Index(dbPath, "?"); idx != -1 {
+			dbPath = dbPath[:idx]
+		}
+		dbPath = strings.TrimPrefix(dbPath, "file:")
+
+		bakPath := fmt.Sprintf("%s.pre_migrate_v%d.bak", dbPath, currentVersion)
+		if _, err := os.Stat(bakPath); os.IsNotExist(err) {
+			if src, err := os.Open(dbPath); err == nil {
+				if dst, err := os.Create(bakPath); err == nil {
+					io.Copy(dst, src)
+					dst.Close()
+					log.Printf("Safety Check: Auto-backed up database before migration to %s", bakPath)
+				}
+				src.Close()
+			}
+		}
 	}
 
 	log.Printf("Running database migrations...")

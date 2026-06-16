@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	mid "github.com/go-chi/chi/v5/middleware"
+	"github.com/pressly/goose/v3"
 
 	"ledger_two/internal/config"
 	"ledger_two/internal/dashboard"
@@ -69,17 +70,24 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/healthz", func(w http.ResponseWriter, req *http.Request) {
 			dbStatus := "ok"
+			var schemaVersion int64 = 0
 			if dbConn != nil {
 				if err := dbConn.PingContext(req.Context()); err != nil {
 					dbStatus = "error"
+				} else {
+					version, err := goose.GetDBVersion(dbConn)
+					if err == nil {
+						schemaVersion = version
+					}
 				}
 			} else {
 				dbStatus = "none"
 			}
-			response.JSON(w, http.StatusOK, map[string]string{
-				"status":  "ok",
-				"db":      dbStatus,
-				"version": "0.2.0",
+			response.JSON(w, http.StatusOK, map[string]interface{}{
+				"status":         "ok",
+				"db":             dbStatus,
+				"version":        "0.2.0",
+				"schema_version": schemaVersion,
 			})
 		})
 

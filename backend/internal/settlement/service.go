@@ -27,8 +27,8 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// GetBalance 计算并获取双方最新的余额与欠款净额报表
-// @brief 抓取全部共同支出与结算明细，通过差额公式算好谁欠谁多少钱
+// GetBalance 计算并获取各方最新的余额与欠款净额报表
+// @brief 抓取全部共同支出与结算明细，通过差额公式算好各自净额，并给出建议转账路径
 // @param ctx context.Context 上下文
 // @return *BalanceResponse 结算净额报表 DTO
 // @return error 错误信息
@@ -39,63 +39,127 @@ func (s *Service) GetBalance(ctx context.Context, currentUserID string) (*Balanc
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
-	// 2. 获取系统内仅有的两个用户 ID
-	users, err := s.getSystemUsers(ctx)
+	// 2. 获取账单内所有的用户 ID
+	users, err := s.getLedgerUsers(ctx, ledgerID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
 	}
-	if len(users) != 2 {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "系统初始化异常：用户数不等于2")
-	}
-	userAID := users[0]
-	userBID := users[1]
 
 	// 3. 拉取底层汇总数据
-	paidMap, shareMap, settledMap, err := s.repo.GetSharedExpensesNetStats(ctx, ledgerID)
+	paidMap, shareMap, settledOutMap, settledInMap, err := s.repo.GetSharedExpensesNetStats(ctx, ledgerID)
 	if err != nil {
 		return nil, err
 	}
 
-	userAPaid := paidMap[userAID]
-	userAShare := shareMap[userAID]
-	userASettledOut := settledMap[userAID]
-	userBSettledOut := settledMap[userBID]
-
-	userBPaid := paidMap[userBID]
-	userBShare := shareMap[userBID]
+	var userBalances []UserBalance
+	// 记录债务人与债权人用于贪心算法
+	type userNet struct {
+		userID   string
+		netCents int64
+	}
+	var debtors []userNet   // net < 0
+	var creditors []userNet // net > 0
 
 	// 4. 应用差额计算公式：net = paid - share + settled_out - settled_in
-	userANet := userAPaid - userAShare + userASettledOut - userBSettledOut
-	userBNet := userBPaid - userBShare + userBSettledOut - userASettledOut
+	for _, u := range users {
+		paid := paidMap[u]
+		share := shareMap[u]
+		settledOut := settledOutMap[u]
+		settledIn := settledInMap[u]
 
-	var fromUser, toUser string
-	var amountCents int64
+		net := paid - share + settledOut - settledIn
 
-	if userANet > 0 {
-		// A 垫付多，B 欠 A
-		fromUser = userBID
-		toUser = userAID
-		amountCents = userANet
-	} else if userANet < 0 {
-		// B 垫付多，A 欠 B
-		fromUser = userAID
-		toUser = userBID
-		amountCents = -userANet
+		userBalances = append(userBalances, UserBalance{
+			UserID:          u,
+			PaidCents:       paid,
+			ShareCents:      share,
+			SettledOutCents: settledOut,
+			SettledInCents:  settledIn,
+			NetCents:        net,
+		})
+
+		if net > 0 {
+			creditors = append(creditors, userNet{userID: u, netCents: net})
+		} else if net < 0 {
+			debtors = append(debtors, userNet{userID: u, netCents: net})
+		}
 	}
 
-	return &BalanceResponse{
-		UserAPaidCents:       userAPaid,
-		UserAShareCents:      userAShare,
-		UserBPaidCents:       userBPaid,
-		UserBShareCents:      userBShare,
-		UserASettledToBCents: userASettledOut,
-		UserBSettledToACents: userBSettledOut,
-		UserANetCents:        userANet,
-		UserBNetCents:        userBNet,
-		FromUserID:           fromUser,
-		ToUserID:             toUser,
-		AmountCents:          amountCents,
-	}, nil
+	// 5. 贪心算法消债
+	var suggestedTransfers []SuggestedTransfer
+	// 简单贪心匹配：不一定是最优（最小交易次数），但能平账。
+	// 这里不再强制要求图的最优解，优先匹配第一个可抵消的债务
+	i, j := 0, 0
+	for i < len(debtors) && j < len(creditors) {
+		debt := -debtors[i].netCents
+		credit := creditors[j].netCents
+
+		amount := debt
+		if credit < amount {
+			amount = credit
+		}
+
+		if amount > 0 {
+			suggestedTransfers = append(suggestedTransfers, SuggestedTransfer{
+				FromUserID:  debtors[i].userID,
+				ToUserID:    creditors[j].userID,
+				AmountCents: amount,
+			})
+		}
+
+		debtors[i].netCents += amount
+		creditors[j].netCents -= amount
+
+		if debtors[i].netCents == 0 {
+			i++
+		}
+		if creditors[j].netCents == 0 {
+			j++
+		}
+	}
+
+	resp := &BalanceResponse{
+		UserBalances:       userBalances,
+		SuggestedTransfers: suggestedTransfers,
+	}
+
+	// 兼容老代码双人模式的数据绑定
+	if len(users) == 2 {
+		userAID := users[0]
+		userBID := users[1]
+
+		resp.UserAPaidCents = paidMap[userAID]
+		resp.UserAShareCents = shareMap[userAID]
+		resp.UserBPaidCents = paidMap[userBID]
+		resp.UserBShareCents = shareMap[userBID]
+		resp.UserASettledToBCents = settledOutMap[userAID]
+		resp.UserBSettledToACents = settledOutMap[userBID]
+
+		for _, ub := range userBalances {
+			if ub.UserID == userAID {
+				resp.UserANetCents = ub.NetCents
+			} else if ub.UserID == userBID {
+				resp.UserBNetCents = ub.NetCents
+			}
+		}
+
+		if resp.UserANetCents > 0 {
+			resp.FromUserID = userBID
+			resp.ToUserID = userAID
+			resp.AmountCents = resp.UserANetCents
+		} else if resp.UserANetCents < 0 {
+			resp.FromUserID = userAID
+			resp.ToUserID = userBID
+			resp.AmountCents = -resp.UserANetCents
+		}
+	} else if len(suggestedTransfers) == 1 {
+		// 为了向下兼容单条建议的UI展示
+		resp.FromUserID = suggestedTransfers[0].FromUserID
+		resp.ToUserID = suggestedTransfers[0].ToUserID
+		resp.AmountCents = suggestedTransfers[0].AmountCents
+	}
+
+	return resp, nil
 }
 
 // CreateSettlement 执行补款结算记账
@@ -119,10 +183,15 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "结算双方不能为同一个人")
 	}
 
-	// 验证用户在系统中是否存在
-	users, err := s.getSystemUsers(ctx)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	// 验证用户在系统中是否存在
+	users, err := s.getLedgerUsers(ctx, ledgerID)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本用户失败")
 	}
 	foundFrom := false
 	foundTo := false
@@ -144,11 +213,7 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "交易时间格式必须符合 ISO8601 标准")
 	}
 
-	// 4. 获取 LedgerID
-	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
-	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
-	}
+	// 4. 获取 LedgerID (已在上文获取)
 
 	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
 		return nil, err
@@ -291,10 +356,10 @@ func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string,
 	return appErrors.NewAppError(403, "FORBIDDEN", "当前角色无权执行此操作")
 }
 
-// 辅助方法：查询所有用户 ID
-func (s *Service) getSystemUsers(ctx context.Context) ([]string, error) {
+// 辅助方法：查询所有账本成员 ID
+func (s *Service) getLedgerUsers(ctx context.Context, ledgerID string) ([]string, error) {
 	dbConn := s.repo.GetDB()
-	rows, err := dbConn.QueryContext(ctx, "SELECT id FROM users ORDER BY username ASC")
+	rows, err := dbConn.QueryContext(ctx, "SELECT user_id FROM ledger_members WHERE ledger_id = ?", ledgerID)
 	if err != nil {
 		return nil, err
 	}

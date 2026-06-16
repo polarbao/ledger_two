@@ -49,31 +49,34 @@ export default function SettlementPage() {
 
   const users = dashboardData?.user_stats || [];
 
-  // 获取指定 ID 成员的显示名字
+  // 提取结算人与收款人的名字
   const getUserDisplayName = (userId: string) => {
     if (userId === currentUser?.id) return '我';
     const match = users.find((u) => u.user_id === userId);
     return match ? match.display_name : '对方';
   };
 
-  // 4. 判定是否有债务关系
-  const hasDebt = balance ? balance.amount_cents > 0 : false;
-  const isDebtor = balance ? balance.from_user_id === currentUser?.id : false;
+  // 4. 获取多条建议转账路径
+  const suggestedTransfers = balance?.suggested_transfers || [];
+  const hasTransfers = suggestedTransfers.length > 0;
 
-  // 提取结算人与收款人的名字
-  const debtorName = balance ? getUserDisplayName(balance.from_user_id) : '付款人';
-  const creditorName = balance ? getUserDisplayName(balance.to_user_id) : '收款人';
+  // 结算操作的目标对象状态
+  const [activeTransfer, setActiveTransfer] = useState<{
+    from_user_id: string;
+    to_user_id: string;
+    amount_cents: number;
+  } | null>(null);
 
   // 5. 结算发起 Mutation
   const createSettlementMutation = useMutation({
     mutationFn: async () => {
-      if (!balance) return;
+      if (!activeTransfer) return;
       const occurredAt = new Date().toISOString();
 
       return settlementApi.createSettlement({
-        from_user_id: balance.from_user_id,
-        to_user_id: balance.to_user_id,
-        amount_cents: balance.amount_cents,
+        from_user_id: activeTransfer.from_user_id,
+        to_user_id: activeTransfer.to_user_id,
+        amount_cents: activeTransfer.amount_cents,
         occurred_at: occurredAt,
         note: note.trim(),
       });
@@ -85,6 +88,7 @@ export default function SettlementPage() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setShowConfirmModal(false);
       setNote('');
+      setActiveTransfer(null);
     },
   });
 
@@ -92,27 +96,21 @@ export default function SettlementPage() {
     createSettlementMutation.mutate();
   };
 
-  // 内存级计算个人对账单轧差
+  // 获取个人对账单轧差
   const getPersonalNetDetails = () => {
-    if (!balance || users.length === 0) return [];
+    if (!balance || !balance.user_balances) {
+      return [];
+    }
 
-    return users.map((u) => {
-      let netCents = 0;
-      if (hasDebt && balance) {
-        if (u.user_id === balance.from_user_id) {
-          netCents = -balance.amount_cents;
-        } else if (u.user_id === balance.to_user_id) {
-          netCents = balance.amount_cents;
-        }
-      }
-
+    return balance.user_balances.map((u) => {
+      const displayName = getUserDisplayName(u.user_id);
       return {
         userId: u.user_id,
-        displayName: u.display_name,
+        displayName: displayName,
         isMe: u.user_id === currentUser?.id,
         paidCents: u.paid_cents,
         shareCents: u.share_cents,
-        netCents: netCents,
+        netCents: u.net_cents,
       };
     });
   };
@@ -149,34 +147,44 @@ export default function SettlementPage() {
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '110px' }}>
                 <div className="skeleton-item" style={{ height: '70px', width: '90%', borderRadius: '12px' }}></div>
               </div>
-            ) : hasDebt && balance ? (
+            ) : hasTransfers ? (
               <div className="balance-debt-state">
                 <HelpCircle size={44} className="status-icon text-warning animate-float" />
-                <div className="debt-details">
+                <div className="debt-details" style={{ width: '100%' }}>
                   <h4>当前待结账目</h4>
-                  <div className="debt-flow">
-                    <span className="user-glow">{debtorName}</span>
-                    <ArrowRight size={20} className="arrow-flow" />
-                    <span className="user-glow">{creditorName}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
+                    {suggestedTransfers.map((transfer, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div className="debt-flow" style={{ margin: 0 }}>
+                            <span className="user-glow">{getUserDisplayName(transfer.from_user_id)}</span>
+                            <ArrowRight size={16} className="arrow-flow" />
+                            <span className="user-glow">{getUserDisplayName(transfer.to_user_id)}</span>
+                          </div>
+                          <div className="text-muted" style={{ fontSize: '13px' }}>
+                            {transfer.from_user_id === currentUser?.id ? '您需要向对方汇款补款的差额。' : '对方需要向您转账汇款的差额。'}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div className="debt-amount-large" style={{ fontSize: '24px' }}>
+                            ¥{centsToYuan(transfer.amount_cents)}
+                          </div>
+                          <button
+                            className="btn-primary"
+                            onClick={() => {
+                              setActiveTransfer(transfer);
+                              setShowConfirmModal(true);
+                            }}
+                            disabled={activeRole === 'viewer'}
+                            style={activeRole === 'viewer' ? { opacity: 0.5, cursor: 'not-allowed', padding: '8px 16px', fontSize: '14px' } : { padding: '8px 16px', fontSize: '14px' }}
+                          >
+                            登记结算
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="debt-amount-large">
-                    ¥{centsToYuan(balance.amount_cents)}
-                  </div>
-                  <p className="dimmed-desc">
-                    {isDebtor
-                      ? '这是您本期需要向对方汇款补款的最终差额。'
-                      : '这是对方本期需要向您转账汇款的最终差额。'}
-                  </p>
                 </div>
-                <button
-                  className="btn-primary btn-settle-action"
-                  onClick={() => setShowConfirmModal(true)}
-                  disabled={activeRole === 'viewer'}
-                  style={activeRole === 'viewer' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                  title={activeRole === 'viewer' ? '观察者无法发起结算' : ''}
-                >
-                  一键登记结算
-                </button>
               </div>
             ) : (
               <div className="balance-settled-state">

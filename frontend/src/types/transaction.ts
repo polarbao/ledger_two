@@ -4,6 +4,11 @@ export interface TransactionSplitResponse {
   share_amount_cents: number; // 后端 json:"share_amount_cents"
 }
 
+export interface SplitInput {
+  user_id: string;
+  value: number;
+}
+
 export interface TransactionResponse {
   id: string;
   ledger_id?: string;
@@ -54,7 +59,8 @@ export interface CreateSharedExpensePayload {
   occurred_at: string;
   payer_user_id: string;
   category_id?: string | null;
-  split_method: 'equal' | 'payer_only';
+  split_method: 'equal' | 'payer_only' | 'amount' | 'ratio' | 'shares';
+  splits?: SplitInput[];
   tag_names?: string[];
   note?: string;
 }

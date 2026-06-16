@@ -44,18 +44,41 @@ type SettlementResponse struct {
 	CreatedAt       string `json:"created_at"`
 }
 
+// UserBalance 用户结算净额结构
+// @brief 单个用户在账本中的付费、分摊与最终欠款/应收报表
+type UserBalance struct {
+	UserID          string `json:"user_id"`
+	PaidCents       int64  `json:"paid_cents"`
+	ShareCents      int64  `json:"share_cents"`
+	SettledOutCents int64  `json:"settled_out_cents"`
+	SettledInCents  int64  `json:"settled_in_cents"`
+	NetCents        int64  `json:"net_cents"` // > 0 表示应收, < 0 表示应付
+}
+
+// SuggestedTransfer 建议转账路径
+// @brief 通过贪心算法算出的债务人到债权人的直接转账建议
+type SuggestedTransfer struct {
+	FromUserID  string `json:"from_user_id"`
+	ToUserID    string `json:"to_user_id"`
+	AmountCents int64  `json:"amount_cents"`
+}
+
 // BalanceResponse 结算中心余额及净额响应体
-// @brief 输出给前端展示的双方已付、应摊、已结及最终谁欠谁的净额报表 DTO
+// @brief 输出给前端展示的所有用户余额及转账建议
 type BalanceResponse struct {
-	UserAPaidCents       int64  `json:"user_a_paid_cents"`         // A 垫付的共同支出总额
-	UserAShareCents      int64  `json:"user_a_share_cents"`        // A 实际应承担的共同支出总额
-	UserBPaidCents       int64  `json:"user_b_paid_cents"`         // B 垫付的共同支出总额
-	UserBShareCents      int64  `json:"user_b_share_cents"`        // B 实际应承担的共同支出总额
-	UserASettledToBCents int64  `json:"user_a_settled_to_b_cents"` // A 已向 B 结算补款总额
-	UserBSettledToACents int64  `json:"user_b_settled_to_a_cents"` // B 已向 A 结算补款总额
-	UserANetCents        int64  `json:"user_a_net_cents"`          // A 的最终未结净额
-	UserBNetCents        int64  `json:"user_b_net_cents"`          // B 的最终未结净额
-	FromUserID           string `json:"from_user_id"`              // 最终债务人 (谁欠款，结清时为空)
-	ToUserID             string `json:"to_user_id"`                // 最终债权人 (欠谁款，结清时为空)
-	AmountCents          int64  `json:"amount_cents"`              // 欠款总额 (结清时为 0)
+	UserBalances       []UserBalance       `json:"user_balances"`
+	SuggestedTransfers []SuggestedTransfer `json:"suggested_transfers"`
+
+	// 以下为向下兼容的老旧双人硬编码字段，未来版本可移除
+	UserAPaidCents       int64  `json:"user_a_paid_cents,omitempty"`
+	UserAShareCents      int64  `json:"user_a_share_cents,omitempty"`
+	UserBPaidCents       int64  `json:"user_b_paid_cents,omitempty"`
+	UserBShareCents      int64  `json:"user_b_share_cents,omitempty"`
+	UserASettledToBCents int64  `json:"user_a_settled_to_b_cents,omitempty"`
+	UserBSettledToACents int64  `json:"user_b_settled_to_a_cents,omitempty"`
+	UserANetCents        int64  `json:"user_a_net_cents,omitempty"`
+	UserBNetCents        int64  `json:"user_b_net_cents,omitempty"`
+	FromUserID           string `json:"from_user_id,omitempty"`
+	ToUserID             string `json:"to_user_id,omitempty"`
+	AmountCents          int64  `json:"amount_cents,omitempty"`
 }

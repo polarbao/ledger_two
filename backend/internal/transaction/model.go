@@ -58,9 +58,10 @@ type UpdateTransactionRequest struct {
 	CategoryID      **string  `json:"category_id"` // 允许传空以置 null
 	Visibility      *string   `json:"visibility"`
 	TagNames        *[]string `json:"tag_names"`
-	Note            *string   `json:"note"`
-	SplitMethod     *string   `json:"split_method"` // 新增，用于共同支出编辑
-	AttachmentPaths *[]string `json:"attachment_paths"`
+	Note            *string       `json:"note"`
+	SplitMethod     *string       `json:"split_method"` // 新增，用于共同支出编辑
+	Splits          *[]SplitInput `json:"splits,omitempty"` // 用于多人的高级分摊编辑
+	AttachmentPaths *[]string     `json:"attachment_paths"`
 }
 
 // TransactionResponse 统一输出的账单明细 DTO
@@ -106,6 +107,13 @@ type SplitResponse struct {
 	ShareAmountCents int64  `json:"share_amount_cents"`
 }
 
+// SplitInput 分摊输入参数
+// @brief 接收高级分摊计算参数 (金额cents, 比例百分比, 或者份数)
+type SplitInput struct {
+	UserID string  `json:"user_id"`
+	Value  float64 `json:"value"`
+}
+
 // CreateSharedExpenseRequest 共同支出创建请求结构
 // @brief 创建共同支出账单的传参对象
 type CreateSharedExpenseRequest struct {
@@ -114,10 +122,11 @@ type CreateSharedExpenseRequest struct {
 	Currency    string   `json:"currency"`
 	OccurredAt  string   `json:"occurred_at"`
 	PayerUserID string   `json:"payer_user_id"`
-	CategoryID  *string  `json:"category_id"`
-	SplitMethod string   `json:"split_method"` // equal, payer_only
-	TagNames    []string `json:"tag_names"`
-	Note        string   `json:"note"`
+	CategoryID  *string      `json:"category_id"`
+	SplitMethod string       `json:"split_method"` // equal, payer_only, amount, ratio, shares
+	Splits      []SplitInput `json:"splits,omitempty"`
+	TagNames    []string     `json:"tag_names"`
+	Note        string       `json:"note"`
 }
 
 // UpdateSharedExpenseRequest 共同支出编辑请求结构
@@ -126,11 +135,12 @@ type UpdateSharedExpenseRequest struct {
 	Title       *string   `json:"title"`
 	AmountCents *int64    `json:"amount_cents"`
 	OccurredAt  *string   `json:"occurred_at"`
-	PayerUserID *string   `json:"payer_user_id"`
-	CategoryID  **string  `json:"category_id"`
-	SplitMethod *string   `json:"split_method"`
-	TagNames    *[]string `json:"tag_names"`
-	Note        *string   `json:"note"`
+	PayerUserID *string       `json:"payer_user_id"`
+	CategoryID  **string      `json:"category_id"`
+	SplitMethod *string       `json:"split_method"`
+	Splits      *[]SplitInput `json:"splits,omitempty"`
+	TagNames    *[]string     `json:"tag_names"`
+	Note        *string       `json:"note"`
 }
 
 // AuditLog 核心审计日志结构

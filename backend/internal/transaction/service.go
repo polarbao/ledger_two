@@ -307,7 +307,7 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 	if isShared {
 		if req.SplitMethod != nil {
 			splitMethodVal = *req.SplitMethod
-			if splitMethodVal != "equal" && splitMethodVal != "payer_only" {
+			if splitMethodVal != "equal" && splitMethodVal != "payer_only" && splitMethodVal != "amount" && splitMethodVal != "ratio" && splitMethodVal != "shares" {
 				return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的分摊方式")
 			}
 			tx.SplitMethod = sql.NullString{String: splitMethodVal, Valid: true}
@@ -316,39 +316,40 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 		}
 
 		// 重新计算分摊金额
-		users, err := s.getSystemUsers(ctx)
+		users, err := s.getLedgerUsers(ctx, tx.LedgerID)
 		if err != nil {
-			return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+			return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
 		}
 
 		payerID := tx.PayerUserID
-		var otherID string
 		foundPayer := false
 		for _, u := range users {
 			if u == payerID {
 				foundPayer = true
-			} else {
-				otherID = u
+				break
 			}
 		}
 		if !foundPayer {
 			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的付款人")
 		}
 
-		var payerShare, otherShare int64
-		if splitMethodVal == "equal" {
-			base := tx.Amount / 2
-			rem := tx.Amount % 2
-			payerShare = base + rem
-			otherShare = base
-		} else if splitMethodVal == "payer_only" {
-			payerShare = tx.Amount
-			otherShare = 0
+		var reqSplits []SplitInput
+		if req.Splits != nil {
+			reqSplits = *req.Splits
 		}
 
-		newSplits = []TransactionSplit{
-			{ID: uuid.NewString(), TransactionID: tx.ID, UserID: payerID, ShareAmount: payerShare},
-			{ID: uuid.NewString(), TransactionID: tx.ID, UserID: otherID, ShareAmount: otherShare},
+		splits, err := s.calculateSplits(tx.Amount, splitMethodVal, payerID, users, reqSplits)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, s := range splits {
+			newSplits = append(newSplits, TransactionSplit{
+				ID:            uuid.NewString(),
+				TransactionID: tx.ID,
+				UserID:        s.UserID,
+				ShareAmount:   s.ShareAmountCents,
+			})
 		}
 	}
 
@@ -641,10 +642,10 @@ func (s *Service) getCategoryName(ctx context.Context, catID string) string {
 	return name
 }
 
-// 辅助方法：查询系统内的两个用户ID
-func (s *Service) getSystemUsers(ctx context.Context) ([]string, error) {
+// 辅助方法：查询账本内的所有用户ID
+func (s *Service) getLedgerUsers(ctx context.Context, ledgerID string) ([]string, error) {
 	dbConn := s.repo.GetDB()
-	rows, err := dbConn.QueryContext(ctx, "SELECT id FROM users")
+	rows, err := dbConn.QueryContext(ctx, "SELECT user_id FROM ledger_members WHERE ledger_id = ?", ledgerID)
 	if err != nil {
 		return nil, err
 	}
@@ -684,20 +685,24 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "分摊类型必须为 equal 或 payer_only")
 	}
 
-	// 4. 用户校验与分摊计算
-	users, err := s.getSystemUsers(ctx)
+	// 5. 获取全局唯一 LedgerID
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	// 4. 用户校验与获取账本成员
+	users, err := s.getLedgerUsers(ctx, ledgerID)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
 	}
 
 	// 校验付款人是否合法
-	var otherUserID string
 	foundPayer := false
 	for _, u := range users {
 		if u == req.PayerUserID {
 			foundPayer = true
-		} else {
-			otherUserID = u
+			break
 		}
 	}
 
@@ -705,22 +710,10 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "付款人用户不在当前账本成员中")
 	}
 
-	// 计算分摊金额 (不能使用 float)
-	var payerShare, otherShare int64
-	if req.SplitMethod == "equal" {
-		base := req.AmountCents / 2
-		rem := req.AmountCents % 2
-		payerShare = base + rem
-		otherShare = base
-	} else if req.SplitMethod == "payer_only" {
-		payerShare = req.AmountCents
-		otherShare = 0
-	}
-
-	// 5. 获取全局唯一 LedgerID
-	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
+	// 分摊计算逻辑
+	splits, err := s.calculateSplits(req.AmountCents, req.SplitMethod, req.PayerUserID, users, req.Splits)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	// 6. 标题 fallback
@@ -759,19 +752,19 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	}
 
 	// 8. 构造分摊实体
-	splits := []TransactionSplit{
-		{
+	var splitEntities []TransactionSplit
+	var participantsResp []SplitResponse
+	for _, split := range splits {
+		splitEntities = append(splitEntities, TransactionSplit{
 			ID:            uuid.NewString(),
 			TransactionID: txID,
-			UserID:        req.PayerUserID,
-			ShareAmount:   payerShare,
-		},
-		{
-			ID:            uuid.NewString(),
-			TransactionID: txID,
-			UserID:        otherUserID,
-			ShareAmount:   otherShare,
-		},
+			UserID:        split.UserID,
+			ShareAmount:   split.ShareAmountCents,
+		})
+		participantsResp = append(participantsResp, SplitResponse{
+			UserID:           split.UserID,
+			ShareAmountCents: split.ShareAmountCents,
+		})
 	}
 
 	// 9. 事务内打包写入
@@ -789,7 +782,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	}
 
 	// 写入 transaction_splits
-	err = s.repo.CreateSplitsWithTx(ctx, dbTx, splits)
+	err = s.repo.CreateSplitsWithTx(ctx, dbTx, splitEntities)
 	if err != nil {
 		return nil, err
 	}
@@ -802,10 +795,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	// 组装 Response DTO
 	dto := s.toDTO(txModel, req.TagNames)
 	dto.SplitMethod = &req.SplitMethod
-	dto.Participants = []SplitResponse{
-		{UserID: req.PayerUserID, ShareAmountCents: payerShare},
-		{UserID: otherUserID, ShareAmountCents: otherShare},
-	}
+	dto.Participants = participantsResp
 
 	return dto, nil
 }
@@ -1275,7 +1265,7 @@ func (s *Service) ConfirmReminder(ctx context.Context, currentUserID string, rem
 	var users []string
 	if rule.Type == "shared_expense" {
 		var err error
-		users, err = s.getSystemUsers(ctx)
+		users, err = s.getLedgerUsers(ctx, reminder.LedgerID)
 		if err != nil {
 			return appErrors.NewAppError(500, "INTERNAL_ERROR", "拉取系统成员列表失败")
 		}
@@ -1702,9 +1692,9 @@ func (s *Service) CommitImport(ctx context.Context, currentUserID string, req Co
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
-	users, err := s.getSystemUsers(ctx)
+	users, err := s.getLedgerUsers(ctx, ledgerID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统用户失败")
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
 	}
 
 	dbConn := s.repo.GetDB()
@@ -2059,5 +2049,93 @@ func (s *Service) DeleteImportRule(ctx context.Context, currentUserID string, id
 	return nil
 }
 
+// calculateSplits 多人分摊金额核心计算逻辑
+// @brief 根据所选方式 (equal, payer_only, amount, ratio, shares) 分解多人承担金额
+func (s *Service) calculateSplits(totalAmount int64, method string, payerID string, allUsers []string, splitInputs []SplitInput) ([]SplitResponse, error) {
+	var results []SplitResponse
 
+	switch method {
+	case "payer_only":
+		for _, u := range allUsers {
+			var share int64 = 0
+			if u == payerID {
+				share = totalAmount
+			}
+			results = append(results, SplitResponse{UserID: u, ShareAmountCents: share})
+		}
+		return results, nil
 
+	case "equal":
+		n := int64(len(allUsers))
+		if n == 0 {
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无成员可供分摊")
+		}
+		base := totalAmount / n
+		rem := totalAmount % n
+
+		for _, u := range allUsers {
+			share := base
+			if u == payerID {
+				share += rem // 余数强制分给付款人（或可约定第一人）
+			}
+			results = append(results, SplitResponse{UserID: u, ShareAmountCents: share})
+		}
+		return results, nil
+
+	case "amount":
+		var sum int64 = 0
+		inputMap := make(map[string]int64)
+		for _, in := range splitInputs {
+			inputMap[in.UserID] = int64(in.Value)
+			sum += int64(in.Value)
+		}
+		if sum != totalAmount {
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "分摊金额合计不等于交易总金额")
+		}
+
+		for _, u := range allUsers {
+			results = append(results, SplitResponse{UserID: u, ShareAmountCents: inputMap[u]})
+		}
+		return results, nil
+
+	case "ratio", "shares":
+		var sumValue float64 = 0
+		inputMap := make(map[string]float64)
+		for _, in := range splitInputs {
+			if in.Value < 0 {
+				return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "分摊比例/份数不能为负")
+			}
+			inputMap[in.UserID] = in.Value
+			sumValue += in.Value
+		}
+
+		if sumValue <= 0 {
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "分摊总比例或总份数必须大于0")
+		}
+
+		// 为保证金额总和正确，使用最大余数法或直接累计补齐
+		var calculatedSum int64 = 0
+		for _, u := range allUsers {
+			val := inputMap[u]
+			share := int64(float64(totalAmount) * val / sumValue)
+			calculatedSum += share
+			results = append(results, SplitResponse{UserID: u, ShareAmountCents: share})
+		}
+
+		// 余数误差分配给付款人
+		rem := totalAmount - calculatedSum
+		if rem != 0 {
+			for i := range results {
+				if results[i].UserID == payerID {
+					results[i].ShareAmountCents += rem
+					break
+				}
+			}
+		}
+
+		return results, nil
+
+	default:
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "不支持的分摊方式")
+	}
+}

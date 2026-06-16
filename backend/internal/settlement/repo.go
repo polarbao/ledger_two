@@ -126,11 +126,13 @@ func (r *Repository) List(ctx context.Context, ledgerID string, month string) ([
 // @return map[string]int64 各自支付共同支出的总和 Map [user_id] -> cents
 // @return map[string]int64 各自应分摊共同支出的总和 Map [user_id] -> cents
 // @return map[string]int64 各自已付出的结算补款总和 Map [user_id] -> cents
+// @return map[string]int64 各自收到的结算补款总和 Map [user_id] -> cents
 // @return error 错误信息
-func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID string) (map[string]int64, map[string]int64, map[string]int64, error) {
+func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID string) (map[string]int64, map[string]int64, map[string]int64, map[string]int64, error) {
 	paidMap := make(map[string]int64)
 	shareMap := make(map[string]int64)
-	settledMap := make(map[string]int64)
+	settledOutMap := make(map[string]int64)
+	settledInMap := make(map[string]int64)
 
 	// 1. 汇总统计各自实际支付的共同支出（排除软删除）
 	paidRows, err := r.db.QueryContext(ctx, `
@@ -140,7 +142,7 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID str
 		GROUP BY payer_user_id
 	`, ledgerID)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	defer paidRows.Close()
 
@@ -161,7 +163,7 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID str
 		GROUP BY ts.user_id
 	`, ledgerID)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	defer shareRows.Close()
 
@@ -174,26 +176,46 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID str
 	}
 
 	// 3. 汇总统计各自作为付款人向对方发起的结算补款总额
-	settleRows, err := r.db.QueryContext(ctx, `
+	settleOutRows, err := r.db.QueryContext(ctx, `
 		SELECT from_user_id, SUM(amount)
 		FROM settlements
 		WHERE ledger_id = ?
 		GROUP BY from_user_id
 	`, ledgerID)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	defer settleRows.Close()
+	defer settleOutRows.Close()
 
-	for settleRows.Next() {
+	for settleOutRows.Next() {
 		var userID string
 		var amount int64
-		if err := settleRows.Scan(&userID, &amount); err == nil {
-			settledMap[userID] = amount
+		if err := settleOutRows.Scan(&userID, &amount); err == nil {
+			settledOutMap[userID] = amount
 		}
 	}
 
-	return paidMap, shareMap, settledMap, nil
+	// 4. 汇总统计各自作为收款人收到的结算补款总额
+	settleInRows, err := r.db.QueryContext(ctx, `
+		SELECT to_user_id, SUM(amount)
+		FROM settlements
+		WHERE ledger_id = ?
+		GROUP BY to_user_id
+	`, ledgerID)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	defer settleInRows.Close()
+
+	for settleInRows.Next() {
+		var userID string
+		var amount int64
+		if err := settleInRows.Scan(&userID, &amount); err == nil {
+			settledInMap[userID] = amount
+		}
+	}
+
+	return paidMap, shareMap, settledOutMap, settledInMap, nil
 }
 
 // CreateAuditLogWithTx 在事务内物理写入单笔审计日志

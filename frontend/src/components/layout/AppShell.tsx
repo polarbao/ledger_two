@@ -15,8 +15,11 @@ import {
   Sparkles,
   Calendar,
   WifiOff,
+  CloudOff,
 } from 'lucide-react';
 import TransactionFormDrawer from '../transaction/TransactionFormDrawer';
+import DraftListDrawer from '../transaction/DraftListDrawer';
+import { useDraftStore } from '../../stores/draft.store';
 
 export default function AppShell() {
   const navigate = useNavigate();
@@ -27,6 +30,8 @@ export default function AppShell() {
   const { activeLedgerId, setActiveLedger } = useLedgerStore();
   const [ledgers, setLedgers] = useState<LedgerWithRole[]>([]);
   const { isOffline, setIsOffline } = useUIStore();
+  const { drafts } = useDraftStore();
+  const [isDraftListOpen, setIsDraftListOpen] = useState(false);
 
   useEffect(() => {
     ledgerApi.listUserLedgers().then(setLedgers).catch(console.error);
@@ -129,6 +134,15 @@ export default function AppShell() {
           <div className="offline-banner" style={{ background: '#ef4444', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', zIndex: 1000, position: 'relative' }}>
             <WifiOff size={16} />
             <span style={{ fontSize: '14px', fontWeight: 500 }}>当前网络已离线，数据可能无法保存，部分功能受限。</span>
+            <button className="btn-text" style={{ color: 'white', textDecoration: 'underline', padding: '0', marginLeft: '8px' }} onClick={() => setIsDraftListOpen(true)}>
+              查看草稿箱
+            </button>
+          </div>
+        )}
+        {!isOffline && drafts.length > 0 && (
+          <div className="draft-banner" style={{ background: 'var(--accent-primary)', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', zIndex: 1000, position: 'relative', cursor: 'pointer' }} onClick={() => setIsDraftListOpen(true)}>
+            <CloudOff size={16} />
+            <span style={{ fontSize: '14px', fontWeight: 500 }}>您有 {drafts.length} 条离线草稿待提交。点击查看。</span>
           </div>
         )}
         {/* 顶部 TopBar */}
@@ -148,7 +162,13 @@ export default function AppShell() {
             />
           </div>
 
-          <div className="desktop-user-info">
+          <div className="desktop-user-info" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {drafts.length > 0 && (
+              <button className="btn-icon" onClick={() => setIsDraftListOpen(true)} title="草稿箱" style={{ position: 'relative' }}>
+                <CloudOff size={20} />
+                <span style={{ position: 'absolute', top: -4, right: -4, background: 'var(--accent-primary)', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{drafts.length}</span>
+              </button>
+            )}
             <span className="welcome-text">
               你好, <strong className="text-glow">{user?.display_name}</strong>
             </span>
@@ -181,6 +201,8 @@ export default function AppShell() {
 
       {/* 记账表单滑出层 */}
       <TransactionFormDrawer />
+      {/* 草稿列表滑出层 */}
+      <DraftListDrawer open={isDraftListOpen} onClose={() => setIsDraftListOpen(false)} />
     </div>
   );
 }

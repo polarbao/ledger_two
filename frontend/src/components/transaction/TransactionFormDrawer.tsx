@@ -10,6 +10,7 @@ import { transactionsApi } from '../../api/transactions.api';
 import { dashboardApi } from '../../api/dashboard.api';
 import { yuanToCents } from '../../utils/money';
 import type { TransactionTemplateResponse, CreateTemplatePayload } from '../../types/transaction';
+import { useDraftStore } from '../../stores/draft.store';
 
 /**
  * @brief 表单校验 Schema 结构定义
@@ -43,7 +44,8 @@ type FormValues = z.infer<typeof formSchema>;
 export default function TransactionFormDrawer() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction, isOffline } = useUIStore();
+  const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction, isOffline, editingDraftId, setEditingDraftId } = useUIStore();
+  const { addDraft, updateDraft, removeDraft, drafts } = useDraftStore();
 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [submitAction, setSubmitAction] = useState<'close' | 'continue'>('close');
@@ -190,9 +192,9 @@ export default function TransactionFormDrawer() {
   const [uploadingCount, setUploadingCount] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // 打开抽屉时注入最近记账默认值 (仅在非复制一笔时)
+  // 打开抽屉时注入最近记账默认值 (仅在非复制且非草稿编辑时)
   useEffect(() => {
-    if (addDrawerOpen && !copySourceTransaction) {
+    if (addDrawerOpen && !copySourceTransaction && !editingDraftId) {
       const localType = (localStorage.getItem(LAST_TYPE_KEY) as FormValues['type']) || 'expense';
       const localCategory = localStorage.getItem(LAST_CATEGORY_KEY) || '';
       const localTags = localStorage.getItem(LAST_TAGS_KEY) || '';
@@ -213,7 +215,17 @@ export default function TransactionFormDrawer() {
         attachment_paths: [],
       });
     }
-  }, [addDrawerOpen, copySourceTransaction, currentUser, reset]);
+  }, [addDrawerOpen, copySourceTransaction, editingDraftId, currentUser, reset]);
+
+  // 处理“草稿编辑”回填逻辑
+  useEffect(() => {
+    if (addDrawerOpen && editingDraftId) {
+      const draft = drafts.find(d => d.id === editingDraftId);
+      if (draft) {
+        reset(draft.formValues);
+      }
+    }
+  }, [addDrawerOpen, editingDraftId, drafts, reset]);
 
   // 处理“复制一笔”回填逻辑
   useEffect(() => {
@@ -277,6 +289,11 @@ export default function TransactionFormDrawer() {
       }
     },
     onSuccess: (_, variables) => {
+      if (editingDraftId) {
+        removeDraft(editingDraftId);
+        setEditingDraftId(null);
+      }
+
       // 自动失效相关缓存以触发现代大屏数据更新
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -348,12 +365,30 @@ export default function TransactionFormDrawer() {
   });
 
   const onSubmit = (values: FormValues) => {
+    if (isOffline) {
+      if (editingDraftId) {
+        updateDraft(editingDraftId, {
+          id: editingDraftId,
+          formValues: values,
+          createdAt: new Date().toISOString(),
+        });
+      } else {
+        addDraft({
+          id: crypto.randomUUID(),
+          formValues: values,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      handleClose();
+      return;
+    }
     createTxMutation.mutate(values);
   };
 
   const handleClose = () => {
     setAddDrawerOpen(false);
     setCopySourceTransaction(null);
+    setEditingDraftId(null);
   };
 
   if (!addDrawerOpen) return null;
@@ -375,8 +410,8 @@ export default function TransactionFormDrawer() {
         {/* 表单体 */}
         <form onSubmit={handleSubmit(onSubmit)} className="drawer-body">
           {isOffline && (
-            <div className="error-banner" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
-              <p>当前处于离线状态，无法创建和提交正式账单，请连接网络后再试。</p>
+            <div className="error-banner" style={{ background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.2)', color: '#ca8a04' }}>
+              <p>当前处于离线状态。您可以继续记账并保存为“离线草稿”，等网络恢复后手动提交。</p>
             </div>
           )}
           {showSuccessBanner && !isOffline && (
@@ -963,7 +998,7 @@ export default function TransactionFormDrawer() {
               type="submit"
               className="btn-primary btn-submit"
               style={{ width: 'auto', padding: '10px 24px' }}
-              disabled={isSubmitting || createTxMutation.isPending || isOffline}
+              disabled={isSubmitting || createTxMutation.isPending}
               onClick={() => setSubmitAction('close')}
             >
               {(isSubmitting || createTxMutation.isPending) && submitAction === 'close' ? (
@@ -971,6 +1006,10 @@ export default function TransactionFormDrawer() {
                   <Loader2 size={16} className="spinner" />
                   <span>保存中...</span>
                 </>
+              ) : isOffline ? (
+                <span>保存为离线草稿</span>
+              ) : editingDraftId ? (
+                <span>提交正式账单</span>
               ) : (
                 <span>确认记账</span>
               )}

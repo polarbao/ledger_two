@@ -1,1 +1,57 @@
 /* Custom layout overrides can go here. All core glassmorphism design variables and selectors have been defined in index.css. */
+
+.mobile-only, .mobile-flex {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: block !important;
+  }
+  
+  .mobile-flex {
+    display: flex !important;
+  }
+  
+  .page-container {
+    padding: 16px;
+  }
+  
+  .glass-card {
+    border-radius: 16px;
+  }
+  
+  .drawer-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 90vh !important;
+    margin-top: 10vh !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+  
+  /* Make all primary buttons full width on mobile if they are main actions */
+  .btn-primary.mobile-full {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Make filter items wrap better */
+  .filter-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+

@@ -154,7 +154,7 @@ export default function SettlementPage() {
                   <h4>当前待结账目</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
                     {suggestedTransfers.map((transfer, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '8px' }}>
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '8px', flexWrap: 'wrap', gap: '12px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <div className="debt-flow" style={{ margin: 0 }}>
                             <span className="user-glow">{getUserDisplayName(transfer.from_user_id)}</span>
@@ -165,7 +165,7 @@ export default function SettlementPage() {
                             {transfer.from_user_id === currentUser?.id ? '您需要向对方汇款补款的差额。' : '对方需要向您转账汇款的差额。'}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
                           <div className="debt-amount-large" style={{ fontSize: '24px' }}>
                             ¥{centsToYuan(transfer.amount_cents)}
                           </div>
@@ -344,10 +344,10 @@ export default function SettlementPage() {
               </div>
 
               {/* 模态框页脚操作 (Danger 样式按钮) */}
-              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-secondary mobile-full"
                   style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
                   onClick={() => setShowConfirmModal(false)}
                   disabled={createSettlementMutation.isPending}
@@ -356,7 +356,7 @@ export default function SettlementPage() {
                 </button>
                 <button
                   type="button"
-                  className="btn-danger"
+                  className="btn-danger mobile-full"
                   style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px', background: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)', boxShadow: '0 8px 32px 0 rgba(126, 34, 206, 0.2)', borderColor: 'rgba(126, 34, 206, 0.2)' }}
                   onClick={handleConfirmSettlement}
                   disabled={createSettlementMutation.isPending}

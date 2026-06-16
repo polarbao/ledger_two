@@ -21,6 +21,7 @@ import {
   Tags
 } from 'lucide-react';
 import type { TransactionResponse } from '../types/transaction';
+import TransactionCard from '../components/transaction/TransactionCard';
 
 export default function TransactionsPage() {
   const currentMonth = useUIStore((state) => state.currentMonth);
@@ -260,8 +261,14 @@ export default function TransactionsPage() {
         </button>
       </div>
 
-      {/* 桌面端筛选栏面板 */}
-      <div className="glass-card filter-panel desktop-filters">
+      {/* 筛选控制面板 / 移动端 Bottom Sheet */}
+      <div className={`glass-card filter-panel ${mobileFilterOpen ? 'mobile-sheet-open' : 'desktop-only'}`}>
+        <div className="filter-header mobile-flex" style={{ display: 'none', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <h3 style={{ margin: 0, fontSize: '18px' }}>高级筛选</h3>
+          <button className="btn-close-drawer" onClick={() => setMobileFilterOpen(false)}>
+            <X size={20} />
+          </button>
+        </div>
         <div className="filter-grid" style={{ marginBottom: '16px' }}>
           <div className="filter-item">
             <label>账单类型</label>
@@ -391,6 +398,26 @@ export default function TransactionsPage() {
             应用筛选
           </button>
         </div>
+        {/* 移动端应用后关闭弹窗 */}
+        {mobileFilterOpen && (
+          <div style={{ marginTop: '16px' }}>
+            <button 
+              className="btn-primary mobile-full"
+              style={{ padding: '12px' }}
+              onClick={() => {
+                updateFilter({ 
+                  min_amount: localMinAmount, 
+                  max_amount: localMaxAmount, 
+                  keyword: localKeyword,
+                  tag: localTag
+                });
+                setMobileFilterOpen(false);
+              }}
+            >
+              确认并查看结果
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 批量操作悬浮控制条 */}
@@ -422,7 +449,34 @@ export default function TransactionsPage() {
       >
         {transactions && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="glass-card" style={{ overflowX: 'auto' }}>
+            
+            {/* 移动端卡片列表 */}
+            <div className="mobile-only">
+              {transactions.map(tx => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }} key={tx.id}>
+                  {batchMode && tx.created_by_user_id === currentUser?.id && (
+                     <div style={{ padding: '0 8px' }}>
+                       <input 
+                         type="checkbox" 
+                         className="checkbox-input"
+                         checked={selectedTxIds.includes(tx.id)}
+                         onChange={() => handleSelectTx(tx.id)}
+                       />
+                     </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <TransactionCard 
+                      tx={tx} 
+                      currentUserId={currentUser?.id || ''} 
+                      onClick={() => { setSelectedTx(tx); setDetailOpen(true); }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 桌面端表格 */}
+            <div className="glass-card desktop-only" style={{ overflowX: 'auto' }}>
               <table className="transaction-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>

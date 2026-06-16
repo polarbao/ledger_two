@@ -10,11 +10,13 @@ import {
   Clock, 
   HardDrive, 
   AlertTriangle, 
-  X 
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { api, ApiError } from '../api/client';
 import EmptyState from '../components/ui/EmptyState';
 import LedgerSettings from '../components/ledger/LedgerSettings';
+import RestoreBackupModal from '../components/ui/RestoreBackupModal';
 
 interface BackupInfo {
   filename: string;
@@ -31,6 +33,7 @@ export default function SettingsPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedBackup, setSelectedBackup] = useState<BackupInfo | null>(null);
 
   // 确认弹窗状态
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -335,14 +338,24 @@ export default function SettingsPage() {
                         </span>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => triggerDownload(`/api/admin/backups/${encodeURIComponent(b.filename)}`, b.filename.split('/').pop() || 'backup.db')}
-                      className="btn-secondary" 
-                      style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
-                      disabled={actionLoading}
-                    >
-                      <Download size={12} /> 下载
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={() => setSelectedBackup(b)}
+                        className="btn-secondary" 
+                        style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, color: 'var(--accent-danger)' }}
+                        disabled={actionLoading}
+                      >
+                        <RotateCcw size={12} /> 恢复
+                      </button>
+                      <button 
+                        onClick={() => triggerDownload(`/api/admin/backups/${encodeURIComponent(b.filename)}`, b.filename.split('/').pop() || 'backup.db')}
+                        className="btn-secondary" 
+                        style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+                        disabled={actionLoading}
+                      >
+                        <Download size={12} /> 下载
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -353,6 +366,18 @@ export default function SettingsPage() {
 
       {/* Ledger Settings */}
       <LedgerSettings />
+
+      {/* 恢复备份确认弹窗 */}
+      {selectedBackup && (
+        <RestoreBackupModal
+          backup={selectedBackup}
+          onClose={() => setSelectedBackup(null)}
+          onSuccess={(instructions) => {
+            setSuccessMsg(instructions);
+            setSelectedBackup(null);
+          }}
+        />
+      )}
 
       {/* ==========================================
          UI 安全防范二次确认弹窗 Modal (Danger 警示样式按钮)

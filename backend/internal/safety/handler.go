@@ -43,6 +43,38 @@ func (h *Handler) HandleManualBackup(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// HandleRestoreBackup 处理恢复备份请求 POST /api/admin/restore
+func (h *Handler) HandleRestoreBackup(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		return
+	}
+
+	var req struct {
+		Filename string `json:"filename"`
+	}
+	if err := response.ReadJSON(r, &req); err != nil {
+		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "无效的请求格式")
+		return
+	}
+	if req.Filename == "" {
+		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "备份文件名不能为空")
+		return
+	}
+
+	instructions, err := h.service.RestoreBackup(r.Context(), currentUserID, req.Filename)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"success":      true,
+		"instructions": instructions,
+	})
+}
+
 // HandleGetBackups 处理获取备份列表请求 GET /api/admin/backups
 func (h *Handler) HandleGetBackups(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())

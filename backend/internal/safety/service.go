@@ -125,6 +125,59 @@ func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string,
 	return "manual/" + filename, nil
 }
 
+// RestoreBackup 准备恢复流程。因操作系统文件锁机制，后端仅执行自动前置备份并返回操作指引。
+func (s *Service) RestoreBackup(ctx context.Context, actorUserID string, targetFilename string) (string, error) {
+	backupDir := s.cfg.BackupDir
+	targetPath := filepath.Join(backupDir, filepath.Clean(targetFilename))
+
+	// 防御：路径穿越或文件不存在
+	if !strings.HasPrefix(targetPath, filepath.Clean(backupDir)) {
+		return "", errors.NewAppError(http.StatusForbidden, "FORBIDDEN", "无权访问该路径下的物理文件")
+	}
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		return "", errors.NewAppError(http.StatusNotFound, "NOT_FOUND", "目标备份文件不存在")
+	}
+
+	// 1. 强制执行前置备份 (后悔药)
+	now := time.Now()
+	manualDir := filepath.Join(backupDir, "manual")
+	if err := s.checkBackupDirWritable(manualDir); err != nil {
+		return "", err
+	}
+
+	preFilename := fmt.Sprintf("pre_restore_%s_%d.db", now.Format("20060102_150405"), now.Nanosecond())
+	preBackupPath := filepath.Join(manualDir, preFilename)
+
+	safePath := strings.ReplaceAll(preBackupPath, "'", "''")
+	query := fmt.Sprintf("VACUUM INTO '%s'", safePath)
+	_, err := s.db.ExecContext(ctx, query)
+	if err != nil {
+		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "自动前置备份失败，终止恢复流程: "+err.Error())
+	}
+
+	ledgerID, err := s.getUserLedgerID(ctx, actorUserID)
+	if err == nil {
+		afterJSONObj := map[string]interface{}{
+			"action":          "pre_restore_backup",
+			"target_restore":  targetFilename,
+			"pre_backup_file": "manual/" + preFilename,
+		}
+		afterBytes, _ := json.Marshal(afterJSONObj)
+
+		auditQuery := `
+			INSERT INTO audit_logs (id, ledger_id, actor_user_id, action, entity_type, entity_id, before_json, after_json, created_at)
+			VALUES (?, ?, ?, 'restore_prepare', 'database', ?, NULL, ?, ?)
+		`
+		_, _ = s.db.ExecContext(ctx, auditQuery,
+			uuid.NewString(), ledgerID, actorUserID, targetFilename, string(afterBytes), now.Format(time.RFC3339))
+	}
+
+	// 2. 返回人工覆盖指引（策略 B）
+	instructions := fmt.Sprintf("已自动为您创建当前数据的安全备份 (%s)。为避免数据损坏，请关闭程序后，手动将文件 %s 覆盖至 data/ledger.db，随后重新启动服务即可生效。", preFilename, targetFilename)
+
+	return instructions, nil
+}
+
 // GetBackups 获取所有备份文件列表
 func (s *Service) GetBackups(ctx context.Context) ([]BackupInfo, error) {
 	backupDir := s.cfg.BackupDir

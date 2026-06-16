@@ -14,6 +14,7 @@ import {
   LogOut,
   Sparkles,
   Calendar,
+  WifiOff,
 } from 'lucide-react';
 import TransactionFormDrawer from '../transaction/TransactionFormDrawer';
 
@@ -25,9 +26,20 @@ export default function AppShell() {
   const { currentMonth, setCurrentMonth } = useUIStore();
   const { activeLedgerId, setActiveLedger } = useLedgerStore();
   const [ledgers, setLedgers] = useState<LedgerWithRole[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
     ledgerApi.listUserLedgers().then(setLedgers).catch(console.error);
+    
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const handleLedgerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -113,6 +125,12 @@ export default function AppShell() {
 
       {/* 主界面区域 */}
       <main className="main-content">
+        {isOffline && (
+          <div className="offline-banner" style={{ background: '#ef4444', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', zIndex: 1000, position: 'relative' }}>
+            <WifiOff size={16} />
+            <span style={{ fontSize: '14px', fontWeight: 500 }}>当前网络已离线，数据可能无法保存，部分功能受限。</span>
+          </div>
+        )}
         {/* 顶部 TopBar */}
         <header className="topbar glass-card">
           <div className="mobile-brand">

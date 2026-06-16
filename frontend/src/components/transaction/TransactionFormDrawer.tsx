@@ -43,7 +43,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function TransactionFormDrawer() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction } = useUIStore();
+  const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction, isOffline } = useUIStore();
 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [submitAction, setSubmitAction] = useState<'close' | 'continue'>('close');
@@ -374,7 +374,12 @@ export default function TransactionFormDrawer() {
 
         {/* 表单体 */}
         <form onSubmit={handleSubmit(onSubmit)} className="drawer-body">
-          {showSuccessBanner && (
+          {isOffline && (
+            <div className="error-banner" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
+              <p>当前处于离线状态，无法创建和提交正式账单，请连接网络后再试。</p>
+            </div>
+          )}
+          {showSuccessBanner && !isOffline && (
             <div className="success-banner animate-fade-in" style={{
               background: 'rgba(53, 196, 137, 0.12)',
               border: '1px solid rgba(53, 196, 137, 0.25)',
@@ -938,6 +943,7 @@ export default function TransactionFormDrawer() {
               className="btn-secondary"
               style={{ marginRight: 'auto', borderColor: 'rgba(255, 255, 255, 0.12)' }}
               onClick={() => setIsSaveTmplOpen(true)}
+              disabled={isOffline}
             >
               存为模板
             </button>
@@ -948,7 +954,7 @@ export default function TransactionFormDrawer() {
               type="submit"
               className="btn-secondary"
               style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
-              disabled={isSubmitting || createTxMutation.isPending}
+              disabled={isSubmitting || createTxMutation.isPending || isOffline}
               onClick={() => setSubmitAction('continue')}
             >
               保存并继续
@@ -957,7 +963,7 @@ export default function TransactionFormDrawer() {
               type="submit"
               className="btn-primary btn-submit"
               style={{ width: 'auto', padding: '10px 24px' }}
-              disabled={isSubmitting || createTxMutation.isPending}
+              disabled={isSubmitting || createTxMutation.isPending || isOffline}
               onClick={() => setSubmitAction('close')}
             >
               {(isSubmitting || createTxMutation.isPending) && submitAction === 'close' ? (

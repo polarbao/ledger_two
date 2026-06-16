@@ -7,11 +7,13 @@ interface UIStore {
   detailDrawerTransactionId: string | null;
   filterOpen: boolean;
   copySourceTransaction: TransactionResponse | null;
+  isOffline: boolean;
   setCurrentMonth: (month: string) => void;
   setAddDrawerOpen: (open: boolean) => void;
   setDetailDrawerTransactionId: (id: string | null) => void;
   setFilterOpen: (open: boolean) => void;
   setCopySourceTransaction: (tx: TransactionResponse | null) => void;
+  setIsOffline: (offline: boolean) => void;
 }
 
 const getInitialMonth = () => {
@@ -27,9 +29,11 @@ export const useUIStore = create<UIStore>((set) => ({
   detailDrawerTransactionId: null,
   filterOpen: false,
   copySourceTransaction: null,
+  isOffline: !navigator.onLine,
   setCurrentMonth: (currentMonth) => set({ currentMonth }),
   setAddDrawerOpen: (addDrawerOpen) => set({ addDrawerOpen }),
   setDetailDrawerTransactionId: (detailDrawerTransactionId) => set({ detailDrawerTransactionId }),
   setFilterOpen: (filterOpen) => set({ filterOpen }),
   setCopySourceTransaction: (copySourceTransaction) => set({ copySourceTransaction }),
+  setIsOffline: (isOffline) => set({ isOffline }),
 }));

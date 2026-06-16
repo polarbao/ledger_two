@@ -21,7 +21,7 @@ import ErrorState from '../components/ui/ErrorState';
 export default function SettlementPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const { currentMonth } = useUIStore();
+  const { currentMonth, isOffline } = useUIStore();
   const activeRole = useLedgerStore((state) => state.activeRole);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [note, setNote] = useState('');
@@ -343,6 +343,13 @@ export default function SettlementPage() {
                 <span>此操作作为高风险数据变动动作，将被自动记录并同步写入系统的 `audit_logs` 审计表中以备历史追溯。</span>
               </div>
 
+              {isOffline && (
+                <div style={{ marginTop: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <AlertTriangle size={14} />
+                  <span>当前处于离线状态，无法登记高风险结算操作。</span>
+                </div>
+              )}
+
               {/* 模态框页脚操作 (Danger 样式按钮) */}
               <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <button
@@ -359,7 +366,7 @@ export default function SettlementPage() {
                   className="btn-danger mobile-full"
                   style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px', background: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)', boxShadow: '0 8px 32px 0 rgba(126, 34, 206, 0.2)', borderColor: 'rgba(126, 34, 206, 0.2)' }}
                   onClick={handleConfirmSettlement}
-                  disabled={createSettlementMutation.isPending}
+                  disabled={createSettlementMutation.isPending || isOffline}
                 >
                   {createSettlementMutation.isPending ? (
                     <>

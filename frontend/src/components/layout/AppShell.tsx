@@ -26,7 +26,7 @@ export default function AppShell() {
   const { currentMonth, setCurrentMonth } = useUIStore();
   const { activeLedgerId, setActiveLedger } = useLedgerStore();
   const [ledgers, setLedgers] = useState<LedgerWithRole[]>([]);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const { isOffline, setIsOffline } = useUIStore();
 
   useEffect(() => {
     ledgerApi.listUserLedgers().then(setLedgers).catch(console.error);
@@ -40,7 +40,7 @@ export default function AppShell() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [setIsOffline]);
 
   const handleLedgerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const lId = e.target.value;

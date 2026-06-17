@@ -1,6 +1,7 @@
 package safety
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -54,7 +55,7 @@ func (h *Handler) HandleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Filename string `json:"filename"`
 	}
-	if err := response.ReadJSON(r, &req); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "无效的请求格式")
 		return
 	}

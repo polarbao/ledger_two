@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { safetyApi, BackupInfo } from '../../api/safety.api';
+import { safetyApi, type BackupInfo } from '../../api/safety.api';
 
 interface Props {
   backup: BackupInfo;
@@ -18,8 +18,8 @@ export default function RestoreBackupModal({ backup, onClose, onSuccess }: Props
     onSuccess: (res) => {
       onSuccess(res.instructions);
     },
-    onError: (err: any) => {
-      setErrorMsg(err.message || '恢复前置流程失败，请重试');
+    onError: (err: unknown) => {
+      setErrorMsg(err instanceof Error ? err.message : '恢复前置流程失败，请重试');
     },
   });
 

@@ -29,8 +29,8 @@ func TestHealthz(t *testing.T) {
 
 	// 检查返回体结构是否符合文档约定
 	var resp struct {
-		Success bool              `json:"success"`
-		Data    map[string]string `json:"data"`
+		Success bool                   `json:"success"`
+		Data    map[string]interface{} `json:"data"`
 	}
 
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {

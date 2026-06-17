@@ -70,15 +70,15 @@ type BalanceResponse struct {
 	SuggestedTransfers []SuggestedTransfer `json:"suggested_transfers"`
 
 	// 以下为向下兼容的老旧双人硬编码字段，未来版本可移除
-	UserAPaidCents       int64  `json:"user_a_paid_cents,omitempty"`
-	UserAShareCents      int64  `json:"user_a_share_cents,omitempty"`
-	UserBPaidCents       int64  `json:"user_b_paid_cents,omitempty"`
-	UserBShareCents      int64  `json:"user_b_share_cents,omitempty"`
-	UserASettledToBCents int64  `json:"user_a_settled_to_b_cents,omitempty"`
-	UserBSettledToACents int64  `json:"user_b_settled_to_a_cents,omitempty"`
-	UserANetCents        int64  `json:"user_a_net_cents,omitempty"`
-	UserBNetCents        int64  `json:"user_b_net_cents,omitempty"`
-	FromUserID           string `json:"from_user_id,omitempty"`
-	ToUserID             string `json:"to_user_id,omitempty"`
-	AmountCents          int64  `json:"amount_cents,omitempty"`
+	UserAPaidCents       int64  `json:"user_a_paid_cents"`
+	UserAShareCents      int64  `json:"user_a_share_cents"`
+	UserBPaidCents       int64  `json:"user_b_paid_cents"`
+	UserBShareCents      int64  `json:"user_b_share_cents"`
+	UserASettledToBCents int64  `json:"user_a_settled_to_b_cents"`
+	UserBSettledToACents int64  `json:"user_b_settled_to_a_cents"`
+	UserANetCents        int64  `json:"user_a_net_cents"`
+	UserBNetCents        int64  `json:"user_b_net_cents"`
+	FromUserID           string `json:"from_user_id"`
+	ToUserID             string `json:"to_user_id"`
+	AmountCents          int64  `json:"amount_cents"`
 }

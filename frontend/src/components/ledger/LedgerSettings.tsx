@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLedgerStore } from '../../stores/ledger.store';
-import { ledgerApi, LedgerMember } from '../../api/ledger.api';
-import { Users, UserPlus, Shield, X, Edit2 } from 'lucide-react';
+import { ledgerApi, type LedgerMember } from '../../api/ledger.api';
+import { Users, UserPlus, Shield, X } from 'lucide-react';
 import { ApiError } from '../../api/client';
 
 export default function LedgerSettings() {
@@ -33,7 +33,10 @@ export default function LedgerSettings() {
   };
 
   useEffect(() => {
-    fetchMembers();
+    const load = async () => {
+      await fetchMembers();
+    };
+    load();
   }, [activeLedgerId]);
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -84,7 +87,7 @@ export default function LedgerSettings() {
     setCreatingLedger(true);
     setErrorMsg(null);
     try {
-      const res = await ledgerApi.createLedger({ name: newLedgerName });
+      await ledgerApi.createLedger({ name: newLedgerName });
       window.location.reload(); // Reload to refresh sidebar ledgers and set new active?
     } catch (err: unknown) {
       if (err instanceof ApiError) {

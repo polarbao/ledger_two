@@ -279,7 +279,7 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="settlement-alert-body">
-                      {dashboardData?.shared_balance && dashboardData.shared_balance.amount_cents > 0 ? (
+                      {dashboardData?.shared_balance && (dashboardData.shared_balance.amount_cents ?? 0) > 0 ? (
                         <div className="debt-indicator">
                           <div className="debt-status-text">
                             {dashboardData.shared_balance.from_user_id === currentUser?.id ? (
@@ -289,7 +289,7 @@ export default function DashboardPage() {
                                     {dashboardData.user_stats?.find(u => u.user_id === dashboardData.shared_balance.to_user_id)?.display_name || '对方'}
                                   </strong> 结清
                                 </p>
-                                <div className="debt-amount-big">¥{centsToYuan(dashboardData.shared_balance.amount_cents)}</div>
+                                <div className="debt-amount-big">¥{centsToYuan(dashboardData.shared_balance.amount_cents ?? 0)}</div>
                               </>
                             ) : (
                               <>
@@ -298,7 +298,7 @@ export default function DashboardPage() {
                                     {dashboardData.user_stats?.find(u => u.user_id === dashboardData.shared_balance.from_user_id)?.display_name || '对方'}
                                   </strong> 需要向你支付
                                 </p>
-                                <div className="debt-amount-big text-green">¥{centsToYuan(dashboardData.shared_balance.amount_cents)}</div>
+                                <div className="debt-amount-big text-green">¥{centsToYuan(dashboardData.shared_balance.amount_cents ?? 0)}</div>
                               </>
                             )}
                           </div>

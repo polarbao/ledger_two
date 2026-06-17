@@ -359,7 +359,7 @@ func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string,
 // 辅助方法：查询所有账本成员 ID
 func (s *Service) getLedgerUsers(ctx context.Context, ledgerID string) ([]string, error) {
 	dbConn := s.repo.GetDB()
-	rows, err := dbConn.QueryContext(ctx, "SELECT user_id FROM ledger_members WHERE ledger_id = ?", ledgerID)
+	rows, err := dbConn.QueryContext(ctx, "SELECT lm.user_id FROM ledger_members lm JOIN users u ON lm.user_id = u.id WHERE lm.ledger_id = ? ORDER BY u.username ASC", ledgerID)
 	if err != nil {
 		return nil, err
 	}

@@ -575,7 +575,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	}
 	var resTx5 response.SuccessResponse
 	json.Unmarshal(rrTx5.Body.Bytes(), &resTx5)
-	tx5ID := resTx5.Data.(map[string]interface{})["id"].(string)
+	_ = resTx5.Data.(map[string]interface{})["id"].(string)
 
 	// 3. 多维度高级筛选测试 (GET /api/transactions)
 	// (a) A 视角拉取全量，应该看到 1, 2, 3, 5。看不到 4 (B的private)。共 4 笔

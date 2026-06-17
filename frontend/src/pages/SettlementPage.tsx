@@ -309,12 +309,12 @@ export default function SettlementPage() {
               {/* 收付款关系卡片 */}
               <div className="modal-transfer-card" style={{ margin: 0 }}>
                 <div className="transfer-party">
-                  <span className="party-name">{debtorName}</span>
+                  <span className="party-name">{activeTransfer ? getUserDisplayName(activeTransfer.from_user_id) : ''}</span>
                   <span className="party-role">付款方</span>
                 </div>
                 <ArrowRight size={24} className="transfer-arrow" />
                 <div className="transfer-party">
-                  <span className="party-name">{creditorName}</span>
+                  <span className="party-name">{activeTransfer ? getUserDisplayName(activeTransfer.to_user_id) : ''}</span>
                   <span className="party-role">收款方</span>
                 </div>
               </div>
@@ -322,7 +322,7 @@ export default function SettlementPage() {
               {/* 轧差大数额 */}
               <div className="modal-amount-display">
                 <span className="amount-label">结算清偿金额</span>
-                <span className="amount-val">¥{centsToYuan(balance.amount_cents)}</span>
+                <span className="amount-val">¥{centsToYuan(activeTransfer?.amount_cents ?? 0)}</span>
               </div>
 
               {/* 备注表单 */}

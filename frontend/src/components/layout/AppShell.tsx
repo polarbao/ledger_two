@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth.store';
 import { useUIStore } from '../../stores/ui.store';
 import { useLedgerStore } from '../../stores/ledger.store';
-import { ledgerApi, LedgerWithRole } from '../../api/ledger.api';
+import { ledgerApi, type LedgerWithRole } from '../../api/ledger.api';
 import { authApi } from '../../api/auth.api';
 import { useEffect, useState } from 'react';
 import {

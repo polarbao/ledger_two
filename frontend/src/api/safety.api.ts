@@ -1,4 +1,4 @@
-import { client } from './client';
+import { api } from './client';
 
 export interface BackupInfo {
   filename: string;
@@ -13,14 +13,14 @@ export interface RestoreResponse {
 
 export const safetyApi = {
   createBackup: async (): Promise<{ success: boolean; filename: string }> => {
-    return client.post('/api/admin/backup');
+    return api.post('/api/admin/backup');
   },
 
   getBackups: async (): Promise<BackupInfo[]> => {
-    return client.get('/api/admin/backups');
+    return api.get('/api/admin/backups');
   },
 
   restoreBackup: async (filename: string): Promise<RestoreResponse> => {
-    return client.post('/api/admin/restore', { filename });
+    return api.post('/api/admin/restore', { filename });
   },
 };

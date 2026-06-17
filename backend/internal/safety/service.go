@@ -52,6 +52,11 @@ func (s *Service) checkBackupDirWritable(dir string) error {
 
 // getUserLedgerID 获取唯一的账本 ID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
+	lc := middleware.GetLedgerContext(ctx)
+	if lc != nil {
+		return lc.LedgerID, nil
+	}
+
 	var id string
 
 	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)

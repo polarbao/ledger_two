@@ -108,96 +108,111 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 			r.With(middleware.RequireAuth(jwtSecret)).Get("/me", authHandler.HandleMe)
 		})
 
-		// 重点：加入受保护组，为了未来事务及设置等模块保留
+		// 重点：加入受保护组，验证登录身份
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireAuth(jwtSecret))
 			
+			// 1. 全局用户级操作（不需要具体账本上下文）
 			r.Route("/ledgers", func(r chi.Router) {
 				r.Post("/", ledgerHandler.CreateLedger)
 				r.Get("/", ledgerHandler.ListUserLedgers)
-				r.Get("/{id}/members", ledgerHandler.GetLedgerMembers)
-				r.Post("/{id}/members", ledgerHandler.AddMember)
-				r.Put("/{id}/members/{userId}", ledgerHandler.UpdateMemberRole)
-				r.Delete("/{id}/members/{userId}", ledgerHandler.RemoveMember)
 			})
 
-			r.Get("/categories", transactionHandler.HandleListCategories)
-			r.Get("/accounts", transactionHandler.HandleListAccounts)
-			r.Route("/transactions", func(r chi.Router) {
-				r.Get("/", transactionHandler.HandleList)
-				r.Post("/", transactionHandler.HandleCreate)
-				r.Post("/batch-tag", transactionHandler.HandleBatchTag)
-				r.Post("/import/parse", transactionHandler.HandleParseCSV)
-				r.Post("/import/analyze", transactionHandler.HandleAnalyzeImport)
-				r.Post("/import/commit", transactionHandler.HandleCommitImport)
-				r.Get("/{id}", transactionHandler.HandleGetByID)
-				r.Patch("/{id}", transactionHandler.HandleUpdate)
-				r.Delete("/{id}", transactionHandler.HandleDelete)
-			})
+			// 2. 账本级业务操作（校验 LedgerContext）
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireLedgerContext(dbConn))
 
-			r.Route("/import-rules", func(r chi.Router) {
-				r.Post("/", transactionHandler.HandleCreateImportRule)
-				r.Get("/", transactionHandler.HandleListImportRules)
-				r.Delete("/{id}", transactionHandler.HandleDeleteImportRule)
-			})
+				// 针对特定账本的成员管理（只允许 owner 操作）
+				r.Route("/ledgers/{id}/members", func(r chi.Router) {
+					r.Get("/", ledgerHandler.GetLedgerMembers)
+					r.With(middleware.RequireLedgerRole("owner")).Post("/", ledgerHandler.AddMember)
+					r.With(middleware.RequireLedgerRole("owner")).Put("/{userId}", ledgerHandler.UpdateMemberRole)
+					r.With(middleware.RequireLedgerRole("owner")).Delete("/{userId}", ledgerHandler.RemoveMember)
+				})
 
-			r.Route("/transaction-templates", func(r chi.Router) {
-				r.Post("/", transactionHandler.HandleCreateTemplate)
-				r.Get("/", transactionHandler.HandleListTemplates)
-				r.Get("/{id}", transactionHandler.HandleGetTemplate)
-				r.Put("/{id}", transactionHandler.HandleUpdateTemplate)
-				r.Delete("/{id}", transactionHandler.HandleDeleteTemplate)
-			})
+				// 分类与账户获取
+				r.Get("/categories", transactionHandler.HandleListCategories)
+				r.Get("/accounts", transactionHandler.HandleListAccounts)
 
-			r.Route("/recurring-rules", func(r chi.Router) {
-				r.Post("/", transactionHandler.HandleCreateRecurringRule)
-				r.Get("/", transactionHandler.HandleListRecurringRules)
-				r.Delete("/{id}", transactionHandler.HandleDeleteRecurringRule)
-			})
+				// 交易流水的读写（屏蔽 viewer 写入）
+				r.Route("/transactions", func(r chi.Router) {
+					r.Get("/", transactionHandler.HandleList)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/", transactionHandler.HandleCreate)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/batch-tag", transactionHandler.HandleBatchTag)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/import/parse", transactionHandler.HandleParseCSV)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/import/analyze", transactionHandler.HandleAnalyzeImport)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/import/commit", transactionHandler.HandleCommitImport)
+					r.Get("/{id}", transactionHandler.HandleGetByID)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Patch("/{id}", transactionHandler.HandleUpdate)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Delete("/{id}", transactionHandler.HandleDelete)
+				})
 
-			r.Route("/recurring-reminders", func(r chi.Router) {
-				r.Get("/", transactionHandler.HandleListRecurringReminders)
-				r.Post("/{id}/confirm", transactionHandler.HandleConfirmReminder)
-				r.Post("/{id}/ignore", transactionHandler.HandleIgnoreReminder)
-			})
+				r.Route("/import-rules", func(r chi.Router) {
+					r.Get("/", transactionHandler.HandleListImportRules)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/", transactionHandler.HandleCreateImportRule)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Delete("/{id}", transactionHandler.HandleDeleteImportRule)
+				})
 
-			r.Route("/shared-expenses", func(r chi.Router) {
-				r.Post("/", transactionHandler.HandleCreateSharedExpense)
-				r.Get("/{id}", transactionHandler.HandleGetSharedExpenseByID)
-				r.Patch("/{id}", transactionHandler.HandleUpdateSharedExpense)
-			})
+				r.Route("/transaction-templates", func(r chi.Router) {
+					r.Get("/", transactionHandler.HandleListTemplates)
+					r.Get("/{id}", transactionHandler.HandleGetTemplate)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/", transactionHandler.HandleCreateTemplate)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Put("/{id}", transactionHandler.HandleUpdateTemplate)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Delete("/{id}", transactionHandler.HandleDeleteTemplate)
+				})
 
-			r.Route("/settlements", func(r chi.Router) {
-				r.Get("/balance", settlementHandler.HandleGetBalance)
-				r.Get("/", settlementHandler.HandleList)
-				r.Post("/", settlementHandler.HandleCreate)
-			})
+				r.Route("/recurring-rules", func(r chi.Router) {
+					r.Get("/", transactionHandler.HandleListRecurringRules)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/", transactionHandler.HandleCreateRecurringRule)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Delete("/{id}", transactionHandler.HandleDeleteRecurringRule)
+				})
 
-			// 备份与数据安全管理
-			r.Route("/admin", func(r chi.Router) {
-				r.Post("/backup", safetyHandler.HandleManualBackup)
-				r.Post("/restore", safetyHandler.HandleRestoreBackup)
-				r.Get("/backups", safetyHandler.HandleGetBackups)
-				r.Get("/backups/{filename}", safetyHandler.HandleDownloadBackup)
-				r.Get("/backups/*", safetyHandler.HandleDownloadBackup)
-			})
+				r.Route("/recurring-reminders", func(r chi.Router) {
+					r.Get("/", transactionHandler.HandleListRecurringReminders)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/{id}/confirm", transactionHandler.HandleConfirmReminder)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/{id}/ignore", transactionHandler.HandleIgnoreReminder)
+				})
 
-			// 导出管理
-			r.Route("/export", func(r chi.Router) {
-				r.Get("/transactions.csv", safetyHandler.HandleExportCSV)
-				r.Get("/full.json", safetyHandler.HandleExportJSON)
-			})
+				r.Route("/shared-expenses", func(r chi.Router) {
+					r.Get("/{id}", transactionHandler.HandleGetSharedExpenseByID)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/", transactionHandler.HandleCreateSharedExpense)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Patch("/{id}", transactionHandler.HandleUpdateSharedExpense)
+				})
 
-			// 统计报表管理
-			r.Route("/reports", func(r chi.Router) {
-				r.Get("/monthly-summary", reportsHandler.HandleGetMonthlySummary)
-				r.Get("/category-summary", reportsHandler.HandleGetCategorySummary)
-				r.Get("/tag-summary", reportsHandler.HandleGetTagSummary)
-				r.Get("/member-summary", reportsHandler.HandleGetMemberSummary)
-			})
+				r.Route("/settlements", func(r chi.Router) {
+					r.Get("/balance", settlementHandler.HandleGetBalance)
+					r.Get("/", settlementHandler.HandleList)
+					r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/", settlementHandler.HandleCreate)
+				})
 
-			r.Post("/attachments", transactionHandler.HandleUploadAttachment)
-			r.Get("/dashboard", dashboardHandler.HandleGetDashboard)
+				// 备份与数据安全管理（只允许 owner 操作）
+				r.Route("/admin", func(r chi.Router) {
+					r.Use(middleware.RequireLedgerRole("owner"))
+					r.Post("/backup", safetyHandler.HandleManualBackup)
+					r.Post("/restore", safetyHandler.HandleRestoreBackup)
+					r.Get("/backups", safetyHandler.HandleGetBackups)
+					r.Get("/backups/{filename}", safetyHandler.HandleDownloadBackup)
+					r.Get("/backups/*", safetyHandler.HandleDownloadBackup)
+				})
+
+				// 导出管理（只允许 owner 操作）
+				r.Route("/export", func(r chi.Router) {
+					r.Use(middleware.RequireLedgerRole("owner"))
+					r.Get("/transactions.csv", safetyHandler.HandleExportCSV)
+					r.Get("/full.json", safetyHandler.HandleExportJSON)
+				})
+
+				// 统计报表管理
+				r.Route("/reports", func(r chi.Router) {
+					r.Get("/monthly-summary", reportsHandler.HandleGetMonthlySummary)
+					r.Get("/category-summary", reportsHandler.HandleGetCategorySummary)
+					r.Get("/tag-summary", reportsHandler.HandleGetTagSummary)
+					r.Get("/member-summary", reportsHandler.HandleGetMemberSummary)
+				})
+
+				r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/attachments", transactionHandler.HandleUploadAttachment)
+				r.Get("/dashboard", dashboardHandler.HandleGetDashboard)
+			})
 		})
 	})
 

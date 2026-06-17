@@ -327,6 +327,11 @@ func (s *Service) toDTO(m *Settlement) *SettlementResponse {
 
 // 辅助方法：查询唯一 LedgerID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
+	lc := middleware.GetLedgerContext(ctx)
+	if lc != nil {
+		return lc.LedgerID, nil
+	}
+
 	var id string
 	dbConn := s.repo.GetDB()
 
@@ -342,6 +347,16 @@ func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, e
 
 // 辅助方法：校验用户在账本中的角色
 func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string, allowedRoles ...string) error {
+	lc := middleware.GetLedgerContext(ctx)
+	if lc != nil && lc.LedgerID == ledgerID {
+		for _, r := range allowedRoles {
+			if lc.Role == r {
+				return nil
+			}
+		}
+		return appErrors.NewAppError(403, "FORBIDDEN", "当前角色无权执行此操作")
+	}
+
 	var role string
 	err := s.repo.GetDB().QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
 	if err != nil {

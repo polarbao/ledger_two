@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/crypto/bcrypt"
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
@@ -43,12 +44,13 @@ func TestTransactionFlow(t *testing.T) {
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(middleware.RequireLedgerContext(db))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Get("/", txHandler.HandleList)
-			r.Post("/", txHandler.HandleCreate)
+			r.With(middleware.RequireLedgerRole("owner", "editor")).Post("/", txHandler.HandleCreate)
 			r.Get("/{id}", txHandler.HandleGetByID)
-			r.Patch("/{id}", txHandler.HandleUpdate)
-			r.Delete("/{id}", txHandler.HandleDelete)
+			r.With(middleware.RequireLedgerRole("owner", "editor")).Patch("/{id}", txHandler.HandleUpdate)
+			r.With(middleware.RequireLedgerRole("owner", "editor")).Delete("/{id}", txHandler.HandleDelete)
 		})
 	})
 
@@ -252,6 +254,56 @@ func TestTransactionFlow(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("expected 1 audit log for delete action, got %d", count)
+	}
+
+	// 9. 测试角色隔离：viewer 角色用户禁止记账写入
+	var ledgerID string
+	err = db.QueryRow("SELECT id FROM ledgers LIMIT 1").Scan(&ledgerID)
+	if err != nil {
+		t.Fatalf("query ledger failed: %v", err)
+	}
+
+	hashC, err := bcrypt.GenerateFromPassword([]byte("pass789"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("bcrypt hash error: %v", err)
+	}
+	_, err = db.Exec(`
+		INSERT INTO users (id, username, display_name, password_hash, role, created_at, updated_at)
+		VALUES ('userC', 'userC', 'User C', ?, 'user', '2026-06-17', '2026-06-17')
+	`, string(hashC))
+	if err != nil {
+		t.Fatalf("insert userC failed: %v", err)
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
+		VALUES (?, 'userC', 'viewer', '2026-06-17', '2026-06-17')
+	`, ledgerID)
+	if err != nil {
+		t.Fatalf("insert ledger_members userC failed: %v", err)
+	}
+
+	cookieC := getLoginCookie(t, r, "userC", "pass789")
+
+	reqPayloadC := map[string]interface{}{
+		"type":          "expense",
+		"title":         "Viewer记账尝试",
+		"amount_cents":  int64(100),
+		"currency":      "CNY",
+		"occurred_at":   time.Now().Format(time.RFC3339),
+		"payer_user_id": "userC",
+		"visibility":    "shared",
+	}
+	bodyC, _ := json.Marshal(reqPayloadC)
+	reqCreateC, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyC))
+	reqCreateC.AddCookie(cookieC)
+	// 在 Header 中明确账本
+	reqCreateC.Header.Set("X-Ledger-Id", ledgerID)
+	rrCreateC := httptest.NewRecorder()
+	r.ServeHTTP(rrCreateC, reqCreateC)
+
+	if rrCreateC.Code != http.StatusForbidden {
+		t.Errorf("expected 403 Forbidden for viewer write attempt, got %d. Body: %s", rrCreateC.Code, rrCreateC.Body.String())
 	}
 }
 

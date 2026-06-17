@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -13,6 +12,11 @@ import (
 func main() {
 	cfg := config.Load()
 
+	// 验证配置安全性与可靠性
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("配置校验未通过，服务拒绝启动: %v", err)
+	}
+
 	// 正式接通真实的 SQLite
 	database, err := db.Init(cfg.DSN)
 	if err != nil {
@@ -23,8 +27,8 @@ func main() {
 	// 将 DB 连接和配置实例全部挂载进入核心容器中
 	r := router.New(database, cfg)
 
-	log.Printf("Server starting on port %s", cfg.Port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", cfg.Port), r); err != nil {
+	log.Printf("Server starting on %s", cfg.Port)
+	if err := http.ListenAndServe(cfg.Port, r); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }

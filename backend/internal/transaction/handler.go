@@ -13,7 +13,8 @@ import (
 
 // Handler 交易模块 HTTP 端点控制器
 type Handler struct {
-	service *Service
+	service   *Service
+	UploadDir string
 }
 
 // NewHandler 实例化 Handler

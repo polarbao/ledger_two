@@ -44,10 +44,16 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	authRepo := repo.NewAuthRepo(dbConn)
 	authSvc := service.NewAuthService(authRepo, jwtSecret)
 	authHandler := handler.NewAuthHandler(authSvc)
+	if cfg != nil {
+		authHandler.SetConfig(cfg)
+	}
 
 	transactionRepo := transaction.NewRepository(dbConn)
 	transactionSvc := transaction.NewService(transactionRepo)
 	transactionHandler := transaction.NewHandler(transactionSvc)
+	if cfg != nil {
+		transactionHandler.UploadDir = cfg.UploadDir
+	}
 
 	settlementRepo := settlement.NewRepository(dbConn)
 	settlementSvc := settlement.NewService(settlementRepo)
@@ -196,7 +202,11 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	})
 
 	// 托管上传的物理文件附件
-	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+	uploadDir := "uploads"
+	if cfg != nil && cfg.UploadDir != "" {
+		uploadDir = cfg.UploadDir
+	}
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadDir))))
 
 	// 生产环境下静态托管前端 SPA 页面，任何非 API 请求若找不到物理文件则 Fallback 重定向回 index.html
 	r.NotFound(spaHandler("./web/dist"))

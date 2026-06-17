@@ -15,7 +15,8 @@ services:
       DB_DSN: /app/data/ledger.db
       BACKUP_DIR: /app/backups
       UPLOAD_DIR: /app/uploads
-      SESSION_SECRET: "replace-with-a-long-random-string"
+      JWT_SECRET: "replace-with-a-long-random-string-for-jwt"
+      COOKIE_SECURE: "false" # HTTPS反代理时请设置为 true，HTTP局域网访问设为 false
       TZ: Asia/Shanghai
     volumes:
       - ./data:/app/data

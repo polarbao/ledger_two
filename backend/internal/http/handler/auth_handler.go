@@ -3,9 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 
+	"ledger_two/internal/config"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/service"
@@ -13,6 +14,11 @@ import (
 
 type AuthHandler struct {
 	svc *service.AuthService
+	cfg *config.Config
+}
+
+func (h *AuthHandler) SetConfig(cfg *config.Config) {
+	h.cfg = cfg
 }
 
 func NewAuthHandler(svc *service.AuthService) *AuthHandler {
@@ -44,8 +50,8 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Now().Add(24 * 7 * time.Hour),
 		HttpOnly: true,
-		Secure:   isCookieSecure(r),
-		SameSite: http.SameSiteLaxMode,
+		Secure:   h.isCookieSecure(r),
+		SameSite: h.getCookieSameSite(),
 	})
 
 	// 登录成功：Cookie 已写入，返回成功响应
@@ -62,8 +68,8 @@ func (h *AuthHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   isCookieSecure(r),
-		SameSite: http.SameSiteLaxMode,
+		Secure:   h.isCookieSecure(r),
+		SameSite: h.getCookieSameSite(),
 	})
 
 	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
@@ -86,11 +92,14 @@ func (h *AuthHandler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, me)
 }
 
-func isCookieSecure(r *http.Request) bool {
-	secure := os.Getenv("APP_ENV") == "production"
-	if os.Getenv("COOKIE_SECURE") == "false" {
+func (h *AuthHandler) isCookieSecure(r *http.Request) bool {
+	if h.cfg == nil {
 		return false
-	} else if os.Getenv("COOKIE_SECURE") == "true" {
+	}
+	secure := h.cfg.AppEnv == "production"
+	if h.cfg.CookieSecure == "false" {
+		return false
+	} else if h.cfg.CookieSecure == "true" {
 		return true
 	}
 	// 如果在生产环境下使用非加密的 HTTP（例如内网 NAS 直接访问），自动将 Secure 降级为 false 允许保存 Cookie
@@ -98,4 +107,20 @@ func isCookieSecure(r *http.Request) bool {
 		return false
 	}
 	return secure
+}
+
+func (h *AuthHandler) getCookieSameSite() http.SameSite {
+	if h.cfg == nil {
+		return http.SameSiteLaxMode
+	}
+	switch strings.ToLower(h.cfg.CookieSameSite) {
+	case "lax":
+		return http.SameSiteLaxMode
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteLaxMode
+	}
 }

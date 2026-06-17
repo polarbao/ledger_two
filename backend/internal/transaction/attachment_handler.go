@@ -59,7 +59,10 @@ func (h *Handler) HandleUploadAttachment(w http.ResponseWriter, r *http.Request)
 
 	// 保存物理文件
 	newFilename := uuid.NewString() + ext
-	uploadDir := "./uploads"
+	uploadDir := "uploads"
+	if h.UploadDir != "" {
+		uploadDir = h.UploadDir
+	}
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "创建上传目录失败")
 		return

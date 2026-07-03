@@ -11,6 +11,7 @@ import (
 
 	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
+	ledgerctx "ledger_two/internal/ledger"
 )
 
 // Service 结算模块业务逻辑服务
@@ -327,6 +328,10 @@ func (s *Service) toDTO(m *Settlement) *SettlementResponse {
 
 // 辅助方法：查询唯一 LedgerID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
+	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
+		return lc.LedgerID, nil
+	}
+
 	var id string
 	dbConn := s.repo.GetDB()
 
@@ -347,7 +352,7 @@ func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string,
 	if err != nil {
 		return appErrors.NewAppError(403, "FORBIDDEN", "您不是该账本的成员")
 	}
-	
+
 	for _, r := range allowedRoles {
 		if role == r {
 			return nil

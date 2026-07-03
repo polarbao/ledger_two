@@ -81,8 +81,13 @@
 |---|---|---:|---|---|---|---|
 | GET | `/api/categories` | yes | optional | transitional | `transaction.HandleListCategories` | 列出当前账本分类。 |
 | GET | `/api/accounts` | yes | optional | transitional | `transaction.HandleListAccounts` | 列出当前账本支付账户。 |
+| GET | `/api/metadata/{kind}/` | yes | optional | transitional | `metadata.List` | 元数据列表，kind 为 categories/tags/accounts，支持 include_archived。 |
+| POST | `/api/metadata/{kind}/` | yes | optional | transitional | `metadata.Create` | 创建分类、标签或账户，仅 owner。 |
+| PATCH | `/api/metadata/{kind}/{id}` | yes | optional | transitional | `metadata.Update` | 更新分类、标签或账户，仅 owner。 |
+| POST | `/api/metadata/{kind}/{id}/archive` | yes | optional | transitional | `metadata.Archive` | 归档分类、标签或账户，仅 owner。 |
+| POST | `/api/metadata/{kind}/{id}/restore` | yes | optional | transitional | `metadata.Restore` | 恢复归档分类、标签或账户，仅 owner。 |
 
-说明：分类、标签、账户管理 API 尚未冻结，归入 Task35。
+说明：旧 `/api/categories`、`/api/accounts` 是选择器兼容接口；新增 `/api/metadata/{kind}` 是 Task35 管理基础接口。
 
 ## 6. Transactions
 

@@ -214,6 +214,110 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Success"
+  /metadata/{kind}/:
+    parameters:
+      - $ref: "#/components/parameters/MetadataKindPath"
+      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+    get:
+      tags: [metadata]
+      summary: List metadata items
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: include_archived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [metadata]
+      summary: Create metadata item
+      description: Owner only. kind supports categories, tags and accounts.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataUpsertRequest"
+      responses:
+        "201":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /metadata/{kind}/{id}:
+    parameters:
+      - $ref: "#/components/parameters/MetadataKindPath"
+      - $ref: "#/components/parameters/GenericIdPath"
+      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+    patch:
+      tags: [metadata]
+      summary: Update metadata item
+      description: Owner only.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataUpsertRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /metadata/{kind}/{id}/archive:
+    post:
+      tags: [metadata]
+      summary: Archive metadata item
+      description: Owner only. Archived items are hidden from create/edit selectors but remain available for historical records.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MetadataKindPath"
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /metadata/{kind}/{id}/restore:
+    post:
+      tags: [metadata]
+      summary: Restore archived metadata item
+      description: Owner only.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MetadataKindPath"
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /transactions/:
     get:
@@ -757,6 +861,13 @@ components:
       required: true
       schema:
         type: string
+    MetadataKindPath:
+      name: kind
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [categories, tags, accounts]
     MonthQuery:
       name: month
       in: query
@@ -999,4 +1110,16 @@ components:
         note:
           type: string
           nullable: true
-
+    MetadataUpsertRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          description: Required for categories and accounts. Category type is expense or income.
+        icon:
+          type: string
+        color:
+          type: string

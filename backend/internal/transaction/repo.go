@@ -434,19 +434,25 @@ func (r *Repository) associateTags(ctx context.Context, executor dbExecutor, tra
 
 		// 查询标签是否存在 (强制复用事务 executor 防止 SQLite 内存数据库多连接池分流报错)
 		var tagID string
-		err := executor.QueryRowContext(ctx, "SELECT id FROM tags WHERE ledger_id = ? AND name = ?", ledgerID, name).Scan(&tagID)
+		var isArchived int
+		err := executor.QueryRowContext(ctx, "SELECT id, is_archived FROM tags WHERE ledger_id = ? AND name = ?", ledgerID, name).Scan(&tagID, &isArchived)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				// 插入新标签
 				tagID = uuid.NewString()
 				_, err = executor.ExecContext(ctx, `
-					INSERT INTO tags (id, ledger_id, name, created_at, updated_at)
-					VALUES (?, ?, ?, ?, ?)
+					INSERT INTO tags (id, ledger_id, name, is_archived, created_at, updated_at)
+					VALUES (?, ?, ?, 0, ?, ?)
 				`, tagID, ledgerID, name, now, now)
 				if err != nil {
 					return err
 				}
 			} else {
+				return err
+			}
+		}
+		if isArchived == 1 {
+			if _, err := executor.ExecContext(ctx, "UPDATE tags SET is_archived = 0, updated_at = ? WHERE id = ? AND ledger_id = ?", now, tagID, ledgerID); err != nil {
 				return err
 			}
 		}
@@ -566,7 +572,7 @@ type Category struct {
 // @return []Category 分类数据列表
 // @return error 错误信息
 func (r *Repository) ListCategories(ctx context.Context, ledgerID string) ([]Category, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id, name FROM categories WHERE ledger_id = ? ORDER BY sort_order ASC", ledgerID)
+	rows, err := r.db.QueryContext(ctx, "SELECT id, name FROM categories WHERE ledger_id = ? AND is_archived = 0 ORDER BY sort_order ASC", ledgerID)
 	if err != nil {
 		return nil, err
 	}
@@ -1014,5 +1020,3 @@ func (r *Repository) DeleteImportRule(ctx context.Context, id string, ledgerID s
 	}
 	return nil
 }
-
-

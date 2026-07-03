@@ -17,6 +17,7 @@ import (
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/ledger"
+	"ledger_two/internal/metadata"
 	"ledger_two/internal/reports"
 	"ledger_two/internal/safety"
 	"ledger_two/internal/service"
@@ -60,6 +61,10 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	ledgerRepo := ledger.NewRepository(dbConn)
 	ledgerSvc := ledger.NewService(ledgerRepo)
 	ledgerHandler := ledger.NewHandler(ledgerSvc)
+
+	metadataRepo := metadata.NewRepository(dbConn)
+	metadataSvc := metadata.NewService(metadataRepo)
+	metadataHandler := metadata.NewHandler(metadataSvc)
 
 	safetySvc := safety.NewService(dbConn, cfg)
 	safetyHandler := safety.NewHandler(safetySvc)
@@ -120,6 +125,13 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 
 				r.Get("/categories", transactionHandler.HandleListCategories)
 				r.Get("/accounts", transactionHandler.HandleListAccounts)
+				r.Route("/metadata/{kind}", func(r chi.Router) {
+					r.Get("/", metadataHandler.List)
+					r.Post("/", metadataHandler.Create)
+					r.Patch("/{id}", metadataHandler.Update)
+					r.Post("/{id}/archive", metadataHandler.Archive)
+					r.Post("/{id}/restore", metadataHandler.Restore)
+				})
 				r.Route("/transactions", func(r chi.Router) {
 					r.Get("/", transactionHandler.HandleList)
 					r.Post("/", transactionHandler.HandleCreate)

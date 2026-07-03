@@ -236,7 +236,28 @@ ID：
 3. viewer 写操作返回 `FORBIDDEN`。
 4. 前端 query key 必须包含 ledgerId。
 
-## 9. 新 API 准入
+## 9. Metadata 管理规则
+
+Task35 后端基础接口：
+
+```text
+GET   /api/metadata/{kind}/
+POST  /api/metadata/{kind}/
+PATCH /api/metadata/{kind}/{id}
+POST  /api/metadata/{kind}/{id}/archive
+POST  /api/metadata/{kind}/{id}/restore
+```
+
+规则：
+
+1. `kind` 仅允许 `categories`、`tags`、`accounts`。
+2. 只有 owner 可以新增、编辑、归档、恢复。
+3. viewer 和 editor 默认不可管理元数据。
+4. 归档不物理删除，历史账单仍可显示。
+5. 新增账单选择器只返回未归档分类和账户。
+6. 分类同账本同 type 下名称唯一；标签和账户同账本名称唯一。
+
+## 10. 新 API 准入
 
 新增或修改 API 必须同步：
 
@@ -245,4 +266,3 @@ ID：
 3. 若新增错误码，更新本文件和 `docs/tech/10-error-codes.md`。
 4. 若新增列表接口，明确分页、筛选和排序。
 5. 若新增写接口，明确角色权限和审计要求。
-

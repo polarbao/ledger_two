@@ -622,6 +622,15 @@ func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, e
 
 // 辅助方法：校验用户在账本中的角色
 func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string, allowedRoles ...string) error {
+	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID && lc.LedgerID == ledgerID {
+		for _, r := range allowedRoles {
+			if lc.Role == ledgerctx.Role(r) {
+				return nil
+			}
+		}
+		return appErrors.NewAppError(403, "FORBIDDEN", "当前角色无权执行此操作")
+	}
+
 	var role string
 	err := s.repo.GetDB().QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
 	if err != nil {

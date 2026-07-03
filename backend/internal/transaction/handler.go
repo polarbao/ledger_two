@@ -31,13 +31,13 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	var req CreateTransactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		writeBadRequest(w, "解析请求参数失败")
 		return
 	}
 
@@ -57,13 +57,13 @@ func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleGetByID(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "账单 ID 不能为空")
+		writeValidationError(w, "账单 ID 不能为空")
 		return
 	}
 
@@ -83,19 +83,19 @@ func (h *Handler) HandleGetByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "账单 ID 不能为空")
+		writeValidationError(w, "账单 ID 不能为空")
 		return
 	}
 
 	var req UpdateTransactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		writeBadRequest(w, "解析请求参数失败")
 		return
 	}
 
@@ -115,13 +115,13 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "账单 ID 不能为空")
+		writeValidationError(w, "账单 ID 不能为空")
 		return
 	}
 
@@ -141,7 +141,7 @@ func (h *Handler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
@@ -193,13 +193,13 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleCreateSharedExpense(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	var req CreateSharedExpenseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		writeBadRequest(w, "解析请求参数失败")
 		return
 	}
 
@@ -237,7 +237,7 @@ func (h *Handler) HandleUpdateSharedExpense(w http.ResponseWriter, r *http.Reque
 func (h *Handler) HandleListCategories(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
@@ -254,13 +254,13 @@ func (h *Handler) HandleListCategories(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleCreateTemplate(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	var req CreateTemplateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		writeBadRequest(w, "解析请求参数失败")
 		return
 	}
 
@@ -277,7 +277,7 @@ func (h *Handler) HandleCreateTemplate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleListTemplates(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
@@ -294,13 +294,13 @@ func (h *Handler) HandleListTemplates(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleGetTemplate(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "模板 ID 不能为空")
+		writeValidationError(w, "模板 ID 不能为空")
 		return
 	}
 
@@ -317,19 +317,19 @@ func (h *Handler) HandleGetTemplate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleUpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "模板 ID 不能为空")
+		writeValidationError(w, "模板 ID 不能为空")
 		return
 	}
 
 	var req CreateTemplateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		writeBadRequest(w, "解析请求参数失败")
 		return
 	}
 
@@ -346,13 +346,13 @@ func (h *Handler) HandleUpdateTemplate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleDeleteTemplate(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "模板 ID 不能为空")
+		writeValidationError(w, "模板 ID 不能为空")
 		return
 	}
 
@@ -369,13 +369,13 @@ func (h *Handler) HandleDeleteTemplate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleCreateRecurringRule(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	var req CreateRecurringRuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		writeBadRequest(w, "解析请求参数失败")
 		return
 	}
 
@@ -392,7 +392,7 @@ func (h *Handler) HandleCreateRecurringRule(w http.ResponseWriter, r *http.Reque
 func (h *Handler) HandleListRecurringRules(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
@@ -409,13 +409,13 @@ func (h *Handler) HandleListRecurringRules(w http.ResponseWriter, r *http.Reques
 func (h *Handler) HandleDeleteRecurringRule(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "规则 ID 不能为空")
+		writeValidationError(w, "规则 ID 不能为空")
 		return
 	}
 
@@ -432,7 +432,7 @@ func (h *Handler) HandleDeleteRecurringRule(w http.ResponseWriter, r *http.Reque
 func (h *Handler) HandleListRecurringReminders(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
@@ -449,13 +449,13 @@ func (h *Handler) HandleListRecurringReminders(w http.ResponseWriter, r *http.Re
 func (h *Handler) HandleConfirmReminder(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "提醒 ID 不能为空")
+		writeValidationError(w, "提醒 ID 不能为空")
 		return
 	}
 
@@ -472,13 +472,13 @@ func (h *Handler) HandleConfirmReminder(w http.ResponseWriter, r *http.Request) 
 func (h *Handler) HandleIgnoreReminder(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "提醒 ID 不能为空")
+		writeValidationError(w, "提醒 ID 不能为空")
 		return
 	}
 
@@ -495,13 +495,13 @@ func (h *Handler) HandleIgnoreReminder(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleBatchTag(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		writeUnauthorized(w)
 		return
 	}
 
 	var req BatchTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		writeBadRequest(w, "解析请求参数失败")
 		return
 	}
 
@@ -513,4 +513,3 @@ func (h *Handler) HandleBatchTag(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
 }
-

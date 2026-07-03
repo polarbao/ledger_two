@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 
 	appErrors "ledger_two/internal/errors"
 )
@@ -30,6 +31,26 @@ func (s *Service) CreateLedger(ctx context.Context, userID string, req CreateLed
 
 func (s *Service) ListUserLedgers(ctx context.Context, userID string) ([]LedgerWithRole, error) {
 	return s.repo.ListUserLedgers(ctx, userID)
+}
+
+func (s *Service) ResolveLedgerContext(ctx context.Context, currentUserID string, ledgerID string, isExplicit bool) (LedgerContext, error) {
+	lc, err := ResolveLedgerContext(ctx, currentUserID, ledgerID, isExplicit, s.repo.GetMemberRole)
+	if err == nil {
+		return lc, nil
+	}
+	if errors.Is(err, ErrLedgerUserRequired) {
+		return LedgerContext{}, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统")
+	}
+	if errors.Is(err, ErrLedgerIDRequired) {
+		return LedgerContext{}, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "缺少账本 ID")
+	}
+	if errors.Is(err, ErrLedgerRoleInvalid) {
+		return LedgerContext{}, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "账本成员角色无效")
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return LedgerContext{}, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "您不是该账本的成员")
+	}
+	return LedgerContext{}, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "解析账本成员身份失败")
 }
 
 func (s *Service) GetLedgerMembers(ctx context.Context, currentUserID, ledgerID string) ([]MemberDetail, error) {

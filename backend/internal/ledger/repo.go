@@ -139,16 +139,26 @@ func (r *Repository) RemoveMember(ctx context.Context, ledgerID, userID string) 
 	return err
 }
 
-// CheckRole 校验角色
-func (r *Repository) CheckRole(ctx context.Context, ledgerID, userID string, allowedRoles ...string) error {
+// GetMemberRole 查询用户在指定账本中的角色
+func (r *Repository) GetMemberRole(ctx context.Context, ledgerID, userID string) (Role, error) {
 	var role string
 	err := r.db.QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
 	if err != nil {
+		return "", err
+	}
+
+	return Role(role), nil
+}
+
+// CheckRole 校验角色
+func (r *Repository) CheckRole(ctx context.Context, ledgerID, userID string, allowedRoles ...string) error {
+	role, err := r.GetMemberRole(ctx, ledgerID, userID)
+	if err != nil {
 		return sql.ErrNoRows
 	}
-	
+
 	for _, allowed := range allowedRoles {
-		if role == allowed {
+		if role == Role(allowed) {
 			return nil
 		}
 	}

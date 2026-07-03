@@ -1,0 +1,41 @@
+# Human-readable project metadata. This is not runtime config.
+
+[project]
+name = "LedgerTwo"
+repository = "ledger_two"
+main_app_path = "backend; frontend"
+current_branch_or_ref = "main"
+formal_docs = "docs"
+codex_tasks = "docs/codex_tasks"
+archive_docs = "docs/project_analysis/extracted_archives and ai_workspace"
+current_task_file = "docs/codex_tasks/05-foundation-task-plan.md"
+language = "zh-CN"
+role = "senior full-stack architect with product and data-safety judgment"
+
+[workspace]
+primary_paths = [
+  "AGENTS.md",
+  ".agents/docs",
+  ".agents/skills",
+  ".agents/docs/code-standards.md",
+  "backend; frontend",
+  "docs",
+  "docs/codex_tasks",
+  "docs/codex_tasks/05-foundation-task-plan.md",
+]
+historical_reference_paths = [
+  "docs/project_analysis/extracted_archives and ai_workspace",
+]
+
+[verification]
+build = "cd backend && go build ./cmd/server; cd frontend && pnpm build"
+test = "./run_tests.sh"
+
+[risk]
+pause_before = [
+  "destructive filesystem operations",
+  "dependency upgrades or new third-party libraries",
+  "deleting files",
+  "rewriting git history",
+  "production data changes",
+]

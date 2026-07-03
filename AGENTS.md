@@ -1,23 +1,37 @@
 # LedgerTwo AI Coding Rules
 
-This repository is a two-person shared ledger web app.
+This repository is LedgerTwo, a private shared ledger web app for two-person/family expense tracking, splitting, settlement, import/export, backup, and NAS deployment.
 
 ## Read First
 
 Before coding, AI agents must read:
 
 1. `docs/00_DOCUMENT_INDEX.md`
-2. `docs/13_DEMO_SCOPE_LOCK.md`
-3. The task-specific document, usually one of:
+2. `.agents/docs/README.md`
+3. Current task entry when present:
+   - `docs/codex_tasks/README.md`
+   - `docs/codex_tasks/05-foundation-task-plan.md`
+   - `docs/codex_tasks/08-product-roadmap-dev-plan.md`
+   - `docs/codex_tasks/09-task41-49-detailed-plan.md`
+4. The task-specific document, usually one of:
    - `docs/14_BACKEND_MODULE_SPEC.md`
    - `docs/15_FRONTEND_MODULE_SPEC.md`
    - `docs/16_TEST_ACCEPTANCE_SPEC.md`
    - `docs/17_AI_CODING_TASKS.md`
+   - `docs/18_POST_DEMO_AI_CODING_TASKS.md`
+   - `docs/prd/*`
+   - `docs/tech/*`
+   - `docs/ui/*`
+
+For current work, treat `docs/codex_tasks/`, `docs/prd/20-26`, `docs/tech/18-short-mid-architecture-slices.md`, `docs/ui/14-v1.1-v1.2-module-flows.md`, and the Task30 foundation documents as newer than the early Demo-only documents. Use `docs/13_DEMO_SCOPE_LOCK.md` only as historical scope control unless the user explicitly asks to work on the original Demo baseline.
 
 ## Product Scope
 
-Demo version supports exactly one shared ledger and exactly two users.
-Do not implement multi-ledger, multi-tenant, bank sync, OCR, budget, or mobile app unless explicitly requested.
+Task01-Task30 are considered complete and the project is in "Foundation before v1.1" hardening. Do not implement unapproved v1.1 business features unless explicitly requested.
+
+The original Demo version supported exactly one shared ledger and exactly two users. Current code and docs include multi-ledger/membership foundation work; preserve existing behavior and do not treat early Demo-only documents as permission to remove newer functionality.
+
+Do not implement bank sync, OCR, enterprise multi-tenant features, or native mobile app unless explicitly requested.
 
 ## Backend Rules
 

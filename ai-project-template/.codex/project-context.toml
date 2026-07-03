@@ -1,0 +1,41 @@
+# Human-readable project metadata. This is not runtime config.
+
+[project]
+name = "{{PROJECT_NAME}}"
+repository = "{{REPOSITORY_NAME}}"
+main_app_path = "{{MAIN_APP_PATH}}"
+current_branch_or_ref = "{{CURRENT_BRANCH_OR_REF}}"
+formal_docs = "{{FORMAL_DOCS_PATH}}"
+codex_tasks = "{{CODEX_TASK_PATH}}"
+archive_docs = "{{ARCHIVE_DOCS_PATH}}"
+current_task_file = "{{CURRENT_TASK_FILE}}"
+language = "{{DEFAULT_LANGUAGE}}"
+role = "{{ENGINEERING_ROLE}}"
+
+[workspace]
+primary_paths = [
+  "AGENTS.md",
+  ".agents/docs",
+  ".agents/skills",
+  ".agents/docs/code-standards.md",
+  "{{MAIN_APP_PATH}}",
+  "{{FORMAL_DOCS_PATH}}",
+  "{{CODEX_TASK_PATH}}",
+  "{{CURRENT_TASK_FILE}}",
+]
+historical_reference_paths = [
+  "{{ARCHIVE_DOCS_PATH}}",
+]
+
+[verification]
+build = "{{BUILD_COMMAND}}"
+test = "{{TEST_COMMAND}}"
+
+[risk]
+pause_before = [
+  "destructive filesystem operations",
+  "dependency upgrades or new third-party libraries",
+  "deleting files",
+  "rewriting git history",
+  "production data changes",
+]

@@ -7,6 +7,7 @@ import (
 
 	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
+	ledgerctx "ledger_two/internal/ledger"
 	"ledger_two/internal/settlement"
 	"ledger_two/internal/transaction"
 )
@@ -222,6 +223,10 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 
 // 辅助方法：查询唯一 LedgerID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
+	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
+		return lc.LedgerID, nil
+	}
+
 	var id string
 
 	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)

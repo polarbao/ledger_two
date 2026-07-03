@@ -19,7 +19,8 @@
 ```text
 APP_ENV=production
 HTTP_ADDR=:8080
-APP_BASE_URL=http://NAS_IP:8088
+APP_PORT=38088
+APP_BASE_URL=http://NAS_IP:38088
 DB_DSN=/app/data/ledger.db
 BACKUP_DIR=/app/backups
 UPLOAD_DIR=/app/uploads
@@ -36,6 +37,7 @@ TZ=Asia/Shanghai
 |---|---|---|---|
 | APP_ENV | 是 | development | production 时启用严格校验 |
 | HTTP_ADDR | 是 | :8080 | 后端监听地址 |
+| APP_PORT | Docker 部署需要 | 38088 | 宿主机暴露端口，仅供 Docker Compose 端口映射使用 |
 | APP_BASE_URL | 建议 | 空 | 用于生成链接、诊断和未来通知 |
 | DB_DSN | 是 | data/ledger.db | SQLite 文件路径 |
 | BACKUP_DIR | 是 | data/backups | 备份目录 |
@@ -71,7 +73,7 @@ APP_ENV=production 时：
 
 ```text
 APP_ENV=production
-APP_BASE_URL=http://NAS_IP:8088
+APP_BASE_URL=http://NAS_IP:38088
 COOKIE_SECURE=false
 COOKIE_SAMESITE=Lax
 ```
@@ -125,7 +127,7 @@ services:
     image: ledger-two:latest
     restart: unless-stopped
     ports:
-      - "8088:8080"
+      - "38088:8080"
     env_file:
       - .env
     volumes:

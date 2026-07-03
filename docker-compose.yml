@@ -15,7 +15,10 @@ services:
       DB_DSN: /app/data/ledger.db
       BACKUP_DIR: /app/backups
       UPLOAD_DIR: /app/uploads
-      SESSION_SECRET: "replace-with-a-long-random-string"
+      LOG_DIR: /app/logs
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      COOKIE_SAMESITE: "${COOKIE_SAMESITE:-Lax}"
       TZ: Asia/Shanghai
     volumes:
       - ./data:/app/data

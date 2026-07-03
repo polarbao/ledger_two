@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 )
@@ -35,13 +36,13 @@ func (h *Handler) getQueryMonth(r *http.Request) (string, error) {
 func (h *Handler) HandleGetMonthlySummary(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
 	month, err := h.getQueryMonth(r)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "查询月份格式错误，应为 YYYY-MM")
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "查询月份格式错误，应为 YYYY-MM"))
 		return
 	}
 
@@ -58,13 +59,13 @@ func (h *Handler) HandleGetMonthlySummary(w http.ResponseWriter, r *http.Request
 func (h *Handler) HandleGetCategorySummary(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
 	month, err := h.getQueryMonth(r)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "查询月份格式错误，应为 YYYY-MM")
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "查询月份格式错误，应为 YYYY-MM"))
 		return
 	}
 
@@ -81,13 +82,13 @@ func (h *Handler) HandleGetCategorySummary(w http.ResponseWriter, r *http.Reques
 func (h *Handler) HandleGetTagSummary(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
 	month, err := h.getQueryMonth(r)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "查询月份格式错误，应为 YYYY-MM")
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "查询月份格式错误，应为 YYYY-MM"))
 		return
 	}
 
@@ -104,13 +105,13 @@ func (h *Handler) HandleGetTagSummary(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleGetMemberSummary(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
 	month, err := h.getQueryMonth(r)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "查询月份格式错误，应为 YYYY-MM")
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "查询月份格式错误，应为 YYYY-MM"))
 		return
 	}
 

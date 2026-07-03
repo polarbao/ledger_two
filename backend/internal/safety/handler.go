@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 )
@@ -28,7 +29,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) HandleManualBackup(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
@@ -48,7 +49,7 @@ func (h *Handler) HandleManualBackup(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
@@ -56,11 +57,11 @@ func (h *Handler) HandleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 		Filename string `json:"filename"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "无效的请求格式")
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "无效的请求格式"))
 		return
 	}
 	if req.Filename == "" {
-		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "备份文件名不能为空")
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "备份文件名不能为空"))
 		return
 	}
 
@@ -80,7 +81,7 @@ func (h *Handler) HandleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleGetBackups(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
@@ -97,7 +98,7 @@ func (h *Handler) HandleGetBackups(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
@@ -111,7 +112,7 @@ func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 	filename = strings.Trim(filename, "/")
 
 	if filename == "" {
-		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "备份文件名不能为空")
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "备份文件名不能为空"))
 		return
 	}
 
@@ -120,13 +121,13 @@ func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 
 	// 安全加固 1: 路径穿越攻击防御
 	if !strings.HasPrefix(targetPath, backupDir) {
-		response.Error(w, http.StatusForbidden, "FORBIDDEN", "无权访问该路径下的物理文件")
+		response.WriteError(w, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "无权访问该路径下的物理文件"))
 		return
 	}
 
 	// 安全加固 2: 仅允许下载 .db 文件
 	if !strings.HasSuffix(strings.ToLower(targetPath), ".db") {
-		response.Error(w, http.StatusForbidden, "FORBIDDEN", "仅允许下载数据库备份文件")
+		response.WriteError(w, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅允许下载数据库备份文件"))
 		return
 	}
 
@@ -134,16 +135,16 @@ func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 	fi, err := os.Stat(targetPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			response.Error(w, http.StatusNotFound, "NOT_FOUND", "备份文件不存在")
+			response.WriteError(w, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeBackupNotFound, "备份文件不存在"))
 			return
 		}
-		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "读取备份文件元数据失败")
+		response.WriteError(w, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取备份文件元数据失败"))
 		return
 	}
 
 	file, err := os.Open(targetPath)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "打开备份文件失败")
+		response.WriteError(w, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "打开备份文件失败"))
 		return
 	}
 	defer file.Close()
@@ -161,7 +162,7 @@ func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleExportCSV(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
@@ -183,7 +184,7 @@ func (h *Handler) HandleExportCSV(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleExportJSON(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/response"
 )
 
@@ -16,7 +17,7 @@ const HeaderLedgerIDKey contextKey = "header_ledger_id"
 
 // authError 向客户端返回符合统一 {success, error} 规范的 401 响应
 func authError(w http.ResponseWriter) {
-	response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+	response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 }
 
 // RequireAuth 是拦截器，从 HttpOnly Cookie 获取鉴权标识并验证 Token

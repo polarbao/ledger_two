@@ -3,6 +3,7 @@ package dashboard
 import (
 	"net/http"
 
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 )
@@ -28,7 +29,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 

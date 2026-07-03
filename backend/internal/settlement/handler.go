@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 )
@@ -29,7 +30,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) HandleGetBalance(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
@@ -49,13 +50,13 @@ func (h *Handler) HandleGetBalance(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
 	var req CreateSettlementRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "解析请求参数失败")
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "解析请求参数失败"))
 		return
 	}
 
@@ -75,7 +76,7 @@ func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "请先登录系统")
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 

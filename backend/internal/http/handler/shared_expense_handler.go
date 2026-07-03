@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/service"
@@ -20,25 +21,25 @@ func NewSharedExpenseHandler(svc *service.SharedExpenseService) *SharedExpenseHa
 func (h *SharedExpenseHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
 
 	var req service.CreateSharedExpenseReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid payload", http.StatusBadRequest)
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求参数解析失败"))
 		return
 	}
 
 	ledgerID, err := h.svc.GetUserLedgerID(r.Context(), userID)
 	if err != nil {
-		http.Error(w, "failed to get ledger", http.StatusInternalServerError)
+		response.WriteError(w, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "获取系统账本失败"))
 		return
 	}
 
 	id, err := h.svc.Create(r.Context(), ledgerID, userID, req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, err.Error()))
 		return
 	}
 

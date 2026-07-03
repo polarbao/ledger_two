@@ -1,0 +1,10 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "backend: dev", "type": "shell", "command": "cd backend && air", "problemMatcher": [] },
+    { "label": "backend: run", "type": "shell", "command": "cd backend && go run ./cmd/server", "problemMatcher": [] },
+    { "label": "backend: test", "type": "shell", "command": "cd backend && go test ./...", "problemMatcher": [] },
+    { "label": "frontend: dev", "type": "shell", "command": "cd frontend && pnpm dev", "problemMatcher": [] },
+    { "label": "frontend: lint", "type": "shell", "command": "cd frontend && pnpm lint", "problemMatcher": [] }
+  ]
+}

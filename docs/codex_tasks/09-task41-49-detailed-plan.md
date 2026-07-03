@@ -1,0 +1,246 @@
+# Task41-Task49 Detailed DEV Plan
+
+状态：建议任务规格  
+适用阶段：Foundation before v1.1 完成后
+
+## 1. 使用方式
+
+本文细化 Task41-Task49。执行任一任务前，必须读取：
+
+1. `docs/00_DOCUMENT_INDEX.md`
+2. `docs/prd/24-short-mid-module-breakdown.md`
+3. 对应模块 PRD
+4. `docs/tech/18-short-mid-architecture-slices.md`
+5. `docs/ui/14-v1.1-v1.2-module-flows.md`
+
+## 2. Task41：快捷记账默认值
+
+依赖：
+
+- Task31-Task40 完成。
+- 分类、标签、账户查询 API 稳定。
+
+开发范围：
+
+- 后端保存和读取用户记账默认值。
+- 前端记账表单应用默认值。
+- 保存并继续记。
+- 移动端金额输入优化。
+
+完成标准：
+
+- 普通支出只填金额即可保存。
+- 共同支出默认两人 equal split。
+- 保存并继续记不会保留上一笔金额。
+- 默认值不使用已归档元数据。
+
+验证：
+
+- 后端 service test。
+- 前端表单测试。
+- 手工验证 375px 记账路径。
+
+## 3. Task42：复制与模板统一
+
+依赖：
+
+- Task41 完成。
+- 元数据归档规则明确。
+
+开发范围：
+
+- 账单复制 preview。
+- 从账单创建模板。
+- 模板列表、编辑、归档。
+- 从模板生成账单。
+
+完成标准：
+
+- 复制不修改原账单。
+- 模板不进入统计和结算。
+- 模板生成账单时重新校验权限和元数据。
+
+验证：
+
+- 复制 service test。
+- 模板实例化 service test。
+- 前端复制和模板生成流程测试。
+
+## 4. Task43：周期账单待确认
+
+依赖：
+
+- Task42 的模板 payload 设计稳定，或明确独立 payload。
+
+开发范围：
+
+- 周期规则 CRUD。
+- pending instance 生成。
+- 确认生成真实账单。
+- 跳过本期。
+
+完成标准：
+
+- pending 不进入统计和结算。
+- 确认后才生成 transaction。
+- 删除规则不影响已确认账单。
+
+验证：
+
+- rule next_run 计算测试。
+- confirm/skip service test。
+- Dashboard 待确认入口手工验证。
+
+## 5. Task44：分类、标签、账户管理体验
+
+依赖：
+
+- Foundation RBAC 完成。
+
+开发范围：
+
+- 分类、标签、账户新增、编辑、排序、归档、恢复。
+- 设置页二级管理。
+- 表单选择器过滤归档项。
+
+完成标准：
+
+- 已使用项不可物理删除。
+- 历史账单显示归档项。
+- viewer 无管理入口且后端拒绝。
+
+验证：
+
+- 后端权限和归档测试。
+- 前端设置页测试。
+- 历史账单展示手工验证。
+
+## 6. Task45：结算页可解释性与复制文案
+
+依赖：
+
+- 结算服务测试基线稳定。
+
+开发范围：
+
+- settlement explanation DTO。
+- 共同支出影响明细。
+- 复制结算文案。
+
+完成标准：
+
+- paid/share/raw_net/settlement/final_net 与后端计算一致。
+- 复制文案不改变结算状态。
+- settlement 不进入消费统计。
+
+验证：
+
+- 结算 service test。
+- 前端展示测试。
+- 手工验证复制文案。
+
+## 7. Task46：移动端高频路径优化
+
+依赖：
+
+- Task41、Task44、Task45 页面结构稳定。
+
+开发范围：
+
+- Dashboard、流水、记账、结算、设置移动端收口。
+- 流水筛选 bottom sheet。
+- 表单分组和危险操作确认。
+
+完成标准：
+
+- 375px 无横向滚动。
+- 手机端可完成记账、筛选、结算、复制文案。
+- 危险操作不误触。
+
+验证：
+
+- Playwright 或手工截图验证 375px/390px/430px。
+- 前端 build。
+
+## 8. Task47：CSV 导入预览
+
+依赖：
+
+- v1.1 完成。
+- 分类、标签、账户管理稳定。
+
+开发范围：
+
+- 微信/支付宝/通用 CSV parser。
+- 上传并生成预览批次。
+- 字段映射。
+- 错误行展示。
+
+完成标准：
+
+- 预览不写 transactions。
+- 金额转整数分。
+- 错误提示包含行号和原因。
+
+验证：
+
+- parser fixture test。
+- 上传预览 API test。
+- 前端预览页测试。
+
+## 9. Task48：导入去重与事务落库
+
+依赖：
+
+- Task47 完成。
+
+开发范围：
+
+- import_hash。
+- duplicate/suspicious/invalid 状态。
+- commit 事务落库。
+- import batch 结果页。
+
+完成标准：
+
+- 同一文件重复导入不重复。
+- 任一必需行失败整批回滚。
+- 审计日志记录导入提交。
+
+验证：
+
+- dedupe service test。
+- transaction rollback test。
+- 重复导入手工验证。
+
+## 10. Task49：导入规则
+
+依赖：
+
+- Task48 完成。
+
+开发范围：
+
+- 导入规则 CRUD。
+- 预览页规则命中。
+- 用户手工调整优先。
+
+完成标准：
+
+- 规则只推荐，不自动提交。
+- 禁用规则后不再命中。
+- 手工修改不被规则覆盖。
+
+验证：
+
+- rule matching test。
+- 前端预览页调整测试。
+
+## 11. 禁止混入
+
+- Task41-Task46 不做 CSV 导入。
+- Task47-Task49 不做 OCR。
+- Task41-Task49 不做直接通知共同支付。
+- 不新增银行同步。
+- 不绕过 service 层业务规则。
+

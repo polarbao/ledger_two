@@ -13,6 +13,12 @@
 06-analytics.md               统计分析
 07-settings.md                设置、分类、标签、账户、数据管理
 08-mobile-pwa.md              移动端与 PWA 交互
+09-empty-error-loading-states.md 空状态、错误态、加载态
+10-design-system.md           设计系统
+11-data-safety-confirmations.md 数据安全与确认交互
+12-foundation-framework-ui.md Foundation before v1.1 UI
+13-settings-management-redesign.md 设置管理重构
+14-v1.1-v1.2-module-flows.md  v1.1-v1.2 模块流程细化
 ```
 
 ## 设计原则
@@ -21,3 +27,11 @@
 - 移动端：顶部账本信息 + 底部 Tab + 记账快捷入口。
 - 核心信息始终突出：本月总支出、我支付、对方支付、当前待结算。
 - 账单卡片必须展示：分类、金额、付款人、分摊方式、标签、日期。
+
+## 当前推荐入口
+
+短中期产品开发建议优先阅读：
+
+1. `12-foundation-framework-ui.md`
+2. `13-settings-management-redesign.md`
+3. `14-v1.1-v1.2-module-flows.md`

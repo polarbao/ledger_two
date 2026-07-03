@@ -9,6 +9,8 @@ docs/
   prd/      产品需求文档，按业务模块拆分
   ui/       UI 交互设计文档，按页面和交互模块拆分
   tech/     技术设计与实现文档，按工程模块拆分
+  codex_tasks/      Task30 后 Foundation before v1.1 的 AI/Codex 任务入口
+  project_analysis/ 项目分析、压缩包解压内容和文档冲突评估
 ```
 
 ## 推荐阅读顺序
@@ -16,9 +18,20 @@ docs/
 1. `../CHANGELOG.md` (版本发布说明)
 2. `docs/prd/README.md`
 3. `docs/prd/00-product-roadmap.md`
-4. `docs/tech/01-architecture-stack.md`
-5. `docs/ui/01-layout-navigation.md`
-6. 进入具体业务模块文档。
+4. `docs/prd/20-product-retrospective-and-positioning.md`
+5. `docs/prd/21-roadmap-short-mid-long.md`
+6. `docs/prd/22-prd-v1.1-trust-and-daily-use.md`
+7. `docs/prd/23-feature-priority-and-deferral-decisions.md`
+8. `docs/prd/24-short-mid-module-breakdown.md`
+9. `docs/prd/25-prd-v1.1-module-specs.md`
+10. `docs/prd/26-prd-v1.2-import-module-specs.md`
+11. `docs/tech/18-short-mid-architecture-slices.md`
+12. `docs/ui/14-v1.1-v1.2-module-flows.md`
+13. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
+14. `docs/codex_tasks/README.md`
+15. 进入具体业务模块文档。
+
+当前项目已完成 Task01-Task30，后续进入 Foundation before v1.1 阶段。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/` 和新增的 Foundation 文档为主要入口。
 
 ## AI 开发使用方式
 

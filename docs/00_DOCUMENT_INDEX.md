@@ -1,8 +1,41 @@
-# LedgerTwo 文档索引与 AI 实现阅读顺序 v0.3
+# LedgerTwo 文档索引与 AI 实现阅读顺序
+
+> 当前事实源提示：Task01-Task30 已完成，项目处于 Foundation before v1.1 阶段。本文保留早期 v0.3 / Demo 文档索引作为历史背景，但后续开发应优先读取 `docs/README.md`、`docs/prd/20-26`、`docs/tech/18-short-mid-architecture-slices.md`、`docs/ui/14-v1.1-v1.2-module-flows.md` 和 `docs/codex_tasks/`。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
 ## 1. 当前结论
+
+### 1.1 Task30 后当前结论
+
+当前项目已经具备 v1.0/MVP 级别能力。后续重点不是继续堆功能，而是：
+
+1. 文档事实源收口。
+2. 配置与部署安全。
+3. LedgerContext 与 RBAC。
+4. API 契约与 OpenAPI。
+5. 测试与质量门禁。
+6. 快捷记账、分类标签账户管理、移动端体验和数据导入。
+
+当前产品与开发规划入口：
+
+```text
+docs/prd/00-product-roadmap.md
+docs/prd/20-product-retrospective-and-positioning.md
+docs/prd/21-roadmap-short-mid-long.md
+docs/prd/22-prd-v1.1-trust-and-daily-use.md
+docs/prd/23-feature-priority-and-deferral-decisions.md
+docs/prd/24-short-mid-module-breakdown.md
+docs/prd/25-prd-v1.1-module-specs.md
+docs/prd/26-prd-v1.2-import-module-specs.md
+docs/tech/18-short-mid-architecture-slices.md
+docs/ui/14-v1.1-v1.2-module-flows.md
+docs/codex_tasks/05-foundation-task-plan.md
+docs/codex_tasks/08-product-roadmap-dev-plan.md
+docs/codex_tasks/09-task41-49-detailed-plan.md
+```
+
+### 1.2 历史 v0.3 结论
 
 v0.2 文档已经足够支持产品讨论、UI 原型和总体技术选型，但对于“直接交给 AI 模型连续生成可运行代码”还不够。主要缺口是：
 
@@ -22,6 +55,24 @@ AI 编码模型必须按以下顺序阅读：
 
 ```text
 00_DOCUMENT_INDEX.md
+README.md
+docs/README.md
+docs/prd/00-product-roadmap.md
+docs/prd/20-product-retrospective-and-positioning.md
+docs/prd/21-roadmap-short-mid-long.md
+docs/prd/22-prd-v1.1-trust-and-daily-use.md
+docs/prd/23-feature-priority-and-deferral-decisions.md
+docs/prd/24-short-mid-module-breakdown.md
+docs/prd/25-prd-v1.1-module-specs.md
+docs/prd/26-prd-v1.2-import-module-specs.md
+docs/tech/18-short-mid-architecture-slices.md
+docs/ui/14-v1.1-v1.2-module-flows.md
+docs/codex_tasks/README.md
+```
+
+如果处理早期 Demo 或 v0.3 任务，再补读：
+
+```text
 01_PRD.md
 02_UI_INTERACTION_DESIGN.md
 03_TECH_DESIGN.md
@@ -62,7 +113,7 @@ AI 编码模型必须按以下顺序阅读：
 
 AI 编码模型必须遵守：
 
-1. Demo 版本只做固定双人账本，不做多租户、多家庭、多成员。
+1. 当前阶段优先遵守 Task30 后 Foundation before v1.1 文档；早期 Demo 范围锁定作为历史约束，不得用于删除已经完成的新能力。
 2. 金额全部用整数分 `amount_cent` / `amount_cents`，禁止 float。
 3. 后端采用 Go + SQLite + REST JSON。
 4. 前端采用 React + TypeScript + Vite。

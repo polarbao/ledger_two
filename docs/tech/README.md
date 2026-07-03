@@ -14,6 +14,12 @@
 07-cross-platform-tech.md      跨端技术方案
 08-nas-deployment.md           NAS 部署方案
 09-test-quality.md             测试与质量保障
+13-foundation-framework-before-v1.1.md Foundation before v1.1 技术方案
+14-configuration-security-deployment.md 配置、安全与部署
+15-ledger-context-rbac.md      LedgerContext 与 RBAC
+16-api-contract-openapi-error.md API 契约、OpenAPI 与错误码
+17-data-migration-test-quality.md 数据迁移、测试与质量门禁
+18-short-mid-architecture-slices.md 短中期模块架构切片
 ```
 
 ## 技术原则
@@ -24,3 +30,11 @@
 - 结算：只生成 settlement 记录，不修改历史账单。
 - 删除：soft delete。
 - 统计：以后端聚合为准，前端只展示。
+
+## 当前推荐入口
+
+Task30 后的技术规划建议优先阅读：
+
+1. `00-current-architecture-after-task30.md`
+2. `13-foundation-framework-before-v1.1.md`
+3. `18-short-mid-architecture-slices.md`

@@ -15,6 +15,7 @@ import (
 	"ledger_two/internal/config"
 	"ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
+	ledgerctx "ledger_two/internal/ledger"
 
 	"github.com/google/uuid"
 )
@@ -52,6 +53,10 @@ func (s *Service) checkBackupDirWritable(dir string) error {
 
 // getUserLedgerID 获取唯一的账本 ID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
+	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
+		return lc.LedgerID, nil
+	}
+
 	var id string
 
 	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)

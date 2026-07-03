@@ -13,6 +13,7 @@ Before coding, AI agents must read:
    - `docs/codex_tasks/05-foundation-task-plan.md`
    - `docs/codex_tasks/08-product-roadmap-dev-plan.md`
    - `docs/codex_tasks/09-task41-49-detailed-plan.md`
+   - `docs/codex_tasks/10-task33-40-detailed-plan.md`
 4. The task-specific document, usually one of:
    - `docs/14_BACKEND_MODULE_SPEC.md`
    - `docs/15_FRONTEND_MODULE_SPEC.md`
@@ -23,7 +24,7 @@ Before coding, AI agents must read:
    - `docs/tech/*`
    - `docs/ui/*`
 
-For current work, treat `docs/codex_tasks/`, `docs/prd/20-26`, `docs/tech/18-short-mid-architecture-slices.md`, `docs/ui/14-v1.1-v1.2-module-flows.md`, and the Task30 foundation documents as newer than the early Demo-only documents. Use `docs/13_DEMO_SCOPE_LOCK.md` only as historical scope control unless the user explicitly asks to work on the original Demo baseline.
+For current work, treat `docs/codex_tasks/`, `docs/prd/20-28`, `docs/tech/18-short-mid-architecture-slices.md`, `docs/ui/14-v1.1-v1.2-module-flows.md`, and the Task30 foundation documents as newer than the early Demo-only documents. Use `docs/13_DEMO_SCOPE_LOCK.md` only as historical scope control unless the user explicitly asks to work on the original Demo baseline.
 
 ## Product Scope
 

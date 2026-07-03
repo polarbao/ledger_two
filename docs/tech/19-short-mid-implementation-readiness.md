@@ -28,9 +28,12 @@
 - `docs/prd/24-short-mid-module-breakdown.md`
 - `docs/prd/25-prd-v1.1-module-specs.md`
 - `docs/prd/26-prd-v1.2-import-module-specs.md`
+- `docs/prd/27-acceptance-case-matrix.md`
+- `docs/prd/28-transaction-caliber-supplement.md`
 - `docs/tech/18-short-mid-architecture-slices.md`
 - `docs/ui/14-v1.1-v1.2-module-flows.md`
 - `docs/codex_tasks/09-task41-49-detailed-plan.md`
+- `docs/codex_tasks/10-task33-40-detailed-plan.md`
 
 它们已经明确：
 
@@ -40,6 +43,8 @@
 - 数据边界。
 - UI 流程。
 - 测试方向。
+- 冻结验收样例。
+- 退款、报销、转账和账户口径。
 
 ### 2.2 仍需在实施中补齐
 
@@ -132,4 +137,3 @@ Task32 的最小原子切片：
 - Task42：依赖 Task41 和元数据归档。
 - Task47：依赖 v1.1 与导入权限。
 - Task50+：属于长期规划，不进入当前执行。
-

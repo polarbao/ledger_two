@@ -25,11 +25,13 @@ docs/
 8. `docs/prd/24-short-mid-module-breakdown.md`
 9. `docs/prd/25-prd-v1.1-module-specs.md`
 10. `docs/prd/26-prd-v1.2-import-module-specs.md`
-11. `docs/tech/18-short-mid-architecture-slices.md`
-12. `docs/ui/14-v1.1-v1.2-module-flows.md`
-13. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
-14. `docs/codex_tasks/README.md`
-15. 进入具体业务模块文档。
+11. `docs/prd/27-acceptance-case-matrix.md`
+12. `docs/prd/28-transaction-caliber-supplement.md`
+13. `docs/tech/18-short-mid-architecture-slices.md`
+14. `docs/ui/14-v1.1-v1.2-module-flows.md`
+15. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
+16. `docs/codex_tasks/README.md`
+17. 进入具体业务模块文档。
 
 当前项目已完成 Task01-Task30，后续进入 Foundation before v1.1 阶段。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/` 和新增的 Foundation 文档为主要入口。
 

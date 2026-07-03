@@ -24,6 +24,8 @@
 24-short-mid-module-breakdown.md        短中期模块拆解总表
 25-prd-v1.1-module-specs.md             v1.1 模块级需求规格
 26-prd-v1.2-import-module-specs.md      v1.2 导入与省时间模块规格
+27-acceptance-case-matrix.md            v1.1-v1.2 验收样例矩阵
+28-transaction-caliber-supplement.md    交易与账户口径补充
 ```
 
 ## 使用方式
@@ -46,4 +48,6 @@ Task30 后的产品规划建议优先阅读：
 6. `24-short-mid-module-breakdown.md`
 7. `25-prd-v1.1-module-specs.md`
 8. `26-prd-v1.2-import-module-specs.md`
+9. `27-acceptance-case-matrix.md`
+10. `28-transaction-caliber-supplement.md`
 

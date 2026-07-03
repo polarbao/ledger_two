@@ -44,11 +44,14 @@ docs/prd/23-feature-priority-and-deferral-decisions.md
 docs/prd/24-short-mid-module-breakdown.md
 docs/prd/25-prd-v1.1-module-specs.md
 docs/prd/26-prd-v1.2-import-module-specs.md
+docs/prd/27-acceptance-case-matrix.md
+docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/codex_tasks/05-foundation-task-plan.md
 docs/codex_tasks/08-product-roadmap-dev-plan.md
 docs/codex_tasks/09-task41-49-detailed-plan.md
+docs/codex_tasks/10-task33-40-detailed-plan.md
 ```
 
 早期 Demo / v0.3 文档继续保留为历史约束和实现背景，但不再单独代表当前阶段。

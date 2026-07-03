@@ -9,6 +9,7 @@ import (
 	"ledger_two/internal/dashboard"
 	"ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
+	ledgerctx "ledger_two/internal/ledger"
 	"ledger_two/internal/settlement"
 )
 
@@ -61,6 +62,10 @@ type MemberStatItem struct {
 
 // getUserLedgerID 辅助获取 Ledger ID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
+	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
+		return lc.LedgerID, nil
+	}
+
 	var id string
 
 	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)

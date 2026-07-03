@@ -32,6 +32,7 @@ docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md
 docs/tech/19-short-mid-implementation-readiness.md
+docs/api/API_INVENTORY.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/codex_tasks/05-foundation-task-plan.md
 docs/codex_tasks/08-product-roadmap-dev-plan.md

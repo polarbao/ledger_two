@@ -9,6 +9,7 @@ docs/
   prd/      产品需求文档，按业务模块拆分
   ui/       UI 交互设计文档，按页面和交互模块拆分
   tech/     技术设计与实现文档，按工程模块拆分
+  api/      API inventory、OpenAPI 草案和接口契约冻结资料
   codex_tasks/      Task30 后 Foundation before v1.1 的 AI/Codex 任务入口
   project_analysis/ 项目分析、压缩包解压内容和文档冲突评估
 ```
@@ -28,10 +29,11 @@ docs/
 11. `docs/prd/27-acceptance-case-matrix.md`
 12. `docs/prd/28-transaction-caliber-supplement.md`
 13. `docs/tech/18-short-mid-architecture-slices.md`
-14. `docs/ui/14-v1.1-v1.2-module-flows.md`
-15. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
-16. `docs/codex_tasks/README.md`
-17. 进入具体业务模块文档。
+14. `docs/api/API_INVENTORY.md`
+15. `docs/ui/14-v1.1-v1.2-module-flows.md`
+16. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
+17. `docs/codex_tasks/README.md`
+18. 进入具体业务模块文档。
 
 当前项目已完成 Task01-Task30，后续进入 Foundation before v1.1 阶段。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/` 和新增的 Foundation 文档为主要入口。
 

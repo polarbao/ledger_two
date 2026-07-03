@@ -10,16 +10,18 @@
 ```text
 API_INVENTORY.md  当前 router 实际暴露接口清单、认证要求、账本要求和稳定性标记
 openapi.yaml      OpenAPI 草案，覆盖当前核心 API 路径、通用响应和主要请求 DTO
+API_CONVENTIONS.md 错误码、分页、筛选、排序、金额、时间和 Ledger Context 规范
 ```
 
 ## 使用规则
 
 1. 新增、删除或修改 API 路径前，必须先更新 `API_INVENTORY.md`。
 2. 新增稳定业务接口前，必须同步更新 `openapi.yaml`。
-3. 金额字段统一使用整数分，命名为 `*_cents`。
-4. 时间字段统一使用 ISO8601 字符串。
-5. 失败响应统一为 `{ "success": false, "error": { "code", "message", "details" } }`。
-6. Foundation 阶段实际路径仍为 `/api/...`，文档可同时标注未来 `/api/v1/...` 目标路径，但不得把未实现 alias 描述为已上线。
+3. 新增错误码、筛选字段、排序字段或分页行为前，必须同步更新 `API_CONVENTIONS.md`。
+4. 金额字段统一使用整数分，命名为 `*_cents`。
+5. 时间字段统一使用 ISO8601 字符串。
+6. 失败响应统一为 `{ "success": false, "error": { "code", "message", "details" } }`。
+7. Foundation 阶段实际路径仍为 `/api/...`，文档可同时标注未来 `/api/v1/...` 目标路径，但不得把未实现 alias 描述为已上线。
 
 ## 稳定性标记
 

@@ -170,8 +170,7 @@
 ## 14. Task34 后续治理清单
 
 1. Task34.2 新增 `docs/api/openapi.yaml`，至少覆盖本清单中核心路径。
-2. Task34.3 将错误码、分页、筛选、排序字段写成稳定表。
+2. Task34.3 已新增 `docs/api/API_CONVENTIONS.md`，后续代码治理必须按该文件执行。
 3. Foundation 冻结前，业务写接口应从 `optional` 收紧为 `required` 或明确保留兼容窗口。
 4. 统一 handler 使用 `response.WriteError`，避免手写 `response.Error` 和 `http.Error` 返回不一致。
 5. 标记 `/uploads/*` 为 deprecated，并在 Task39 改为受保护附件访问 API。
-

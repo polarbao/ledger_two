@@ -4,6 +4,12 @@
 
 本文件定义 LedgerTwo 后端 API 的统一错误码、HTTP 状态码映射、前端错误展示策略和日志记录要求。
 
+Task34 后，API 契约侧的冻结枚举、分页、筛选、排序和 Ledger Context 规则同时维护在：
+
+```text
+docs/api/API_CONVENTIONS.md
+```
+
 统一错误码的目标是：
 
 1. 前端可以稳定识别错误类型。

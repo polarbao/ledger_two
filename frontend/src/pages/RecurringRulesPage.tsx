@@ -24,6 +24,7 @@ import { centsToYuan, yuanToCents } from '../utils/money';
 import { useLedgerStore } from '../stores/ledger.store';
 import PageState from '../components/ui/PageState';
 import EmptyState from '../components/ui/EmptyState';
+import PermissionGate from '../components/ledger/PermissionGate';
 
 // 验证 Schema
 const ruleSchema = z.object({
@@ -50,7 +51,6 @@ export default function RecurringRulesPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
-  const activeRole = useLedgerStore((state) => state.activeRole);
   
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -428,15 +428,16 @@ export default function RecurringRulesPage() {
                 />
               </div>
 
-              <button 
-                type="submit" 
-                className="btn-primary" 
-                style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, marginTop: '8px' }}
-                disabled={isSubmitting || createMutation.isPending || activeRole === 'viewer'}
-                title={activeRole === 'viewer' ? '观察者无法创建规则' : ''}
-              >
-                {isSubmitting || createMutation.isPending ? '创建中...' : '保存并启用该周期规则'}
-              </button>
+              <PermissionGate allow={['owner', 'editor']}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, marginTop: '8px' }}
+                  disabled={isSubmitting || createMutation.isPending}
+                >
+                  {isSubmitting || createMutation.isPending ? '创建中...' : '保存并启用该周期规则'}
+                </button>
+              </PermissionGate>
             </form>
           </div>
 
@@ -510,21 +511,22 @@ export default function RecurringRulesPage() {
                           </span>
                         </div>
 
-                        <button
-                          onClick={() => setDeleteTargetId(rule.id)}
-                          className="btn-close-drawer"
-                          style={{ padding: '6px', color: 'var(--text-muted)' }}
-                          title={activeRole === 'viewer' ? '观察者无法删除' : "删除规则"}
-                          disabled={activeRole === 'viewer'}
-                          onMouseEnter={(e) => {
-                            if (activeRole !== 'viewer') e.currentTarget.style.color = '#ef4444';
-                          }}
-                          onMouseLeave={(e) => {
-                            if (activeRole !== 'viewer') e.currentTarget.style.color = 'var(--text-muted)';
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <PermissionGate allow={['owner', 'editor']}>
+                          <button
+                            onClick={() => setDeleteTargetId(rule.id)}
+                            className="btn-close-drawer"
+                            style={{ padding: '6px', color: 'var(--text-muted)' }}
+                            title="删除规则"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = '#ef4444';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--text-muted)';
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </PermissionGate>
                       </div>
 
                       {/* 规则细节网格 */}

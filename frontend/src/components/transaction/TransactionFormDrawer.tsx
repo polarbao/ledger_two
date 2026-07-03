@@ -13,6 +13,7 @@ import { yuanToCents } from '../../utils/money';
 import type { TransactionTemplateResponse, CreateTemplatePayload } from '../../types/transaction';
 import { useDraftStore } from '../../stores/draft.store';
 import { useLedgerStore } from '../../stores/ledger.store';
+import { useHasLedgerRole } from '../ledger/PermissionGate';
 
 /**
  * @brief 表单校验 Schema 结构定义
@@ -47,6 +48,7 @@ export default function TransactionFormDrawer() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
+  const canWriteLedger = useHasLedgerRole(['owner', 'editor']);
   const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction, isOffline, editingDraftId, setEditingDraftId } = useUIStore();
   const { addDraft, updateDraft, removeDraft, drafts } = useDraftStore();
 
@@ -73,7 +75,7 @@ export default function TransactionFormDrawer() {
   const { data: categories, isLoading: isCategoriesLoading } = useQuery({
     queryKey: queryKeys.categories(activeLedgerId),
     queryFn: () => transactionsApi.getCategories(),
-    enabled: addDrawerOpen,
+    enabled: addDrawerOpen && canWriteLedger,
   });
 
   const catMap = categories?.reduce((acc, cat) => {
@@ -85,7 +87,7 @@ export default function TransactionFormDrawer() {
   const { data: dashboardData } = useQuery({
     queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
     queryFn: () => dashboardApi.getDashboard(currentMonth),
-    enabled: addDrawerOpen && !!currentUser,
+    enabled: addDrawerOpen && canWriteLedger && !!currentUser,
   });
 
   const users = dashboardData?.user_stats || [];
@@ -94,7 +96,7 @@ export default function TransactionFormDrawer() {
   const { data: templates } = useQuery({
     queryKey: queryKeys.templates(activeLedgerId),
     queryFn: () => transactionsApi.listTemplates(),
-    enabled: addDrawerOpen,
+    enabled: addDrawerOpen && canWriteLedger,
   });
 
   // 创建模板 Mutation
@@ -395,6 +397,29 @@ export default function TransactionFormDrawer() {
   };
 
   if (!addDrawerOpen) return null;
+
+  if (!canWriteLedger) {
+    return (
+      <div className="drawer-overlay glass-blur show" onClick={handleClose}>
+        <div className="drawer-container glass-card" onClick={(e) => e.stopPropagation()}>
+          <div className="drawer-header">
+            <div className="header-title">
+              <Sparkles className="title-icon text-glow" />
+              <h3>无记账权限</h3>
+            </div>
+            <button className="btn-close-drawer" onClick={handleClose}>
+              <X size={20} />
+            </button>
+          </div>
+          <div className="drawer-body" style={{ padding: '24px 28px', textAlign: 'left' }}>
+            <div className="error-banner">
+              <p>您当前是观察者权限，无法在此账本新增、复制或提交账单。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="drawer-overlay glass-blur show" onClick={handleClose}>

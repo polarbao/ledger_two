@@ -10,6 +10,7 @@ import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
 import PageState from '../components/ui/PageState';
+import PermissionGate from '../components/ledger/PermissionGate';
 import { 
   ReceiptText, 
   Trash2, 
@@ -28,7 +29,6 @@ export default function TransactionsPage() {
   const currentMonth = useUIStore((state) => state.currentMonth);
   const currentUser = useAuthStore((state) => state.user);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
-  const activeRole = useLedgerStore((state) => state.activeRole);
   const queryClient = useQueryClient();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -237,27 +237,25 @@ export default function TransactionsPage() {
           </button>
         </div>
 
-        <button 
-          className={`btn-secondary ${batchMode ? 'active' : ''}`}
-          style={{ 
-            padding: '8px 16px', 
-            borderRadius: '8px', 
-            fontSize: '13px', 
-            borderColor: batchMode ? 'var(--accent-purple)' : 'rgba(255,255,255,0.08)',
-            background: batchMode ? 'rgba(147, 51, 234, 0.15)' : 'none',
-            color: batchMode ? '#c084fc' : 'var(--text-primary)',
-            opacity: activeRole === 'viewer' ? 0.5 : 1,
-            cursor: activeRole === 'viewer' ? 'not-allowed' : 'pointer'
-          }}
-          onClick={() => {
-            setBatchMode(!batchMode);
-            setSelectedTxIds([]);
-          }}
-          disabled={activeRole === 'viewer'}
-          title={activeRole === 'viewer' ? '观察者无法使用批量管理' : ''}
-        >
-          {batchMode ? '退出批量管理' : '批量管理'}
-        </button>
+        <PermissionGate allow={['owner', 'editor']}>
+          <button
+            className={`btn-secondary ${batchMode ? 'active' : ''}`}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              borderColor: batchMode ? 'var(--accent-purple)' : 'rgba(255,255,255,0.08)',
+              background: batchMode ? 'rgba(147, 51, 234, 0.15)' : 'none',
+              color: batchMode ? '#c084fc' : 'var(--text-primary)',
+            }}
+            onClick={() => {
+              setBatchMode(!batchMode);
+              setSelectedTxIds([]);
+            }}
+          >
+            {batchMode ? '退出批量管理' : '批量管理'}
+          </button>
+        </PermissionGate>
       </div>
 
       {/* 筛选控制面板 / 移动端 Bottom Sheet */}
@@ -797,25 +795,23 @@ export default function TransactionsPage() {
 
               {/* 复制一笔 */}
               {selectedTx.type !== 'settlement' && (
-                <button 
-                  className="btn-primary" 
-                  style={{ 
-                    padding: '10px 20px', 
-                    fontSize: '14px', 
-                    borderRadius: '10px',
-                    opacity: activeRole === 'viewer' ? 0.5 : 1,
-                    cursor: activeRole === 'viewer' ? 'not-allowed' : 'pointer'
-                  }} 
-                  disabled={activeRole === 'viewer'}
-                  title={activeRole === 'viewer' ? '观察者无法记账' : ''}
-                  onClick={() => {
-                    setCopySourceTransaction(selectedTx);
-                    setAddDrawerOpen(true);
-                    setDetailOpen(false);
-                  }}
-                >
-                  复制一笔
-                </button>
+                <PermissionGate allow={['owner', 'editor']}>
+                  <button
+                    className="btn-primary"
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '14px',
+                      borderRadius: '10px',
+                    }}
+                    onClick={() => {
+                      setCopySourceTransaction(selectedTx);
+                      setAddDrawerOpen(true);
+                      setDetailOpen(false);
+                    }}
+                  >
+                    复制一笔
+                  </button>
+                </PermissionGate>
               )}
             </div>
           </div>

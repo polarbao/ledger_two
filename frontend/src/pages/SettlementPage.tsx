@@ -13,6 +13,7 @@ import SkeletonCard from '../components/ui/SkeletonCard';
 import SkeletonTable from '../components/ui/SkeletonTable';
 import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
+import PermissionGate from '../components/ledger/PermissionGate';
 
 /**
  * @brief 结算中心页面组件 (SettlementPage)
@@ -24,7 +25,6 @@ export default function SettlementPage() {
   const currentUser = useAuthStore((state) => state.user);
   const { currentMonth, isOffline } = useUIStore();
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
-  const activeRole = useLedgerStore((state) => state.activeRole);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [note, setNote] = useState('');
 
@@ -171,17 +171,18 @@ export default function SettlementPage() {
                           <div className="debt-amount-large" style={{ fontSize: '24px' }}>
                             ¥{centsToYuan(transfer.amount_cents)}
                           </div>
-                          <button
-                            className="btn-primary"
-                            onClick={() => {
-                              setActiveTransfer(transfer);
-                              setShowConfirmModal(true);
-                            }}
-                            disabled={activeRole === 'viewer'}
-                            style={activeRole === 'viewer' ? { opacity: 0.5, cursor: 'not-allowed', padding: '8px 16px', fontSize: '14px' } : { padding: '8px 16px', fontSize: '14px' }}
-                          >
-                            登记结算
-                          </button>
+                          <PermissionGate allow={['owner', 'editor']}>
+                            <button
+                              className="btn-primary"
+                              onClick={() => {
+                                setActiveTransfer(transfer);
+                                setShowConfirmModal(true);
+                              }}
+                              style={{ padding: '8px 16px', fontSize: '14px' }}
+                            >
+                              登记结算
+                            </button>
+                          </PermissionGate>
                         </div>
                       </div>
                     ))}

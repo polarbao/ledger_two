@@ -8,9 +8,11 @@ import { useUIStore } from '../../stores/ui.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { transactionsApi } from '../../api/transactions.api';
 import { dashboardApi } from '../../api/dashboard.api';
+import { queryKeys } from '../../api/queryKeys';
 import { yuanToCents } from '../../utils/money';
 import type { TransactionTemplateResponse, CreateTemplatePayload } from '../../types/transaction';
 import { useDraftStore } from '../../stores/draft.store';
+import { useLedgerStore } from '../../stores/ledger.store';
 
 /**
  * @brief 表单校验 Schema 结构定义
@@ -44,6 +46,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function TransactionFormDrawer() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction, isOffline, editingDraftId, setEditingDraftId } = useUIStore();
   const { addDraft, updateDraft, removeDraft, drafts } = useDraftStore();
 
@@ -68,7 +71,7 @@ export default function TransactionFormDrawer() {
 
   // 1. 获取全量分类列表
   const { data: categories, isLoading: isCategoriesLoading } = useQuery({
-    queryKey: ['categories'],
+    queryKey: queryKeys.categories(activeLedgerId),
     queryFn: () => transactionsApi.getCategories(),
     enabled: addDrawerOpen,
   });
@@ -80,7 +83,7 @@ export default function TransactionFormDrawer() {
 
   // 2. 获取成员用户列表（复用 Dashboard 返回的 user_stats）
   const { data: dashboardData } = useQuery({
-    queryKey: ['dashboard', currentMonth],
+    queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
     queryFn: () => dashboardApi.getDashboard(currentMonth),
     enabled: addDrawerOpen && !!currentUser,
   });
@@ -89,7 +92,7 @@ export default function TransactionFormDrawer() {
 
   // 2.5 获取所有账单模板列表
   const { data: templates } = useQuery({
-    queryKey: ['transaction-templates'],
+    queryKey: queryKeys.templates(activeLedgerId),
     queryFn: () => transactionsApi.listTemplates(),
     enabled: addDrawerOpen,
   });
@@ -98,7 +101,7 @@ export default function TransactionFormDrawer() {
   const createTemplateMutation = useMutation({
     mutationFn: (payload: CreateTemplatePayload) => transactionsApi.createTemplate(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transaction-templates'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.templates(activeLedgerId) });
       setIsSaveTmplOpen(false);
       setTmplName('');
     },
@@ -108,7 +111,7 @@ export default function TransactionFormDrawer() {
   const deleteTemplateMutation = useMutation({
     mutationFn: (id: string) => transactionsApi.deleteTemplate(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transaction-templates'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.templates(activeLedgerId) });
     },
   });
 
@@ -295,8 +298,8 @@ export default function TransactionFormDrawer() {
       }
 
       // 自动失效相关缓存以触发现代大屏数据更新
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
       
       // 更新 LocalStorage 快捷缓存默认值
       localStorage.setItem(LAST_TYPE_KEY, variables.type);

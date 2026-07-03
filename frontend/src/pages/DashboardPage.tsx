@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth.store';
 import { useUIStore } from '../stores/ui.store';
 import { dashboardApi } from '../api/dashboard.api';
 import { transactionsApi } from '../api/transactions.api';
+import { queryKeys } from '../api/queryKeys';
 import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
@@ -25,18 +26,19 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const { currentMonth, setAddDrawerOpen } = useUIStore();
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const activeRole = useLedgerStore((state) => state.activeRole);
 
   // 1. 请求数据并绑定依赖 currentMonth 自动重载
   const { data: dashboardData, isLoading, error, refetch } = useQuery({
-    queryKey: ['dashboard', currentMonth],
+    queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
     queryFn: () => dashboardApi.getDashboard(currentMonth),
     enabled: !!currentUser,
   });
 
   // 1.5. 获取到期账单提醒列表
   const { data: reminders } = useQuery({
-    queryKey: ['recurring-reminders'],
+    queryKey: queryKeys.recurringReminders(activeLedgerId),
     queryFn: () => transactionsApi.listRecurringReminders(),
     enabled: !!currentUser,
   });
@@ -45,9 +47,9 @@ export default function DashboardPage() {
   const confirmReminderMutation = useMutation({
     mutationFn: (id: string) => transactionsApi.confirmReminder(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['recurring-reminders'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
     },
   });
 
@@ -55,7 +57,7 @@ export default function DashboardPage() {
   const ignoreReminderMutation = useMutation({
     mutationFn: (id: string) => transactionsApi.ignoreReminder(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recurring-reminders'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(activeLedgerId) });
     },
   });
 

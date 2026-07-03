@@ -5,6 +5,7 @@ import { useUIStore } from '../stores/ui.store';
 import { useAuthStore } from '../stores/auth.store';
 import { settlementApi } from '../api/settlement.api';
 import { dashboardApi } from '../api/dashboard.api';
+import { queryKeys } from '../api/queryKeys';
 import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
@@ -22,27 +23,28 @@ export default function SettlementPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const { currentMonth, isOffline } = useUIStore();
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const activeRole = useLedgerStore((state) => state.activeRole);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [note, setNote] = useState('');
 
   // 1. 获取结算轧差详情 (Balance)
   const { data: balance, isLoading: isBalanceLoading, isError: isBalanceError, error: balanceError, refetch: refetchBalance } = useQuery({
-    queryKey: ['settlement-balance'],
+    queryKey: queryKeys.settlements.balance(activeLedgerId),
     queryFn: () => settlementApi.getBalance(),
     enabled: !!currentUser,
   });
 
   // 2. 获取当月结算明细列表
   const { data: historyList, isLoading: isHistoryLoading, isError: isHistoryError, error: historyError, refetch: refetchHistory } = useQuery({
-    queryKey: ['settlements', currentMonth],
+    queryKey: queryKeys.settlements.list(activeLedgerId, currentMonth),
     queryFn: () => settlementApi.getSettlements(currentMonth),
     enabled: !!currentUser,
   });
 
   // 3. 复用当月 Dashboard 缓存以取得系统成员 display_name
   const { data: dashboardData } = useQuery({
-    queryKey: ['dashboard', currentMonth],
+    queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
     queryFn: () => dashboardApi.getDashboard(currentMonth),
     enabled: !!currentUser,
   });
@@ -82,10 +84,10 @@ export default function SettlementPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settlement-balance'] });
-      queryClient.invalidateQueries({ queryKey: ['settlements'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settlements.balance(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settlements.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
       setShowConfirmModal(false);
       setNote('');
       setActiveTransfer(null);

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useUIStore } from '../stores/ui.store';
 import { reportsApi } from '../api/reports.api';
+import { queryKeys } from '../api/queryKeys';
+import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import { 
   BarChart3, 
@@ -20,32 +22,33 @@ type TabType = 'monthly' | 'category' | 'member' | 'tag';
 
 export default function AnalyticsPage() {
   const { currentMonth } = useUIStore();
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const [activeTab, setActiveTab] = useState<TabType>('monthly');
 
   // 1. 获取月度汇总
   const { data: monthlyData, isLoading: monthlyLoading, error: monthlyError } = useQuery({
-    queryKey: ['reports-monthly', currentMonth],
+    queryKey: queryKeys.reports.monthly(activeLedgerId, currentMonth),
     queryFn: () => reportsApi.getMonthlySummary(currentMonth),
     enabled: activeTab === 'monthly',
   });
 
   // 2. 获取分类汇总
   const { data: categoryData, isLoading: categoryLoading, error: categoryError } = useQuery({
-    queryKey: ['reports-category', currentMonth],
+    queryKey: queryKeys.reports.category(activeLedgerId, currentMonth),
     queryFn: () => reportsApi.getCategorySummary(currentMonth),
     enabled: activeTab === 'category',
   });
 
   // 3. 获取标签汇总
   const { data: tagData, isLoading: tagLoading, error: tagError } = useQuery({
-    queryKey: ['reports-tag', currentMonth],
+    queryKey: queryKeys.reports.tag(activeLedgerId, currentMonth),
     queryFn: () => reportsApi.getTagSummary(currentMonth),
     enabled: activeTab === 'tag',
   });
 
   // 4. 获取成员汇总
   const { data: memberData, isLoading: memberLoading, error: memberError } = useQuery({
-    queryKey: ['reports-member', currentMonth],
+    queryKey: queryKeys.reports.member(activeLedgerId, currentMonth),
     queryFn: () => reportsApi.getMemberSummary(currentMonth),
     enabled: activeTab === 'member',
   });

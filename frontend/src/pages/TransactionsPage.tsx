@@ -5,6 +5,7 @@ import { useUIStore } from '../stores/ui.store';
 import { useAuthStore } from '../stores/auth.store';
 import { transactionsApi } from '../api/transactions.api';
 import { dashboardApi } from '../api/dashboard.api';
+import { queryKeys } from '../api/queryKeys';
 import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
@@ -26,6 +27,7 @@ import TransactionCard from '../components/transaction/TransactionCard';
 export default function TransactionsPage() {
   const currentMonth = useUIStore((state) => state.currentMonth);
   const currentUser = useAuthStore((state) => state.user);
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const activeRole = useLedgerStore((state) => state.activeRole);
   const queryClient = useQueryClient();
 
@@ -75,7 +77,7 @@ export default function TransactionsPage() {
 
   // 0. 获取账本成员信息
   const { data: dashboardData } = useQuery({
-    queryKey: ['dashboard', month],
+    queryKey: queryKeys.dashboard.month(activeLedgerId, month),
     queryFn: () => dashboardApi.getDashboard(month),
   });
   const users = dashboardData?.user_stats || [];
@@ -121,7 +123,7 @@ export default function TransactionsPage() {
 
   // 1. 获取分类名称列表映射
   const { data: categories } = useQuery({
-    queryKey: ['categories'],
+    queryKey: queryKeys.categories(activeLedgerId),
     queryFn: () => transactionsApi.getCategories(),
   });
 
@@ -129,6 +131,22 @@ export default function TransactionsPage() {
     acc[cat.id] = cat.name;
     return acc;
   }, {} as Record<string, string>) || {};
+
+  const minAmount = minAmountStr ? Math.round(parseFloat(minAmountStr) * 100) : undefined;
+  const maxAmount = maxAmountStr ? Math.round(parseFloat(maxAmountStr) * 100) : undefined;
+  const transactionFilter = {
+    month,
+    type: type || undefined,
+    category_id: categoryId || undefined,
+    keyword: keyword || undefined,
+    min_amount: minAmount,
+    max_amount: maxAmount,
+    payer_user_id: payerUserId || undefined,
+    visibility: visibility || undefined,
+    tag: tag || undefined,
+    page,
+    page_size: pageSize,
+  };
 
   // 2. 获取流水列表
   const { 
@@ -138,24 +156,8 @@ export default function TransactionsPage() {
     error,
     refetch 
   } = useQuery({
-    queryKey: ['transactions', month, type, categoryId, keyword, minAmountStr, maxAmountStr, payerUserId, visibility, tag, page],
-    queryFn: () => {
-      const min_amount = minAmountStr ? Math.round(parseFloat(minAmountStr) * 100) : undefined;
-      const max_amount = maxAmountStr ? Math.round(parseFloat(maxAmountStr) * 100) : undefined;
-      return transactionsApi.list({
-        month,
-        type: type || undefined,
-        category_id: categoryId || undefined,
-        keyword: keyword || undefined,
-        min_amount,
-        max_amount,
-        payer_user_id: payerUserId || undefined,
-        visibility: visibility || undefined,
-        tag: tag || undefined,
-        page,
-        page_size: pageSize,
-      });
-    },
+    queryKey: queryKeys.transactions.list(activeLedgerId, transactionFilter),
+    queryFn: () => transactionsApi.list(transactionFilter),
   });
 
   // 批量打标签 Mutation
@@ -167,7 +169,7 @@ export default function TransactionsPage() {
       setBatchTagsInput('');
       setSelectedTxIds([]);
       setBatchMode(false);
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
     },
   });
 
@@ -178,12 +180,9 @@ export default function TransactionsPage() {
       setShowDeleteModal(false);
       setSelectedTx(null);
       // 失效所有关联缓存，促使全局数据重载
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['reports-monthly'] });
-      queryClient.invalidateQueries({ queryKey: ['reports-category'] });
-      queryClient.invalidateQueries({ queryKey: ['reports-tag'] });
-      queryClient.invalidateQueries({ queryKey: ['reports-member'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.root(activeLedgerId) });
     },
   });
 

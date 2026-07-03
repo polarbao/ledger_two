@@ -16,7 +16,9 @@ import {
 } from 'lucide-react';
 import { transactionsApi } from '../api/transactions.api';
 import { dashboardApi } from '../api/dashboard.api';
+import { queryKeys } from '../api/queryKeys';
 import { useAuthStore } from '../stores/auth.store';
+import { useLedgerStore } from '../stores/ledger.store';
 import { ApiError } from '../api/client';
 import PageState from '../components/ui/PageState';
 
@@ -45,6 +47,7 @@ interface MappingConfig {
 
 export default function ImportPage() {
 	const currentUser = useAuthStore((state) => state.user);
+	const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
 	
 	// 当前月份，用于拉取成员
 	const currentMonth = new Date().toISOString().substring(0, 7);
@@ -90,25 +93,25 @@ export default function ImportPage() {
 
 	// 2. 拉取数据 (React Query)
 	const { data: categories, isLoading: isCategoriesLoading, isError: isCategoriesError } = useQuery({
-		queryKey: ['categories'],
+		queryKey: queryKeys.categories(activeLedgerId),
 		queryFn: () => transactionsApi.getCategories(),
 		enabled: step === 2,
 	});
 
 	const { data: dashboardData, isLoading: isDashboardLoading, isError: isDashboardError } = useQuery({
-		queryKey: ['dashboard', currentMonth],
+		queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
 		queryFn: () => dashboardApi.getDashboard(currentMonth),
 		enabled: step === 2 && !!currentUser,
 	});
 
 	const { data: importRules, isLoading: isRulesLoading, refetch: refetchImportRules } = useQuery({
-		queryKey: ['importRules'],
+		queryKey: queryKeys.importRules(activeLedgerId),
 		queryFn: () => transactionsApi.listImportRules(),
 		enabled: step === 2,
 	});
 
 	const { data: accounts, isLoading: isAccountsLoading, isError: isAccountsError } = useQuery({
-		queryKey: ['accounts'],
+		queryKey: queryKeys.accounts(activeLedgerId),
 		queryFn: () => transactionsApi.listAccounts(),
 		enabled: step === 2,
 	});
@@ -341,8 +344,8 @@ export default function ImportPage() {
 			setShowConfirmModal(false);
 			
 			// 刷新 TanStack 缓存
-			queryClient.invalidateQueries({ queryKey: ['transactions'] });
-			queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
+			queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
 			
 			// 显示成功弹窗
 			setShowSuccessModal(true);

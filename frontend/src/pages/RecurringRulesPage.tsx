@@ -19,6 +19,7 @@ import { transactionsApi } from '../api/transactions.api';
 import type { CreateRecurringRulePayload } from '../types/transaction';
 import { useAuthStore } from '../stores/auth.store';
 import { dashboardApi } from '../api/dashboard.api';
+import { queryKeys } from '../api/queryKeys';
 import { centsToYuan, yuanToCents } from '../utils/money';
 import { useLedgerStore } from '../stores/ledger.store';
 import PageState from '../components/ui/PageState';
@@ -48,6 +49,7 @@ type RuleFormValues = z.infer<typeof ruleSchema>;
 export default function RecurringRulesPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const activeRole = useLedgerStore((state) => state.activeRole);
   
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -58,13 +60,13 @@ export default function RecurringRulesPage() {
 
   // 1. 获取周期规则列表
   const { data: rules, isLoading: isLoadingRules, error: loadRulesError, refetch: refetchRules } = useQuery({
-    queryKey: ['recurring-rules'],
+    queryKey: queryKeys.recurringRules(activeLedgerId),
     queryFn: () => transactionsApi.listRecurringRules(),
   });
 
   // 2. 获取分类列表
   const { data: categories } = useQuery({
-    queryKey: ['categories'],
+    queryKey: queryKeys.categories(activeLedgerId),
     queryFn: () => transactionsApi.getCategories(),
   });
 
@@ -76,7 +78,7 @@ export default function RecurringRulesPage() {
   // 3. 获取成员（由于是双人账本，可以直接用 dashboard 近期月份拿 user_stats）
   const currentMonth = new Date().toISOString().substring(0, 7);
   const { data: dashboardData } = useQuery({
-    queryKey: ['dashboard', currentMonth],
+    queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
     queryFn: () => dashboardApi.getDashboard(currentMonth),
     enabled: !!currentUser,
   });
@@ -129,7 +131,7 @@ export default function RecurringRulesPage() {
     mutationFn: (payload: CreateRecurringRulePayload) => transactionsApi.createRecurringRule(payload),
     onSuccess: () => {
       setSuccessMsg('周期账单规则创建成功！');
-      queryClient.invalidateQueries({ queryKey: ['recurring-rules'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringRules(activeLedgerId) });
       reset({
         name: '',
         type: 'expense',
@@ -156,7 +158,7 @@ export default function RecurringRulesPage() {
     mutationFn: (id: string) => transactionsApi.deleteRecurringRule(id),
     onSuccess: () => {
       setSuccessMsg('周期规则已成功删除！');
-      queryClient.invalidateQueries({ queryKey: ['recurring-rules'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringRules(activeLedgerId) });
       setDeleteTargetId(null);
       setTimeout(() => setSuccessMsg(null), 3000);
     },

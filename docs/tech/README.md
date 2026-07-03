@@ -20,6 +20,7 @@
 16-api-contract-openapi-error.md API 契约、OpenAPI 与错误码
 17-data-migration-test-quality.md 数据迁移、测试与质量门禁
 18-short-mid-architecture-slices.md 短中期模块架构切片
+19-short-mid-implementation-readiness.md 短中期实施就绪评审
 ```
 
 ## 技术原则
@@ -38,3 +39,4 @@ Task30 后的技术规划建议优先阅读：
 1. `00-current-architecture-after-task30.md`
 2. `13-foundation-framework-before-v1.1.md`
 3. `18-short-mid-architecture-slices.md`
+4. `19-short-mid-implementation-readiness.md`

@@ -29,6 +29,7 @@ docs/prd/24-short-mid-module-breakdown.md
 docs/prd/25-prd-v1.1-module-specs.md
 docs/prd/26-prd-v1.2-import-module-specs.md
 docs/tech/18-short-mid-architecture-slices.md
+docs/tech/19-short-mid-implementation-readiness.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/codex_tasks/05-foundation-task-plan.md
 docs/codex_tasks/08-product-roadmap-dev-plan.md
@@ -66,6 +67,7 @@ docs/prd/24-short-mid-module-breakdown.md
 docs/prd/25-prd-v1.1-module-specs.md
 docs/prd/26-prd-v1.2-import-module-specs.md
 docs/tech/18-short-mid-architecture-slices.md
+docs/tech/19-short-mid-implementation-readiness.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/codex_tasks/README.md
 ```

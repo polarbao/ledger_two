@@ -30,7 +30,7 @@
 2. 读取 `docs/prd/11-foundation-framework-before-v1.1.md`。
 3. 产品规划类任务读取 `docs/prd/20-product-retrospective-and-positioning.md` 到 `docs/prd/23-feature-priority-and-deferral-decisions.md`。
 4. 短中期业务开发读取 `docs/prd/24-short-mid-module-breakdown.md`、`docs/prd/25-prd-v1.1-module-specs.md`、`docs/prd/26-prd-v1.2-import-module-specs.md`。
-5. 读取 `docs/tech/18-short-mid-architecture-slices.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
+5. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
 6. 读取本目录代码风格文档。
 7. 读取对应任务。
 8. 输出计划和预计修改文件，等待确认。

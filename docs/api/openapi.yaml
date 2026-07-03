@@ -1,0 +1,1002 @@
+openapi: 3.0.3
+info:
+  title: LedgerTwo API
+  version: 0.2.0-foundation
+  description: |
+    LedgerTwo 当前实现 API 草案。
+
+    当前实际路径为 /api/...。/api/v1 alias 尚未实现，不能作为已上线接口使用。
+    Foundation 阶段 ledger-scoped 接口仍兼容未传 X-Ledger-Id 的历史 fallback，
+    v1.1 冻结前应逐步收紧为显式账本上下文。
+servers:
+  - url: /api
+    description: Current compatibility API root
+tags:
+  - name: health
+  - name: init
+  - name: auth
+  - name: ledgers
+  - name: metadata
+  - name: transactions
+  - name: import
+  - name: templates
+  - name: recurring
+  - name: shared-expenses
+  - name: settlements
+  - name: safety
+  - name: reports
+  - name: attachments
+
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /init/status:
+    get:
+      tags: [init]
+      summary: Get initialization status
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /init/setup:
+    post:
+      tags: [init]
+      summary: Initialize application, first user and first ledger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitSetupRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login with username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login succeeded and token cookie is set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Logout and clear token cookie
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Get current user
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /ledgers/:
+    get:
+      tags: [ledgers]
+      summary: List ledgers joined by current user
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [ledgers]
+      summary: Create ledger
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLedgerRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /ledgers/{ledgerId}/members:
+    parameters:
+      - $ref: "#/components/parameters/LedgerIdPath"
+    get:
+      tags: [ledgers]
+      summary: List ledger members
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [ledgers]
+      summary: Add ledger member
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddMemberRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /ledgers/{ledgerId}/members/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/LedgerIdPath"
+      - $ref: "#/components/parameters/UserIdPath"
+    put:
+      tags: [ledgers]
+      summary: Update ledger member role
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      tags: [ledgers]
+      summary: Remove ledger member
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /categories:
+    get:
+      tags: [metadata]
+      summary: List categories
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /accounts:
+    get:
+      tags: [metadata]
+      summary: List accounts
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /transactions/:
+    get:
+      tags: [transactions]
+      summary: List transactions
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/MonthQuery"
+        - $ref: "#/components/parameters/TypeQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    post:
+      tags: [transactions]
+      summary: Create ordinary transaction
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransactionRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /transactions/{transactionId}:
+    parameters:
+      - $ref: "#/components/parameters/TransactionIdPath"
+      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+    get:
+      tags: [transactions]
+      summary: Get transaction detail
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [transactions]
+      summary: Update transaction
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTransactionRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      tags: [transactions]
+      summary: Soft delete transaction
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /transactions/batch-tag:
+    post:
+      tags: [transactions]
+      summary: Batch update transaction tags
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /transactions/import/parse:
+    post:
+      tags: [import]
+      summary: Parse CSV import file
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+  /transactions/import/analyze:
+    post:
+      tags: [import]
+      summary: Analyze import items
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /transactions/import/commit:
+    post:
+      tags: [import]
+      summary: Commit import batch
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /import-rules/:
+    get:
+      tags: [import]
+      summary: List import rules
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    post:
+      tags: [import]
+      summary: Create import rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /import-rules/{id}:
+    delete:
+      tags: [import]
+      summary: Delete import rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /transaction-templates/:
+    get:
+      tags: [templates]
+      summary: List transaction templates
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    post:
+      tags: [templates]
+      summary: Create transaction template
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /transaction-templates/{id}:
+    parameters:
+      - $ref: "#/components/parameters/GenericIdPath"
+      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+    get:
+      tags: [templates]
+      summary: Get transaction template
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    put:
+      tags: [templates]
+      summary: Update transaction template
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    delete:
+      tags: [templates]
+      summary: Delete transaction template
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /recurring-rules/:
+    get:
+      tags: [recurring]
+      summary: List recurring rules
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    post:
+      tags: [recurring]
+      summary: Create recurring rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /recurring-rules/{id}:
+    delete:
+      tags: [recurring]
+      summary: Delete recurring rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /recurring-reminders/:
+    get:
+      tags: [recurring]
+      summary: List pending recurring reminders
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /recurring-reminders/{id}/confirm:
+    post:
+      tags: [recurring]
+      summary: Confirm recurring reminder
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /recurring-reminders/{id}/ignore:
+    post:
+      tags: [recurring]
+      summary: Ignore recurring reminder
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /shared-expenses/:
+    post:
+      tags: [shared-expenses]
+      summary: Create shared expense
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSharedExpenseRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /shared-expenses/{id}:
+    parameters:
+      - $ref: "#/components/parameters/GenericIdPath"
+      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+    get:
+      tags: [shared-expenses]
+      summary: Get shared expense
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    patch:
+      tags: [shared-expenses]
+      summary: Update shared expense
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /settlements/balance:
+    get:
+      tags: [settlements]
+      summary: Get shared expense balance
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /settlements/:
+    get:
+      tags: [settlements]
+      summary: List settlements
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/MonthQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    post:
+      tags: [settlements]
+      summary: Create settlement
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSettlementRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/backup:
+    post:
+      tags: [safety]
+      summary: Create manual backup
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /admin/restore:
+    post:
+      tags: [safety]
+      summary: Restore from backup
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /admin/backups:
+    get:
+      tags: [safety]
+      summary: List backups
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /admin/backups/{filename}:
+    get:
+      tags: [safety]
+      summary: Download backup
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Backup file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+  /export/transactions.csv:
+    get:
+      tags: [safety]
+      summary: Export transactions CSV
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+  /export/full.json:
+    get:
+      tags: [safety]
+      summary: Export full JSON
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /reports/monthly-summary:
+    get:
+      tags: [reports]
+      summary: Monthly summary
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/MonthQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /reports/category-summary:
+    get:
+      tags: [reports]
+      summary: Category summary
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/MonthQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /reports/tag-summary:
+    get:
+      tags: [reports]
+      summary: Tag summary
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/MonthQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /reports/member-summary:
+    get:
+      tags: [reports]
+      summary: Member summary
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/MonthQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /dashboard:
+    get:
+      tags: [reports]
+      summary: Dashboard data
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/MonthQuery"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /attachments:
+    post:
+      tags: [attachments]
+      summary: Upload attachment
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+
+  parameters:
+    LedgerIdHeaderOptional:
+      name: X-Ledger-Id
+      in: header
+      required: false
+      description: Explicit ledger id. Optional during Foundation compatibility; should become required for scoped business APIs before v1.1 freeze.
+      schema:
+        type: string
+    LedgerIdPath:
+      name: ledgerId
+      in: path
+      required: true
+      schema:
+        type: string
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    TransactionIdPath:
+      name: transactionId
+      in: path
+      required: true
+      schema:
+        type: string
+    GenericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    MonthQuery:
+      name: month
+      in: query
+      required: false
+      description: Month in YYYY-MM format.
+      schema:
+        type: string
+        pattern: "^\\d{4}-\\d{2}$"
+    TypeQuery:
+      name: type
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [expense, income, shared_expense, settlement]
+
+  responses:
+    Success:
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SuccessResponse"
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    SuccessResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          nullable: true
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          $ref: "#/components/schemas/APIError"
+    APIError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+        details:
+          nullable: true
+
+    InitSetupRequest:
+      type: object
+      required: [username, password, ledger_name]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+        ledger_name:
+          type: string
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+    CreateLedgerRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    AddMemberRequest:
+      type: object
+      required: [username, role]
+      properties:
+        username:
+          type: string
+        role:
+          $ref: "#/components/schemas/LedgerRole"
+    UpdateMemberRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: "#/components/schemas/LedgerRole"
+    LedgerRole:
+      type: string
+      enum: [owner, editor, viewer]
+
+    CreateTransactionRequest:
+      type: object
+      required: [type, title, amount_cents, occurred_at, payer_user_id]
+      properties:
+        type:
+          type: string
+          enum: [expense, income]
+        title:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        payer_user_id:
+          type: string
+        owner_user_id:
+          type: string
+        account_id:
+          type: string
+          nullable: true
+        category_id:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+          enum: [private, partner_readable, shared]
+        note:
+          type: string
+          nullable: true
+        tag_names:
+          type: array
+          items:
+            type: string
+    UpdateTransactionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        account_id:
+          type: string
+          nullable: true
+        category_id:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        tag_names:
+          type: array
+          items:
+            type: string
+    CreateSharedExpenseRequest:
+      type: object
+      required: [title, amount_cents, occurred_at, payer_user_id, split_method, splits]
+      properties:
+        title:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        payer_user_id:
+          type: string
+        split_method:
+          type: string
+          enum: [equal, amount, ratio]
+        splits:
+          type: array
+          items:
+            $ref: "#/components/schemas/SplitInput"
+    SplitInput:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+        share_amount_cents:
+          type: integer
+          format: int64
+        ratio:
+          type: number
+          format: double
+    CreateSettlementRequest:
+      type: object
+      required: [from_user_id, to_user_id, amount_cents, occurred_at]
+      properties:
+        from_user_id:
+          type: string
+        to_user_id:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        note:
+          type: string
+          nullable: true
+

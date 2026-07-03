@@ -9,7 +9,7 @@
 
 ```text
 API_INVENTORY.md  当前 router 实际暴露接口清单、认证要求、账本要求和稳定性标记
-openapi.yaml      OpenAPI 草案，Task34.2 生成
+openapi.yaml      OpenAPI 草案，覆盖当前核心 API 路径、通用响应和主要请求 DTO
 ```
 
 ## 使用规则
@@ -29,4 +29,3 @@ openapi.yaml      OpenAPI 草案，Task34.2 生成
 | transitional | 当前可用，但存在兼容 fallback、字段命名或错误码待治理 |
 | deprecated | 历史兼容或存在风险，后续应迁移或关闭 |
 | internal | 健康检查、静态文件等非业务客户端契约 |
-

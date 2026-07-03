@@ -1,10 +1,12 @@
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/auth.store';
 import { useUIStore } from '../../stores/ui.store';
 import { useLedgerStore } from '../../stores/ledger.store';
-import { ledgerApi, type LedgerWithRole } from '../../api/ledger.api';
+import { ledgerApi } from '../../api/ledger.api';
 import { authApi } from '../../api/auth.api';
 import { useEffect, useState } from 'react';
+import { queryKeys } from '../../api/queryKeys';
 import {
   LayoutDashboard,
   ReceiptText,
@@ -24,18 +26,21 @@ import { useDraftStore } from '../../stores/draft.store';
 export default function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clear);
   const { currentMonth, setCurrentMonth } = useUIStore();
   const { activeLedgerId, setActiveLedger } = useLedgerStore();
-  const [ledgers, setLedgers] = useState<LedgerWithRole[]>([]);
   const { isOffline, setIsOffline } = useUIStore();
   const { drafts } = useDraftStore();
   const [isDraftListOpen, setIsDraftListOpen] = useState(false);
+  const { data: ledgers = [] } = useQuery({
+    queryKey: queryKeys.ledgers.all,
+    queryFn: ledgerApi.listUserLedgers,
+    enabled: !!user,
+  });
 
   useEffect(() => {
-    ledgerApi.listUserLedgers().then(setLedgers).catch(console.error);
-    
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
@@ -47,12 +52,21 @@ export default function AppShell() {
     };
   }, [setIsOffline]);
 
+  useEffect(() => {
+    if (ledgers.length === 0) return;
+    const activeLedger = ledgers.find((item) => item.id === activeLedgerId);
+    if (!activeLedger) {
+      const firstLedger = ledgers[0];
+      setActiveLedger(firstLedger.id, firstLedger.role);
+    }
+  }, [activeLedgerId, ledgers, setActiveLedger]);
+
   const handleLedgerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const lId = e.target.value;
     const l = ledgers.find((item) => item.id === lId);
-    if (l) {
+    if (l && l.id !== activeLedgerId) {
       setActiveLedger(l.id, l.role);
-      window.location.reload(); // Reload to refresh all data for new ledger
+      queryClient.invalidateQueries();
     }
   };
 

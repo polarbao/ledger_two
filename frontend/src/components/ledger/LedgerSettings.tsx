@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLedgerStore } from '../../stores/ledger.store';
 import { ledgerApi, type LedgerMember } from '../../api/ledger.api';
 import { Users, UserPlus, Shield, X } from 'lucide-react';
 import { ApiError } from '../../api/client';
+import { queryKeys } from '../../api/queryKeys';
 
 export default function LedgerSettings() {
-  const { activeLedgerId, activeRole } = useLedgerStore();
+  const queryClient = useQueryClient();
+  const { activeLedgerId, activeRole, setActiveLedger } = useLedgerStore();
   const [members, setMembers] = useState<LedgerMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -87,8 +90,11 @@ export default function LedgerSettings() {
     setCreatingLedger(true);
     setErrorMsg(null);
     try {
-      await ledgerApi.createLedger({ name: newLedgerName });
-      window.location.reload(); // Reload to refresh sidebar ledgers and set new active?
+      const createdLedger = await ledgerApi.createLedger({ name: newLedgerName.trim() });
+      setNewLedgerName('');
+      setActiveLedger(createdLedger.id, 'owner');
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledgers.all });
+      queryClient.invalidateQueries();
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setErrorMsg(err.message);

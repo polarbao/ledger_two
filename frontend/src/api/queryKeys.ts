@@ -5,6 +5,9 @@ export const UNSELECTED_LEDGER_ID = 'no-active-ledger';
 const ledgerScope = (ledgerId: string | null | undefined) => ledgerId || UNSELECTED_LEDGER_ID;
 
 export const queryKeys = {
+  ledgers: {
+    all: ['ledgers'] as const,
+  },
   dashboard: {
     root: (ledgerId?: string | null) => ['dashboard', ledgerScope(ledgerId)] as const,
     month: (ledgerId: string | null | undefined, month: string) =>

@@ -18,4 +18,8 @@ describe('queryKeys', () => {
     expect(queryKeys.dashboard.root(null)).toEqual(['dashboard', UNSELECTED_LEDGER_ID]);
     expect(queryKeys.transactions.root(undefined)).toEqual(['transactions', UNSELECTED_LEDGER_ID]);
   });
+
+  it('keeps ledger list outside ledger scoped data', () => {
+    expect(queryKeys.ledgers.all).toEqual(['ledgers']);
+  });
 });

@@ -5,6 +5,8 @@ import (
 	"errors"
 )
 
+type ledgerContextKey struct{}
+
 var (
 	ErrLedgerUserRequired = errors.New("ledger user id is required")
 	ErrLedgerIDRequired   = errors.New("ledger id is required")
@@ -12,6 +14,15 @@ var (
 )
 
 type MembershipLookup func(ctx context.Context, ledgerID string, userID string) (Role, error)
+
+func ContextWithLedgerContext(ctx context.Context, lc LedgerContext) context.Context {
+	return context.WithValue(ctx, ledgerContextKey{}, lc)
+}
+
+func LedgerContextFromContext(ctx context.Context) (LedgerContext, bool) {
+	lc, ok := ctx.Value(ledgerContextKey{}).(LedgerContext)
+	return lc, ok
+}
 
 func ResolveLedgerContext(ctx context.Context, userID string, ledgerID string, isExplicit bool, lookup MembershipLookup) (LedgerContext, error) {
 	if userID == "" {

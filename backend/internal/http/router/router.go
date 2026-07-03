@@ -105,7 +105,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 		// 重点：加入受保护组，为了未来事务及设置等模块保留
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireAuth(jwtSecret))
-			
+
 			r.Route("/ledgers", func(r chi.Router) {
 				r.Post("/", ledgerHandler.CreateLedger)
 				r.Get("/", ledgerHandler.ListUserLedgers)
@@ -115,83 +115,87 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Delete("/{id}/members/{userId}", ledgerHandler.RemoveMember)
 			})
 
-			r.Get("/categories", transactionHandler.HandleListCategories)
-			r.Get("/accounts", transactionHandler.HandleListAccounts)
-			r.Route("/transactions", func(r chi.Router) {
-				r.Get("/", transactionHandler.HandleList)
-				r.Post("/", transactionHandler.HandleCreate)
-				r.Post("/batch-tag", transactionHandler.HandleBatchTag)
-				r.Post("/import/parse", transactionHandler.HandleParseCSV)
-				r.Post("/import/analyze", transactionHandler.HandleAnalyzeImport)
-				r.Post("/import/commit", transactionHandler.HandleCommitImport)
-				r.Get("/{id}", transactionHandler.HandleGetByID)
-				r.Patch("/{id}", transactionHandler.HandleUpdate)
-				r.Delete("/{id}", transactionHandler.HandleDelete)
-			})
+			r.Group(func(r chi.Router) {
+				r.Use(ledger.WithLedgerContext(ledgerSvc))
 
-			r.Route("/import-rules", func(r chi.Router) {
-				r.Post("/", transactionHandler.HandleCreateImportRule)
-				r.Get("/", transactionHandler.HandleListImportRules)
-				r.Delete("/{id}", transactionHandler.HandleDeleteImportRule)
-			})
+				r.Get("/categories", transactionHandler.HandleListCategories)
+				r.Get("/accounts", transactionHandler.HandleListAccounts)
+				r.Route("/transactions", func(r chi.Router) {
+					r.Get("/", transactionHandler.HandleList)
+					r.Post("/", transactionHandler.HandleCreate)
+					r.Post("/batch-tag", transactionHandler.HandleBatchTag)
+					r.Post("/import/parse", transactionHandler.HandleParseCSV)
+					r.Post("/import/analyze", transactionHandler.HandleAnalyzeImport)
+					r.Post("/import/commit", transactionHandler.HandleCommitImport)
+					r.Get("/{id}", transactionHandler.HandleGetByID)
+					r.Patch("/{id}", transactionHandler.HandleUpdate)
+					r.Delete("/{id}", transactionHandler.HandleDelete)
+				})
 
-			r.Route("/transaction-templates", func(r chi.Router) {
-				r.Post("/", transactionHandler.HandleCreateTemplate)
-				r.Get("/", transactionHandler.HandleListTemplates)
-				r.Get("/{id}", transactionHandler.HandleGetTemplate)
-				r.Put("/{id}", transactionHandler.HandleUpdateTemplate)
-				r.Delete("/{id}", transactionHandler.HandleDeleteTemplate)
-			})
+				r.Route("/import-rules", func(r chi.Router) {
+					r.Post("/", transactionHandler.HandleCreateImportRule)
+					r.Get("/", transactionHandler.HandleListImportRules)
+					r.Delete("/{id}", transactionHandler.HandleDeleteImportRule)
+				})
 
-			r.Route("/recurring-rules", func(r chi.Router) {
-				r.Post("/", transactionHandler.HandleCreateRecurringRule)
-				r.Get("/", transactionHandler.HandleListRecurringRules)
-				r.Delete("/{id}", transactionHandler.HandleDeleteRecurringRule)
-			})
+				r.Route("/transaction-templates", func(r chi.Router) {
+					r.Post("/", transactionHandler.HandleCreateTemplate)
+					r.Get("/", transactionHandler.HandleListTemplates)
+					r.Get("/{id}", transactionHandler.HandleGetTemplate)
+					r.Put("/{id}", transactionHandler.HandleUpdateTemplate)
+					r.Delete("/{id}", transactionHandler.HandleDeleteTemplate)
+				})
 
-			r.Route("/recurring-reminders", func(r chi.Router) {
-				r.Get("/", transactionHandler.HandleListRecurringReminders)
-				r.Post("/{id}/confirm", transactionHandler.HandleConfirmReminder)
-				r.Post("/{id}/ignore", transactionHandler.HandleIgnoreReminder)
-			})
+				r.Route("/recurring-rules", func(r chi.Router) {
+					r.Post("/", transactionHandler.HandleCreateRecurringRule)
+					r.Get("/", transactionHandler.HandleListRecurringRules)
+					r.Delete("/{id}", transactionHandler.HandleDeleteRecurringRule)
+				})
 
-			r.Route("/shared-expenses", func(r chi.Router) {
-				r.Post("/", transactionHandler.HandleCreateSharedExpense)
-				r.Get("/{id}", transactionHandler.HandleGetSharedExpenseByID)
-				r.Patch("/{id}", transactionHandler.HandleUpdateSharedExpense)
-			})
+				r.Route("/recurring-reminders", func(r chi.Router) {
+					r.Get("/", transactionHandler.HandleListRecurringReminders)
+					r.Post("/{id}/confirm", transactionHandler.HandleConfirmReminder)
+					r.Post("/{id}/ignore", transactionHandler.HandleIgnoreReminder)
+				})
 
-			r.Route("/settlements", func(r chi.Router) {
-				r.Get("/balance", settlementHandler.HandleGetBalance)
-				r.Get("/", settlementHandler.HandleList)
-				r.Post("/", settlementHandler.HandleCreate)
-			})
+				r.Route("/shared-expenses", func(r chi.Router) {
+					r.Post("/", transactionHandler.HandleCreateSharedExpense)
+					r.Get("/{id}", transactionHandler.HandleGetSharedExpenseByID)
+					r.Patch("/{id}", transactionHandler.HandleUpdateSharedExpense)
+				})
 
-			// 备份与数据安全管理
-			r.Route("/admin", func(r chi.Router) {
-				r.Post("/backup", safetyHandler.HandleManualBackup)
-				r.Post("/restore", safetyHandler.HandleRestoreBackup)
-				r.Get("/backups", safetyHandler.HandleGetBackups)
-				r.Get("/backups/{filename}", safetyHandler.HandleDownloadBackup)
-				r.Get("/backups/*", safetyHandler.HandleDownloadBackup)
-			})
+				r.Route("/settlements", func(r chi.Router) {
+					r.Get("/balance", settlementHandler.HandleGetBalance)
+					r.Get("/", settlementHandler.HandleList)
+					r.Post("/", settlementHandler.HandleCreate)
+				})
 
-			// 导出管理
-			r.Route("/export", func(r chi.Router) {
-				r.Get("/transactions.csv", safetyHandler.HandleExportCSV)
-				r.Get("/full.json", safetyHandler.HandleExportJSON)
-			})
+				// 备份与数据安全管理
+				r.Route("/admin", func(r chi.Router) {
+					r.Post("/backup", safetyHandler.HandleManualBackup)
+					r.Post("/restore", safetyHandler.HandleRestoreBackup)
+					r.Get("/backups", safetyHandler.HandleGetBackups)
+					r.Get("/backups/{filename}", safetyHandler.HandleDownloadBackup)
+					r.Get("/backups/*", safetyHandler.HandleDownloadBackup)
+				})
 
-			// 统计报表管理
-			r.Route("/reports", func(r chi.Router) {
-				r.Get("/monthly-summary", reportsHandler.HandleGetMonthlySummary)
-				r.Get("/category-summary", reportsHandler.HandleGetCategorySummary)
-				r.Get("/tag-summary", reportsHandler.HandleGetTagSummary)
-				r.Get("/member-summary", reportsHandler.HandleGetMemberSummary)
-			})
+				// 导出管理
+				r.Route("/export", func(r chi.Router) {
+					r.Get("/transactions.csv", safetyHandler.HandleExportCSV)
+					r.Get("/full.json", safetyHandler.HandleExportJSON)
+				})
 
-			r.Post("/attachments", transactionHandler.HandleUploadAttachment)
-			r.Get("/dashboard", dashboardHandler.HandleGetDashboard)
+				// 统计报表管理
+				r.Route("/reports", func(r chi.Router) {
+					r.Get("/monthly-summary", reportsHandler.HandleGetMonthlySummary)
+					r.Get("/category-summary", reportsHandler.HandleGetCategorySummary)
+					r.Get("/tag-summary", reportsHandler.HandleGetTagSummary)
+					r.Get("/member-summary", reportsHandler.HandleGetMemberSummary)
+				})
+
+				r.Post("/attachments", transactionHandler.HandleUploadAttachment)
+				r.Get("/dashboard", dashboardHandler.HandleGetDashboard)
+			})
 		})
 	})
 

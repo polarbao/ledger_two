@@ -8,6 +8,7 @@ import TransactionsPage from './pages/TransactionsPage';
 import SettlementPage from './pages/SettlementPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
+import MetadataManagePage from './pages/MetadataManagePage';
 import RecurringRulesPage from './pages/RecurringRulesPage';
 import ImportPage from './pages/ImportPage';
 import AppShell from './components/layout/AppShell';
@@ -49,6 +50,10 @@ export const router = createBrowserRouter([
           {
             path: 'settings',
             element: <SettingsPage />,
+          },
+          {
+            path: 'settings/:kind',
+            element: <MetadataManagePage />,
           },
           {
             path: 'recurring-rules',

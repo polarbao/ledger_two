@@ -12,6 +12,9 @@ describe('queryKeys', () => {
       queryKeys.transactions.list('ledger-b', filter)
     );
     expect(queryKeys.categories('ledger-a')).not.toEqual(queryKeys.categories('ledger-b'));
+    expect(queryKeys.metadata.list('ledger-a', 'categories')).not.toEqual(
+      queryKeys.metadata.list('ledger-b', 'categories')
+    );
   });
 
   it('uses an explicit placeholder when no ledger is selected', () => {

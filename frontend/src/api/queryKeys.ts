@@ -1,4 +1,5 @@
 import type { TransactionListFilter } from './transactions.api';
+import type { MetadataKind } from '../types/metadata';
 
 export const UNSELECTED_LEDGER_ID = 'no-active-ledger';
 
@@ -20,6 +21,11 @@ export const queryKeys = {
   },
   categories: (ledgerId?: string | null) => ['categories', ledgerScope(ledgerId)] as const,
   accounts: (ledgerId?: string | null) => ['accounts', ledgerScope(ledgerId)] as const,
+  metadata: {
+    root: (ledgerId?: string | null) => ['metadata', ledgerScope(ledgerId)] as const,
+    list: (ledgerId: string | null | undefined, kind: MetadataKind) =>
+      ['metadata', ledgerScope(ledgerId), kind] as const,
+  },
   importRules: (ledgerId?: string | null) => ['importRules', ledgerScope(ledgerId)] as const,
   templates: (ledgerId?: string | null) => ['transaction-templates', ledgerScope(ledgerId)] as const,
   recurringRules: (ledgerId?: string | null) => ['recurring-rules', ledgerScope(ledgerId)] as const,

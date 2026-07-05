@@ -303,21 +303,42 @@ export default function SettingsPage() {
           <SettingsActionCard
             icon={<Tags size={18} />}
             title="分类管理"
-            description="新增、编辑、排序、归档和恢复分类。归档项不会进入新增账单默认选择器。"
-            badge="待接入"
-          />
+            description="新增、编辑、归档和恢复分类。归档项不会进入新增账单默认选择器。"
+          >
+            <Link
+              to="/settings/categories"
+              className="btn-secondary"
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
+            >
+              管理分类
+            </Link>
+          </SettingsActionCard>
           <SettingsActionCard
             icon={<Tags size={18} />}
             title="标签管理"
             description="维护账单标签和自动补全数据源。历史账单会保留已归档标签展示。"
-            badge="待接入"
-          />
+          >
+            <Link
+              to="/settings/tags"
+              className="btn-secondary"
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
+            >
+              管理标签
+            </Link>
+          </SettingsActionCard>
           <SettingsActionCard
             icon={<CreditCard size={18} />}
             title="支付账户"
             description="管理现金、银行卡、支付宝、微信等支付来源，服务导入和快捷记账。"
-            badge="待接入"
-          />
+          >
+            <Link
+              to="/settings/accounts"
+              className="btn-secondary"
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
+            >
+              管理支付账户
+            </Link>
+          </SettingsActionCard>
         </SettingsSection>
 
         <SettingsSection

@@ -55,9 +55,9 @@ export default function DashboardPage() {
     },
   });
 
-  // 忽略提醒的 Mutation
-  const ignoreReminderMutation = useMutation({
-    mutationFn: (id: string) => transactionsApi.ignoreReminder(id),
+  // 跳过本期提醒的 Mutation
+  const skipReminderMutation = useMutation({
+    mutationFn: (id: string) => transactionsApi.skipReminder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(activeLedgerId) });
     },
@@ -67,8 +67,8 @@ export default function DashboardPage() {
     confirmReminderMutation.mutate(id);
   };
 
-  const handleIgnoreReminder = (id: string) => {
-    ignoreReminderMutation.mutate(id);
+  const handleSkipReminder = (id: string) => {
+    skipReminderMutation.mutate(id);
   };
 
   const handleQuickAdd = () => {
@@ -130,12 +130,12 @@ export default function DashboardPage() {
                   <Clock className="animate-pulse text-purple-400" style={{ color: 'var(--accent-purple)' }} size={20} />
                   <strong style={{ fontSize: '15px', color: 'var(--text-primary)' }}>您有 {reminders.length} 笔周期账单待确认</strong>
                 </div>
-                <span className="dimmed-desc" style={{ fontSize: '11px' }}>点击即可直接记账或忽略</span>
+                <span className="dimmed-desc" style={{ fontSize: '11px' }}>确认后生成真实账单；跳过只影响本期提醒</span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
                 {reminders.map((rem) => (
-                  <div key={rem.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div key={rem.id} className="dashboard-reminder-card">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{rem.rule_name}</span>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -143,24 +143,24 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="dashboard-reminder-actions">
                       <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent-green)' }}>
                         {rem.amount_cents != null ? `¥${centsToYuan(rem.amount_cents)}` : '未设定金额'}
                       </span>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div className="dashboard-reminder-buttons">
                         <button 
-                          onClick={() => handleIgnoreReminder(rem.id)}
-                          className="btn-secondary" 
+                          onClick={() => handleSkipReminder(rem.id)}
+                          className="btn-secondary mobile-full"
                           style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px' }}
-                          disabled={confirmReminderMutation.isPending || ignoreReminderMutation.isPending}
+                          disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
                         >
-                          忽略
+                          跳过本期
                         </button>
                         <button 
                           onClick={() => handleConfirmReminder(rem.id)}
-                          className="btn-primary" 
+                          className="btn-primary mobile-full"
                           style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: 'var(--accent-purple)', border: 'none', color: '#fff' }}
-                          disabled={confirmReminderMutation.isPending || ignoreReminderMutation.isPending}
+                          disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
                         >
                           {confirmReminderMutation.isPending && confirmReminderMutation.variables === rem.id ? '记账中...' : '确认记账'}
                         </button>

@@ -2146,6 +2146,29 @@ button {
   justify-content: flex-end;
 }
 
+.dashboard-reminder-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dashboard-reminder-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-reminder-buttons {
+  display: flex;
+  gap: 6px;
+}
+
 /* 移动端高级筛选的底部 Sheet */
 @media (max-width: 768px) {
   .desktop-filters {
@@ -2190,5 +2213,18 @@ button {
   .metadata-item-actions .metadata-text-action {
     flex: 1 1 112px;
     justify-content: center;
+  }
+  .dashboard-reminder-card {
+    align-items: stretch;
+  }
+  .dashboard-reminder-card > * {
+    width: 100%;
+  }
+  .dashboard-reminder-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .dashboard-reminder-buttons {
+    flex-direction: column;
   }
 }

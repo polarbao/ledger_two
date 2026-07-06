@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import { formatDate, getMonthOnly } from './date';
 
 describe('Date Utility Tests', () => {

@@ -13,7 +13,7 @@ import { yuanToCents } from '../../utils/money';
 import type { TransactionTemplateResponse, CreateTemplatePayload } from '../../types/transaction';
 import { useDraftStore } from '../../stores/draft.store';
 import { useLedgerStore } from '../../stores/ledger.store';
-import { useHasLedgerRole } from '../ledger/PermissionGate';
+import { useHasLedgerRole } from '../ledger/useLedgerPermission';
 
 /**
  * @brief 表单校验 Schema 结构定义

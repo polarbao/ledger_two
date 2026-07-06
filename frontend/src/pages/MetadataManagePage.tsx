@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Archive, RotateCcw, Save, Tags, X } from 'lucide-react';
@@ -7,7 +7,8 @@ import { queryKeys } from '../api/queryKeys';
 import { useLedgerStore } from '../stores/ledger.store';
 import type { MetadataItem, MetadataKind, MetadataUpsertPayload } from '../types/metadata';
 import PageState from '../components/ui/PageState';
-import PermissionGate, { useHasLedgerRole } from '../components/ledger/PermissionGate';
+import PermissionGate from '../components/ledger/PermissionGate';
+import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
 import { ApiError } from '../api/client';
 
 interface KindConfig {
@@ -73,36 +74,30 @@ function defaultForm(kind: MetadataKind) {
 export default function MetadataManagePage() {
   const params = useParams();
   const kind = parseKind(params.kind);
+  if (!kind) {
+    return <Navigate to="/settings" replace />;
+  }
+  return <MetadataManageContent key={kind} kind={kind} />;
+}
+
+function MetadataManageContent({ kind }: { kind: MetadataKind }) {
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const canManage = useHasLedgerRole(['owner']);
   const queryClient = useQueryClient();
   const [editingItem, setEditingItem] = useState<MetadataItem | null>(null);
-  const [form, setForm] = useState(defaultForm(kind || 'categories'));
+  const [form, setForm] = useState(defaultForm(kind));
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const config = kind ? KIND_CONFIG[kind] : null;
+  const config = KIND_CONFIG[kind];
 
   const { data: items = [], isLoading, isError, refetch } = useQuery({
-    queryKey: kind ? queryKeys.metadata.list(activeLedgerId, kind) : queryKeys.metadata.root(activeLedgerId),
-    queryFn: () => metadataApi.list(kind as MetadataKind, true),
-    enabled: !!kind,
+    queryKey: queryKeys.metadata.list(activeLedgerId, kind),
+    queryFn: () => metadataApi.list(kind, true),
   });
 
   const activeItems = useMemo(() => items.filter((item) => !item.is_archived), [items]);
   const archivedItems = useMemo(() => items.filter((item) => item.is_archived), [items]);
-
-  useEffect(() => {
-    if (!kind) return;
-    setEditingItem(null);
-    setForm(defaultForm(kind));
-    setErrorMsg(null);
-    setSuccessMsg(null);
-  }, [kind]);
-
-  if (!kind || !config) {
-    return <Navigate to="/settings" replace />;
-  }
 
   const resetForm = () => {
     setEditingItem(null);
@@ -120,7 +115,7 @@ export default function MetadataManagePage() {
   };
 
   const submitMutation = useMutation({
-    mutationFn: (payload: MetadataUpsertPayload) => {
+    mutationFn: async (payload: MetadataUpsertPayload): Promise<unknown> => {
       if (editingItem) {
         return metadataApi.update(kind, editingItem.id, payload);
       }

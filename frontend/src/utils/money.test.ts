@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import { yuanToCents, centsToYuan, formatCny } from './money';
 
 // 简单的高保真单元测试，可使用 vitest/jest 运行，也可作自测依据

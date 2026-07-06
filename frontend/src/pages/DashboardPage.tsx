@@ -11,7 +11,8 @@ import { formatDate } from '../utils/date';
 import SkeletonTable from '../components/ui/SkeletonTable';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
-import PermissionGate, { useHasLedgerRole } from '../components/ledger/PermissionGate';
+import PermissionGate from '../components/ledger/PermissionGate';
+import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
 import {
   TrendingUp,
   TrendingDown,

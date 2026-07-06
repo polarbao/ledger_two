@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLedgerStore } from '../../stores/ledger.store';
 import { ledgerApi, type LedgerMember } from '../../api/ledger.api';
@@ -19,7 +19,7 @@ export default function LedgerSettings() {
   const [newLedgerName, setNewLedgerName] = useState('');
   const [creatingLedger, setCreatingLedger] = useState(false);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     if (!activeLedgerId) return;
     setLoading(true);
     setErrorMsg(null);
@@ -33,14 +33,14 @@ export default function LedgerSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeLedgerId]);
 
   useEffect(() => {
     const load = async () => {
       await fetchMembers();
     };
     load();
-  }, [activeLedgerId]);
+  }, [fetchMembers]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();

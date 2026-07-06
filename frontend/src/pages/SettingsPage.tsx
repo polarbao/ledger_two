@@ -25,7 +25,8 @@ import { api, ApiError } from '../api/client';
 import EmptyState from '../components/ui/EmptyState';
 import LedgerSettings from '../components/ledger/LedgerSettings';
 import RestoreBackupModal from '../components/ui/RestoreBackupModal';
-import PermissionGate, { useHasLedgerRole } from '../components/ledger/PermissionGate';
+import PermissionGate from '../components/ledger/PermissionGate';
+import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
 import { useAuthStore } from '../stores/auth.store';
 import { useLedgerStore } from '../stores/ledger.store';
 

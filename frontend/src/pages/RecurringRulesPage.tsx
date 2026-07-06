@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link } from 'react-router-dom';
@@ -105,7 +105,6 @@ export default function RecurringRulesPage() {
     register,
     handleSubmit,
     control,
-    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<RuleFormValues>({
@@ -124,7 +123,7 @@ export default function RecurringRulesPage() {
     },
   });
 
-  const watchType = watch('type');
+  const watchType = useWatch({ control, name: 'type' });
 
   // 5. 创建规则 Mutation
   const createMutation = useMutation({

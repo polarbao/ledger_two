@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { DollarSign, HelpCircle, CheckCircle2, User, ArrowRight, Loader2, Calendar, X, AlertTriangle, Copy } from 'lucide-react';
+import { DollarSign, HelpCircle, CheckCircle2, User, ArrowRight, Loader2, Calendar, X, AlertTriangle, Copy, ReceiptText } from 'lucide-react';
 import { useUIStore } from '../stores/ui.store';
 import { useAuthStore } from '../stores/auth.store';
 import { settlementApi } from '../api/settlement.api';
@@ -172,6 +173,7 @@ export default function SettlementPage() {
   const personalDetails = getPersonalNetDetails();
   const showPageError = isBalanceError || isHistoryError;
   const pageErrorMsg = (balanceError instanceof Error ? balanceError.message : '') || (historyError instanceof Error ? historyError.message : '') || '获取结算对账信息失败';
+  const sharedExpenseDetailUrl = `/transactions?month=${encodeURIComponent(currentMonth)}&type=shared_expense&page=1`;
 
   const handleRetryAll = () => {
     refetchBalance();
@@ -322,6 +324,26 @@ export default function SettlementPage() {
                 </div>
               ))
             )}
+          </div>
+
+          <div className="glass-card history-settlement-card">
+            <div className="subcard-header" style={{ alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ReceiptText size={18} className="subcard-icon" />
+                <h3>影响结算的共同支出明细</h3>
+              </div>
+              <Link
+                to={sharedExpenseDetailUrl}
+                className="btn-secondary"
+                style={{ padding: '8px 12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+              >
+                <ReceiptText size={15} />
+                <span>查看明细</span>
+              </Link>
+            </div>
+            <p className="dimmed" style={{ margin: 0, fontSize: '13px', lineHeight: 1.6 }}>
+              共同支出会进入 paid/share/raw_net 计算；已登记的结算记录只影响 settlement/final_net，不会修改这些历史账单。
+            </p>
           </div>
 
           {/* 3. 已结算记录历史列表 */}

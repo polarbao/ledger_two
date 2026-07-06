@@ -34,7 +34,9 @@
   }
   
   /* Make all primary buttons full width on mobile if they are main actions */
-  .btn-primary.mobile-full {
+  .btn-primary.mobile-full,
+  .btn-secondary.mobile-full,
+  .btn-danger.mobile-full {
     width: 100%;
     justify-content: center;
   }

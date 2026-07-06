@@ -752,12 +752,12 @@ export default function TransactionsPage() {
             </div>
 
             {/* 页脚操作按钮 */}
-            <div className="drawer-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <div className="drawer-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               {/* 删除按钮 (仅创建者允许) */}
               {selectedTx.created_by_user_id === currentUser?.id && selectedTx.type !== 'settlement' && (
-                <button 
-                  className="btn-secondary" 
-                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+                <button
+                  className="btn-secondary mobile-full"
+                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
                   onClick={() => {
                     setDetailOpen(false);
                     handleDeleteClick(selectedTx);
@@ -772,7 +772,7 @@ export default function TransactionsPage() {
               {selectedTx.type !== 'settlement' && (
                 <PermissionGate allow={['owner', 'editor']}>
                   <button
-                    className="btn-secondary"
+                    className="btn-secondary mobile-full"
                     style={{
                       padding: '10px 20px',
                       fontSize: '14px',
@@ -788,7 +788,7 @@ export default function TransactionsPage() {
                     存为模板
                   </button>
                   <button
-                    className="btn-primary"
+                    className="btn-primary mobile-full"
                     style={{
                       padding: '10px 20px',
                       fontSize: '14px',
@@ -929,18 +929,18 @@ export default function TransactionsPage() {
               </div>
 
               {/* 模态框页脚操作 */}
-              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button 
-                  className="btn-secondary" 
-                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button
+                  className="btn-secondary mobile-full"
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
                   onClick={() => { setShowDeleteModal(false); setSelectedTx(null); }}
                   disabled={deleteMutation.isPending}
                 >
                   取消
                 </button>
-                <button 
-                  className="btn-danger" 
-                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+                <button
+                  className="btn-danger mobile-full"
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
                   onClick={() => deleteMutation.mutate(selectedTx.id)}
                   disabled={deleteMutation.isPending}
                 >
@@ -1150,18 +1150,18 @@ export default function TransactionsPage() {
                 <span>此操作属于批量操作，修改结果及标签流水变化将由系统后台记录并同步写入 `audit_logs` 审计表中以备历史追溯。</span>
               </div>
 
-              <div className="drawer-footer" style={{ borderTop: 'none', padding: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button 
-                  className="btn-secondary" 
-                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+              <div className="drawer-footer" style={{ borderTop: 'none', padding: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button
+                  className="btn-secondary mobile-full"
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
                   onClick={() => setShowBatchTagModal(false)}
                   disabled={batchTagMutation.isPending}
                 >
                   取消
                 </button>
-                <button 
-                  className="btn-primary" 
-                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} 
+                <button
+                  className="btn-primary mobile-full"
+                  style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
                   onClick={() => {
                     const tag_names = batchTagsInput
                       .split(/[\s,，]+/)

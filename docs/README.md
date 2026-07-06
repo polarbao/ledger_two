@@ -38,7 +38,7 @@ docs/
 20. `docs/codex_tasks/README.md`
 21. 进入具体业务模块文档。
 
-当前项目已完成 Task01-Task30，正在进行 Foundation before v1.1 收尾。Task31-Task39 已基本完成，Task40「审计与系统诊断中心」未完成，因此 Foundation 尚未冻结。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/` 和新增的 Foundation 文档为主要入口。
+当前项目已完成 Task01-Task40，Foundation before v1.1 已完成基础冻结；中期 v1.1 已从 Task44「分类、标签、账户管理体验」启动。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/`、`docs/prd/24-28` 和 `docs/tech/18-19` 为主要入口。
 
 ## AI 开发使用方式
 

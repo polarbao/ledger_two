@@ -478,7 +478,7 @@ export default function TransactionFormDrawer() {
         <div className="drawer-header">
           <div className="header-title">
             <Sparkles className="title-icon text-glow" />
-            <h3>记一笔账单</h3>
+            <h3>{copySourceTransaction ? '复制一笔账单' : '记一笔账单'}</h3>
           </div>
           <button className="btn-close-drawer" onClick={handleClose}>
             <X size={20} />
@@ -524,6 +524,29 @@ export default function TransactionFormDrawer() {
             }}>
               <Check size={16} />
               <span>账单已成功保存！您可以继续录入下一笔。</span>
+            </div>
+          )}
+          {copySourceTransaction && (
+            <div className="success-banner animate-fade-in" style={{
+              background: 'rgba(168, 85, 247, 0.12)',
+              border: '1px solid rgba(168, 85, 247, 0.24)',
+              color: 'var(--text-primary)',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              fontSize: '13px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              backdropFilter: 'blur(8px)',
+              lineHeight: 1.5
+            }}>
+              <strong style={{ color: 'var(--accent-purple)' }}>
+                复制来源：{copySourceTransaction.title || '未命名账单'} · ¥{(copySourceTransaction.amount_cents / 100).toFixed(2)}
+              </strong>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                保存后会生成一笔新账单，原账单保持不变；发生日期已重置为今天。
+              </span>
             </div>
           )}
           {createTxMutation.isError && (
@@ -1169,6 +1192,8 @@ export default function TransactionFormDrawer() {
                 <span>保存为离线草稿</span>
               ) : editingDraftId ? (
                 <span>提交正式账单</span>
+              ) : copySourceTransaction ? (
+                <span>保存为新账单</span>
               ) : (
                 <span>确认记账</span>
               )}

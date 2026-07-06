@@ -172,8 +172,11 @@ func TestSafetyFlow(t *testing.T) {
 	}
 
 	// 6. 物理不可写备份路径报错测试
-	// 使用不合法的系统级目录路径测试
-	cfg.BackupDir = "/sys_non_writable_dir_for_test/invalid_path"
+	invalidBackupRoot := filepath.Join(tmpBackupDir, "not-a-directory")
+	if err := os.WriteFile(invalidBackupRoot, []byte("not a directory"), 0644); err != nil {
+		t.Fatalf("failed to create invalid backup root fixture: %v", err)
+	}
+	cfg.BackupDir = invalidBackupRoot
 	reqBackupErr, _ := http.NewRequest("POST", "/api/admin/backup", nil)
 	reqBackupErr.AddCookie(cookieA)
 	rrBackupErr := httptest.NewRecorder()

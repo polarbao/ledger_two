@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -79,7 +80,7 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO accounts (id, ledger_id, owner_user_id, name, type, currency, created_at, updated_at)
 			VALUES (?, ?, ?, ?, 'cash', ?, ?, ?)
-		`, accountID, ledgerID, userID, "日常账户", currency, now, now)
+		`, accountID, ledgerID, userID, defaultAccountName(u, len(users)), currency, now, now)
 		if err != nil {
 			return err
 		}
@@ -118,4 +119,20 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 	}
 
 	return tx.Commit()
+}
+
+func defaultAccountName(user UserPayload, userCount int) string {
+	const baseName = "日常账户"
+	if userCount <= 1 {
+		return baseName
+	}
+
+	label := strings.TrimSpace(user.DisplayName)
+	if label == "" {
+		label = strings.TrimSpace(user.Username)
+	}
+	if label == "" {
+		return baseName
+	}
+	return label + baseName
 }

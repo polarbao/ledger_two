@@ -97,8 +97,8 @@ func TestImportRulesCRUD(t *testing.T) {
 		if len(res.Data) != 2 {
 			t.Errorf("expected 2 accounts, got %d", len(res.Data))
 		}
-		if res.Data[0].Name != "日常账户" {
-			t.Errorf("expected account name '日常账户', got %s", res.Data[0].Name)
+		if res.Data[0].Name != "User A日常账户" {
+			t.Errorf("expected account name 'User A日常账户', got %s", res.Data[0].Name)
 		}
 	})
 
@@ -131,7 +131,7 @@ func TestImportRulesCRUD(t *testing.T) {
 		}
 
 		var res struct {
-			Success bool                             `json:"success"`
+			Success bool                           `json:"success"`
 			Data    transaction.ImportRuleResponse `json:"data"`
 		}
 		json.Unmarshal(rr.Body.Bytes(), &res)
@@ -177,7 +177,7 @@ func TestImportRulesCRUD(t *testing.T) {
 		}
 
 		var res struct {
-			Success bool                               `json:"success"`
+			Success bool                             `json:"success"`
 			Data    []transaction.ImportRuleResponse `json:"data"`
 		}
 		json.Unmarshal(rr.Body.Bytes(), &res)
@@ -219,7 +219,7 @@ func TestImportRulesCRUD(t *testing.T) {
 		r.ServeHTTP(rrList, reqList)
 
 		var res struct {
-			Success bool                               `json:"success"`
+			Success bool                             `json:"success"`
 			Data    []transaction.ImportRuleResponse `json:"data"`
 		}
 		json.Unmarshal(rrList.Body.Bytes(), &res)

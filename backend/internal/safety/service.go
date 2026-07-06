@@ -206,6 +206,7 @@ func (s *Service) GetBackups(ctx context.Context) ([]BackupInfo, error) {
 		if err != nil {
 			rel = info.Name()
 		}
+		rel = filepath.ToSlash(rel)
 
 		list = append(list, BackupInfo{
 			Filename:  rel,

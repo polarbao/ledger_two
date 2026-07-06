@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -74,6 +75,11 @@ func TestRecurringBilling(t *testing.T) {
 	}
 
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
+	dueDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	nextDueDate, err := nextMonthlyDate(dueDate)
+	if err != nil {
+		t.Fatalf("calculate next due date failed: %v", err)
+	}
 
 	// 2. 测试创建周期规则参数拦截
 	// 2.1 名称为空失败
@@ -81,7 +87,7 @@ func TestRecurringBilling(t *testing.T) {
 		"name":          "",
 		"type":          "expense",
 		"frequency":     "monthly",
-		"next_due_date": "2026-06-01",
+		"next_due_date": dueDate,
 	}
 	body1, _ := json.Marshal(badPayload1)
 	req1, _ := http.NewRequest("POST", "/api/recurring-rules", bytes.NewBuffer(body1))
@@ -97,7 +103,7 @@ func TestRecurringBilling(t *testing.T) {
 		"name":          "房租",
 		"type":          "expense",
 		"frequency":     "every-two-weeks",
-		"next_due_date": "2026-06-01",
+		"next_due_date": dueDate,
 	}
 	body2, _ := json.Marshal(badPayload2)
 	req2, _ := http.NewRequest("POST", "/api/recurring-rules", bytes.NewBuffer(body2))
@@ -108,7 +114,7 @@ func TestRecurringBilling(t *testing.T) {
 		t.Errorf("expected 400 for invalid frequency, got %d", rr2.Code)
 	}
 
-	// 2.3 成功创建周期规则 (设定首次到期时间为 2026-06-01，即过去的时间，用来测试懒触发生成提醒)
+	// 2.3 成功创建周期规则：设定首次到期时间为昨天，用来测试懒触发生成提醒。
 	amountVal := int64(300000) // 3000元
 	noteVal := "每月固定交房租房东"
 	titleVal := "房租提醒实例"
@@ -122,7 +128,7 @@ func TestRecurringBilling(t *testing.T) {
 		"tag_names":     []string{"住房", "固定支出"},
 		"note":          &noteVal,
 		"frequency":     "monthly",
-		"next_due_date": "2026-06-01",
+		"next_due_date": dueDate,
 	}
 	bodyOk, _ := json.Marshal(okPayload)
 	reqOk, _ := http.NewRequest("POST", "/api/recurring-rules", bytes.NewBuffer(bodyOk))
@@ -142,11 +148,8 @@ func TestRecurringBilling(t *testing.T) {
 	}
 	_ = json.Unmarshal(rrOk.Body.Bytes(), &createdRule)
 
-	// 3. 触发懒扫描：拉取到期提醒列表，今天日期是 2026-06-11
-	// 首次到期日是 2026-06-01，它小于 2026-06-11。
-	// 检测扫描器会自动插入一条 2026-06-01 的待处理 Reminder。
-	// 然后，NextDueDate 推进 1 个月至 2026-07-01。
-	// 由于 2026-07-01 > 2026-06-11，扫描停止。
+	// 3. 触发懒扫描：拉取到期提醒列表，扫描器会自动插入一条待处理 Reminder。
+	// 然后 NextDueDate 推进 1 个月；由于推进后的日期大于今天，扫描停止。
 	reqList, _ := http.NewRequest("GET", "/api/recurring-reminders", nil)
 	reqList.AddCookie(cookieA)
 	rrList := httptest.NewRecorder()
@@ -166,8 +169,8 @@ func TestRecurringBilling(t *testing.T) {
 	}
 
 	reminder := reminders[0]
-	if reminder["due_date"].(string) != "2026-06-01" {
-		t.Errorf("expected due date 2026-06-01, got %v", reminder["due_date"])
+	if reminder["due_date"].(string) != dueDate {
+		t.Errorf("expected due date %s, got %v", dueDate, reminder["due_date"])
 	}
 	if reminder["status"].(string) != "pending" {
 		t.Errorf("expected reminder status pending, got %v", reminder["status"])
@@ -187,8 +190,8 @@ func TestRecurringBilling(t *testing.T) {
 		t.Fatalf("expected 1 rule in list, got %d", len(rulesList))
 	}
 	retrievedRule := rulesList[0]
-	if retrievedRule["next_due_date"].(string) != "2026-07-01" {
-		t.Errorf("expected rule next_due_date advanced to 2026-07-01, got %v", retrievedRule["next_due_date"])
+	if retrievedRule["next_due_date"].(string) != nextDueDate {
+		t.Errorf("expected rule next_due_date advanced to %s, got %v", nextDueDate, retrievedRule["next_due_date"])
 	}
 
 	// 4. 确认到期提醒：生成真实交易账单
@@ -223,10 +226,10 @@ func TestRecurringBilling(t *testing.T) {
 	if int64(createdTx["amount_cents"].(float64)) != 300000 {
 		t.Errorf("expected transaction amount_cents 300000, got %v", createdTx["amount_cents"])
 	}
-	// 校验 occurred_at 应该与 reminder.due_date 相同，即 2026-06-01 左右
+	// 校验 occurred_at 应该与 reminder.due_date 相同。
 	occurredAtStr := createdTx["occurred_at"].(string)
-	if occurredAtStr[:10] != "2026-06-01" {
-		t.Errorf("expected transaction occurred_at 2026-06-01, got %s", occurredAtStr)
+	if occurredAtStr[:10] != dueDate {
+		t.Errorf("expected transaction occurred_at %s, got %s", dueDate, occurredAtStr)
 	}
 
 	// 6. 测试删除规则
@@ -237,4 +240,12 @@ func TestRecurringBilling(t *testing.T) {
 	if rrDel.Code != http.StatusOK {
 		t.Errorf("failed to delete rule: %v", rrDel.Body.String())
 	}
+}
+
+func nextMonthlyDate(value string) (string, error) {
+	parsed, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return "", err
+	}
+	return parsed.AddDate(0, 1, 0).Format("2006-01-02"), nil
 }

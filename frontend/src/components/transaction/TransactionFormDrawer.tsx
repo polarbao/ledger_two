@@ -14,6 +14,7 @@ import type { TransactionTemplateResponse, CreateTemplatePayload } from '../../t
 import { useDraftStore } from '../../stores/draft.store';
 import { useLedgerStore } from '../../stores/ledger.store';
 import { useHasLedgerRole } from '../ledger/useLedgerPermission';
+import { buildContinueTransactionFormValues } from './transactionFormState';
 
 /**
  * @brief 表单校验 Schema 结构定义
@@ -503,20 +504,7 @@ export default function TransactionFormDrawer() {
         setShowSuccessBanner(true);
         setTimeout(() => setShowSuccessBanner(false), 3000);
 
-        reset({
-          type: variables.type,
-          amount: '',
-          title: '',
-          category_id: variables.category_id || '',
-          account_id: variables.account_id || '',
-          tag_names: variables.tag_names || '',
-          payer_user_id: variables.payer_user_id,
-          split_method: variables.split_method || 'equal',
-          occurred_at: variables.occurred_at ? variables.occurred_at.substring(0, 10) : getTodayString(),
-          note: '',
-          visibility: variables.visibility || 'partner_readable',
-          attachment_paths: [],
-        });
+        reset(buildContinueTransactionFormValues(variables, getTodayString()));
       } else {
         setAddDrawerOpen(false);
         setCopySourceTransaction(null);

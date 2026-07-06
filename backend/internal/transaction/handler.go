@@ -13,15 +13,20 @@ import (
 
 // Handler 交易模块 HTTP 端点控制器
 type Handler struct {
-	service *Service
+	service   *Service
+	uploadDir string
 }
 
 // NewHandler 实例化 Handler
 // @brief 创建 Transaction 的 Handler 控制器实例
 // @param service *Service 业务服务句柄
 // @return *Handler 控制器实例
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, uploadDir ...string) *Handler {
+	dir := "./uploads"
+	if len(uploadDir) > 0 && uploadDir[0] != "" {
+		dir = uploadDir[0]
+	}
+	return &Handler{service: service, uploadDir: dir}
 }
 
 // HandleCreate 记账流水接口

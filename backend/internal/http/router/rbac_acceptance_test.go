@@ -26,7 +26,7 @@ const rbacTestSecret = "rbac-test-secret"
 
 func TestRBACAcceptanceViewerCannotCreateTransaction(t *testing.T) {
 	database := setupRBACRouterDB(t)
-	router := New(database, &config.Config{JWTSecret: rbacTestSecret})
+	router := New(database, rbacRouterConfig(t))
 
 	fixture := seedRBACLedger(t, database)
 	guestID := insertRBACUser(t, database, "guest", "Guest")
@@ -59,7 +59,7 @@ func TestRBACAcceptanceViewerCannotCreateTransaction(t *testing.T) {
 
 func TestRBACAcceptanceNonMemberCannotReadLedgerTransactions(t *testing.T) {
 	database := setupRBACRouterDB(t)
-	router := New(database, &config.Config{JWTSecret: rbacTestSecret})
+	router := New(database, rbacRouterConfig(t))
 
 	fixture := seedRBACLedger(t, database)
 	outsiderID := insertRBACUser(t, database, "outsider", "Outsider")
@@ -81,12 +81,13 @@ func TestRBACAcceptanceNonMemberCannotReadLedgerTransactions(t *testing.T) {
 
 func TestRBACAcceptancePrivateAttachmentCannotBypassVisibility(t *testing.T) {
 	database := setupRBACRouterDB(t)
-	router := New(database, &config.Config{JWTSecret: rbacTestSecret})
+	cfg := rbacRouterConfig(t)
+	router := New(database, cfg)
 
 	fixture := seedRBACLedger(t, database)
 	const filename = "r03-private.png"
 	const fileBody = "private attachment content"
-	writeRBACAttachmentFixture(t, filename, []byte(fileBody))
+	writeRBACAttachmentFixture(t, cfg.UploadDir, filename, []byte(fileBody))
 	insertRBACAttachmentTransaction(t, database, fixture, "/uploads/"+filename)
 
 	reqOwner := httptest.NewRequest(http.MethodGet, "/api/attachments/"+filename, nil)
@@ -140,10 +141,18 @@ func setupRBACRouterDB(t *testing.T) *sql.DB {
 	return database
 }
 
-func writeRBACAttachmentFixture(t *testing.T, filename string, content []byte) {
+func rbacRouterConfig(t *testing.T) *config.Config {
 	t.Helper()
 
-	uploadDir := filepath.Join(".", "uploads")
+	return &config.Config{
+		JWTSecret: rbacTestSecret,
+		UploadDir: filepath.Join(t.TempDir(), "uploads"),
+	}
+}
+
+func writeRBACAttachmentFixture(t *testing.T, uploadDir string, filename string, content []byte) {
+	t.Helper()
+
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		t.Fatalf("create upload fixture dir: %v", err)
 	}

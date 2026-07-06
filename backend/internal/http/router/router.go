@@ -49,7 +49,11 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 
 	transactionRepo := transaction.NewRepository(dbConn)
 	transactionSvc := transaction.NewService(transactionRepo)
-	transactionHandler := transaction.NewHandler(transactionSvc)
+	uploadDir := "./uploads"
+	if cfg != nil && cfg.UploadDir != "" {
+		uploadDir = cfg.UploadDir
+	}
+	transactionHandler := transaction.NewHandler(transactionSvc, uploadDir)
 
 	settlementRepo := settlement.NewRepository(dbConn)
 	settlementSvc := settlement.NewService(settlementRepo)

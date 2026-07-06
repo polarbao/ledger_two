@@ -2109,6 +2109,24 @@ button {
   cursor: pointer;
 }
 
+.recurring-reminder-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.recurring-reminder-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 /* 移动端高级筛选的底部 Sheet */
 @media (max-width: 768px) {
   .desktop-filters {
@@ -2130,5 +2148,11 @@ button {
   .batch-actions-bar.show {
     transform: translateX(-50%) translateY(0);
   }
+  .recurring-reminder-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .recurring-reminder-actions {
+    justify-content: stretch;
+  }
 }
-

@@ -290,16 +290,7 @@ export default function RecurringRulesPage() {
               {pendingReminders.map((reminder) => (
                 <div
                   key={reminder.id}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(0, 1fr) auto',
-                    gap: '12px',
-                    alignItems: 'center',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid rgba(255,255,255,0.04)',
-                    borderRadius: '12px',
-                    padding: '14px 16px',
-                  }}
+                  className="recurring-reminder-card"
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -324,10 +315,10 @@ export default function RecurringRulesPage() {
                   </div>
 
                   <PermissionGate allow={['owner', 'editor']}>
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <div className="recurring-reminder-actions">
                       <button
                         type="button"
-                        className="btn-secondary"
+                        className="btn-secondary mobile-full"
                         style={{ padding: '8px 12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                         disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
                         onClick={() => skipReminderMutation.mutate(reminder.id)}
@@ -337,7 +328,7 @@ export default function RecurringRulesPage() {
                       </button>
                       <button
                         type="button"
-                        className="btn-primary"
+                        className="btn-primary mobile-full"
                         style={{ padding: '8px 12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                         disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
                         onClick={() => confirmReminderMutation.mutate(reminder.id)}
@@ -738,11 +729,11 @@ export default function RecurringRulesPage() {
                 确认删除这条周期规则吗？删除规则仅会停止未来的到期提醒，<strong className="text-expense">不会影响您以往由该规则生成并确认的历史交易账单记录</strong>。
               </p>
 
-              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button className="btn-secondary" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={() => setDeleteTargetId(null)}>
+              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button className="btn-secondary mobile-full" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={() => setDeleteTargetId(null)}>
                   取消
                 </button>
-                <button className="btn-danger" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={confirmDelete}>
+                <button className="btn-danger mobile-full" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={confirmDelete}>
                   确认删除
                 </button>
               </div>

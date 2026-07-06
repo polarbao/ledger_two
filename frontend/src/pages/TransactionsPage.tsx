@@ -259,14 +259,8 @@ export default function TransactionsPage() {
         </PermissionGate>
       </div>
 
-      {/* 筛选控制面板 / 移动端 Bottom Sheet */}
-      <div className={`glass-card filter-panel ${mobileFilterOpen ? 'mobile-sheet-open' : 'desktop-only'}`}>
-        <div className="filter-header mobile-flex" style={{ display: 'none', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <h3 style={{ margin: 0, fontSize: '18px' }}>高级筛选</h3>
-          <button className="btn-close-drawer" onClick={() => setMobileFilterOpen(false)}>
-            <X size={20} />
-          </button>
-        </div>
+      {/* 桌面端筛选控制面板；移动端使用底部 Sheet，避免双筛选面板挤压页面 */}
+      <div className="glass-card filter-panel desktop-only">
         <div className="filter-grid" style={{ marginBottom: '16px' }}>
           <div className="filter-item">
             <label>账单类型</label>
@@ -396,26 +390,6 @@ export default function TransactionsPage() {
             应用筛选
           </button>
         </div>
-        {/* 移动端应用后关闭弹窗 */}
-        {mobileFilterOpen && (
-          <div style={{ marginTop: '16px' }}>
-            <button 
-              className="btn-primary mobile-full"
-              style={{ padding: '12px' }}
-              onClick={() => {
-                updateFilter({ 
-                  min_amount: localMinAmount, 
-                  max_amount: localMaxAmount, 
-                  keyword: localKeyword,
-                  tag: localTag
-                });
-                setMobileFilterOpen(false);
-              }}
-            >
-              确认并查看结果
-            </button>
-          </div>
-        )}
       </div>
 
       {/* 批量操作悬浮控制条 */}

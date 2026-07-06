@@ -15,6 +15,7 @@ type Item struct {
 	Type       string `json:"type,omitempty"`
 	Icon       string `json:"icon,omitempty"`
 	Color      string `json:"color,omitempty"`
+	SortOrder  int    `json:"sort_order"`
 	IsArchived bool   `json:"is_archived"`
 }
 
@@ -23,4 +24,8 @@ type UpsertRequest struct {
 	Type  string `json:"type"`
 	Icon  string `json:"icon"`
 	Color string `json:"color"`
+}
+
+type ReorderRequest struct {
+	OrderedIDs []string `json:"ordered_ids"`
 }

@@ -256,6 +256,31 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+  /metadata/{kind}/reorder:
+    parameters:
+      - $ref: "#/components/parameters/MetadataKindPath"
+      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+    post:
+      tags: [metadata]
+      summary: Reorder metadata items
+      description: Owner only. Updates sort_order for the submitted ids; archived items may be omitted.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataReorderRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /metadata/{kind}/{id}:
     parameters:
       - $ref: "#/components/parameters/MetadataKindPath"
@@ -1246,3 +1271,12 @@ components:
           type: string
         color:
           type: string
+    MetadataReorderRequest:
+      type: object
+      required: [ordered_ids]
+      properties:
+        ordered_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string

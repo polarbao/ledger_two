@@ -7,6 +7,7 @@ export interface MetadataItem {
   type?: string;
   icon?: string;
   color?: string;
+  sort_order: number;
   is_archived: boolean;
 }
 

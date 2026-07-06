@@ -133,6 +133,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Route("/metadata/{kind}", func(r chi.Router) {
 					r.Get("/", metadataHandler.List)
 					r.Post("/", metadataHandler.Create)
+					r.Post("/reorder", metadataHandler.Reorder)
 					r.Patch("/{id}", metadataHandler.Update)
 					r.Post("/{id}/archive", metadataHandler.Archive)
 					r.Post("/{id}/restore", metadataHandler.Restore)

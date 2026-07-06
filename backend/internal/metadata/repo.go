@@ -32,25 +32,25 @@ func (r *Repository) GetFirstLedgerRole(ctx context.Context, userID string) (str
 func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, includeArchived bool) ([]Item, error) {
 	switch kind {
 	case KindCategory:
-		query := "SELECT id, ledger_id, name, type, COALESCE(icon, ''), COALESCE(color, ''), is_archived FROM categories WHERE ledger_id = ?"
+		query := "SELECT id, ledger_id, name, type, COALESCE(icon, ''), COALESCE(color, ''), sort_order, is_archived FROM categories WHERE ledger_id = ?"
 		if !includeArchived {
 			query += " AND is_archived = 0"
 		}
 		query += " ORDER BY sort_order ASC, name ASC"
 		return r.list(ctx, query, ledgerID)
 	case KindTag:
-		query := "SELECT id, ledger_id, name, '', '', COALESCE(color, ''), is_archived FROM tags WHERE ledger_id = ?"
+		query := "SELECT id, ledger_id, name, '', '', COALESCE(color, ''), sort_order, is_archived FROM tags WHERE ledger_id = ?"
 		if !includeArchived {
 			query += " AND is_archived = 0"
 		}
-		query += " ORDER BY name ASC"
+		query += " ORDER BY sort_order ASC, name ASC"
 		return r.list(ctx, query, ledgerID)
 	case KindAccount:
-		query := "SELECT id, ledger_id, name, type, '', '', is_archived FROM accounts WHERE ledger_id = ?"
+		query := "SELECT id, ledger_id, name, type, '', '', sort_order, is_archived FROM accounts WHERE ledger_id = ?"
 		if !includeArchived {
 			query += " AND is_archived = 0"
 		}
-		query += " ORDER BY created_at ASC, name ASC"
+		query += " ORDER BY sort_order ASC, name ASC"
 		return r.list(ctx, query, ledgerID)
 	default:
 		return nil, sql.ErrNoRows
@@ -68,7 +68,7 @@ func (r *Repository) list(ctx context.Context, query string, ledgerID string) ([
 	for rows.Next() {
 		var item Item
 		var isArchived int
-		if err := rows.Scan(&item.ID, &item.LedgerID, &item.Name, &item.Type, &item.Icon, &item.Color, &isArchived); err != nil {
+		if err := rows.Scan(&item.ID, &item.LedgerID, &item.Name, &item.Type, &item.Icon, &item.Color, &item.SortOrder, &isArchived); err != nil {
 			return nil, err
 		}
 		item.IsArchived = isArchived == 1
@@ -112,28 +112,32 @@ func (r *Repository) NameExists(ctx context.Context, kind Kind, ledgerID string,
 func (r *Repository) Create(ctx context.Context, kind Kind, ledgerID string, userID string, req UpsertRequest) (*Item, error) {
 	id := uuid.NewString()
 	now := time.Now().Format(time.RFC3339)
+	sortOrder, err := r.nextSortOrder(ctx, kind, ledgerID)
+	if err != nil {
+		return nil, err
+	}
 	switch kind {
 	case KindCategory:
 		_, err := r.db.ExecContext(ctx, `
 			INSERT INTO categories (id, ledger_id, owner_user_id, name, type, icon, color, sort_order, is_system, is_archived, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?)
-		`, id, ledgerID, userID, req.Name, req.Type, nullString(req.Icon), nullString(req.Color), now, now)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
+		`, id, ledgerID, userID, req.Name, req.Type, nullString(req.Icon), nullString(req.Color), sortOrder, now, now)
 		if err != nil {
 			return nil, err
 		}
 	case KindTag:
 		_, err := r.db.ExecContext(ctx, `
-			INSERT INTO tags (id, ledger_id, name, owner_user_id, color, is_archived, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, 0, ?, ?)
-		`, id, ledgerID, req.Name, userID, nullString(req.Color), now, now)
+			INSERT INTO tags (id, ledger_id, name, owner_user_id, color, sort_order, is_archived, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+		`, id, ledgerID, req.Name, userID, nullString(req.Color), sortOrder, now, now)
 		if err != nil {
 			return nil, err
 		}
 	case KindAccount:
 		_, err := r.db.ExecContext(ctx, `
-			INSERT INTO accounts (id, ledger_id, owner_user_id, name, type, currency, initial_balance, is_archived, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, 'CNY', 0, 0, ?, ?)
-		`, id, ledgerID, userID, req.Name, req.Type, now, now)
+			INSERT INTO accounts (id, ledger_id, owner_user_id, name, type, currency, initial_balance, sort_order, is_archived, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, 'CNY', 0, ?, 0, ?, ?)
+		`, id, ledgerID, userID, req.Name, req.Type, sortOrder, now, now)
 		if err != nil {
 			return nil, err
 		}
@@ -142,12 +146,13 @@ func (r *Repository) Create(ctx context.Context, kind Kind, ledgerID string, use
 	}
 
 	return &Item{
-		ID:       id,
-		LedgerID: ledgerID,
-		Name:     req.Name,
-		Type:     req.Type,
-		Icon:     req.Icon,
-		Color:    req.Color,
+		ID:        id,
+		LedgerID:  ledgerID,
+		Name:      req.Name,
+		Type:      req.Type,
+		Icon:      req.Icon,
+		Color:     req.Color,
+		SortOrder: sortOrder,
 	}, nil
 }
 
@@ -192,6 +197,57 @@ func (r *Repository) SetArchived(ctx context.Context, kind Kind, ledgerID string
 		err = sql.ErrNoRows
 	}
 	return err
+}
+
+func (r *Repository) Reorder(ctx context.Context, kind Kind, ledgerID string, orderedIDs []string) error {
+	table, err := tableName(kind)
+	if err != nil {
+		return err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for index, id := range orderedIDs {
+		result, err := tx.ExecContext(ctx, "UPDATE "+table+" SET sort_order = ?, updated_at = ? WHERE id = ? AND ledger_id = ?", index, time.Now().Format(time.RFC3339), id, ledgerID)
+		if err != nil {
+			return err
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return sql.ErrNoRows
+		}
+	}
+	return tx.Commit()
+}
+
+func (r *Repository) nextSortOrder(ctx context.Context, kind Kind, ledgerID string) (int, error) {
+	table, err := tableName(kind)
+	if err != nil {
+		return 0, err
+	}
+	var next int
+	err = r.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM "+table+" WHERE ledger_id = ?", ledgerID).Scan(&next)
+	return next, err
+}
+
+func tableName(kind Kind) (string, error) {
+	switch kind {
+	case KindCategory:
+		return "categories", nil
+	case KindTag:
+		return "tags", nil
+	case KindAccount:
+		return "accounts", nil
+	default:
+		return "", sql.ErrNoRows
+	}
 }
 
 func execRequireRows(result sql.Result, err error) error {

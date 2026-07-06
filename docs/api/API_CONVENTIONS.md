@@ -243,6 +243,7 @@ Task35 后端基础接口：
 ```text
 GET   /api/metadata/{kind}/
 POST  /api/metadata/{kind}/
+POST  /api/metadata/{kind}/reorder
 PATCH /api/metadata/{kind}/{id}
 POST  /api/metadata/{kind}/{id}/archive
 POST  /api/metadata/{kind}/{id}/restore

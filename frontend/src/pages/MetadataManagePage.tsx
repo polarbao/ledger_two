@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Archive, RotateCcw, Save, Tags, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Archive, RotateCcw, Save, Tags, X } from 'lucide-react';
 import { metadataApi } from '../api/metadata.api';
 import { queryKeys } from '../api/queryKeys';
 import { useLedgerStore } from '../stores/ledger.store';
@@ -147,6 +147,19 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
     },
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: (orderedIds: string[]) => metadataApi.reorder(kind, orderedIds),
+    onSuccess: () => {
+      setSuccessMsg(`${config.singular}排序已更新`);
+      setErrorMsg(null);
+      invalidateMetadata();
+    },
+    onError: (err: unknown) => {
+      setSuccessMsg(null);
+      setErrorMsg(err instanceof ApiError ? err.message : '排序更新失败，请稍后重试');
+    },
+  });
+
   const handleEdit = (item: MetadataItem) => {
     setEditingItem(item);
     setForm({
@@ -178,11 +191,25 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
     archiveMutation.mutate(item);
   };
 
-  const renderItem = (item: MetadataItem) => (
+  const moveItem = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= activeItems.length) {
+      return;
+    }
+    const nextItems = [...activeItems];
+    const [current] = nextItems.splice(index, 1);
+    nextItems.splice(nextIndex, 0, current);
+    reorderMutation.mutate(nextItems.map((item) => item.id));
+  };
+
+  const renderItem = (item: MetadataItem, index: number, list: MetadataItem[], sortable: boolean) => (
     <div key={item.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <strong style={{ fontSize: '14px' }}>{item.name}</strong>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '999px', padding: '1px 8px' }}>
+            #{index + 1}
+          </span>
           {item.type && (
             <span style={{ fontSize: '11px', color: '#c084fc', border: '1px solid rgba(168,85,247,0.18)', borderRadius: '999px', padding: '1px 8px' }}>
               {item.type}
@@ -201,7 +228,29 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
         )}
       </div>
       <PermissionGate allow={['owner']}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {sortable && (
+            <>
+              <button
+                className="btn-secondary"
+                style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center' }}
+                onClick={() => moveItem(index, -1)}
+                disabled={index === 0 || reorderMutation.isPending}
+                title="上移"
+              >
+                <ArrowUp size={13} />
+              </button>
+              <button
+                className="btn-secondary"
+                style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center' }}
+                onClick={() => moveItem(index, 1)}
+                disabled={index === list.length - 1 || reorderMutation.isPending}
+                title="下移"
+              >
+                <ArrowDown size={13} />
+              </button>
+            </>
+          )}
           {!item.is_archived && (
             <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }} onClick={() => handleEdit(item)}>
               编辑
@@ -355,14 +404,14 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
                 <span className="dimmed-desc" style={{ fontSize: '12px' }}>活跃项</span>
                 {activeItems.length === 0 ? (
                   <div className="dimmed-desc" style={{ fontSize: '12px' }}>暂无活跃项。</div>
-                ) : activeItems.map(renderItem)}
+                ) : activeItems.map((item, index) => renderItem(item, index, activeItems, activeItems.length > 1))}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <span className="dimmed-desc" style={{ fontSize: '12px' }}>已归档项</span>
                 {archivedItems.length === 0 ? (
                   <div className="dimmed-desc" style={{ fontSize: '12px' }}>暂无归档项。</div>
-                ) : archivedItems.map(renderItem)}
+                ) : archivedItems.map((item, index) => renderItem(item, index, archivedItems, false))}
               </div>
             </div>
           </PageState>

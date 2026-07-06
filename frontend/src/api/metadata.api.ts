@@ -16,4 +16,7 @@ export const metadataApi = {
 
   restore: (kind: MetadataKind, id: string) =>
     api.post<{ success: boolean }>(`/api/metadata/${kind}/${id}/restore`, {}),
+
+  reorder: (kind: MetadataKind, orderedIds: string[]) =>
+    api.post<{ success: boolean }>(`/api/metadata/${kind}/reorder`, { ordered_ids: orderedIds }),
 };

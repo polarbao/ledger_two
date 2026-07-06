@@ -108,6 +108,35 @@ func (s *Service) SetArchived(ctx context.Context, currentUserID string, kind Ki
 	return nil
 }
 
+func (s *Service) Reorder(ctx context.Context, currentUserID string, kind Kind, req ReorderRequest) error {
+	ledgerID, role, err := s.resolveLedger(ctx, currentUserID)
+	if err != nil {
+		return err
+	}
+	if !CanManage(role) {
+		return appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅 Owner 可管理元数据")
+	}
+	if len(req.OrderedIDs) == 0 {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "排序列表不能为空")
+	}
+	seen := make(map[string]bool, len(req.OrderedIDs))
+	for index, id := range req.OrderedIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "排序 ID 不能为空")
+		}
+		if seen[id] {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "排序 ID 不能重复")
+		}
+		seen[id] = true
+		req.OrderedIDs[index] = id
+	}
+	if err := s.repo.Reorder(ctx, kind, ledgerID, req.OrderedIDs); err != nil {
+		return mapNotFound(err, kind)
+	}
+	return nil
+}
+
 func (s *Service) resolveLedger(ctx context.Context, userID string) (string, string, error) {
 	if userID == "" {
 		return "", "", appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统")

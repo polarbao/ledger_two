@@ -13,6 +13,7 @@ import (
 	"ledger_two/internal/config"
 	"ledger_two/internal/dashboard"
 	"ledger_two/internal/db/repo"
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/handler"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
@@ -206,13 +207,15 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				})
 
 				r.Post("/attachments", transactionHandler.HandleUploadAttachment)
+				r.Get("/attachments/{filename}", transactionHandler.HandleGetAttachment)
 				r.Get("/dashboard", dashboardHandler.HandleGetDashboard)
 			})
 		})
 	})
 
-	// 托管上传的物理文件附件
-	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+	r.HandleFunc("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
+		response.WriteError(w, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "附件必须通过受保护接口访问"))
+	})
 
 	// 生产环境下静态托管前端 SPA 页面，任何非 API 请求若找不到物理文件则 Fallback 重定向回 index.html
 	r.NotFound(spaHandler("./web/dist"))

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -77,6 +79,45 @@ func TestRBACAcceptanceNonMemberCannotReadLedgerTransactions(t *testing.T) {
 	}
 }
 
+func TestRBACAcceptancePrivateAttachmentCannotBypassVisibility(t *testing.T) {
+	database := setupRBACRouterDB(t)
+	router := New(database, &config.Config{JWTSecret: rbacTestSecret})
+
+	fixture := seedRBACLedger(t, database)
+	const filename = "r03-private.png"
+	const fileBody = "private attachment content"
+	writeRBACAttachmentFixture(t, filename, []byte(fileBody))
+	insertRBACAttachmentTransaction(t, database, fixture, "/uploads/"+filename)
+
+	reqOwner := httptest.NewRequest(http.MethodGet, "/api/attachments/"+filename, nil)
+	reqOwner.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqOwner.AddCookie(authCookie(t, fixture.UserAID))
+	rrOwner := httptest.NewRecorder()
+	router.ServeHTTP(rrOwner, reqOwner)
+	if rrOwner.Code != http.StatusOK {
+		t.Fatalf("expected owner attachment access to return 200, got %d body: %s", rrOwner.Code, rrOwner.Body.String())
+	}
+	if rrOwner.Body.String() != fileBody {
+		t.Fatalf("expected owner to receive attachment body")
+	}
+
+	reqPartner := httptest.NewRequest(http.MethodGet, "/api/attachments/"+filename, nil)
+	reqPartner.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqPartner.AddCookie(authCookie(t, fixture.UserBID))
+	rrPartner := httptest.NewRecorder()
+	router.ServeHTTP(rrPartner, reqPartner)
+	if rrPartner.Code != http.StatusForbidden && rrPartner.Code != http.StatusNotFound {
+		t.Fatalf("expected partner private attachment access to return 403 or 404, got %d body: %s", rrPartner.Code, rrPartner.Body.String())
+	}
+
+	reqBare := httptest.NewRequest(http.MethodGet, "/uploads/"+filename, nil)
+	rrBare := httptest.NewRecorder()
+	router.ServeHTTP(rrBare, reqBare)
+	if rrBare.Code == http.StatusOK || strings.Contains(rrBare.Body.String(), fileBody) {
+		t.Fatalf("bare uploads path must not expose private attachment, status=%d body=%s", rrBare.Code, rrBare.Body.String())
+	}
+}
+
 func setupRBACRouterDB(t *testing.T) *sql.DB {
 	t.Helper()
 
@@ -97,6 +138,41 @@ func setupRBACRouterDB(t *testing.T) *sql.DB {
 		t.Fatalf("run migrations: %v", err)
 	}
 	return database
+}
+
+func writeRBACAttachmentFixture(t *testing.T, filename string, content []byte) {
+	t.Helper()
+
+	uploadDir := filepath.Join(".", "uploads")
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		t.Fatalf("create upload fixture dir: %v", err)
+	}
+	path := filepath.Join(uploadDir, filename)
+	if err := os.WriteFile(path, content, 0644); err != nil {
+		t.Fatalf("write attachment fixture: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Remove(path)
+	})
+}
+
+func insertRBACAttachmentTransaction(t *testing.T, database *sql.DB, fixture rbacFixture, attachmentPath string) {
+	t.Helper()
+
+	now := time.Now().Format(time.RFC3339)
+	_, err := database.Exec(`
+		INSERT INTO transactions (
+			id, ledger_id, type, title, amount, currency, occurred_at,
+			owner_user_id, created_by_user_id, payer_user_id,
+			visibility, note, attachment_paths, status, created_at, updated_at
+		) VALUES (
+			'r03-private-tx', ?, 'expense', 'Private receipt', 3580, 'CNY', ?,
+			?, ?, ?, 'private', NULL, ?, 'normal', ?, ?
+		)
+	`, fixture.LedgerID, now, fixture.UserAID, fixture.UserAID, fixture.UserAID, `["`+attachmentPath+`"]`, now, now)
+	if err != nil {
+		t.Fatalf("insert private attachment transaction: %v", err)
+	}
 }
 
 type rbacFixture struct {

@@ -3,6 +3,7 @@ package transaction
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -140,6 +141,52 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []st
 	}
 
 	return &tx, tags, nil
+}
+
+func (r *Repository) FindByAttachmentPath(ctx context.Context, ledgerID string, attachmentPath string) (*Transaction, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, attachment_paths
+		FROM transactions
+		WHERE ledger_id = ? AND status != 'deleted' AND attachment_paths IS NOT NULL AND attachment_paths != ''
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+
+	var matchedTransactionID string
+	for rows.Next() {
+		var transactionID string
+		var rawPaths string
+		if err := rows.Scan(&transactionID, &rawPaths); err != nil {
+			return nil, err
+		}
+
+		var paths []string
+		if err := json.Unmarshal([]byte(rawPaths), &paths); err != nil {
+			continue
+		}
+		for _, path := range paths {
+			if path == attachmentPath {
+				matchedTransactionID = transactionID
+				break
+			}
+		}
+		if matchedTransactionID != "" {
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if matchedTransactionID != "" {
+		tx, _, err := r.GetByID(ctx, matchedTransactionID)
+		return tx, err
+	}
+	return nil, sql.ErrNoRows
 }
 
 // UpdateWithTx 在事务中修改交易及关联标签

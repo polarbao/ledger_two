@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"ledger_two/internal/http/middleware"
@@ -82,4 +83,26 @@ func (h *Handler) HandleUploadAttachment(w http.ResponseWriter, r *http.Request)
 	response.JSON(w, http.StatusOK, map[string]string{
 		"path": path,
 	})
+}
+
+func (h *Handler) HandleGetAttachment(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		writeUnauthorized(w)
+		return
+	}
+
+	filename := strings.TrimSpace(chi.URLParam(r, "filename"))
+	if filename == "" || filename != filepath.Base(filename) || strings.Contains(filename, "..") {
+		writeValidationError(w, "附件文件名不合法")
+		return
+	}
+
+	attachmentPath := "/uploads/" + filename
+	if err := h.service.CanViewAttachment(r.Context(), currentUserID, attachmentPath); err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	http.ServeFile(w, r, filepath.Join("./uploads", filename))
 }

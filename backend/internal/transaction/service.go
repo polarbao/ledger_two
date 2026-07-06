@@ -550,6 +550,25 @@ func (s *Service) CanViewTransaction(currentUserID string, tx *Transaction) bool
 	return false
 }
 
+func (s *Service) CanViewAttachment(ctx context.Context, currentUserID string, attachmentPath string) error {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+
+	tx, err := s.repo.FindByAttachmentPath(ctx, ledgerID, attachmentPath)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return appErrors.NewAppError(404, "NOT_FOUND", "附件未找到")
+		}
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取附件关联账单失败")
+	}
+	if !s.CanViewTransaction(currentUserID, tx) {
+		return appErrors.NewAppError(404, "NOT_FOUND", "附件未找到")
+	}
+	return nil
+}
+
 // CanEditTransaction 编辑校验规则
 // @brief 校验指定用户是否有权修改/删除某账单
 // @param currentUserID string 操作人 ID

@@ -230,7 +230,7 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
   const renderItem = (item: MetadataItem, displayIndex: number, sortable: boolean) => {
     const orderIndex = item.is_archived ? displayIndex : activeItems.findIndex((activeItem) => activeItem.id === item.id);
     return (
-    <div key={item.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+    <div key={item.id} className="metadata-item-card">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <strong style={{ fontSize: '14px' }}>{item.name}</strong>
@@ -258,11 +258,11 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
         )}
       </div>
       <PermissionGate allow={['owner']}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="metadata-item-actions">
           {sortable && (
             <>
               <button
-                className="btn-secondary"
+                className="btn-secondary metadata-order-button"
                 style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center' }}
                 onClick={() => moveItem(item, -1)}
                 disabled={orderIndex <= 0 || reorderMutation.isPending}
@@ -271,7 +271,7 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
                 <ArrowUp size={13} />
               </button>
               <button
-                className="btn-secondary"
+                className="btn-secondary metadata-order-button"
                 style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center' }}
                 onClick={() => moveItem(item, 1)}
                 disabled={orderIndex === activeItems.length - 1 || reorderMutation.isPending}
@@ -282,12 +282,12 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
             </>
           )}
           {!item.is_archived && (
-            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }} onClick={() => handleEdit(item)}>
+            <button className="btn-secondary metadata-text-action" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }} onClick={() => handleEdit(item)}>
               编辑
             </button>
           )}
           <button
-            className="btn-secondary"
+            className="btn-secondary metadata-text-action"
             style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', color: item.is_archived ? 'var(--accent-green)' : '#fca5a5' }}
             onClick={() => handleArchiveToggle(item)}
             disabled={archiveMutation.isPending}
@@ -311,7 +311,7 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
             <p>{config.description}</p>
           </div>
         </div>
-        <Link to="/settings" className="btn-secondary" style={{ textDecoration: 'none', padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Link to="/settings" className="btn-secondary mobile-full" style={{ textDecoration: 'none', padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
           <ArrowLeft size={14} /> 返回设置
         </Link>
       </div>

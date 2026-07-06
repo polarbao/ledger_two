@@ -2127,6 +2127,25 @@ button {
   flex-wrap: wrap;
 }
 
+.metadata-item-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.metadata-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* 移动端高级筛选的底部 Sheet */
 @media (max-width: 768px) {
   .desktop-filters {
@@ -2154,5 +2173,22 @@ button {
   }
   .recurring-reminder-actions {
     justify-content: stretch;
+  }
+  .metadata-item-card {
+    align-items: stretch;
+  }
+  .metadata-item-card > * {
+    width: 100%;
+  }
+  .metadata-item-actions {
+    justify-content: stretch;
+  }
+  .metadata-item-actions .metadata-order-button {
+    flex: 1 1 64px;
+    justify-content: center;
+  }
+  .metadata-item-actions .metadata-text-action {
+    flex: 1 1 112px;
+    justify-content: center;
   }
 }

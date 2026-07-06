@@ -58,7 +58,7 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 	}
 
 	// 2. 依次生成两个受控用户，以及各自对应的默认账户
-	for _, u := range users {
+	for i, u := range users {
 		userID := uuid.NewString()
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO users (id, username, display_name, password_hash, role, created_at, updated_at)
@@ -68,10 +68,14 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 			return err
 		}
 
+		memberRole := "editor"
+		if i == 0 {
+			memberRole = "owner"
+		}
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
-			VALUES (?, ?, 'editor', ?, ?)
-		`, ledgerID, userID, now, now)
+			VALUES (?, ?, ?, ?, ?)
+		`, ledgerID, userID, memberRole, now, now)
 		if err != nil {
 			return err
 		}

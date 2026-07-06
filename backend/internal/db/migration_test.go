@@ -10,25 +10,11 @@ import (
 	"ledger_two/migrations"
 )
 
-const latestMigrationVersion int64 = 8
+const latestMigrationVersion int64 = 9
 
 func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
-	database, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("open memory database: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = database.Close()
-	})
-	database.SetMaxOpenConns(1)
-
-	goose.SetBaseFS(migrations.FS)
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		t.Fatalf("set goose dialect: %v", err)
-	}
-	if err := goose.Up(database, "."); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	database := openMigrationTestDB(t)
+	runMigrations(t, database)
 
 	version, err := goose.GetDBVersion(database)
 	if err != nil {
@@ -98,6 +84,85 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"idx_tags_ledger_name",
 		"idx_accounts_ledger_name",
 	})
+}
+
+func TestMigrationPromotesOwnerForLegacyLedger(t *testing.T) {
+	database := openMigrationTestDB(t)
+	runMigrationsTo(t, database, 8)
+
+	_, err := database.Exec(`
+		INSERT INTO ledgers (id, name, default_currency, created_at, updated_at)
+		VALUES ('legacy-ledger', 'Legacy Ledger', 'CNY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+		INSERT INTO users (id, username, display_name, password_hash, role, created_at, updated_at)
+		VALUES
+			('user-a', 'alice', 'Alice', 'hash-a', 'user', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+			('user-b', 'bob', 'Bob', 'hash-b', 'user', '2026-01-01T00:00:01Z', '2026-01-01T00:00:01Z');
+		INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
+		VALUES
+			('legacy-ledger', 'user-a', 'editor', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+			('legacy-ledger', 'user-b', 'editor', '2026-01-01T00:00:01Z', '2026-01-01T00:00:01Z');
+	`)
+	if err != nil {
+		t.Fatalf("seed legacy ledger: %v", err)
+	}
+
+	runMigrations(t, database)
+
+	var ownerCount int
+	err = database.QueryRow("SELECT COUNT(*) FROM ledger_members WHERE ledger_id = 'legacy-ledger' AND role = 'owner'").Scan(&ownerCount)
+	if err != nil {
+		t.Fatalf("query owner count: %v", err)
+	}
+	if ownerCount != 1 {
+		t.Fatalf("expected exactly one owner after migration, got %d", ownerCount)
+	}
+
+	var firstUserRole string
+	err = database.QueryRow("SELECT role FROM ledger_members WHERE ledger_id = 'legacy-ledger' AND user_id = 'user-a'").Scan(&firstUserRole)
+	if err != nil {
+		t.Fatalf("query first user role: %v", err)
+	}
+	if firstUserRole != "owner" {
+		t.Fatalf("expected first legacy member to become owner, got %s", firstUserRole)
+	}
+}
+
+func openMigrationTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+
+	database, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("open memory database: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = database.Close()
+	})
+	database.SetMaxOpenConns(1)
+	return database
+}
+
+func runMigrations(t *testing.T, database *sql.DB) {
+	t.Helper()
+
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("set goose dialect: %v", err)
+	}
+	if err := goose.Up(database, "."); err != nil {
+		t.Fatalf("run migrations: %v", err)
+	}
+}
+
+func runMigrationsTo(t *testing.T, database *sql.DB, version int64) {
+	t.Helper()
+
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("set goose dialect: %v", err)
+	}
+	if err := goose.UpTo(database, ".", version); err != nil {
+		t.Fatalf("run migrations to %d: %v", version, err)
+	}
 }
 
 func assertTablesExist(t *testing.T, database *sql.DB, names []string) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -58,6 +58,7 @@ export default function TransactionFormDrawer() {
   const [isSaveTmplOpen, setIsSaveTmplOpen] = useState(false);
   const [tmplName, setTmplName] = useState('');
   const [isManageTmplOpen, setIsManageTmplOpen] = useState(false);
+  const amountInputRef = useRef<HTMLInputElement | null>(null);
 
 
   const LAST_TYPE_KEY = 'ledger_two_last_type';
@@ -204,6 +205,7 @@ export default function TransactionFormDrawer() {
       attachment_paths: [],
     },
   });
+  const amountField = register('amount');
 
   // 监听关键表单字段以实现动态联动
   const watchType = watch('type');
@@ -213,6 +215,16 @@ export default function TransactionFormDrawer() {
 
   const [uploadingCount, setUploadingCount] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!addDrawerOpen || !canWriteLedger) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      amountInputRef.current?.focus({ preventScroll: true });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [addDrawerOpen, canWriteLedger]);
 
   // 打开抽屉时注入最近记账默认值 (仅在非复制且非草稿编辑时)
   useEffect(() => {
@@ -619,12 +631,19 @@ export default function TransactionFormDrawer() {
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 inputMode="decimal"
+                enterKeyHint="done"
+                autoComplete="off"
                 pattern="[0-9]*\.?[0-9]*"
                 placeholder="0.00"
                 className={`amount-input ${errors.amount ? 'input-error' : ''}`}
                 style={{ paddingRight: '40px' }}
-                {...register('amount')}
+                {...amountField}
+                ref={(el) => {
+                  amountField.ref(el);
+                  amountInputRef.current = el;
+                }}
               />
               {watch('amount') && (
                 <button

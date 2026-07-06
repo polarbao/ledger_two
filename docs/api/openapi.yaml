@@ -671,6 +671,30 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /admin/diagnostics:
+    get:
+      tags: [safety]
+      summary: Get sanitized system diagnostics
+      description: Owner-only diagnostics. Response must not include JWT secrets, tokens, password hashes, DSN, or absolute storage paths.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      responses:
+        "200":
+          description: Sanitized diagnostics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/SystemDiagnostics"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /admin/backup:
     post:
       tags: [safety]
@@ -986,6 +1010,71 @@ components:
           type: string
         details:
           nullable: true
+    SystemDiagnostics:
+      type: object
+      required: [env, app_base_url_set, cookie_secure, cookie_samesite, database, storage, audit_action_count, generated_at]
+      properties:
+        env:
+          type: string
+          example: production
+        app_base_url_set:
+          type: boolean
+        cookie_secure:
+          type: string
+          example: "true"
+        cookie_samesite:
+          type: string
+          example: Lax
+        database:
+          $ref: "#/components/schemas/DiagnosticStatus"
+        storage:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagnosticStatus"
+        latest_backup:
+          $ref: "#/components/schemas/BackupInfo"
+        audit_action_count:
+          type: object
+          additionalProperties:
+            type: integer
+        generated_at:
+          type: string
+          format: date-time
+    DiagnosticStatus:
+      type: object
+      required: [key, label, status, configured]
+      properties:
+        key:
+          type: string
+          example: backup_dir
+        label:
+          type: string
+          example: 备份目录
+        status:
+          type: string
+          enum: [ok, warning, error]
+        configured:
+          type: boolean
+        writable:
+          type: boolean
+        message:
+          type: string
+        version:
+          type: integer
+          format: int64
+    BackupInfo:
+      type: object
+      required: [filename, size_bytes, created_at]
+      properties:
+        filename:
+          type: string
+          description: Relative backup filename, never an absolute path.
+        size_bytes:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
 
     InitSetupRequest:
       type: object

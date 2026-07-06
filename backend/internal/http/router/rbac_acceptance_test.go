@@ -119,6 +119,72 @@ func TestRBACAcceptancePrivateAttachmentCannotBypassVisibility(t *testing.T) {
 	}
 }
 
+func TestRBACAcceptanceDiagnosticsOwnerOnlyAndSanitized(t *testing.T) {
+	database := setupRBACRouterDB(t)
+	cfg := rbacRouterConfig(t)
+	router := New(database, cfg)
+
+	fixture := seedRBACLedger(t, database)
+	viewerID := insertRBACUser(t, database, "diag-viewer", "Diagnostics Viewer")
+	addRBACMember(t, database, fixture.LedgerID, viewerID, "viewer")
+
+	reqViewer := httptest.NewRequest(http.MethodGet, "/api/admin/diagnostics", nil)
+	reqViewer.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqViewer.AddCookie(authCookie(t, viewerID))
+	rrViewer := httptest.NewRecorder()
+	router.ServeHTTP(rrViewer, reqViewer)
+	if rrViewer.Code != http.StatusForbidden {
+		t.Fatalf("expected viewer diagnostics access to return 403, got %d body: %s", rrViewer.Code, rrViewer.Body.String())
+	}
+
+	reqOwner := httptest.NewRequest(http.MethodGet, "/api/admin/diagnostics", nil)
+	reqOwner.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqOwner.AddCookie(authCookie(t, fixture.UserAID))
+	rrOwner := httptest.NewRecorder()
+	router.ServeHTTP(rrOwner, reqOwner)
+	if rrOwner.Code != http.StatusOK {
+		t.Fatalf("expected owner diagnostics access to return 200, got %d body: %s", rrOwner.Code, rrOwner.Body.String())
+	}
+
+	body := rrOwner.Body.String()
+	if strings.Contains(body, cfg.JWTSecret) {
+		t.Fatalf("diagnostics response must not expose JWT secret, body: %s", body)
+	}
+	for _, path := range []string{cfg.BackupDir, cfg.UploadDir, cfg.LogDir} {
+		if path != "" && strings.Contains(body, path) {
+			t.Fatalf("diagnostics response must not expose absolute storage path %q, body: %s", path, body)
+		}
+	}
+
+	var resp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Env      string `json:"env"`
+			Database struct {
+				Status  string `json:"status"`
+				Version int64  `json:"version"`
+			} `json:"database"`
+			Storage []struct {
+				Key        string `json:"key"`
+				Status     string `json:"status"`
+				Configured bool   `json:"configured"`
+			} `json:"storage"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rrOwner.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode diagnostics response: %v", err)
+	}
+	if !resp.Success {
+		t.Fatalf("expected success diagnostics response, body: %s", body)
+	}
+	if resp.Data.Database.Status != "ok" || resp.Data.Database.Version == 0 {
+		t.Fatalf("expected ok database diagnostics with schema version, got: %+v", resp.Data.Database)
+	}
+	if len(resp.Data.Storage) < 4 {
+		t.Fatalf("expected storage diagnostics for database/backups/uploads/logs, got: %+v", resp.Data.Storage)
+	}
+}
+
 func setupRBACRouterDB(t *testing.T) *sql.DB {
 	t.Helper()
 
@@ -144,9 +210,14 @@ func setupRBACRouterDB(t *testing.T) *sql.DB {
 func rbacRouterConfig(t *testing.T) *config.Config {
 	t.Helper()
 
+	baseDir := t.TempDir()
 	return &config.Config{
 		JWTSecret: rbacTestSecret,
-		UploadDir: filepath.Join(t.TempDir(), "uploads"),
+		Env:       "test",
+		DSN:       filepath.Join(baseDir, "data", "ledger.db"),
+		BackupDir: filepath.Join(baseDir, "backups"),
+		UploadDir: filepath.Join(baseDir, "uploads"),
+		LogDir:    filepath.Join(baseDir, "logs"),
 	}
 }
 

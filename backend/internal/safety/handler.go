@@ -94,6 +94,23 @@ func (h *Handler) HandleGetBackups(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, list)
 }
 
+// HandleDiagnostics 处理系统诊断请求 GET /api/admin/diagnostics
+func (h *Handler) HandleDiagnostics(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
+		return
+	}
+
+	diagnostics, err := h.service.Diagnostics(r.Context(), currentUserID)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, diagnostics)
+}
+
 // HandleDownloadBackup 处理备份文件下载 GET /api/admin/backups/* (或含 filename 路由参数)
 func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())

@@ -189,6 +189,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 
 				// 备份与数据安全管理
 				r.Route("/admin", func(r chi.Router) {
+					r.Get("/diagnostics", safetyHandler.HandleDiagnostics)
 					r.Post("/backup", safetyHandler.HandleManualBackup)
 					r.Post("/restore", safetyHandler.HandleRestoreBackup)
 					r.Get("/backups", safetyHandler.HandleGetBackups)

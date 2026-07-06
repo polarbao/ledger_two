@@ -1,12 +1,12 @@
 # 技术：NAS 部署方案
 
-状态：当前可用于 NAS 内测部署；Foundation 冻结前仍需完成 Task40 系统诊断与审计规范。
+状态：当前可用于 NAS 内测部署；Foundation before v1.1 已完成基础冻结能力。
 
 ## 1. 部署目标
 
 LedgerTwo 目标部署在本地群晖 NAS，通过 Docker Compose 启动，优先在局域网和 Tailscale 内访问，不建议初期直接暴露公网。
 
-截至 2026-07-06，项目已具备 Docker Compose、生产配置校验、SQLite migration、受保护附件访问和基础健康检查。仍需注意：当前 `/api/healthz` 只提供基础状态，完整目录诊断和审计日志规范属于 Task40。
+截至 2026-07-06，项目已具备 Docker Compose、生产配置校验、SQLite migration、受保护附件访问、基础健康检查和 Owner-only 脱敏系统诊断。
 
 ## 2. 目录规划
 
@@ -90,6 +90,14 @@ GET /api/healthz
 
 当前 schema version 应为最新 migration 版本。2026-07-06 当前最新版本为 `9`。
 
+Owner 登录后还可以在设置页查看系统诊断，或直接调用：
+
+```text
+GET /api/admin/diagnostics
+```
+
+该接口需要 Cookie 登录态和 `X-Ledger-Id`，只返回环境、schema、目录可写性、Cookie 策略、最近备份和审计动作计数，不返回 `JWT_SECRET`、DSN、token、密码 Hash 或绝对路径。
+
 ## 8. 升级与回滚流程
 
 ### 8.1 升级
@@ -153,7 +161,7 @@ docker compose logs --tail=100
 - **说明**：这是预期行为。附件不再裸露静态托管，必须通过登录后的 `/api/attachments/{filename}` 访问，由后端按关联账单可见性校验权限。
 
 **Q5：能否现在远程部署到 NAS？**
-- **结论**：可以用于内测部署。部署前必须先本地或 CI 完成 Docker build；部署后必须验证初始化、登录、附件上传/读取、private 附件隔离、手动备份和容器重启后的数据持久化。长期生产冻结前仍需完成 Task40 诊断与审计规范。
+- **结论**：可以用于内测部署。部署前必须先本地或 CI 完成 Docker build；部署后必须验证初始化、登录、附件上传/读取、private 附件隔离、手动备份、设置页系统诊断和容器重启后的数据持久化。
 
 ## 12. 风险提示
 

@@ -4,7 +4,7 @@
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
-更新时间：2026-07-04
+更新时间：2026-07-06
 
 ## 1. 总体约定
 
@@ -147,6 +147,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
+| GET | `/api/admin/diagnostics` | yes | required | stable | `safety.HandleDiagnostics` | Owner-only 脱敏系统诊断，返回环境、数据库、schema、目录可写性、Cookie 策略、最近备份和审计动作计数。 |
 | POST | `/api/admin/backup` | yes | optional | transitional | `safety.HandleManualBackup` | 手动备份。v1.1 前需确认角色要求。 |
 | POST | `/api/admin/restore` | yes | optional | transitional | `safety.HandleRestoreBackup` | 恢复备份，高风险。v1.1 前需确认角色要求和二次确认。 |
 | GET | `/api/admin/backups` | yes | optional | transitional | `safety.HandleGetBackups` | 备份列表。 |

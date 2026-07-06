@@ -18,6 +18,7 @@ import (
 	ledgerctx "ledger_two/internal/ledger"
 
 	"github.com/google/uuid"
+	"github.com/pressly/goose/v3"
 )
 
 type Service struct {
@@ -38,6 +39,28 @@ type BackupInfo struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type Diagnostics struct {
+	Env              string             `json:"env"`
+	AppBaseURLSet    bool               `json:"app_base_url_set"`
+	CookieSecure     string             `json:"cookie_secure"`
+	CookieSameSite   string             `json:"cookie_samesite"`
+	Database         DiagnosticStatus   `json:"database"`
+	Storage          []DiagnosticStatus `json:"storage"`
+	LatestBackup     *BackupInfo        `json:"latest_backup,omitempty"`
+	AuditActionCount map[string]int     `json:"audit_action_count"`
+	GeneratedAt      time.Time          `json:"generated_at"`
+}
+
+type DiagnosticStatus struct {
+	Key        string `json:"key"`
+	Label      string `json:"label"`
+	Status     string `json:"status"`
+	Configured bool   `json:"configured"`
+	Writable   *bool  `json:"writable,omitempty"`
+	Message    string `json:"message,omitempty"`
+	Version    int64  `json:"version,omitempty"`
+}
+
 // checkBackupDirWritable 验证备份目录是否可写
 func (s *Service) checkBackupDirWritable(dir string) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -49,6 +72,182 @@ func (s *Service) checkBackupDirWritable(dir string) error {
 	}
 	_ = os.Remove(testFile)
 	return nil
+}
+
+func (s *Service) requireLedgerOwner(ctx context.Context, userID string) error {
+	lc, ok := ledgerctx.LedgerContextFromContext(ctx)
+	if !ok || lc.UserID != userID {
+		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeForbidden, "需要选择账本后才能查看系统诊断")
+	}
+	if lc.Role != ledgerctx.RoleOwner {
+		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeForbidden, "仅 Owner 可查看系统诊断")
+	}
+	return nil
+}
+
+func (s *Service) Diagnostics(ctx context.Context, actorUserID string) (*Diagnostics, error) {
+	if err := s.requireLedgerOwner(ctx, actorUserID); err != nil {
+		return nil, err
+	}
+
+	diag := &Diagnostics{
+		Env:              "unknown",
+		CookieSameSite:   "Lax",
+		Database:         s.databaseStatus(ctx),
+		Storage:          make([]DiagnosticStatus, 0, 4),
+		AuditActionCount: make(map[string]int),
+		GeneratedAt:      time.Now(),
+	}
+	if s.cfg != nil {
+		diag.Env = emptyAsUnknown(s.cfg.Env)
+		diag.AppBaseURLSet = strings.TrimSpace(s.cfg.AppBaseURL) != ""
+		diag.CookieSecure = emptyAsUnknown(s.cfg.CookieSecure)
+		diag.CookieSameSite = emptyAsUnknown(s.cfg.CookieSameSite)
+		diag.Storage = append(diag.Storage,
+			s.storageStatus("database_dir", "数据库目录", sqliteParentDir(s.cfg.DSN), true),
+			s.storageStatus("backup_dir", "备份目录", s.cfg.BackupDir, true),
+			s.storageStatus("upload_dir", "上传目录", s.cfg.UploadDir, true),
+			s.storageStatus("log_dir", "日志目录", s.cfg.LogDir, true),
+		)
+	} else {
+		diag.Storage = append(diag.Storage,
+			statusNotConfigured("database_dir", "数据库目录"),
+			statusNotConfigured("backup_dir", "备份目录"),
+			statusNotConfigured("upload_dir", "上传目录"),
+			statusNotConfigured("log_dir", "日志目录"),
+		)
+	}
+
+	if backups, err := s.GetBackups(ctx); err == nil && len(backups) > 0 {
+		diag.LatestBackup = &backups[0]
+	}
+	diag.AuditActionCount = s.auditActionCounts(ctx)
+	return diag, nil
+}
+
+func (s *Service) databaseStatus(ctx context.Context) DiagnosticStatus {
+	status := DiagnosticStatus{
+		Key:        "sqlite",
+		Label:      "SQLite 数据库",
+		Status:     "ok",
+		Configured: s.db != nil,
+	}
+	if s.db == nil {
+		status.Status = "error"
+		status.Message = "database connection is not configured"
+		return status
+	}
+	if err := s.db.PingContext(ctx); err != nil {
+		status.Status = "error"
+		status.Message = "database ping failed"
+		return status
+	}
+	version, err := goose.GetDBVersion(s.db)
+	if err != nil {
+		status.Status = "warning"
+		status.Message = "schema version unavailable"
+		return status
+	}
+	status.Version = version
+	return status
+}
+
+func (s *Service) storageStatus(key string, label string, dir string, shouldWrite bool) DiagnosticStatus {
+	if strings.TrimSpace(dir) == "" {
+		return statusNotConfigured(key, label)
+	}
+	ok := true
+	status := DiagnosticStatus{
+		Key:        key,
+		Label:      label,
+		Status:     "ok",
+		Configured: true,
+		Writable:   &ok,
+	}
+	if !shouldWrite {
+		return status
+	}
+	if err := ensureDiagnosticWritableDir(dir); err != nil {
+		ok = false
+		status.Writable = &ok
+		status.Status = "error"
+		status.Message = "directory is not writable"
+	}
+	return status
+}
+
+func statusNotConfigured(key string, label string) DiagnosticStatus {
+	ok := false
+	return DiagnosticStatus{
+		Key:        key,
+		Label:      label,
+		Status:     "warning",
+		Configured: false,
+		Writable:   &ok,
+		Message:    "directory is not configured",
+	}
+}
+
+func ensureDiagnosticWritableDir(dir string) error {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	testFile, err := os.CreateTemp(dir, ".diagnostic_write_test_*")
+	if err != nil {
+		return err
+	}
+	testName := testFile.Name()
+	if err := testFile.Close(); err != nil {
+		_ = os.Remove(testName)
+		return err
+	}
+	return os.Remove(testName)
+}
+
+func sqliteParentDir(dsn string) string {
+	if dsn == "" || dsn == ":memory:" || strings.HasPrefix(dsn, "file::memory:") {
+		return ""
+	}
+	path := dsn
+	if strings.HasPrefix(path, "file:") {
+		path = strings.TrimPrefix(path, "file:")
+		if idx := strings.Index(path, "?"); idx >= 0 {
+			path = path[:idx]
+		}
+	}
+	dir := filepath.Dir(path)
+	if dir == "." {
+		return ""
+	}
+	return dir
+}
+
+func emptyAsUnknown(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "unknown"
+	}
+	return value
+}
+
+func (s *Service) auditActionCounts(ctx context.Context) map[string]int {
+	counts := make(map[string]int)
+	if s.db == nil {
+		return counts
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT action, COUNT(*) FROM audit_logs GROUP BY action")
+	if err != nil {
+		return counts
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var action string
+		var count int
+		if err := rows.Scan(&action, &count); err == nil {
+			counts[action] = count
+		}
+	}
+	return counts
 }
 
 // getUserLedgerID 获取唯一的账本 ID

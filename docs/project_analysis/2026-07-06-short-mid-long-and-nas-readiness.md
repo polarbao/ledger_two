@@ -4,7 +4,7 @@
 
 ## 1. 结论
 
-短期 Foundation before v1.1 尚未完全完成，不能标记冻结。
+短期 Foundation before v1.1 已完成基础冻结能力，可以标记完成并进入中期 v1.1。
 
 当前已完成或基本完成：
 
@@ -19,14 +19,14 @@
 | Task37 设置页信息架构重组 | 基本完成 | 设置页分区、元数据管理入口 |
 | Task38 迁移、测试与质量门禁 | 完成 | migration 回归、R01/R02、CI compose gate |
 | Task39 附件访问控制 | 完成 | `/api/attachments/{filename}` 受保护访问，裸 `/uploads/*` 关闭，R03 覆盖 |
-| Task40 审计与系统诊断中心 | 未完成 | 缺诊断接口/诊断面板/审计字段规范收口 |
+| Task40 审计与系统诊断中心 | 完成 | `GET /api/admin/diagnostics`、设置页诊断面板、Owner-only 权限和脱敏回归 |
 
 因此当前状态应定义为：
 
 ```text
-Foundation before v1.1: 90%+ 完成，但未冻结。
-可进入 NAS 试部署/内测，不建议作为长期生产冻结版本。
-进入 v1.1 业务开发前必须完成 Task40。
+Foundation before v1.1: 已完成基础冻结。
+可进入 NAS 试部署/内测。
+中期 v1.1 已解锁，推荐从 Task44 分类、标签、账户管理体验收口开始。
 ```
 
 ## 2. 中长期规划充分性
@@ -75,8 +75,8 @@ Foundation before v1.1: 90%+ 完成，但未冻结。
 当前限制：
 
 1. 本机未安装 Docker CLI，本轮无法在本机实际执行 `docker compose config` 或 `docker compose build`。
-2. Task40 未完成，部署后缺少完整系统诊断面板。
-3. `GET /api/healthz` 目前能返回基础状态和 schema version，但还不能检查备份/上传/日志目录状态。
+2. 当前会话未提供 NAS 地址、SSH/Container Manager 凭据、目标部署目录和域名/DNS 信息，因此不能直接完成远程部署。
+3. `GET /api/healthz` 能返回基础状态和 schema version；Owner 登录后可通过设置页系统诊断或 `GET /api/admin/diagnostics` 检查备份/上传/日志目录状态。
 
 ## 4. 推荐 NAS 部署方案
 
@@ -135,10 +135,9 @@ docker compose logs -f
 5. 点击手动备份，确认 `backups/manual/` 出现 `.db` 文件。
 6. 重启容器，确认账本和附件仍存在。
 
-## 5. 后续冻结前必须完成
+## 5. 后续执行
 
-1. Task40.1：新增诊断接口，检查数据库、schema、备份目录、上传目录、日志目录、运行环境。
-2. Task40.2：设置页诊断面板，面向非技术用户展示健康状态。
-3. Task40.3：审计日志规范，至少统一备份、恢复、导入、结算、归档、金额修改、删除的审计字段。
-4. 更新 OpenAPI 和 API inventory，记录受保护附件访问接口。
-5. 在 CI 或部署机运行 Docker build 和 compose config。
+1. 短期计划已完成并标记冻结。
+2. 中期处理从 Task44 开始，先稳定分类、标签、账户管理体验。
+3. 在 CI、部署机或 NAS 上运行 Docker build 和 compose config。
+4. 如需要公网访问，先完成域名解析、HTTPS 证书、反向代理和 Cookie Secure 配置，再开放外网。

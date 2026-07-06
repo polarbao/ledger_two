@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Settings,
   Download,
@@ -20,8 +21,11 @@ import {
   Activity,
   Lock,
   ChevronRight,
+  CheckCircle2,
 } from 'lucide-react';
 import { api, ApiError } from '../api/client';
+import { queryKeys } from '../api/queryKeys';
+import { safetyApi, type DiagnosticStatus } from '../api/safety.api';
 import EmptyState from '../components/ui/EmptyState';
 import LedgerSettings from '../components/ledger/LedgerSettings';
 import RestoreBackupModal from '../components/ui/RestoreBackupModal';
@@ -100,9 +104,41 @@ function NoPermissionHint({ text }: { text: string }) {
   );
 }
 
+function statusText(status: string) {
+  if (status === 'ok') return '正常';
+  if (status === 'warning') return '需关注';
+  if (status === 'error') return '异常';
+  return status;
+}
+
+function statusColor(status: string) {
+  if (status === 'ok') return '#34d399';
+  if (status === 'warning') return '#fbbf24';
+  return '#f87171';
+}
+
+function DiagnosticLine({ item }: { item: DiagnosticStatus }) {
+  const color = statusColor(item.status);
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ minWidth: 0 }}>
+        <strong style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)' }}>{item.label}</strong>
+        <span className="dimmed-desc" style={{ fontSize: '11px' }}>
+          {item.version ? `schema v${item.version}` : item.message || (item.configured ? '已配置' : '未配置')}
+          {typeof item.writable === 'boolean' ? ` · ${item.writable ? '可写' : '不可写'}` : ''}
+        </span>
+      </div>
+      <span style={{ flexShrink: 0, color, border: `1px solid ${color}33`, background: `${color}14`, borderRadius: '999px', padding: '3px 9px', fontSize: '11px' }}>
+        {statusText(item.status)}
+      </span>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const currentUser = useAuthStore((state) => state.user);
   const activeRole = useLedgerStore((state) => state.activeRole);
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const canExportData = useHasLedgerRole(['owner', 'editor']);
   const canManageSafety = useHasLedgerRole(['owner']);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
@@ -228,6 +264,23 @@ export default function SettingsPage() {
   const openConfirmModal = (type: ModalType) => {
     setModalType(type);
   };
+
+  const {
+    data: diagnostics,
+    isLoading: loadingDiagnostics,
+    isFetching: fetchingDiagnostics,
+    isError: isDiagnosticsError,
+    error: diagnosticsError,
+    refetch: refetchDiagnostics,
+  } = useQuery({
+    queryKey: queryKeys.safety.diagnostics(activeLedgerId),
+    queryFn: safetyApi.getDiagnostics,
+    enabled: canManageSafety,
+  });
+
+  const diagnosticsErrorText = diagnosticsError instanceof ApiError
+    ? diagnosticsError.message
+    : '诊断信息加载失败';
 
   return (
     <div className="page-content animate-fade-in text-left">
@@ -548,14 +601,79 @@ export default function SettingsPage() {
 
         <SettingsSection
           title="系统诊断"
-          description="用于定位配置、数据库、备份目录、上传目录和运行环境问题。完整诊断接口将在 Task40 接入。"
+          description="用于定位配置、数据库、备份目录、上传目录和运行环境问题。仅 Owner 可查看脱敏诊断结果。"
         >
           <SettingsActionCard
             icon={<Activity size={18} />}
             title="诊断面板"
-            description="后续展示 APP_ENV、数据库状态、schema version、目录可写性和 Cookie 策略，不展示 secret 或绝对敏感路径。"
-            badge="Task40"
-          />
+            description="展示运行环境、数据库 schema、目录可写性、Cookie 策略和最近备份，不展示 secret、DSN 或绝对路径。"
+            badge="Owner"
+          >
+            <PermissionGate
+              allow={['owner']}
+              fallback={<NoPermissionHint text="只有 Owner 可以查看系统诊断。" />}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button
+                  onClick={() => refetchDiagnostics()}
+                  className="btn-close-drawer"
+                  style={{ alignSelf: 'flex-end', padding: '6px' }}
+                  title="刷新诊断"
+                  disabled={fetchingDiagnostics}
+                >
+                  <RefreshCw size={16} className={fetchingDiagnostics ? 'animate-spin' : ''} />
+                </button>
+
+                {loadingDiagnostics ? (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                    <RefreshCw size={18} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+                    <span>加载诊断信息中...</span>
+                  </div>
+                ) : isDiagnosticsError ? (
+                  <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: '8px', padding: '10px 12px', color: '#fca5a5', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={14} />
+                    <span>{diagnosticsErrorText}</span>
+                  </div>
+                ) : diagnostics ? (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
+                        <span className="dimmed-desc" style={{ fontSize: '11px' }}>运行环境</span>
+                        <strong style={{ display: 'block', fontSize: '13px', marginTop: '3px' }}>{diagnostics.env}</strong>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
+                        <span className="dimmed-desc" style={{ fontSize: '11px' }}>Cookie 策略</span>
+                        <strong style={{ display: 'block', fontSize: '13px', marginTop: '3px' }}>
+                          Secure {diagnostics.cookie_secure} · {diagnostics.cookie_samesite}
+                        </strong>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
+                        <span className="dimmed-desc" style={{ fontSize: '11px' }}>外部访问地址</span>
+                        <strong style={{ display: 'block', fontSize: '13px', marginTop: '3px' }}>
+                          {diagnostics.app_base_url_set ? '已配置' : '未配置'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div>
+                      <DiagnosticLine item={diagnostics.database} />
+                      {diagnostics.storage.map((item) => (
+                        <DiagnosticLine key={item.key} item={item} />
+                      ))}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <CheckCircle2 size={14} style={{ color: 'var(--accent-green)' }} />
+                        最近备份：{diagnostics.latest_backup ? `${diagnostics.latest_backup.filename.replace('manual/', '')} · ${formatBytes(diagnostics.latest_backup.size_bytes)}` : '暂无'}
+                      </span>
+                      <span className="dimmed-desc">生成时间：{formatDate(diagnostics.generated_at)}</span>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </PermissionGate>
+          </SettingsActionCard>
         </SettingsSection>
       </div>
 

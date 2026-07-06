@@ -721,18 +721,18 @@ export default function SettingsPage() {
                 <span>此操作作为高风险数据变动动作，将被自动记录并同步写入系统的 `audit_logs` 审计表中以备历史追溯。</span>
               </div>
 
-              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button className="btn-secondary" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={() => setModalType(null)}>
+              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button className="btn-secondary mobile-full" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={() => setModalType(null)}>
                   取消
                 </button>
                 {modalType === 'backup' && (
-                  <button className="btn-danger" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={handleBackupSubmit}>
+                  <button className="btn-danger mobile-full" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={handleBackupSubmit}>
                     立即备份
                   </button>
                 )}
                 {modalType === 'csv' && (
                   <button
-                    className="btn-danger"
+                    className="btn-danger mobile-full"
                     style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
                     onClick={() => {
                       setModalType(null);
@@ -747,7 +747,7 @@ export default function SettingsPage() {
                 )}
                 {modalType === 'json' && (
                   <button
-                    className="btn-danger"
+                    className="btn-danger mobile-full"
                     style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
                     onClick={() => {
                       setModalType(null);

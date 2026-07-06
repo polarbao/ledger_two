@@ -1,8 +1,25 @@
 # Task33-Task40 Detailed DEV Plan
 
-状态：建议任务规格  
+状态：持续更新；Task33-Task39 已基本完成，Task40 待完成
 适用阶段：Foundation before v1.1  
 目的：细化剩余 Foundation 任务，确保 v1.1 业务开发前基础框架可冻结。
+
+## 0. 当前完成度快照
+
+更新时间：2026-07-06
+
+| 任务 | 当前状态 | 冻结判断 |
+|---|---|---|
+| Task33 LedgerContext 与 RBAC | 基本完成 | 已具备 v1.1 前置能力，仍需避免新业务继续 fallback |
+| Task34 API 契约与 OpenAPI | 基本完成 | 新增 API 必须同步更新契约 |
+| Task35 分类/标签/账户管理基础 | 基本完成 | 排序等增强可进入 v1.1 Task44 |
+| Task36 前端 LedgerProvider 与 Query Key | 基本完成 | 后续新增 query 必须包含 ledgerId |
+| Task37 设置页信息架构重组 | 基本完成 | 诊断区仍等待 Task40 |
+| Task38 迁移、测试与质量门禁 | 完成 | migration、R01/R02、CI compose gate 已补 |
+| Task39 附件访问控制 | 完成 | R03 已覆盖，裸 `/uploads/*` 已关闭 |
+| Task40 审计与系统诊断中心 | 未完成 | Foundation 不能冻结 |
+
+结论：当前可进行 NAS 内测试部署，但不应标记 Foundation 冻结；进入 v1.1 业务开发前必须完成 Task40。
 
 ## 1. 使用方式
 
@@ -336,4 +353,3 @@ Foundation before v1.1 冻结前必须满足：
 - Task38 能证明核心回归测试可运行。
 - Task39 关闭 private 附件裸访问风险。
 - Task40 提供基础诊断能力。
-

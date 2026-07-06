@@ -169,8 +169,9 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| POST | `/api/attachments` | yes | optional | transitional | `transaction.HandleUploadAttachment` | 上传附件，访问控制仍需 Task39 收口。 |
-| GET | `/uploads/*` | no | none | deprecated | static file server | 裸静态附件路径，存在绕过权限风险，Task39 必须治理。 |
+| POST | `/api/attachments` | yes | optional | transitional | `transaction.HandleUploadAttachment` | 上传附件，返回历史兼容路径 `/uploads/{filename}`。 |
+| GET | `/api/attachments/{filename}` | yes | required | stable | `transaction.HandleGetAttachment` | 受保护附件读取，根据关联账单可见性校验。 |
+| GET | `/uploads/*` | no | none | disabled | router guard | 裸静态附件路径已关闭，必须通过 `/api/attachments/{filename}` 访问。 |
 
 ## 14. Task34 后续治理清单
 
@@ -178,4 +179,4 @@
 2. Task34.3 已新增 `docs/api/API_CONVENTIONS.md`，后续代码治理必须按该文件执行。
 3. Foundation 冻结前，业务写接口应从 `optional` 收紧为 `required` 或明确保留兼容窗口。
 4. 统一 handler 使用 `response.WriteError`，避免手写 `response.Error` 和 `http.Error` 返回不一致。
-5. 标记 `/uploads/*` 为 deprecated，并在 Task39 改为受保护附件访问 API。
+5. Task39 已关闭裸 `/uploads/*`，后续前端展示附件时应使用 `/api/attachments/{filename}`，不要直接请求历史兼容路径。

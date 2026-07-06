@@ -821,6 +821,26 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Success"
+  /attachments/{filename}:
+    get:
+      tags: [attachments]
+      summary: Get protected attachment
+      description: Reads an uploaded attachment only when the current user can view the transaction that references the legacy `/uploads/{filename}` path.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/FilenamePath"
+      responses:
+        "200":
+          description: Binary attachment content.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/Error"
 
 components:
   securitySchemes:
@@ -835,6 +855,20 @@ components:
       in: header
       required: false
       description: Explicit ledger id. Optional during Foundation compatibility; should become required for scoped business APIs before v1.1 freeze.
+      schema:
+        type: string
+    LedgerIdHeaderRequired:
+      name: X-Ledger-Id
+      in: header
+      required: true
+      description: Explicit ledger id required for protected attachment access.
+      schema:
+        type: string
+    FilenamePath:
+      name: filename
+      in: path
+      required: true
+      description: Attachment filename without path separators.
       schema:
         type: string
     LedgerIdPath:

@@ -1,7 +1,7 @@
 # Stage 1: 构建 React 前端
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY frontend/ ./

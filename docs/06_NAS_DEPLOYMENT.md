@@ -1,5 +1,7 @@
 # 06 群晖 NAS 部署文档：LedgerTwo v0.2
 
+> 历史文档提示：本文保留为早期 v0.2/Demo 部署背景，不再作为当前部署事实源。当前 NAS 部署请优先使用 `docs/tech/08-nas-deployment.md`、根目录 `docker-compose.yml` 和 `.env.example`。当前变量名已统一为 `DB_DSN`、`JWT_SECRET`、`UPLOAD_DIR`，附件访问也已改为受保护的 `/api/attachments/{filename}`，不要继续按本文中的 `DB_PATH`、`SESSION_SECRET` 或裸 `/uploads` 静态访问策略部署。
+
 ## 1. 部署目标
 
 将 LedgerTwo 作为 Docker 容器部署在群晖 NAS 上，使用 SQLite 保存数据，通过局域网或 Tailscale 访问。

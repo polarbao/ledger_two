@@ -344,6 +344,21 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /transaction-defaults:
+    get:
+      tags: [transactions]
+      summary: Get current user's quick transaction defaults
+      description: Returns per-ledger, per-user transaction defaults. Archived category, account and tags are omitted from the response.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /transactions/:
     get:
       tags: [transactions]
@@ -1181,6 +1196,34 @@ components:
           type: array
           items:
             type: string
+    TransactionDefaultResponse:
+      type: object
+      required: [type, payer_user_id, visibility, split_method, tag_names]
+      properties:
+        type:
+          type: string
+          enum: [expense, income, shared_expense]
+        category_id:
+          type: string
+          nullable: true
+        account_id:
+          type: string
+          nullable: true
+        payer_user_id:
+          type: string
+        visibility:
+          type: string
+          enum: [private, partner_readable]
+        split_method:
+          type: string
+          enum: [equal, payer_only]
+        tag_names:
+          type: array
+          items:
+            type: string
+        updated_at:
+          type: string
+          format: date-time
     UpdateTransactionRequest:
       type: object
       properties:

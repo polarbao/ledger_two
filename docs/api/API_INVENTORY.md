@@ -94,6 +94,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
+| GET | `/api/transaction-defaults` | yes | optional | transitional | `transaction.HandleGetTransactionDefault` | 读取当前用户在当前账本下的快捷记账默认值，自动剔除已归档分类、账户和标签。 |
 | GET | `/api/transactions/` | yes | optional | transitional | `transaction.HandleList` | 账单列表，支持筛选。 |
 | POST | `/api/transactions/` | yes | optional | transitional | `transaction.HandleCreate` | 创建普通收入/支出。 |
 | POST | `/api/transactions/batch-tag` | yes | optional | transitional | `transaction.HandleBatchTag` | 批量打标签。 |

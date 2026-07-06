@@ -8,6 +8,7 @@ export interface TransactionDraft {
     amount: string;
     title?: string;
     category_id?: string | null;
+    account_id?: string | null;
     tag_names?: string;
     payer_user_id: string;
     split_method: 'equal' | 'payer_only';

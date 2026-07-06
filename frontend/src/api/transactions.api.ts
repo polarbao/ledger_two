@@ -16,6 +16,7 @@ import type {
   Account,
   ImportRuleResponse,
   CreateImportRulePayload,
+  TransactionDefaultResponse,
 } from '../types/transaction';
 
 export interface TransactionListFilter {
@@ -121,6 +122,9 @@ export const transactionsApi = {
 
   listAccounts: () =>
     api.get<Account[]>('/api/accounts'),
+
+  getTransactionDefaults: () =>
+    api.get<TransactionDefaultResponse>('/api/transaction-defaults'),
 
   listImportRules: () =>
     api.get<ImportRuleResponse[]>('/api/import-rules'),

@@ -21,6 +21,8 @@ export const queryKeys = {
   },
   categories: (ledgerId?: string | null) => ['categories', ledgerScope(ledgerId)] as const,
   accounts: (ledgerId?: string | null) => ['accounts', ledgerScope(ledgerId)] as const,
+  transactionDefaults: (ledgerId?: string | null) =>
+    ['transaction-defaults', ledgerScope(ledgerId)] as const,
   metadata: {
     root: (ledgerId?: string | null) => ['metadata', ledgerScope(ledgerId)] as const,
     list: (ledgerId: string | null | undefined, kind: MetadataKind) =>

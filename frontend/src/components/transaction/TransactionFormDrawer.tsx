@@ -28,6 +28,7 @@ const formSchema = z.object({
     }, { message: '金额必须大于 0' }),
   title: z.string().max(100, '标题最大支持 100 字').optional(),
   category_id: z.string().optional().nullable(),
+  account_id: z.string().optional().nullable(),
   tag_names: z.string().optional(),
   payer_user_id: z.string().min(1, '请选择付款人'),
   split_method: z.enum(['equal', 'payer_only']),
@@ -61,6 +62,7 @@ export default function TransactionFormDrawer() {
 
   const LAST_TYPE_KEY = 'ledger_two_last_type';
   const LAST_CATEGORY_KEY = 'ledger_two_last_category_id';
+  const LAST_ACCOUNT_KEY = 'ledger_two_last_account_id';
   const RECENT_CATEGORIES_KEY = 'ledger_two_recent_categories';
   const LAST_TAGS_KEY = 'ledger_two_last_tag_names';
   const RECENT_TAGS_KEY = 'ledger_two_recent_tags';
@@ -82,6 +84,18 @@ export default function TransactionFormDrawer() {
     acc[cat.id] = cat.name;
     return acc;
   }, {} as Record<string, string>) || {};
+
+  const { data: accounts, isLoading: isAccountsLoading } = useQuery({
+    queryKey: queryKeys.accounts(activeLedgerId),
+    queryFn: () => transactionsApi.listAccounts(),
+    enabled: addDrawerOpen && canWriteLedger,
+  });
+
+  const { data: transactionDefaults, isFetched: isDefaultsFetched } = useQuery({
+    queryKey: queryKeys.transactionDefaults(activeLedgerId),
+    queryFn: () => transactionsApi.getTransactionDefaults(),
+    enabled: addDrawerOpen && canWriteLedger && !copySourceTransaction && !editingDraftId,
+  });
 
   // 2. 获取成员用户列表（复用 Dashboard 返回的 user_stats）
   const { data: dashboardData } = useQuery({
@@ -124,6 +138,7 @@ export default function TransactionFormDrawer() {
     setValue('amount', amountYuan);
     setValue('title', tmpl.title || '');
     setValue('category_id', tmpl.category_id || '');
+    setValue('account_id', tmpl.account_id || '');
     setValue('tag_names', tagsStr);
     setValue('payer_user_id', tmpl.payer_user_id || currentUser?.id || '');
     setValue('split_method', tmpl.split_method === 'payer_only' ? 'payer_only' : 'equal');
@@ -146,6 +161,7 @@ export default function TransactionFormDrawer() {
       title: formVals.title || undefined,
       amount_cents: cents,
       category_id: formVals.category_id || undefined,
+      account_id: formVals.account_id || undefined,
       payer_user_id: formVals.payer_user_id || undefined,
       split_method: formVals.split_method || undefined,
       tag_names: tags,
@@ -178,6 +194,7 @@ export default function TransactionFormDrawer() {
       amount: '',
       title: '',
       category_id: '',
+      account_id: '',
       tag_names: '',
       payer_user_id: currentUser?.id || '',
       split_method: 'equal',
@@ -202,25 +219,28 @@ export default function TransactionFormDrawer() {
     if (addDrawerOpen && !copySourceTransaction && !editingDraftId) {
       const localType = (localStorage.getItem(LAST_TYPE_KEY) as FormValues['type']) || 'expense';
       const localCategory = localStorage.getItem(LAST_CATEGORY_KEY) || '';
+      const localAccount = localStorage.getItem(LAST_ACCOUNT_KEY) || '';
       const localTags = localStorage.getItem(LAST_TAGS_KEY) || '';
       const localPayer = localStorage.getItem(LAST_PAYER_KEY) || currentUser?.id || '';
       const localVisibility = (localStorage.getItem(LAST_VISIBILITY_KEY) as FormValues['visibility']) || 'partner_readable';
+      const defaults = transactionDefaults;
 
       reset({
-        type: localType,
+        type: defaults?.type || localType,
         amount: '',
         title: '',
-        category_id: localCategory,
-        tag_names: localTags,
-        payer_user_id: localPayer,
-        split_method: 'equal',
+        category_id: defaults?.category_id || localCategory,
+        account_id: defaults?.account_id || localAccount,
+        tag_names: defaults?.tag_names?.length ? defaults.tag_names.join(', ') : localTags,
+        payer_user_id: defaults?.payer_user_id || localPayer,
+        split_method: defaults?.split_method || 'equal',
         occurred_at: getTodayString(),
         note: '',
-        visibility: localVisibility,
+        visibility: defaults?.visibility || localVisibility,
         attachment_paths: [],
       });
     }
-  }, [addDrawerOpen, copySourceTransaction, editingDraftId, currentUser, reset]);
+  }, [addDrawerOpen, copySourceTransaction, editingDraftId, currentUser, reset, transactionDefaults, isDefaultsFetched]);
 
   // 处理“草稿编辑”回填逻辑
   useEffect(() => {
@@ -243,6 +263,7 @@ export default function TransactionFormDrawer() {
         amount: amountYuan,
         title: copySourceTransaction.title || '',
         category_id: copySourceTransaction.category_id || '',
+        account_id: copySourceTransaction.account_id || '',
         tag_names: tagsStr,
         payer_user_id: copySourceTransaction.payer_user_id || currentUser?.id || '',
         split_method: copySourceTransaction.split_method || 'equal',
@@ -286,6 +307,7 @@ export default function TransactionFormDrawer() {
           occurred_at: rfc3339Date,
           payer_user_id: values.payer_user_id,
           category_id: values.category_id || undefined,
+          account_id: values.account_id || undefined,
           visibility: values.visibility,
           tag_names: tags,
           note: values.note || '',
@@ -307,6 +329,11 @@ export default function TransactionFormDrawer() {
       localStorage.setItem(LAST_TYPE_KEY, variables.type);
       localStorage.setItem(LAST_PAYER_KEY, variables.payer_user_id);
       localStorage.setItem(LAST_VISIBILITY_KEY, variables.visibility);
+      if (variables.type !== 'shared_expense' && variables.account_id) {
+        localStorage.setItem(LAST_ACCOUNT_KEY, variables.account_id);
+      } else {
+        localStorage.removeItem(LAST_ACCOUNT_KEY);
+      }
 
       if (variables.category_id) {
         localStorage.setItem(LAST_CATEGORY_KEY, variables.category_id);
@@ -341,6 +368,7 @@ export default function TransactionFormDrawer() {
           amount: '',
           title: '',
           category_id: variables.category_id || '',
+          account_id: variables.account_id || '',
           tag_names: variables.tag_names || '',
           payer_user_id: variables.payer_user_id,
           split_method: variables.split_method || 'equal',
@@ -357,6 +385,7 @@ export default function TransactionFormDrawer() {
           amount: '',
           title: '',
           category_id: '',
+          account_id: '',
           tag_names: '',
           payer_user_id: currentUser?.id || '',
           split_method: 'equal',
@@ -685,6 +714,28 @@ export default function TransactionFormDrawer() {
               </>
             )}
           </div>
+
+          {/* 支付账户 */}
+          {watchType !== 'shared_expense' && (
+            <div className="form-group">
+              <label className="form-label">支付账户</label>
+              {isAccountsLoading ? (
+                <div className="select-loading">
+                  <Loader2 size={16} className="spinner" />
+                  <span>加载账户中...</span>
+                </div>
+              ) : (
+                <select className="form-select" {...register('account_id')}>
+                  <option value="">-- 请选择账户 (选填) --</option>
+                  {accounts?.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           {/* 日期选择 */}
           <div className="form-group">

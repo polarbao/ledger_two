@@ -45,6 +45,7 @@ export interface CreateTransactionPayload {
   currency: string;
   occurred_at: string;
   payer_user_id: string;
+  account_id?: string;
   category_id?: string;
   visibility?: 'private' | 'partner_readable';
   tag_names?: string[];
@@ -63,6 +64,17 @@ export interface CreateSharedExpensePayload {
   splits?: SplitInput[];
   tag_names?: string[];
   note?: string;
+}
+
+export interface TransactionDefaultResponse {
+  type: 'expense' | 'income' | 'shared_expense';
+  category_id?: string | null;
+  account_id?: string | null;
+  payer_user_id: string;
+  visibility: 'private' | 'partner_readable';
+  split_method: 'equal' | 'payer_only';
+  tag_names: string[];
+  updated_at?: string;
 }
 
 export interface TransactionTemplateResponse {

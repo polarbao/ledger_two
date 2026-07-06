@@ -255,6 +255,24 @@ func (h *Handler) HandleListCategories(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, res)
 }
 
+// HandleGetTransactionDefault 拉取当前用户快捷记账默认值
+// @brief 处理 GET /api/transaction-defaults 请求
+func (h *Handler) HandleGetTransactionDefault(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		writeUnauthorized(w)
+		return
+	}
+
+	res, err := h.service.GetTransactionDefault(r.Context(), currentUserID)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, res)
+}
+
 // HandleCreateTemplate 创建账单模板接口
 func (h *Handler) HandleCreateTemplate(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())

@@ -130,6 +130,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 
 				r.Get("/categories", transactionHandler.HandleListCategories)
 				r.Get("/accounts", transactionHandler.HandleListAccounts)
+				r.Get("/transaction-defaults", transactionHandler.HandleGetTransactionDefault)
 				r.Route("/metadata/{kind}", func(r chi.Router) {
 					r.Get("/", metadataHandler.List)
 					r.Post("/", metadataHandler.Create)

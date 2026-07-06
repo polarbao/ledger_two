@@ -50,6 +50,7 @@ func TestTransactionFlow(t *testing.T) {
 			r.Patch("/{id}", txHandler.HandleUpdate)
 			r.Delete("/{id}", txHandler.HandleDelete)
 		})
+		r.Get("/api/transaction-defaults", txHandler.HandleGetTransactionDefault)
 	})
 
 	// 1. 初始化系统，注入 A、B 两个用户
@@ -126,6 +127,27 @@ func TestTransactionFlow(t *testing.T) {
 	r.ServeHTTP(rrCreateInc, reqCreateInc)
 	if rrCreateInc.Code != http.StatusCreated {
 		t.Errorf("expected 201 Created for income, got %d", rrCreateInc.Code)
+	}
+
+	reqDefaults, _ := http.NewRequest("GET", "/api/transaction-defaults", nil)
+	reqDefaults.AddCookie(cookieA)
+	rrDefaults := httptest.NewRecorder()
+	r.ServeHTTP(rrDefaults, reqDefaults)
+	if rrDefaults.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for transaction defaults, got %d. Body: %s", rrDefaults.Code, rrDefaults.Body.String())
+	}
+
+	var defaultsResp response.SuccessResponse
+	json.Unmarshal(rrDefaults.Body.Bytes(), &defaultsResp)
+	defaultsData := defaultsResp.Data.(map[string]interface{})
+	if defaultsData["type"].(string) != "income" {
+		t.Errorf("expected last transaction type income in defaults, got %v", defaultsData["type"])
+	}
+	if defaultsData["payer_user_id"].(string) != "userA" {
+		t.Errorf("expected payer userA in defaults, got %v", defaultsData["payer_user_id"])
+	}
+	if defaultsData["visibility"].(string) != "partner_readable" {
+		t.Errorf("expected partner_readable visibility in defaults, got %v", defaultsData["visibility"])
 	}
 
 	// 5. 测试校验边界：金额为 0 报错

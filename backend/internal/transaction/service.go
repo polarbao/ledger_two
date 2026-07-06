@@ -150,6 +150,11 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 		return nil, err
 	}
 
+	err = s.saveTransactionDefaultWithTx(ctx, dbTx, ledgerID, currentUserID, txModel, "equal", req.TagNames)
+	if err != nil {
+		return nil, err
+	}
+
 	err = dbTx.Commit()
 	if err != nil {
 		return nil, err
@@ -816,6 +821,11 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 
 	// 写入 transaction_splits
 	err = s.repo.CreateSplitsWithTx(ctx, dbTx, splitEntities)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.saveTransactionDefaultWithTx(ctx, dbTx, ledgerID, currentUserID, txModel, req.SplitMethod, req.TagNames)
 	if err != nil {
 		return nil, err
 	}
@@ -1947,6 +1957,151 @@ func (s *Service) ListAccounts(ctx context.Context, currentUserID string) ([]Acc
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 	return s.repo.ListAccounts(ctx, ledgerID)
+}
+
+// GetTransactionDefault 读取当前用户快捷记账默认值，并剔除已归档元数据
+func (s *Service) GetTransactionDefault(ctx context.Context, currentUserID string) (*TransactionDefaultResponse, error) {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
+	if err != nil {
+		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
+		return nil, err
+	}
+
+	d, err := s.repo.GetTransactionDefault(ctx, ledgerID, currentUserID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return &TransactionDefaultResponse{
+			Type:        "expense",
+			PayerUserID: currentUserID,
+			Visibility:  "partner_readable",
+			SplitMethod: "equal",
+			TagNames:    []string{},
+		}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &TransactionDefaultResponse{
+		Type:        d.Type,
+		PayerUserID: currentUserID,
+		Visibility:  normalizeDefaultVisibility(d.Visibility),
+		SplitMethod: normalizeDefaultSplitMethod(d.SplitMethod.String),
+		TagNames:    []string{},
+	}
+	if d.PayerUserID.Valid && d.PayerUserID.String != "" {
+		resp.PayerUserID = d.PayerUserID.String
+	}
+	if d.UpdatedAt.IsZero() {
+		resp.UpdatedAt = ""
+	} else {
+		resp.UpdatedAt = d.UpdatedAt.Format(time.RFC3339)
+	}
+
+	if d.Type != "expense" && d.Type != "income" && d.Type != "shared_expense" {
+		resp.Type = "expense"
+	}
+
+	if d.CategoryID.Valid && d.CategoryID.String != "" {
+		ok, err := s.repo.ActiveCategoryExists(ctx, ledgerID, d.CategoryID.String)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			resp.CategoryID = stringPtr(d.CategoryID.String)
+		}
+	}
+	if d.AccountID.Valid && d.AccountID.String != "" {
+		ok, err := s.repo.ActiveAccountExists(ctx, ledgerID, d.AccountID.String)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			resp.AccountID = stringPtr(d.AccountID.String)
+		}
+	}
+	if d.TagNames.Valid && d.TagNames.String != "" {
+		tags := splitTagNames(d.TagNames.String)
+		activeTags, err := s.repo.FilterActiveTagNames(ctx, ledgerID, tags)
+		if err != nil {
+			return nil, err
+		}
+		resp.TagNames = activeTags
+	}
+
+	return resp, nil
+}
+
+func (s *Service) saveTransactionDefaultWithTx(ctx context.Context, dbTx *sql.Tx, ledgerID, currentUserID string, txModel *Transaction, splitMethod string, tagNames []string) error {
+	visibility := txModel.Visibility
+	if txModel.Type == "shared_expense" || visibility == "shared" {
+		visibility = "partner_readable"
+	}
+	if visibility == "" {
+		visibility = "partner_readable"
+	}
+	splitMethod = normalizeDefaultSplitMethod(splitMethod)
+
+	cleanTags := make([]string, 0, len(tagNames))
+	seenTags := map[string]bool{}
+	for _, tag := range tagNames {
+		tag = strings.TrimSpace(tag)
+		if tag == "" || seenTags[tag] {
+			continue
+		}
+		cleanTags = append(cleanTags, tag)
+		seenTags[tag] = true
+	}
+
+	defaultValue := &TransactionDefault{
+		LedgerID:    ledgerID,
+		UserID:      currentUserID,
+		Type:        txModel.Type,
+		CategoryID:  txModel.CategoryID,
+		AccountID:   txModel.AccountID,
+		PayerUserID: sql.NullString{String: txModel.PayerUserID, Valid: txModel.PayerUserID != ""},
+		Visibility:  visibility,
+		SplitMethod: sql.NullString{String: splitMethod, Valid: true},
+		TagNames:    sql.NullString{String: strings.Join(cleanTags, ","), Valid: len(cleanTags) > 0},
+	}
+	if txModel.Type == "shared_expense" {
+		defaultValue.AccountID = sql.NullString{}
+	}
+	return s.repo.UpsertTransactionDefaultWithTx(ctx, dbTx, defaultValue)
+}
+
+func normalizeDefaultVisibility(visibility string) string {
+	if visibility == "private" {
+		return "private"
+	}
+	return "partner_readable"
+}
+
+func normalizeDefaultSplitMethod(splitMethod string) string {
+	if splitMethod == "payer_only" {
+		return "payer_only"
+	}
+	return "equal"
+}
+
+func splitTagNames(tagNames string) []string {
+	parts := strings.Split(tagNames, ",")
+	tags := make([]string, 0, len(parts))
+	seen := map[string]bool{}
+	for _, part := range parts {
+		tag := strings.TrimSpace(part)
+		if tag == "" || seen[tag] {
+			continue
+		}
+		tags = append(tags, tag)
+		seen[tag] = true
+	}
+	return tags
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 // CreateImportRule 创建导入分类规则并执行业务校验与越权拦截

@@ -24,10 +24,36 @@ type Transaction struct {
 	SplitMethod     sql.NullString
 	Note            sql.NullString
 	AttachmentPaths sql.NullString // 附件相对路径 JSON 数组或列表
-	Status          string // normal, deleted
+	Status          string         // normal, deleted
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	DeletedAt       sql.NullTime
+}
+
+// TransactionDefault 记录当前用户在当前账本下的快捷记账偏好
+type TransactionDefault struct {
+	LedgerID    string
+	UserID      string
+	Type        string
+	CategoryID  sql.NullString
+	AccountID   sql.NullString
+	PayerUserID sql.NullString
+	Visibility  string
+	SplitMethod sql.NullString
+	TagNames    sql.NullString
+	UpdatedAt   time.Time
+}
+
+// TransactionDefaultResponse 快捷记账默认值响应
+type TransactionDefaultResponse struct {
+	Type        string   `json:"type"`
+	CategoryID  *string  `json:"category_id,omitempty"`
+	AccountID   *string  `json:"account_id,omitempty"`
+	PayerUserID string   `json:"payer_user_id"`
+	Visibility  string   `json:"visibility"`
+	SplitMethod string   `json:"split_method"`
+	TagNames    []string `json:"tag_names"`
+	UpdatedAt   string   `json:"updated_at,omitempty"`
 }
 
 // CreateTransactionRequest 记账请求结构
@@ -50,16 +76,16 @@ type CreateTransactionRequest struct {
 // UpdateTransactionRequest 编辑账单请求结构
 // @brief 局部编辑普通账单的传参对象
 type UpdateTransactionRequest struct {
-	Title           *string   `json:"title"`
-	AmountCents     *int64    `json:"amount_cents"`
-	OccurredAt      *string   `json:"occurred_at"`
-	PayerUserID     *string   `json:"payer_user_id"`
-	AccountID       **string  `json:"account_id"`  // 允许传空以置 null
-	CategoryID      **string  `json:"category_id"` // 允许传空以置 null
-	Visibility      *string   `json:"visibility"`
-	TagNames        *[]string `json:"tag_names"`
+	Title           *string       `json:"title"`
+	AmountCents     *int64        `json:"amount_cents"`
+	OccurredAt      *string       `json:"occurred_at"`
+	PayerUserID     *string       `json:"payer_user_id"`
+	AccountID       **string      `json:"account_id"`  // 允许传空以置 null
+	CategoryID      **string      `json:"category_id"` // 允许传空以置 null
+	Visibility      *string       `json:"visibility"`
+	TagNames        *[]string     `json:"tag_names"`
 	Note            *string       `json:"note"`
-	SplitMethod     *string       `json:"split_method"` // 新增，用于共同支出编辑
+	SplitMethod     *string       `json:"split_method"`     // 新增，用于共同支出编辑
 	Splits          *[]SplitInput `json:"splits,omitempty"` // 用于多人的高级分摊编辑
 	AttachmentPaths *[]string     `json:"attachment_paths"`
 }
@@ -117,11 +143,11 @@ type SplitInput struct {
 // CreateSharedExpenseRequest 共同支出创建请求结构
 // @brief 创建共同支出账单的传参对象
 type CreateSharedExpenseRequest struct {
-	Title       string   `json:"title"`
-	AmountCents int64    `json:"amount_cents"`
-	Currency    string   `json:"currency"`
-	OccurredAt  string   `json:"occurred_at"`
-	PayerUserID string   `json:"payer_user_id"`
+	Title       string       `json:"title"`
+	AmountCents int64        `json:"amount_cents"`
+	Currency    string       `json:"currency"`
+	OccurredAt  string       `json:"occurred_at"`
+	PayerUserID string       `json:"payer_user_id"`
 	CategoryID  *string      `json:"category_id"`
 	SplitMethod string       `json:"split_method"` // equal, payer_only, amount, ratio, shares
 	Splits      []SplitInput `json:"splits,omitempty"`
@@ -132,9 +158,9 @@ type CreateSharedExpenseRequest struct {
 // UpdateSharedExpenseRequest 共同支出编辑请求结构
 // @brief 局部编辑共同支出的传参对象
 type UpdateSharedExpenseRequest struct {
-	Title       *string   `json:"title"`
-	AmountCents *int64    `json:"amount_cents"`
-	OccurredAt  *string   `json:"occurred_at"`
+	Title       *string       `json:"title"`
+	AmountCents *int64        `json:"amount_cents"`
+	OccurredAt  *string       `json:"occurred_at"`
 	PayerUserID *string       `json:"payer_user_id"`
 	CategoryID  **string      `json:"category_id"`
 	SplitMethod *string       `json:"split_method"`
@@ -289,6 +315,3 @@ type ImportRuleResponse struct {
 	CreatedAt  string   `json:"created_at"`
 	UpdatedAt  string   `json:"updated_at"`
 }
-
-
-

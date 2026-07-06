@@ -450,6 +450,148 @@ func (r *Repository) CreateAuditLogWithTx(ctx context.Context, tx *sql.Tx, log *
 	return err
 }
 
+// UpsertTransactionDefaultWithTx 写入或刷新当前用户快捷记账默认值
+func (r *Repository) UpsertTransactionDefaultWithTx(ctx context.Context, tx *sql.Tx, d *TransactionDefault) error {
+	executor := r.getExecutor(tx)
+	now := time.Now().Format(time.RFC3339)
+
+	_, err := executor.ExecContext(ctx, `
+		INSERT INTO transaction_defaults (
+			ledger_id, user_id, type, category_id, account_id, payer_user_id,
+			visibility, split_method, tag_names, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(ledger_id, user_id) DO UPDATE SET
+			type = excluded.type,
+			category_id = excluded.category_id,
+			account_id = excluded.account_id,
+			payer_user_id = excluded.payer_user_id,
+			visibility = excluded.visibility,
+			split_method = excluded.split_method,
+			tag_names = excluded.tag_names,
+			updated_at = excluded.updated_at
+	`,
+		d.LedgerID,
+		d.UserID,
+		d.Type,
+		r.nullString(d.CategoryID),
+		r.nullString(d.AccountID),
+		r.nullString(d.PayerUserID),
+		d.Visibility,
+		r.nullString(d.SplitMethod),
+		r.nullString(d.TagNames),
+		now,
+	)
+	return err
+}
+
+// GetTransactionDefault 查询当前用户快捷记账默认值
+func (r *Repository) GetTransactionDefault(ctx context.Context, ledgerID, userID string) (*TransactionDefault, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT ledger_id, user_id, type, category_id, account_id, payer_user_id,
+			visibility, split_method, tag_names, updated_at
+		FROM transaction_defaults
+		WHERE ledger_id = ? AND user_id = ?
+	`, ledgerID, userID)
+
+	var d TransactionDefault
+	var updatedAt string
+	if err := row.Scan(
+		&d.LedgerID,
+		&d.UserID,
+		&d.Type,
+		&d.CategoryID,
+		&d.AccountID,
+		&d.PayerUserID,
+		&d.Visibility,
+		&d.SplitMethod,
+		&d.TagNames,
+		&updatedAt,
+	); err != nil {
+		return nil, err
+	}
+	if parsed, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+		d.UpdatedAt = parsed
+	}
+	return &d, nil
+}
+
+// ActiveCategoryExists 判断分类是否仍可用于默认值回填
+func (r *Repository) ActiveCategoryExists(ctx context.Context, ledgerID, categoryID string) (bool, error) {
+	var id string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id FROM categories
+		WHERE ledger_id = ? AND id = ? AND is_archived = 0
+	`, ledgerID, categoryID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// ActiveAccountExists 判断账户是否仍可用于默认值回填
+func (r *Repository) ActiveAccountExists(ctx context.Context, ledgerID, accountID string) (bool, error) {
+	var id string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id FROM accounts
+		WHERE ledger_id = ? AND id = ? AND is_archived = 0
+	`, ledgerID, accountID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// FilterActiveTagNames 保留仍未归档的标签名，并按输入顺序返回
+func (r *Repository) FilterActiveTagNames(ctx context.Context, ledgerID string, names []string) ([]string, error) {
+	if len(names) == 0 {
+		return []string{}, nil
+	}
+
+	query := `
+		SELECT name FROM tags
+		WHERE ledger_id = ? AND is_archived = 0 AND name IN (`
+	args := make([]interface{}, 0, len(names)+1)
+	args = append(args, ledgerID)
+	for i, name := range names {
+		if i > 0 {
+			query += ","
+		}
+		query += "?"
+		args = append(args, name)
+	}
+	query += ")"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	active := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		active[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	filtered := make([]string, 0, len(names))
+	seen := map[string]bool{}
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] || !active[name] {
+			continue
+		}
+		filtered = append(filtered, name)
+		seen[name] = true
+	}
+	return filtered, nil
+}
+
 type dbExecutor interface {
 	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
 	QueryRowContext(context.Context, string, ...interface{}) *sql.Row

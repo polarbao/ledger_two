@@ -48,6 +48,8 @@ func TestTransactionTemplates(t *testing.T) {
 			r.Get("/", txHandler.HandleListTemplates)
 			r.Get("/{id}", txHandler.HandleGetTemplate)
 			r.Put("/{id}", txHandler.HandleUpdateTemplate)
+			r.Post("/{id}/archive", txHandler.HandleArchiveTemplate)
+			r.Post("/{id}/restore", txHandler.HandleRestoreTemplate)
 			r.Delete("/{id}", txHandler.HandleDeleteTemplate)
 		})
 		r.Route("/api/transactions", func(r chi.Router) {
@@ -205,16 +207,16 @@ func TestTransactionTemplates(t *testing.T) {
 		t.Fatalf("failed to create transaction from template: %v", rrTx.Body.String())
 	}
 
-	// 6. 测试删除模板
+	// 6. 测试 DELETE 兼容旧调用，但实际执行软归档
 	reqDel, _ := http.NewRequest("DELETE", "/api/transaction-templates/"+createdTmpl.Data.ID, nil)
 	reqDel.AddCookie(cookieA)
 	rrDel := httptest.NewRecorder()
 	r.ServeHTTP(rrDel, reqDel)
 	if rrDel.Code != http.StatusOK {
-		t.Errorf("failed to delete template: %v", rrDel.Body.String())
+		t.Errorf("failed to archive template by delete endpoint: %v", rrDel.Body.String())
 	}
 
-	// 再次获取列表，模板应该为 0
+	// 默认列表不返回已归档模板
 	reqList2, _ := http.NewRequest("GET", "/api/transaction-templates", nil)
 	reqList2.AddCookie(cookieA)
 	rrList2 := httptest.NewRecorder()
@@ -226,5 +228,39 @@ func TestTransactionTemplates(t *testing.T) {
 	list2 := listResp2.Data
 	if len(list2) != 0 {
 		t.Errorf("expected 0 templates after deletion, got %d", len(list2))
+	}
+
+	// 管理列表可以显式包含已归档模板
+	reqListArchived, _ := http.NewRequest("GET", "/api/transaction-templates?include_archived=true", nil)
+	reqListArchived.AddCookie(cookieA)
+	rrListArchived := httptest.NewRecorder()
+	r.ServeHTTP(rrListArchived, reqListArchived)
+	var archivedResp struct {
+		Data []map[string]interface{} `json:"data"`
+	}
+	_ = json.Unmarshal(rrListArchived.Body.Bytes(), &archivedResp)
+	if len(archivedResp.Data) != 1 || archivedResp.Data[0]["is_archived"] != true {
+		t.Fatalf("expected archived template in include_archived list, got %s", rrListArchived.Body.String())
+	}
+
+	// 恢复后默认列表重新可见
+	reqRestore, _ := http.NewRequest("POST", "/api/transaction-templates/"+createdTmpl.Data.ID+"/restore", nil)
+	reqRestore.AddCookie(cookieA)
+	rrRestore := httptest.NewRecorder()
+	r.ServeHTTP(rrRestore, reqRestore)
+	if rrRestore.Code != http.StatusOK {
+		t.Fatalf("failed to restore template: %s", rrRestore.Body.String())
+	}
+
+	reqList3, _ := http.NewRequest("GET", "/api/transaction-templates", nil)
+	reqList3.AddCookie(cookieA)
+	rrList3 := httptest.NewRecorder()
+	r.ServeHTTP(rrList3, reqList3)
+	var listResp3 struct {
+		Data []map[string]interface{} `json:"data"`
+	}
+	_ = json.Unmarshal(rrList3.Body.Bytes(), &listResp3)
+	if len(listResp3.Data) != 1 || listResp3.Data[0]["is_archived"] != false {
+		t.Errorf("expected restored template in default list, got %s", rrList3.Body.String())
 	}
 }

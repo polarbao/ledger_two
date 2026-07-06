@@ -198,8 +198,10 @@ type TransactionTemplate struct {
 	TagNames        sql.NullString // 逗号分隔的标签名列表
 	Note            sql.NullString
 	CreatedByUserID string
+	IsArchived      bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	ArchivedAt      sql.NullTime
 }
 
 // CreateTemplateRequest 创建与更新模板的请求结构
@@ -230,8 +232,10 @@ type TemplateResponse struct {
 	TagNames        []string `json:"tag_names"`
 	Note            string   `json:"note"`
 	CreatedByUserID string   `json:"created_by_user_id"`
+	IsArchived      bool     `json:"is_archived"`
 	CreatedAt       string   `json:"created_at"`
 	UpdatedAt       string   `json:"updated_at"`
+	ArchivedAt      string   `json:"archived_at,omitempty"`
 }
 
 // BatchTagRequest 批量打标签请求结构

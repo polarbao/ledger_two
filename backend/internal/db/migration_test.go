@@ -10,7 +10,7 @@ import (
 	"ledger_two/migrations"
 )
 
-const latestMigrationVersion int64 = 11
+const latestMigrationVersion int64 = 12
 
 func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 	database := openMigrationTestDB(t)
@@ -89,6 +89,10 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"split_method",
 		"tag_names",
 	})
+	assertColumnsExist(t, database, "transaction_templates", []string{
+		"is_archived",
+		"archived_at",
+	})
 
 	assertIndexesExist(t, database, []string{
 		"idx_transactions_ledger_month",
@@ -105,6 +109,7 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"idx_tags_ledger_sort",
 		"idx_accounts_ledger_sort",
 		"idx_transaction_defaults_ledger_user",
+		"idx_templates_ledger_archived",
 	})
 }
 

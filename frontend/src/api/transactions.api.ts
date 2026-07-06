@@ -69,8 +69,10 @@ export const transactionsApi = {
   deleteTransaction: (id: string) =>
     api.delete<void>(`/api/transactions/${id}`),
 
-  listTemplates: () =>
-    api.get<TransactionTemplateResponse[]>('/api/transaction-templates'),
+  listTemplates: (options: { includeArchived?: boolean } = {}) =>
+    api.get<TransactionTemplateResponse[]>(
+      `/api/transaction-templates${options.includeArchived ? '?include_archived=true' : ''}`
+    ),
 
   createTemplate: (payload: CreateTemplatePayload) =>
     api.post<TransactionTemplateResponse>('/api/transaction-templates', payload),
@@ -80,6 +82,12 @@ export const transactionsApi = {
 
   deleteTemplate: (id: string) =>
     api.delete<{ success: boolean }>(`/api/transaction-templates/${id}`),
+
+  archiveTemplate: (id: string) =>
+    api.post<{ success: boolean }>(`/api/transaction-templates/${id}/archive`, {}),
+
+  restoreTemplate: (id: string) =>
+    api.post<{ success: boolean }>(`/api/transaction-templates/${id}/restore`, {}),
 
   listRecurringRules: () =>
     api.get<RecurringRuleResponse[]>('/api/recurring-rules'),

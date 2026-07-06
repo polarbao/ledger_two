@@ -162,6 +162,8 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 					r.Get("/", transactionHandler.HandleListTemplates)
 					r.Get("/{id}", transactionHandler.HandleGetTemplate)
 					r.Put("/{id}", transactionHandler.HandleUpdateTemplate)
+					r.Post("/{id}/archive", transactionHandler.HandleArchiveTemplate)
+					r.Post("/{id}/restore", transactionHandler.HandleRestoreTemplate)
 					r.Delete("/{id}", transactionHandler.HandleDeleteTemplate)
 				})
 

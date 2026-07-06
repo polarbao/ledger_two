@@ -90,8 +90,10 @@ export interface TransactionTemplateResponse {
   tag_names: string[];
   note: string;
   created_by_user_id: string;
+  is_archived: boolean;
   created_at: string;
   updated_at: string;
+  archived_at?: string;
 }
 
 export interface CreateTemplatePayload {

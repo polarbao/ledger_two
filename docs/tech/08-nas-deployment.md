@@ -88,7 +88,7 @@ GET /api/healthz
 
 健康检查应返回服务状态、数据库连接状态和版本号。
 
-当前 schema version 应为最新 migration 版本。2026-07-06 当前最新版本为 `10`。
+当前 schema version 应为最新 migration 版本。2026-07-06 当前最新版本为 `12`。
 
 Owner 登录后还可以在设置页查看系统诊断，或直接调用：
 

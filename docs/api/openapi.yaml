@@ -200,6 +200,12 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - name: include_archived
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: When true, archived templates are included for management views.
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -555,12 +561,45 @@ paths:
           $ref: "#/components/responses/Success"
     delete:
       tags: [templates]
-      summary: Delete transaction template
+      summary: Archive transaction template through legacy delete endpoint
+      description: Backward-compatible soft archive. New clients should use POST /transaction-templates/{id}/archive.
       security:
         - cookieAuth: []
       responses:
         "200":
           $ref: "#/components/responses/Success"
+  /transaction-templates/{id}/archive:
+    post:
+      tags: [templates]
+      summary: Archive transaction template
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /transaction-templates/{id}/restore:
+    post:
+      tags: [templates]
+      summary: Restore archived transaction template
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /recurring-rules/:
     get:

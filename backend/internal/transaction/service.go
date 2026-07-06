@@ -882,8 +882,10 @@ func (s *Service) toTemplateResponse(tmpl *TransactionTemplate) *TemplateRespons
 		TagNames:        tags,
 		Note:            tmpl.Note.String,
 		CreatedByUserID: tmpl.CreatedByUserID,
+		IsArchived:      tmpl.IsArchived,
 		CreatedAt:       tmpl.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:       tmpl.UpdatedAt.Format(time.RFC3339),
+		ArchivedAt:      nullTimeToString(tmpl.ArchivedAt),
 	}
 }
 
@@ -1004,13 +1006,13 @@ func (s *Service) GetTemplate(ctx context.Context, currentUserID string, id stri
 }
 
 // ListTemplates 获取该账本下的所有模板列表
-func (s *Service) ListTemplates(ctx context.Context, currentUserID string) ([]*TemplateResponse, error) {
+func (s *Service) ListTemplates(ctx context.Context, currentUserID string, includeArchived bool) ([]*TemplateResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
 
-	templates, err := s.repo.ListTemplates(ctx, ledgerID)
+	templates, err := s.repo.ListTemplates(ctx, ledgerID, includeArchived)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取模板列表失败")
 	}
@@ -1197,27 +1199,70 @@ func cleanTemplateTagNames(tags []string) []string {
 	return cleaned
 }
 
-// DeleteTemplate 删除模板逻辑
-func (s *Service) DeleteTemplate(ctx context.Context, currentUserID string, id string) error {
+func nullTimeToString(value sql.NullTime) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.Time.Format(time.RFC3339)
+}
+
+// ArchiveTemplate 归档模板逻辑，保留历史模板数据以支持恢复
+func (s *Service) ArchiveTemplate(ctx context.Context, currentUserID string, id string) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
+		return err
 	}
 
 	tmpl, err := s.repo.GetTemplateByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "欲删除的模板不存在")
+			return appErrors.NewAppError(404, "NOT_FOUND", "欲归档的模板不存在")
 		}
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
 	}
 
 	if tmpl.LedgerID != ledgerID {
-		return appErrors.NewAppError(403, "FORBIDDEN", "无权删除该模板")
+		return appErrors.NewAppError(403, "FORBIDDEN", "无权归档该模板")
 	}
 
-	if err := s.repo.DeleteTemplate(ctx, id, ledgerID); err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "删除模板失败")
+	if err := s.repo.ArchiveTemplate(ctx, id, ledgerID); err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "归档模板失败")
+	}
+
+	return nil
+}
+
+// DeleteTemplate 兼容历史 DELETE 语义，实际执行软归档
+func (s *Service) DeleteTemplate(ctx context.Context, currentUserID string, id string) error {
+	return s.ArchiveTemplate(ctx, currentUserID, id)
+}
+
+// RestoreTemplate 恢复已归档模板
+func (s *Service) RestoreTemplate(ctx context.Context, currentUserID string, id string) error {
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
+		return err
+	}
+
+	tmpl, err := s.repo.GetTemplateByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return appErrors.NewAppError(404, "NOT_FOUND", "欲恢复的模板不存在")
+		}
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
+	}
+	if tmpl.LedgerID != ledgerID {
+		return appErrors.NewAppError(403, "FORBIDDEN", "无权恢复该模板")
+	}
+
+	if err := s.repo.RestoreTemplate(ctx, id, ledgerID); err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "恢复模板失败")
 	}
 
 	return nil

@@ -110,9 +110,10 @@ export default function TransactionFormDrawer() {
   // 2.5 获取所有账单模板列表
   const { data: templates } = useQuery({
     queryKey: queryKeys.templates(activeLedgerId),
-    queryFn: () => transactionsApi.listTemplates(),
+    queryFn: () => transactionsApi.listTemplates({ includeArchived: true }),
     enabled: addDrawerOpen && canWriteLedger,
   });
+  const activeTemplates = templates?.filter((tmpl) => !tmpl.is_archived) || [];
 
   // 创建模板 Mutation
   const createTemplateMutation = useMutation({
@@ -124,9 +125,17 @@ export default function TransactionFormDrawer() {
     },
   });
 
-  // 删除模板 Mutation
-  const deleteTemplateMutation = useMutation({
-    mutationFn: (id: string) => transactionsApi.deleteTemplate(id),
+  // 归档模板 Mutation
+  const archiveTemplateMutation = useMutation({
+    mutationFn: (id: string) => transactionsApi.archiveTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.templates(activeLedgerId) });
+    },
+  });
+
+  // 恢复模板 Mutation
+  const restoreTemplateMutation = useMutation({
+    mutationFn: (id: string) => transactionsApi.restoreTemplate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.templates(activeLedgerId) });
     },
@@ -564,7 +573,7 @@ export default function TransactionFormDrawer() {
                 defaultValue=""
               >
                 <option value="">-- 选择模板一键回填表单 --</option>
-                {templates?.map((tmpl) => (
+                {activeTemplates.map((tmpl) => (
                   <option key={tmpl.id} value={tmpl.id}>
                     {tmpl.name} ({tmpl.type === 'expense' ? '支出' : tmpl.type === 'income' ? '收入' : '共同支出'})
                   </option>
@@ -572,9 +581,9 @@ export default function TransactionFormDrawer() {
               </select>
 
               {/* 快捷模板气泡滚动 */}
-              {templates && templates.length > 0 && (
+              {activeTemplates.length > 0 && (
                 <div className="template-badge-scroll">
-                  {templates.slice(0, 5).map((tmpl) => (
+                  {activeTemplates.slice(0, 5).map((tmpl) => (
                     <button
                       key={tmpl.id}
                       type="button"
@@ -1225,23 +1234,26 @@ export default function TransactionFormDrawer() {
                 templates.map((tmpl) => (
                   <div key={tmpl.id} className="template-item">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tmpl.name}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: tmpl.is_archived ? 0.58 : 1 }}>{tmpl.name}</span>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         类型: {tmpl.type === 'expense' ? '支出' : tmpl.type === 'income' ? '收入' : '共同支出'}
                         {tmpl.amount_cents != null && ` · ¥${(tmpl.amount_cents / 100).toFixed(2)}`}
+                        {tmpl.is_archived && ' · 已归档'}
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm(`确认删除模板 "${tmpl.name}" 吗？此操作不可撤销且不影响已有交易。`)) {
-                          deleteTemplateMutation.mutate(tmpl.id);
+                        if (tmpl.is_archived) {
+                          restoreTemplateMutation.mutate(tmpl.id);
+                        } else if (confirm(`确认归档模板 "${tmpl.name}" 吗？归档后不会出现在快捷填入中，可在此处恢复。`)) {
+                          archiveTemplateMutation.mutate(tmpl.id);
                         }
                       }}
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#ef4444',
+                        color: tmpl.is_archived ? 'var(--accent-green)' : '#ef4444',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -1252,8 +1264,8 @@ export default function TransactionFormDrawer() {
                       onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
                       onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                     >
-                      <Trash2 size={14} />
-                      <span>删除</span>
+                      {tmpl.is_archived ? <Check size={14} /> : <Trash2 size={14} />}
+                      <span>{tmpl.is_archived ? '恢复' : '归档'}</span>
                     </button>
                   </div>
                 ))

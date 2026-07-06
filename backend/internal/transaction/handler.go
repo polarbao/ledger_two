@@ -304,7 +304,8 @@ func (h *Handler) HandleListTemplates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.service.ListTemplates(r.Context(), currentUserID)
+	includeArchived := r.URL.Query().Get("include_archived") == "true"
+	res, err := h.service.ListTemplates(r.Context(), currentUserID, includeArchived)
 	if err != nil {
 		response.WriteError(w, err)
 		return
@@ -363,6 +364,52 @@ func (h *Handler) HandleUpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, res)
+}
+
+// HandleArchiveTemplate 归档账单模板接口
+func (h *Handler) HandleArchiveTemplate(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		writeUnauthorized(w)
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		writeValidationError(w, "模板 ID 不能为空")
+		return
+	}
+
+	err := h.service.ArchiveTemplate(r.Context(), currentUserID, id)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// HandleRestoreTemplate 恢复账单模板接口
+func (h *Handler) HandleRestoreTemplate(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		writeUnauthorized(w)
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		writeValidationError(w, "模板 ID 不能为空")
+		return
+	}
+
+	err := h.service.RestoreTemplate(r.Context(), currentUserID, id)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // HandleDeleteTemplate 删除模板接口

@@ -118,10 +118,12 @@
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
 | POST | `/api/transaction-templates/` | yes | optional | transitional | `transaction.HandleCreateTemplate` | 创建交易模板。 |
-| GET | `/api/transaction-templates/` | yes | optional | transitional | `transaction.HandleListTemplates` | 模板列表。 |
+| GET | `/api/transaction-templates/` | yes | optional | transitional | `transaction.HandleListTemplates` | 模板列表，默认仅未归档；`include_archived=true` 返回管理列表。 |
 | GET | `/api/transaction-templates/{id}` | yes | optional | transitional | `transaction.HandleGetTemplate` | 模板详情。 |
 | PUT | `/api/transaction-templates/{id}` | yes | optional | transitional | `transaction.HandleUpdateTemplate` | 更新模板。 |
-| DELETE | `/api/transaction-templates/{id}` | yes | optional | transitional | `transaction.HandleDeleteTemplate` | 删除模板。 |
+| POST | `/api/transaction-templates/{id}/archive` | yes | optional | transitional | `transaction.HandleArchiveTemplate` | 归档模板，不再出现在快捷填入中。 |
+| POST | `/api/transaction-templates/{id}/restore` | yes | optional | transitional | `transaction.HandleRestoreTemplate` | 恢复已归档模板。 |
+| DELETE | `/api/transaction-templates/{id}` | yes | optional | deprecated | `transaction.HandleDeleteTemplate` | 历史兼容入口，当前等同软归档。 |
 | POST | `/api/recurring-rules/` | yes | optional | transitional | `transaction.HandleCreateRecurringRule` | 创建周期规则。 |
 | GET | `/api/recurring-rules/` | yes | optional | transitional | `transaction.HandleListRecurringRules` | 周期规则列表。 |
 | DELETE | `/api/recurring-rules/{id}` | yes | optional | transitional | `transaction.HandleDeleteRecurringRule` | 删除周期规则。 |

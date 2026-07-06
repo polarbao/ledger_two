@@ -785,8 +785,8 @@ func (r *Repository) CreateTemplate(ctx context.Context, tmpl *TransactionTempla
 		INSERT INTO transaction_templates (
 			id, ledger_id, name, type, title, amount_cents,
 			category_id, account_id, payer_user_id, split_method,
-			tag_names, note, created_by_user_id, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			tag_names, note, created_by_user_id, is_archived, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
 	`, tmpl.ID, tmpl.LedgerID, tmpl.Name, tmpl.Type, tmpl.Title, tmpl.AmountCents,
 		tmpl.CategoryID, tmpl.AccountID, tmpl.PayerUserID, tmpl.SplitMethod,
 		tmpl.TagNames, tmpl.Note, tmpl.CreatedByUserID, now, now)
@@ -796,39 +796,49 @@ func (r *Repository) CreateTemplate(ctx context.Context, tmpl *TransactionTempla
 // GetTemplateByID 根据 ID 查询单个账单模板
 func (r *Repository) GetTemplateByID(ctx context.Context, id string) (*TransactionTemplate, error) {
 	var tmpl TransactionTemplate
-	var occurredAtStr string // 未使用，占位符或为类型兼容性
-	_ = occurredAtStr
+	var createdAtStr, updatedAtStr string
+	var archivedAtStr sql.NullString
+	var isArchivedInt int
 	err := r.db.QueryRowContext(ctx, `
 		SELECT 
 			id, ledger_id, name, type, title, amount_cents,
 			category_id, account_id, payer_user_id, split_method,
-			tag_names, note, created_by_user_id, created_at, updated_at
+			tag_names, note, created_by_user_id, is_archived, created_at, updated_at, archived_at
 		FROM transaction_templates
 		WHERE id = ?
 	`, id).Scan(
 		&tmpl.ID, &tmpl.LedgerID, &tmpl.Name, &tmpl.Type, &tmpl.Title, &tmpl.AmountCents,
 		&tmpl.CategoryID, &tmpl.AccountID, &tmpl.PayerUserID, &tmpl.SplitMethod,
-		&tmpl.TagNames, &tmpl.Note, &tmpl.CreatedByUserID, &occurredAtStr, &occurredAtStr, // 实际上是 createdAt/updatedAt 对应 TEXT，以格式兼容存入即可
+		&tmpl.TagNames, &tmpl.Note, &tmpl.CreatedByUserID, &isArchivedInt, &createdAtStr, &updatedAtStr, &archivedAtStr,
 	)
 	if err != nil {
 		return nil, err
 	}
-	// 解析时间
-	tmpl.CreatedAt, _ = time.Parse(time.RFC3339, occurredAtStr)
-	tmpl.UpdatedAt, _ = time.Parse(time.RFC3339, occurredAtStr)
+	tmpl.IsArchived = isArchivedInt == 1
+	tmpl.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
+	tmpl.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
+	if archivedAtStr.Valid && archivedAtStr.String != "" {
+		if archivedAt, err := time.Parse(time.RFC3339, archivedAtStr.String); err == nil {
+			tmpl.ArchivedAt = sql.NullTime{Time: archivedAt, Valid: true}
+		}
+	}
 	return &tmpl, nil
 }
 
 // ListTemplates 获取指定账本下的所有模板列表
-func (r *Repository) ListTemplates(ctx context.Context, ledgerID string) ([]*TransactionTemplate, error) {
+func (r *Repository) ListTemplates(ctx context.Context, ledgerID string, includeArchived bool) ([]*TransactionTemplate, error) {
+	whereArchived := "AND is_archived = 0"
+	if includeArchived {
+		whereArchived = ""
+	}
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			id, ledger_id, name, type, title, amount_cents,
 			category_id, account_id, payer_user_id, split_method,
-			tag_names, note, created_by_user_id, created_at, updated_at
+			tag_names, note, created_by_user_id, is_archived, created_at, updated_at, archived_at
 		FROM transaction_templates
-		WHERE ledger_id = ?
-		ORDER BY created_at DESC
+		WHERE ledger_id = ? `+whereArchived+`
+		ORDER BY is_archived ASC, created_at DESC
 	`, ledgerID)
 	if err != nil {
 		return nil, err
@@ -839,16 +849,24 @@ func (r *Repository) ListTemplates(ctx context.Context, ledgerID string) ([]*Tra
 	for rows.Next() {
 		var tmpl TransactionTemplate
 		var createdAtStr, updatedAtStr string
+		var archivedAtStr sql.NullString
+		var isArchivedInt int
 		err := rows.Scan(
 			&tmpl.ID, &tmpl.LedgerID, &tmpl.Name, &tmpl.Type, &tmpl.Title, &tmpl.AmountCents,
 			&tmpl.CategoryID, &tmpl.AccountID, &tmpl.PayerUserID, &tmpl.SplitMethod,
-			&tmpl.TagNames, &tmpl.Note, &tmpl.CreatedByUserID, &createdAtStr, &updatedAtStr,
+			&tmpl.TagNames, &tmpl.Note, &tmpl.CreatedByUserID, &isArchivedInt, &createdAtStr, &updatedAtStr, &archivedAtStr,
 		)
 		if err != nil {
 			return nil, err
 		}
+		tmpl.IsArchived = isArchivedInt == 1
 		tmpl.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
 		tmpl.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
+		if archivedAtStr.Valid && archivedAtStr.String != "" {
+			if archivedAt, err := time.Parse(time.RFC3339, archivedAtStr.String); err == nil {
+				tmpl.ArchivedAt = sql.NullTime{Time: archivedAt, Valid: true}
+			}
+		}
 		templates = append(templates, &tmpl)
 	}
 	return templates, nil
@@ -871,12 +889,25 @@ func (r *Repository) UpdateTemplate(ctx context.Context, tmpl *TransactionTempla
 	return err
 }
 
-// DeleteTemplate 删除指定模板
-func (r *Repository) DeleteTemplate(ctx context.Context, id string, ledgerID string) error {
+// ArchiveTemplate 软归档指定模板
+func (r *Repository) ArchiveTemplate(ctx context.Context, id string, ledgerID string) error {
+	now := time.Now().Format(time.RFC3339)
 	_, err := r.db.ExecContext(ctx, `
-		DELETE FROM transaction_templates
+		UPDATE transaction_templates
+		SET is_archived = 1, archived_at = ?, updated_at = ?
 		WHERE id = ? AND ledger_id = ?
-	`, id, ledgerID)
+	`, now, now, id, ledgerID)
+	return err
+}
+
+// RestoreTemplate 恢复归档模板
+func (r *Repository) RestoreTemplate(ctx context.Context, id string, ledgerID string) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE transaction_templates
+		SET is_archived = 0, archived_at = NULL, updated_at = ?
+		WHERE id = ? AND ledger_id = ?
+	`, now, id, ledgerID)
 	return err
 }
 

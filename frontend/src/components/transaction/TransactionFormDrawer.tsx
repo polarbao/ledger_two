@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Loader2, Sparkles, Check, Trash2 } from 'lucide-react';
+import { X, Loader2, Sparkles, Check, Trash2, Pencil } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { transactionsApi } from '../../api/transactions.api';
@@ -40,6 +40,21 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+type TemplateEditState = {
+  id: string;
+  name: string;
+  type: 'expense' | 'income' | 'shared_expense';
+  title: string;
+  amount: string;
+  category_id: string;
+  account_id: string;
+  payer_user_id: string;
+  split_method: 'equal' | 'payer_only';
+  tag_names: string;
+  note: string;
+  is_archived: boolean;
+};
+
 /**
  * @brief 记账滑出层组件 (TransactionFormDrawer)
  * @details 兼容普通支出/收入与共同账单创建，支持电脑右滑与手机底滑布局。
@@ -69,6 +84,8 @@ export default function TransactionFormDrawer() {
   const [isSaveTmplOpen, setIsSaveTmplOpen] = useState(false);
   const [tmplName, setTmplName] = useState('');
   const [isManageTmplOpen, setIsManageTmplOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<TemplateEditState | null>(null);
+  const [templateEditError, setTemplateEditError] = useState<string | null>(null);
   const amountInputRef = useRef<HTMLInputElement | null>(null);
 
 
@@ -152,6 +169,19 @@ export default function TransactionFormDrawer() {
     },
   });
 
+  const updateTemplateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: CreateTemplatePayload }) =>
+      transactionsApi.updateTemplate(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.templates(activeLedgerId) });
+      setEditingTemplate(null);
+      setTemplateEditError(null);
+    },
+    onError: (err) => {
+      setTemplateEditError(err instanceof Error ? err.message : '更新模板失败，请稍后重试');
+    },
+  });
+
   const applyTemplate = (tmpl: TransactionTemplateResponse) => {
     const amountYuan = tmpl.amount_cents != null ? (tmpl.amount_cents / 100).toFixed(2) : '';
     const tagsStr = tmpl.tag_names ? tmpl.tag_names.join(', ') : '';
@@ -188,6 +218,79 @@ export default function TransactionFormDrawer() {
       tag_names: tags,
       note: formVals.note || undefined,
     });
+  };
+
+  const openEditTemplate = (tmpl: TransactionTemplateResponse) => {
+    setTemplateEditError(null);
+    setEditingTemplate({
+      id: tmpl.id,
+      name: tmpl.name || '',
+      type: tmpl.type,
+      title: tmpl.title || '',
+      amount: tmpl.amount_cents != null ? (tmpl.amount_cents / 100).toFixed(2) : '',
+      category_id: tmpl.category_id || '',
+      account_id: tmpl.account_id || '',
+      payer_user_id: tmpl.payer_user_id || currentUser?.id || '',
+      split_method: tmpl.split_method === 'payer_only' ? 'payer_only' : 'equal',
+      tag_names: tmpl.tag_names ? tmpl.tag_names.join(', ') : '',
+      note: tmpl.note || '',
+      is_archived: tmpl.is_archived,
+    });
+  };
+
+  const patchEditingTemplate = (patch: Partial<TemplateEditState>) => {
+    setTemplateEditError(null);
+    setEditingTemplate((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      if (patch.type === 'shared_expense') {
+        next.account_id = '';
+      }
+      return next;
+    });
+  };
+
+  const buildTemplatePayload = (formVals: TemplateEditState): CreateTemplatePayload | null => {
+    const name = formVals.name.trim();
+    if (!name) {
+      setTemplateEditError('模板名称不能为空');
+      return null;
+    }
+
+    let cents: number | undefined;
+    const amount = formVals.amount.trim();
+    if (amount) {
+      try {
+        cents = yuanToCents(amount);
+      } catch {
+        setTemplateEditError('模板金额格式错误，最多支持两位小数');
+        return null;
+      }
+    }
+
+    const tags = formVals.tag_names
+      ? formVals.tag_names.split(/[，, ；;]/).map((t) => t.trim()).filter(Boolean)
+      : [];
+
+    return {
+      name,
+      type: formVals.type,
+      title: formVals.title.trim() || undefined,
+      amount_cents: cents,
+      category_id: formVals.category_id || undefined,
+      account_id: formVals.type !== 'shared_expense' ? formVals.account_id || undefined : undefined,
+      payer_user_id: formVals.payer_user_id || undefined,
+      split_method: formVals.split_method || undefined,
+      tag_names: tags,
+      note: formVals.note.trim() || undefined,
+    };
+  };
+
+  const handleUpdateTemplate = () => {
+    if (!editingTemplate) return;
+    const payload = buildTemplatePayload(editingTemplate);
+    if (!payload) return;
+    updateTemplateMutation.mutate({ id: editingTemplate.id, payload });
   };
 
   // 3. 表单初始化与 Zod Resolver 挂载
@@ -1266,7 +1369,7 @@ export default function TransactionFormDrawer() {
       {/* 模板管理器对话框 */}
       {isManageTmplOpen && (
         <div className="modal-overlay" onClick={() => setIsManageTmplOpen(false)}>
-          <div className="modal-content glass-card" style={{ maxWidth: '420px', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content glass-card" style={{ maxWidth: '520px', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
             <h4 style={{ margin: '0 0 16px 0', fontSize: '18px', display: 'flex', gap: '8px', alignItems: 'center' }}>
               <span>管理账单模板</span>
             </h4>
@@ -1283,32 +1386,54 @@ export default function TransactionFormDrawer() {
                         {tmpl.is_archived && ' · 已归档'}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (tmpl.is_archived) {
-                          restoreTemplateMutation.mutate(tmpl.id);
-                        } else if (confirm(`确认归档模板 "${tmpl.name}" 吗？归档后不会出现在快捷填入中，可在此处恢复。`)) {
-                          archiveTemplateMutation.mutate(tmpl.id);
-                        }
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: tmpl.is_archived ? 'var(--accent-green)' : '#ef4444',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '4px 8px',
-                        transition: 'opacity 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
-                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-                    >
-                      {tmpl.is_archived ? <Check size={14} /> : <Trash2 size={14} />}
-                      <span>{tmpl.is_archived ? '恢复' : '归档'}</span>
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        onClick={() => openEditTemplate(tmpl)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--accent-purple)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          transition: 'opacity 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                      >
+                        <Pencil size={14} />
+                        <span>编辑</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (tmpl.is_archived) {
+                            restoreTemplateMutation.mutate(tmpl.id);
+                          } else if (confirm(`确认归档模板 "${tmpl.name}" 吗？归档后不会出现在快捷填入中，可在此处恢复。`)) {
+                            archiveTemplateMutation.mutate(tmpl.id);
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: tmpl.is_archived ? 'var(--accent-green)' : '#ef4444',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          transition: 'opacity 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                      >
+                        {tmpl.is_archived ? <Check size={14} /> : <Trash2 size={14} />}
+                        <span>{tmpl.is_archived ? '恢复' : '归档'}</span>
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -1325,6 +1450,179 @@ export default function TransactionFormDrawer() {
                 onClick={() => setIsManageTmplOpen(false)}
               >
                 关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 模板编辑对话框 */}
+      {editingTemplate && (
+        <div className="modal-overlay" onClick={() => setEditingTemplate(null)}>
+          <div className="modal-content glass-card" style={{ maxWidth: '520px', display: 'flex', flexDirection: 'column', maxHeight: '86vh' }} onClick={(e) => e.stopPropagation()}>
+            <h4 style={{ margin: '0 0 16px 0', fontSize: '18px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <Pencil size={18} style={{ color: 'var(--accent-purple)' }} />
+              <span>编辑账单模板</span>
+            </h4>
+            {editingTemplate.is_archived && (
+              <div className="error-banner" style={{ marginBottom: '14px' }}>
+                <p>该模板已归档，修改后仍保持归档状态；需要重新出现在快捷填入中请点击恢复。</p>
+              </div>
+            )}
+            {templateEditError && (
+              <div className="error-banner" style={{ marginBottom: '14px' }}>
+                <p>{templateEditError}</p>
+              </div>
+            )}
+            <div style={{ overflowY: 'auto', paddingRight: '2px' }}>
+              <div className="form-group">
+                <label className="form-label">模板名称</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editingTemplate.name}
+                  onChange={(e) => patchEditingTemplate({ name: e.target.value })}
+                  autoFocus
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">账单类型</label>
+                <select
+                  className="form-select"
+                  value={editingTemplate.type}
+                  onChange={(e) => patchEditingTemplate({ type: e.target.value as TemplateEditState['type'] })}
+                >
+                  <option value="expense">个人支出</option>
+                  <option value="income">个人收入</option>
+                  <option value="shared_expense">共同支出</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">标题</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editingTemplate.title}
+                  onChange={(e) => patchEditingTemplate({ title: e.target.value })}
+                  placeholder="可留空，生成账单时由分类兜底"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">金额</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="form-input"
+                  value={editingTemplate.amount}
+                  onChange={(e) => patchEditingTemplate({ amount: e.target.value })}
+                  placeholder="可留空，生成时再填写"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">分类</label>
+                <select
+                  className="form-select"
+                  value={editingTemplate.category_id}
+                  onChange={(e) => patchEditingTemplate({ category_id: e.target.value })}
+                >
+                  <option value="">-- 不指定分类 --</option>
+                  {categories?.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {editingTemplate.type !== 'shared_expense' && (
+                <div className="form-group">
+                  <label className="form-label">账户</label>
+                  <select
+                    className="form-select"
+                    value={editingTemplate.account_id}
+                    onChange={(e) => patchEditingTemplate({ account_id: e.target.value })}
+                  >
+                    <option value="">-- 不指定账户 --</option>
+                    {accounts?.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">付款人</label>
+                <select
+                  className="form-select"
+                  value={editingTemplate.payer_user_id}
+                  onChange={(e) => patchEditingTemplate({ payer_user_id: e.target.value })}
+                >
+                  <option value="">-- 生成时再选择 --</option>
+                  {users.map((u) => (
+                    <option key={u.user_id} value={u.user_id}>
+                      {u.display_name} {u.user_id === currentUser?.id ? '(我)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {editingTemplate.type === 'shared_expense' && (
+                <div className="form-group">
+                  <label className="form-label">分摊方式</label>
+                  <select
+                    className="form-select"
+                    value={editingTemplate.split_method}
+                    onChange={(e) => patchEditingTemplate({ split_method: e.target.value as TemplateEditState['split_method'] })}
+                  >
+                    <option value="equal">均等平分</option>
+                    <option value="payer_only">付款人承担</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">标签</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editingTemplate.tag_names}
+                  onChange={(e) => patchEditingTemplate({ tag_names: e.target.value })}
+                  placeholder="多个标签用逗号分隔"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">备注</label>
+                <textarea
+                  className="form-input textarea"
+                  rows={3}
+                  value={editingTemplate.note}
+                  onChange={(e) => patchEditingTemplate({ note: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setEditingTemplate(null)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={updateTemplateMutation.isPending || !editingTemplate.name.trim()}
+                onClick={handleUpdateTemplate}
+              >
+                {updateTemplateMutation.isPending ? '保存中...' : '保存修改'}
               </button>
             </div>
           </div>

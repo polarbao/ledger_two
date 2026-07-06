@@ -50,7 +50,18 @@ export default function TransactionFormDrawer() {
   const currentUser = useAuthStore((state) => state.user);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const canWriteLedger = useHasLedgerRole(['owner', 'editor']);
-  const { addDrawerOpen, setAddDrawerOpen, currentMonth, copySourceTransaction, setCopySourceTransaction, isOffline, editingDraftId, setEditingDraftId } = useUIStore();
+  const {
+    addDrawerOpen,
+    setAddDrawerOpen,
+    currentMonth,
+    copySourceTransaction,
+    setCopySourceTransaction,
+    openTemplateSaveOnDrawerOpen,
+    setOpenTemplateSaveOnDrawerOpen,
+    isOffline,
+    editingDraftId,
+    setEditingDraftId,
+  } = useUIStore();
   const { addDraft, updateDraft, removeDraft, drafts } = useDraftStore();
 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -278,6 +289,11 @@ export default function TransactionFormDrawer() {
     if (addDrawerOpen && copySourceTransaction) {
       const amountYuan = (copySourceTransaction.amount_cents / 100).toFixed(2);
       const tagsStr = copySourceTransaction.tags ? copySourceTransaction.tags.join(', ') : '';
+      if (openTemplateSaveOnDrawerOpen) {
+        setTmplName(copySourceTransaction.title ? `${copySourceTransaction.title}模板` : '账单模板');
+        setIsSaveTmplOpen(true);
+        setOpenTemplateSaveOnDrawerOpen(false);
+      }
       
       reset({
         type: copySourceTransaction.type === 'settlement' ? 'expense' : copySourceTransaction.type,
@@ -294,7 +310,7 @@ export default function TransactionFormDrawer() {
         attachment_paths: copySourceTransaction.attachment_paths || [],
       });
     }
-  }, [addDrawerOpen, copySourceTransaction, reset, currentUser]);
+  }, [addDrawerOpen, copySourceTransaction, reset, currentUser, openTemplateSaveOnDrawerOpen, setOpenTemplateSaveOnDrawerOpen]);
 
   // 4. 定义创建账单的 Mutation
   const createTxMutation = useMutation({
@@ -443,6 +459,7 @@ export default function TransactionFormDrawer() {
   const handleClose = () => {
     setAddDrawerOpen(false);
     setCopySourceTransaction(null);
+    setOpenTemplateSaveOnDrawerOpen(false);
     setEditingDraftId(null);
   };
 

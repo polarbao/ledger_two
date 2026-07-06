@@ -97,6 +97,7 @@ export default function TransactionsPage() {
   const [batchTagsInput, setBatchTagsInput] = useState('');
 
   const setCopySourceTransaction = useUIStore((state) => state.setCopySourceTransaction);
+  const setOpenTemplateSaveOnDrawerOpen = useUIStore((state) => state.setOpenTemplateSaveOnDrawerOpen);
   const setAddDrawerOpen = useUIStore((state) => state.setAddDrawerOpen);
 
   const updateFilter = (newFilters: Record<string, string | number | undefined>) => {
@@ -797,6 +798,22 @@ export default function TransactionsPage() {
               {selectedTx.type !== 'settlement' && (
                 <PermissionGate allow={['owner', 'editor']}>
                   <button
+                    className="btn-secondary"
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '14px',
+                      borderRadius: '10px',
+                    }}
+                    onClick={() => {
+                      setCopySourceTransaction(selectedTx);
+                      setOpenTemplateSaveOnDrawerOpen(true);
+                      setAddDrawerOpen(true);
+                      setDetailOpen(false);
+                    }}
+                  >
+                    存为模板
+                  </button>
+                  <button
                     className="btn-primary"
                     style={{
                       padding: '10px 20px',
@@ -805,6 +822,7 @@ export default function TransactionsPage() {
                     }}
                     onClick={() => {
                       setCopySourceTransaction(selectedTx);
+                      setOpenTemplateSaveOnDrawerOpen(false);
                       setAddDrawerOpen(true);
                       setDetailOpen(false);
                     }}

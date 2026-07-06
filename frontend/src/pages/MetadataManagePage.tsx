@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowLeft, ArrowUp, Archive, RotateCcw, Save, Tags, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Archive, RotateCcw, Save, Search, Tags, X } from 'lucide-react';
 import { metadataApi } from '../api/metadata.api';
 import { queryKeys } from '../api/queryKeys';
 import { useLedgerStore } from '../stores/ledger.store';
@@ -71,6 +71,13 @@ function defaultForm(kind: MetadataKind) {
   return { name: '', type: '', icon: '', color: '' };
 }
 
+function metadataMatchesSearch(item: MetadataItem, keyword: string) {
+  if (!keyword) return true;
+  return [item.name, item.type, item.icon, item.color]
+    .filter(Boolean)
+    .some((value) => value!.toLowerCase().includes(keyword));
+}
+
 export default function MetadataManagePage() {
   const params = useParams();
   const kind = parseKind(params.kind);
@@ -88,6 +95,8 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
   const [form, setForm] = useState(defaultForm(kind));
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
 
   const config = KIND_CONFIG[kind];
 
@@ -98,6 +107,15 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
 
   const activeItems = useMemo(() => items.filter((item) => !item.is_archived), [items]);
   const archivedItems = useMemo(() => items.filter((item) => item.is_archived), [items]);
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const visibleActiveItems = useMemo(
+    () => statusFilter === 'archived' ? [] : activeItems.filter((item) => metadataMatchesSearch(item, normalizedSearchTerm)),
+    [activeItems, normalizedSearchTerm, statusFilter]
+  );
+  const visibleArchivedItems = useMemo(
+    () => statusFilter === 'active' ? [] : archivedItems.filter((item) => metadataMatchesSearch(item, normalizedSearchTerm)),
+    [archivedItems, normalizedSearchTerm, statusFilter]
+  );
 
   const resetForm = () => {
     setEditingItem(null);
@@ -197,7 +215,8 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
     archiveMutation.mutate(item);
   };
 
-  const moveItem = (index: number, direction: -1 | 1) => {
+  const moveItem = (item: MetadataItem, direction: -1 | 1) => {
+    const index = activeItems.findIndex((activeItem) => activeItem.id === item.id);
     const nextIndex = index + direction;
     if (nextIndex < 0 || nextIndex >= activeItems.length) {
       return;
@@ -208,13 +227,15 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
     reorderMutation.mutate(nextItems.map((item) => item.id));
   };
 
-  const renderItem = (item: MetadataItem, index: number, list: MetadataItem[], sortable: boolean) => (
+  const renderItem = (item: MetadataItem, displayIndex: number, sortable: boolean) => {
+    const orderIndex = item.is_archived ? displayIndex : activeItems.findIndex((activeItem) => activeItem.id === item.id);
+    return (
     <div key={item.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <strong style={{ fontSize: '14px' }}>{item.name}</strong>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '999px', padding: '1px 8px' }}>
-            #{index + 1}
+            #{orderIndex + 1}
           </span>
           {item.type && (
             <span style={{ fontSize: '11px', color: '#c084fc', border: '1px solid rgba(168,85,247,0.18)', borderRadius: '999px', padding: '1px 8px' }}>
@@ -243,8 +264,8 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
               <button
                 className="btn-secondary"
                 style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center' }}
-                onClick={() => moveItem(index, -1)}
-                disabled={index === 0 || reorderMutation.isPending}
+                onClick={() => moveItem(item, -1)}
+                disabled={orderIndex <= 0 || reorderMutation.isPending}
                 title="上移"
               >
                 <ArrowUp size={13} />
@@ -252,8 +273,8 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
               <button
                 className="btn-secondary"
                 style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center' }}
-                onClick={() => moveItem(index, 1)}
-                disabled={index === list.length - 1 || reorderMutation.isPending}
+                onClick={() => moveItem(item, 1)}
+                disabled={orderIndex === activeItems.length - 1 || reorderMutation.isPending}
                 title="下移"
               >
                 <ArrowDown size={13} />
@@ -277,7 +298,8 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
         </div>
       </PermissionGate>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="page-content animate-fade-in text-left">
@@ -400,6 +422,50 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
             </button>
           </div>
 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div className="input-wrapper">
+              <Search className="input-icon" />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={`搜索${config.singular}`}
+                maxLength={40}
+              />
+              {searchTerm && (
+                <button
+                  className="btn-close-drawer"
+                  onClick={() => setSearchTerm('')}
+                  title="清空搜索"
+                  style={{ position: 'absolute', right: '10px' }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
+              {[
+                { label: '全部', value: 'all' as const },
+                { label: '活跃', value: 'active' as const },
+                { label: '归档', value: 'archived' as const },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  className="btn-secondary"
+                  onClick={() => setStatusFilter(option.value)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: statusFilter === option.value ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    borderColor: statusFilter === option.value ? 'rgba(168,85,247,0.36)' : 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <PageState
             isLoading={isLoading}
             isError={isError}
@@ -409,19 +475,23 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
             onRetry={() => refetch()}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span className="dimmed-desc" style={{ fontSize: '12px' }}>活跃项</span>
-                {activeItems.length === 0 ? (
-                  <div className="dimmed-desc" style={{ fontSize: '12px' }}>暂无活跃项。</div>
-                ) : activeItems.map((item, index) => renderItem(item, index, activeItems, activeItems.length > 1))}
-              </div>
+              {statusFilter !== 'archived' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span className="dimmed-desc" style={{ fontSize: '12px' }}>活跃项</span>
+                  {visibleActiveItems.length === 0 ? (
+                    <div className="dimmed-desc" style={{ fontSize: '12px' }}>暂无匹配的活跃项。</div>
+                  ) : visibleActiveItems.map((item, index) => renderItem(item, index, activeItems.length > 1))}
+                </div>
+              )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span className="dimmed-desc" style={{ fontSize: '12px' }}>已归档项</span>
-                {archivedItems.length === 0 ? (
-                  <div className="dimmed-desc" style={{ fontSize: '12px' }}>暂无归档项。</div>
-                ) : archivedItems.map((item, index) => renderItem(item, index, archivedItems, false))}
-              </div>
+              {statusFilter !== 'active' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span className="dimmed-desc" style={{ fontSize: '12px' }}>已归档项</span>
+                  {visibleArchivedItems.length === 0 ? (
+                    <div className="dimmed-desc" style={{ fontSize: '12px' }}>暂无匹配的归档项。</div>
+                  ) : visibleArchivedItems.map((item, index) => renderItem(item, index, false))}
+                </div>
+              )}
             </div>
           </PageState>
         </div>

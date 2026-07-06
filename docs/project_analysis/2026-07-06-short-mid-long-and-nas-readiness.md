@@ -144,3 +144,36 @@ docker compose logs -f
 2. 中期处理从 Task44 开始，先稳定分类、标签、账户管理体验；当前优先完成排序能力、归档确认和移动端密度。
 3. 在 CI、部署机或 NAS 上运行 Docker build 和 compose config。
 4. 如需要公网访问，先完成域名解析、HTTPS 证书、反向代理和 Cookie Secure 配置，再开放外网。
+
+## 6. 2026-07-06 NAS v1.1 试部署记录
+
+本轮已在 NAS 上完成一次当前代码试部署。
+
+部署前状态：
+
+1. 本机存在 WSL2 `Ubuntu`，但缺少 `expect`；历史 `auto_deploy_expect.tcl` 不能直接执行。
+2. SSH 免密直连 `polar@192.168.0.115` 不可用，但 SSH config 别名 `nas` 可通过专用 key 登录。
+3. `http://192.168.0.115:38088/api/healthz` 返回旧版健康检查：`version=0.2.0`，且没有 `schema_version`。
+4. 首页 `Last-Modified` 为 2026-06-11，确认 NAS 上运行的是旧部署。
+
+部署动作：
+
+1. 部署包只包含构建必需内容：`backend/`、`frontend/`、`deploy/`、`docker-compose.yml`、`.env.example`、`README.md`、`AGENTS.md`。
+2. 排除了 `.git`、本地数据、历史 AI 工作区和带自动登录信息的脚本，避免把非运行资产同步到 NAS。
+3. 部署前备份数据库到 `/volume1/docker/ledger-two/backups/predeploy/ledger-predeploy-20260706-183450.db`。
+4. 修复旧库中同一账本下重复账户名称：将未被交易引用的重复账户从 `日常账户` 重命名为 `日常账户（重复保留）`。
+5. 修复前额外备份数据库到 `/volume1/docker/ledger-two/backups/predeploy/ledger-repair-before-account-dedupe-20260706-184429.db`。
+
+部署结果：
+
+1. Docker build 在 NAS 上完成，容器 `ledger-two` 已重新创建并启动。
+2. 迁移已执行到 schema version 12。
+3. `http://192.168.0.115:38088/api/healthz` 返回 `db=ok`、`status=ok`、`schema_version=12`。
+4. 容器状态为 `healthy`，端口映射为 `0.0.0.0:38088->8080/tcp`。
+5. 首页 `Last-Modified` 更新为 2026-07-06，说明当前前端静态资源已更新。
+
+剩余注意事项：
+
+1. 本次只验证健康检查和首页可访问，尚未完成浏览器内登录、记账、附件、备份按钮等人工验收。
+2. v1.1 冻结前仍需补 375px/390px/430px 移动端截图或手工验收记录。
+3. 后续如要公网访问，仍需先完成 HTTPS 反向代理与 `COOKIE_SECURE=true` 配置。

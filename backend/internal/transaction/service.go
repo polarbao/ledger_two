@@ -889,6 +889,7 @@ func (s *Service) toTemplateResponse(tmpl *TransactionTemplate) *TemplateRespons
 
 // CreateTemplate 创建模板业务逻辑
 func (s *Service) CreateTemplate(ctx context.Context, currentUserID string, req CreateTemplateRequest) (*TemplateResponse, error) {
+	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "模板名称不能为空")
 	}
@@ -905,6 +906,9 @@ func (s *Service) CreateTemplate(ctx context.Context, currentUserID string, req 
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
+	if err := s.validateTemplateRequest(ctx, ledgerID, currentUserID, req); err != nil {
+		return nil, err
+	}
 
 	// 拼装实体
 	tmplID := uuid.NewString()
@@ -918,26 +922,34 @@ func (s *Service) CreateTemplate(ctx context.Context, currentUserID string, req 
 	}
 	var categoryVal sql.NullString
 	if req.CategoryID != nil {
-		categoryVal = sql.NullString{String: *req.CategoryID, Valid: true}
+		if val := strings.TrimSpace(*req.CategoryID); val != "" {
+			categoryVal = sql.NullString{String: val, Valid: true}
+		}
 	}
 	var accountVal sql.NullString
 	if req.AccountID != nil {
-		accountVal = sql.NullString{String: *req.AccountID, Valid: true}
+		if val := strings.TrimSpace(*req.AccountID); val != "" {
+			accountVal = sql.NullString{String: val, Valid: true}
+		}
 	}
 	var payerVal sql.NullString
 	if req.PayerUserID != nil {
-		payerVal = sql.NullString{String: *req.PayerUserID, Valid: true}
+		if val := strings.TrimSpace(*req.PayerUserID); val != "" {
+			payerVal = sql.NullString{String: val, Valid: true}
+		}
 	}
 	var splitVal sql.NullString
 	if req.SplitMethod != nil {
-		splitVal = sql.NullString{String: *req.SplitMethod, Valid: true}
+		if val := strings.TrimSpace(*req.SplitMethod); val != "" {
+			splitVal = sql.NullString{String: val, Valid: true}
+		}
 	}
 	var noteVal sql.NullString
 	if req.Note != nil {
 		noteVal = sql.NullString{String: *req.Note, Valid: true}
 	}
 
-	tagsStr := strings.Join(req.TagNames, ",")
+	tagsStr := strings.Join(cleanTemplateTagNames(req.TagNames), ",")
 	var tagsVal sql.NullString
 	if tagsStr != "" {
 		tagsVal = sql.NullString{String: tagsStr, Valid: true}
@@ -1012,6 +1024,7 @@ func (s *Service) ListTemplates(ctx context.Context, currentUserID string) ([]*T
 
 // UpdateTemplate 更新模板业务逻辑
 func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id string, req CreateTemplateRequest) (*TemplateResponse, error) {
+	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "模板名称不能为空")
 	}
@@ -1041,6 +1054,9 @@ func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id s
 	if tmpl.LedgerID != ledgerID {
 		return nil, appErrors.NewAppError(403, "FORBIDDEN", "无权更新该模板")
 	}
+	if err := s.validateTemplateRequest(ctx, ledgerID, currentUserID, req); err != nil {
+		return nil, err
+	}
 
 	// 2. 覆盖更新
 	tmpl.Name = req.Name
@@ -1057,22 +1073,38 @@ func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id s
 		tmpl.AmountCents = sql.NullInt64{Valid: false}
 	}
 	if req.CategoryID != nil {
-		tmpl.CategoryID = sql.NullString{String: *req.CategoryID, Valid: true}
+		if val := strings.TrimSpace(*req.CategoryID); val != "" {
+			tmpl.CategoryID = sql.NullString{String: val, Valid: true}
+		} else {
+			tmpl.CategoryID = sql.NullString{Valid: false}
+		}
 	} else {
 		tmpl.CategoryID = sql.NullString{Valid: false}
 	}
 	if req.AccountID != nil {
-		tmpl.AccountID = sql.NullString{String: *req.AccountID, Valid: true}
+		if val := strings.TrimSpace(*req.AccountID); val != "" {
+			tmpl.AccountID = sql.NullString{String: val, Valid: true}
+		} else {
+			tmpl.AccountID = sql.NullString{Valid: false}
+		}
 	} else {
 		tmpl.AccountID = sql.NullString{Valid: false}
 	}
 	if req.PayerUserID != nil {
-		tmpl.PayerUserID = sql.NullString{String: *req.PayerUserID, Valid: true}
+		if val := strings.TrimSpace(*req.PayerUserID); val != "" {
+			tmpl.PayerUserID = sql.NullString{String: val, Valid: true}
+		} else {
+			tmpl.PayerUserID = sql.NullString{Valid: false}
+		}
 	} else {
 		tmpl.PayerUserID = sql.NullString{Valid: false}
 	}
 	if req.SplitMethod != nil {
-		tmpl.SplitMethod = sql.NullString{String: *req.SplitMethod, Valid: true}
+		if val := strings.TrimSpace(*req.SplitMethod); val != "" {
+			tmpl.SplitMethod = sql.NullString{String: val, Valid: true}
+		} else {
+			tmpl.SplitMethod = sql.NullString{Valid: false}
+		}
 	} else {
 		tmpl.SplitMethod = sql.NullString{Valid: false}
 	}
@@ -1082,7 +1114,7 @@ func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id s
 		tmpl.Note = sql.NullString{Valid: false}
 	}
 
-	tagsStr := strings.Join(req.TagNames, ",")
+	tagsStr := strings.Join(cleanTemplateTagNames(req.TagNames), ",")
 	if tagsStr != "" {
 		tmpl.TagNames = sql.NullString{String: tagsStr, Valid: true}
 	} else {
@@ -1096,6 +1128,73 @@ func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id s
 	tmpl.UpdatedAt = time.Now()
 
 	return s.toTemplateResponse(tmpl), nil
+}
+
+func (s *Service) validateTemplateRequest(ctx context.Context, ledgerID, currentUserID string, req CreateTemplateRequest) error {
+	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
+		return err
+	}
+
+	if req.CategoryID != nil && strings.TrimSpace(*req.CategoryID) != "" {
+		ok, err := s.repo.ActiveCategoryExists(ctx, ledgerID, strings.TrimSpace(*req.CategoryID))
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return appErrors.NewAppError(400, "VALIDATION_ERROR", "模板分类不存在、已归档或不属于当前账本")
+		}
+	}
+
+	if req.AccountID != nil && strings.TrimSpace(*req.AccountID) != "" {
+		ok, err := s.repo.ActiveAccountExists(ctx, ledgerID, strings.TrimSpace(*req.AccountID))
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return appErrors.NewAppError(400, "VALIDATION_ERROR", "模板账户不存在、已归档或不属于当前账本")
+		}
+	}
+
+	if req.PayerUserID != nil && strings.TrimSpace(*req.PayerUserID) != "" {
+		payerID := strings.TrimSpace(*req.PayerUserID)
+		users, err := s.getLedgerUsers(ctx, ledgerID)
+		if err != nil {
+			return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
+		}
+		found := false
+		for _, userID := range users {
+			if userID == payerID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return appErrors.NewAppError(400, "VALIDATION_ERROR", "模板付款人不属于当前账本")
+		}
+	}
+
+	if req.SplitMethod != nil && strings.TrimSpace(*req.SplitMethod) != "" {
+		splitMethod := strings.TrimSpace(*req.SplitMethod)
+		if splitMethod != "equal" && splitMethod != "payer_only" {
+			return appErrors.NewAppError(400, "VALIDATION_ERROR", "模板分摊方式必须为 equal 或 payer_only")
+		}
+	}
+
+	return nil
+}
+
+func cleanTemplateTagNames(tags []string) []string {
+	cleaned := make([]string, 0, len(tags))
+	seen := map[string]bool{}
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" || seen[tag] {
+			continue
+		}
+		cleaned = append(cleaned, tag)
+		seen[tag] = true
+	}
+	return cleaned
 }
 
 // DeleteTemplate 删除模板逻辑

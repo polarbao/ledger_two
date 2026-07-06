@@ -69,16 +69,17 @@ Foundation before v1.1: 已完成基础冻结。
 2. 使用当前根目录 `docker-compose.yml` 和 `.env.example` 派生 `.env`。
 3. `JWT_SECRET` 已替换为强随机值。
 4. 挂载目录可写：`data/`、`backups/`、`uploads/`、`logs/`。
-5. 访问方式为局域网或 Tailscale；公网必须使用 HTTPS 反向代理。
+5. 访问方式为局域网或 Tailscale；当前本机与 NAS 已处于同一局域网，可优先使用 `192.168.0.115` 进行内网访问验证；公网必须使用 HTTPS 反向代理。
 6. 部署前完成一次本地或 CI Docker build 验证。
 
 当前限制：
 
 1. 本机未安装 Docker CLI，本轮无法在本机实际执行 `docker compose config` 或 `docker compose build`。
-2. Tailscale 地址 `100.68.103.94` 已确认可连通：22/tcp 与 38088/tcp 可达。
-3. `curl --noproxy "*" http://100.68.103.94:38088/api/healthz` 返回旧版健康检查，仅包含 `db/status/version`，没有当前版本应有的 `schema_version`；首页 `Last-Modified` 为 2026-06-11，说明 NAS 当前运行的是旧部署。
-4. `admin@100.68.103.94` 与 `root@100.68.103.94` 的 SSH 免密认证均不可用，当前会话无法登录执行远程更新。
-5. 当前代码部署后，`GET /api/healthz` 应返回基础状态和 schema version；Owner 登录后可通过设置页系统诊断或 `GET /api/admin/diagnostics` 检查备份/上传/日志目录状态。
+2. 局域网地址 `192.168.0.115` 已由用户确认可用于本机直接访问 NAS；后续试部署应优先以 `http://192.168.0.115:38088` 作为内网访问地址。
+3. Tailscale 地址 `100.68.103.94` 仍可作为异地或备用访问路径，但当前本机已在 NAS 同一局域网内，局域网验证优先级更高。
+4. 历史检查中 `curl --noproxy "*" http://100.68.103.94:38088/api/healthz` 返回旧版健康检查，仅包含 `db/status/version`，没有当前版本应有的 `schema_version`；首页 `Last-Modified` 为 2026-06-11，说明当时 NAS 运行的是旧部署。该结论在重新部署前仍作为旧部署风险记录保留。
+5. 早先 `admin@100.68.103.94` 与 `root@100.68.103.94` 的 SSH 免密认证均不可用；如后续恢复部署，应优先按本机与 NAS 同局域网条件重新验证 SSH、Docker Compose 和服务端口。
+6. 当前代码部署后，`GET /api/healthz` 应返回基础状态和 schema version；Owner 登录后可通过设置页系统诊断或 `GET /api/admin/diagnostics` 检查备份/上传/日志目录状态。
 
 ## 4. 推荐 NAS 部署方案
 
@@ -107,7 +108,7 @@ cp .env.example .env
 ```text
 APP_ENV=production
 APP_PORT=38088
-APP_BASE_URL=http://NAS_IP:38088
+APP_BASE_URL=http://192.168.0.115:38088
 JWT_SECRET=<64 chars random secret>
 COOKIE_SECURE=false
 COOKIE_SAMESITE=Lax
@@ -130,7 +131,7 @@ docker compose logs -f
 
 ### 4.4 验收
 
-1. 访问 `http://NAS_IP:38088/api/healthz`。
+1. 访问 `http://192.168.0.115:38088/api/healthz`。
 2. 首次打开页面完成初始化。
 3. 上传一张附件，确认 `uploads/` 目录出现文件。
 4. 创建 private 账单并关联附件，确认另一用户无法访问附件。

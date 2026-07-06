@@ -8,6 +8,7 @@ export interface MetadataItem {
   icon?: string;
   color?: string;
   sort_order: number;
+  usage_count: number;
   is_archived: boolean;
 }
 

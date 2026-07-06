@@ -32,21 +32,36 @@ func (r *Repository) GetFirstLedgerRole(ctx context.Context, userID string) (str
 func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, includeArchived bool) ([]Item, error) {
 	switch kind {
 	case KindCategory:
-		query := "SELECT id, ledger_id, name, type, COALESCE(icon, ''), COALESCE(color, ''), sort_order, is_archived FROM categories WHERE ledger_id = ?"
+		query := `
+			SELECT id, ledger_id, name, type, COALESCE(icon, ''), COALESCE(color, ''), sort_order,
+				(SELECT COUNT(1) FROM transactions tx WHERE tx.ledger_id = categories.ledger_id AND tx.category_id = categories.id AND tx.status <> 'deleted') AS usage_count,
+				is_archived
+			FROM categories
+			WHERE ledger_id = ?`
 		if !includeArchived {
 			query += " AND is_archived = 0"
 		}
 		query += " ORDER BY sort_order ASC, name ASC"
 		return r.list(ctx, query, ledgerID)
 	case KindTag:
-		query := "SELECT id, ledger_id, name, '', '', COALESCE(color, ''), sort_order, is_archived FROM tags WHERE ledger_id = ?"
+		query := `
+			SELECT id, ledger_id, name, '', '', COALESCE(color, ''), sort_order,
+				(SELECT COUNT(1) FROM transaction_tags tt JOIN transactions tx ON tx.id = tt.transaction_id WHERE tx.ledger_id = tags.ledger_id AND tt.tag_id = tags.id AND tx.status <> 'deleted') AS usage_count,
+				is_archived
+			FROM tags
+			WHERE ledger_id = ?`
 		if !includeArchived {
 			query += " AND is_archived = 0"
 		}
 		query += " ORDER BY sort_order ASC, name ASC"
 		return r.list(ctx, query, ledgerID)
 	case KindAccount:
-		query := "SELECT id, ledger_id, name, type, '', '', sort_order, is_archived FROM accounts WHERE ledger_id = ?"
+		query := `
+			SELECT id, ledger_id, name, type, '', '', sort_order,
+				(SELECT COUNT(1) FROM transactions tx WHERE tx.ledger_id = accounts.ledger_id AND tx.account_id = accounts.id AND tx.status <> 'deleted') AS usage_count,
+				is_archived
+			FROM accounts
+			WHERE ledger_id = ?`
 		if !includeArchived {
 			query += " AND is_archived = 0"
 		}
@@ -68,7 +83,7 @@ func (r *Repository) list(ctx context.Context, query string, ledgerID string) ([
 	for rows.Next() {
 		var item Item
 		var isArchived int
-		if err := rows.Scan(&item.ID, &item.LedgerID, &item.Name, &item.Type, &item.Icon, &item.Color, &item.SortOrder, &isArchived); err != nil {
+		if err := rows.Scan(&item.ID, &item.LedgerID, &item.Name, &item.Type, &item.Icon, &item.Color, &item.SortOrder, &item.UsageCount, &isArchived); err != nil {
 			return nil, err
 		}
 		item.IsArchived = isArchived == 1
@@ -146,13 +161,14 @@ func (r *Repository) Create(ctx context.Context, kind Kind, ledgerID string, use
 	}
 
 	return &Item{
-		ID:        id,
-		LedgerID:  ledgerID,
-		Name:      req.Name,
-		Type:      req.Type,
-		Icon:      req.Icon,
-		Color:     req.Color,
-		SortOrder: sortOrder,
+		ID:         id,
+		LedgerID:   ledgerID,
+		Name:       req.Name,
+		Type:       req.Type,
+		Icon:       req.Icon,
+		Color:      req.Color,
+		SortOrder:  sortOrder,
+		UsageCount: 0,
 	}, nil
 }
 

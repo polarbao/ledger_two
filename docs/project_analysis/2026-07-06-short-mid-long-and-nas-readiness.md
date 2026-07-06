@@ -75,8 +75,10 @@ Foundation before v1.1: 已完成基础冻结。
 当前限制：
 
 1. 本机未安装 Docker CLI，本轮无法在本机实际执行 `docker compose config` 或 `docker compose build`。
-2. 当前会话未提供 NAS 地址、SSH/Container Manager 凭据、目标部署目录和域名/DNS 信息，因此不能直接完成远程部署。
-3. `GET /api/healthz` 能返回基础状态和 schema version；Owner 登录后可通过设置页系统诊断或 `GET /api/admin/diagnostics` 检查备份/上传/日志目录状态。
+2. Tailscale 地址 `100.68.103.94` 已确认可连通：22/tcp 与 38088/tcp 可达。
+3. `curl --noproxy "*" http://100.68.103.94:38088/api/healthz` 返回旧版健康检查，仅包含 `db/status/version`，没有当前版本应有的 `schema_version`；首页 `Last-Modified` 为 2026-06-11，说明 NAS 当前运行的是旧部署。
+4. `admin@100.68.103.94` 与 `root@100.68.103.94` 的 SSH 免密认证均不可用，当前会话无法登录执行远程更新。
+5. 当前代码部署后，`GET /api/healthz` 应返回基础状态和 schema version；Owner 登录后可通过设置页系统诊断或 `GET /api/admin/diagnostics` 检查备份/上传/日志目录状态。
 
 ## 4. 推荐 NAS 部署方案
 

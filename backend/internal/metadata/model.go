@@ -16,6 +16,7 @@ type Item struct {
 	Icon       string `json:"icon,omitempty"`
 	Color      string `json:"color,omitempty"`
 	SortOrder  int    `json:"sort_order"`
+	UsageCount int    `json:"usage_count"`
 	IsArchived bool   `json:"is_archived"`
 }
 

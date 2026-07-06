@@ -185,7 +185,13 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
 
   const handleArchiveToggle = (item: MetadataItem) => {
     const action = item.is_archived ? '恢复' : '归档';
-    if (!window.confirm(`确认${action}「${item.name}」吗？历史账单展示不会被删除。`)) {
+    const usageCount = item.usage_count || 0;
+    const usageHint = item.is_archived
+      ? `恢复后，「${item.name}」会重新出现在新建账单选择器中。`
+      : usageCount > 0
+        ? `该${config.singular}已被 ${usageCount} 笔历史账单使用。归档后不会出现在新建账单选择器中，但历史账单仍会显示原名称。`
+        : `该${config.singular}尚未被历史账单使用。归档后不会出现在新建账单选择器中。`;
+    if (!window.confirm(`确认${action}「${item.name}」吗？\n\n${usageHint}`)) {
       return;
     }
     archiveMutation.mutate(item);
@@ -220,6 +226,9 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
               已归档
             </span>
           )}
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '999px', padding: '1px 8px' }}>
+            引用 {item.usage_count || 0} 笔
+          </span>
         </div>
         {(item.icon || item.color) && (
           <span className="dimmed-desc" style={{ fontSize: '12px' }}>

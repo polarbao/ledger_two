@@ -39,6 +39,8 @@ func NewService(repo *Repository) *Service {
 // @return *TransactionResponse 创建成功后的 DTO
 // @return error 错误对象
 func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTransactionRequest) (*TransactionResponse, error) {
+	req.PayerUserID = strings.TrimSpace(req.PayerUserID)
+
 	// 1. 金额校验
 	if req.AmountCents <= 0 {
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "金额必须大于 0")
@@ -68,6 +70,9 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
 		return nil, err
 	}
+	if err := s.validateCreateTransactionReferences(ctx, ledgerID, req.PayerUserID, req.CategoryID, req.AccountID); err != nil {
+		return nil, err
+	}
 
 	// 6. 可见性处理
 	visibility := req.Visibility
@@ -82,7 +87,7 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 	title := req.Title
 	if title == "" {
 		if req.CategoryID != nil && *req.CategoryID != "" {
-			title = s.getCategoryName(ctx, *req.CategoryID)
+			title = s.getCategoryName(ctx, strings.TrimSpace(*req.CategoryID))
 		}
 		if title == "" {
 			title = "未分类流水"
@@ -113,11 +118,15 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 	txID := uuid.NewString()
 	var accountVal sql.NullString
 	if req.AccountID != nil {
-		accountVal = sql.NullString{String: *req.AccountID, Valid: true}
+		if val := strings.TrimSpace(*req.AccountID); val != "" {
+			accountVal = sql.NullString{String: val, Valid: true}
+		}
 	}
 	var categoryVal sql.NullString
 	if req.CategoryID != nil {
-		categoryVal = sql.NullString{String: *req.CategoryID, Valid: true}
+		if val := strings.TrimSpace(*req.CategoryID); val != "" {
+			categoryVal = sql.NullString{String: val, Valid: true}
+		}
 	}
 
 	txModel := &Transaction{
@@ -699,6 +708,61 @@ func (s *Service) getLedgerUsers(ctx context.Context, ledgerID string) ([]string
 	return users, nil
 }
 
+func (s *Service) validateCreateTransactionReferences(ctx context.Context, ledgerID, payerUserID string, categoryID *string, accountID *string) error {
+	if err := s.validateLedgerMember(ctx, ledgerID, payerUserID, "付款人用户不在当前账本成员中"); err != nil {
+		return err
+	}
+	if err := s.validateActiveCategoryReference(ctx, ledgerID, categoryID); err != nil {
+		return err
+	}
+	return s.validateActiveAccountReference(ctx, ledgerID, accountID)
+}
+
+func (s *Service) validateLedgerMember(ctx context.Context, ledgerID, userID, message string) error {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return appErrors.NewAppError(400, "VALIDATION_ERROR", message)
+	}
+	users, err := s.getLedgerUsers(ctx, ledgerID)
+	if err != nil {
+		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
+	}
+	for _, candidate := range users {
+		if candidate == userID {
+			return nil
+		}
+	}
+	return appErrors.NewAppError(400, "VALIDATION_ERROR", message)
+}
+
+func (s *Service) validateActiveCategoryReference(ctx context.Context, ledgerID string, categoryID *string) error {
+	if categoryID == nil || strings.TrimSpace(*categoryID) == "" {
+		return nil
+	}
+	ok, err := s.repo.ActiveCategoryExists(ctx, ledgerID, strings.TrimSpace(*categoryID))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return appErrors.NewAppError(400, "VALIDATION_ERROR", "分类不存在、已归档或不属于当前账本")
+	}
+	return nil
+}
+
+func (s *Service) validateActiveAccountReference(ctx context.Context, ledgerID string, accountID *string) error {
+	if accountID == nil || strings.TrimSpace(*accountID) == "" {
+		return nil
+	}
+	ok, err := s.repo.ActiveAccountExists(ctx, ledgerID, strings.TrimSpace(*accountID))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return appErrors.NewAppError(400, "VALIDATION_ERROR", "账户不存在、已归档或不属于当前账本")
+	}
+	return nil
+}
+
 // CreateSharedExpense 共同支出记账业务实现
 // @brief 业务校验、分摊计算并写入 transactions 及 transaction_splits 表
 // @param ctx context.Context 上下文
@@ -707,6 +771,8 @@ func (s *Service) getLedgerUsers(ctx context.Context, ledgerID string) ([]string
 // @return *TransactionResponse 创建后的 DTO
 // @return error 错误对象
 func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string, req CreateSharedExpenseRequest) (*TransactionResponse, error) {
+	req.PayerUserID = strings.TrimSpace(req.PayerUserID)
+
 	// 1. 金额校验
 	if req.AmountCents <= 0 {
 		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "金额必须大于 0")
@@ -727,6 +793,12 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+	}
+	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
+		return nil, err
+	}
+	if err := s.validateActiveCategoryReference(ctx, ledgerID, req.CategoryID); err != nil {
+		return nil, err
 	}
 
 	// 4. 用户校验与获取账本成员
@@ -758,7 +830,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	title := req.Title
 	if title == "" {
 		if req.CategoryID != nil && *req.CategoryID != "" {
-			title = s.getCategoryName(ctx, *req.CategoryID)
+			title = s.getCategoryName(ctx, strings.TrimSpace(*req.CategoryID))
 		}
 		if title == "" {
 			title = "未分类共同支出"
@@ -769,7 +841,9 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	txID := uuid.NewString()
 	var categoryVal sql.NullString
 	if req.CategoryID != nil {
-		categoryVal = sql.NullString{String: *req.CategoryID, Valid: true}
+		if val := strings.TrimSpace(*req.CategoryID); val != "" {
+			categoryVal = sql.NullString{String: val, Valid: true}
+		}
 	}
 
 	txModel := &Transaction{

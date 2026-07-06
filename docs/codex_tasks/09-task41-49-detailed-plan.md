@@ -133,6 +133,8 @@
 
 - 结算服务测试基线稳定。
 
+状态：已启动；Task45.1 结算余额 DTO 已补充 raw_net、settlement_net、final_net 解释字段；Task45.2 结算页已展示 paid/share/raw_net/settlement/final_net 并提供复制结算文案入口。
+
 开发范围：
 
 - settlement explanation DTO。

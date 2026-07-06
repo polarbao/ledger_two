@@ -135,6 +135,18 @@ func TestSettlementServiceUnit(t *testing.T) {
 	if balance2.FromUserID != userBID || balance2.ToUserID != userAID {
 		t.Errorf("expected B to owe A, got from %s to %s", balance2.FromUserID, balance2.ToUserID)
 	}
+	for _, ub := range balance2.UserBalances {
+		if ub.UserID == userAID {
+			if ub.PaidCents != 20000 || ub.ShareCents != 14000 || ub.RawNetCents != 6000 || ub.FinalNetCents != 6000 || ub.NetCents != 6000 {
+				t.Errorf("unexpected A explain fields: %+v", ub)
+			}
+		}
+		if ub.UserID == userBID {
+			if ub.PaidCents != 8000 || ub.ShareCents != 14000 || ub.RawNetCents != -6000 || ub.FinalNetCents != -6000 || ub.NetCents != -6000 {
+				t.Errorf("unexpected B explain fields: %+v", ub)
+			}
+		}
+	}
 
 	// ----------------------------------------------------
 	// 场景 3: B 发起 6000 分结算。
@@ -160,5 +172,17 @@ func TestSettlementServiceUnit(t *testing.T) {
 	}
 	if balance3.FromUserID != "" || balance3.ToUserID != "" {
 		t.Errorf("expected from/to user IDs to be empty after settlement, got from: %s, to: %s", balance3.FromUserID, balance3.ToUserID)
+	}
+	for _, ub := range balance3.UserBalances {
+		if ub.UserID == userAID {
+			if ub.RawNetCents != 6000 || ub.SettlementNetCents != -6000 || ub.FinalNetCents != 0 || ub.NetCents != 0 {
+				t.Errorf("unexpected A settled explain fields: %+v", ub)
+			}
+		}
+		if ub.UserID == userBID {
+			if ub.RawNetCents != -6000 || ub.SettlementNetCents != 6000 || ub.FinalNetCents != 0 || ub.NetCents != 0 {
+				t.Errorf("unexpected B settled explain fields: %+v", ub)
+			}
+		}
 	}
 }

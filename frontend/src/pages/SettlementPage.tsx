@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { DollarSign, HelpCircle, CheckCircle2, User, ArrowRight, Loader2, Calendar, X, AlertTriangle } from 'lucide-react';
+import { DollarSign, HelpCircle, CheckCircle2, User, ArrowRight, Loader2, Calendar, X, AlertTriangle, Copy } from 'lucide-react';
 import { useUIStore } from '../stores/ui.store';
 import { useAuthStore } from '../stores/auth.store';
 import { settlementApi } from '../api/settlement.api';
@@ -27,6 +27,7 @@ export default function SettlementPage() {
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [note, setNote] = useState('');
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   // 1. 获取结算轧差详情 (Balance)
   const { data: balance, isLoading: isBalanceLoading, isError: isBalanceError, error: balanceError, refetch: refetchBalance } = useQuery({
@@ -98,6 +99,54 @@ export default function SettlementPage() {
     createSettlementMutation.mutate();
   };
 
+  const formatSignedYuan = (cents: number) => {
+    if (cents === 0) return '¥0.00';
+    return `${cents > 0 ? '+' : '-'}¥${centsToYuan(Math.abs(cents))}`;
+  };
+
+  const describeNet = (cents: number) => {
+    if (cents > 0) return `${formatSignedYuan(cents)} 应收`;
+    if (cents < 0) return `${formatSignedYuan(cents)} 应付`;
+    return '¥0.00 已结清';
+  };
+
+  const buildSettlementCopyText = (transfer: { from_user_id: string; to_user_id: string; amount_cents: number }) => {
+    const lines = [
+      `【LedgerTwo 结算】${currentMonth}`,
+      `${getUserDisplayName(transfer.from_user_id)} 需转给 ${getUserDisplayName(transfer.to_user_id)} ¥${centsToYuan(transfer.amount_cents)}`,
+      '',
+      '对账拆解：',
+      ...personalDetails.map((item) =>
+        `${item.displayName}: paid ¥${centsToYuan(item.paidCents)} / share ¥${centsToYuan(item.shareCents)} / raw ${formatSignedYuan(item.rawNetCents)} / settlement ${formatSignedYuan(item.settlementNetCents)} / final ${describeNet(item.finalNetCents)}`
+      ),
+    ];
+    return lines.join('\n');
+  };
+
+  const handleCopySettlementText = async (transfer: { from_user_id: string; to_user_id: string; amount_cents: number }) => {
+    const text = buildSettlementCopyText(transfer);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopyStatus('结算文案已复制');
+      window.setTimeout(() => setCopyStatus(null), 2400);
+    } catch {
+      setCopyStatus('复制失败，请手动复制结算金额');
+      window.setTimeout(() => setCopyStatus(null), 3000);
+    }
+  };
+
   // 获取个人对账单轧差
   const getPersonalNetDetails = () => {
     if (!balance || !balance.user_balances) {
@@ -112,6 +161,9 @@ export default function SettlementPage() {
         isMe: u.user_id === currentUser?.id,
         paidCents: u.paid_cents,
         shareCents: u.share_cents,
+        rawNetCents: u.raw_net_cents ?? u.paid_cents - u.share_cents,
+        settlementNetCents: u.settlement_net_cents ?? u.settled_out_cents - u.settled_in_cents,
+        finalNetCents: u.final_net_cents ?? u.net_cents,
         netCents: u.net_cents,
       };
     });
@@ -171,6 +223,15 @@ export default function SettlementPage() {
                           <div className="debt-amount-large" style={{ fontSize: '24px' }}>
                             ¥{centsToYuan(transfer.amount_cents)}
                           </div>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => handleCopySettlementText(transfer)}
+                            style={{ padding: '8px 12px', fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <Copy size={15} />
+                            <span>复制文案</span>
+                          </button>
                           <PermissionGate allow={['owner', 'editor']}>
                             <button
                               className="btn-primary"
@@ -186,6 +247,11 @@ export default function SettlementPage() {
                         </div>
                       </div>
                     ))}
+                    {copyStatus && (
+                      <div style={{ color: copyStatus.includes('失败') ? '#ef4444' : 'var(--accent-green)', fontSize: '12px', textAlign: 'right' }}>
+                        {copyStatus}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -225,16 +291,28 @@ export default function SettlementPage() {
                       <span className="label">累计应承担消费</span>
                       <span className="value">¥{centsToYuan(item.shareCents)}</span>
                     </div>
+                    <div className="balance-row">
+                      <span className="label">共同消费原始净额</span>
+                      <span className={`value ${item.rawNetCents >= 0 ? 'text-success' : 'text-expense'}`}>
+                        {formatSignedYuan(item.rawNetCents)}
+                      </span>
+                    </div>
+                    <div className="balance-row">
+                      <span className="label">已结算影响</span>
+                      <span className={`value ${item.settlementNetCents >= 0 ? 'text-success' : 'text-expense'}`}>
+                        {formatSignedYuan(item.settlementNetCents)}
+                      </span>
+                    </div>
                     <div className="balance-divider"></div>
                     <div className="balance-row net-row">
-                      <span className="label">当期应收/应付轧差</span>
-                      {item.netCents > 0 ? (
+                      <span className="label">最终应收/应付净额</span>
+                      {item.finalNetCents > 0 ? (
                         <span className="value text-success font-heading">
-                          +¥{centsToYuan(item.netCents)} (应收)
+                          +¥{centsToYuan(item.finalNetCents)} (应收)
                         </span>
-                      ) : item.netCents < 0 ? (
+                      ) : item.finalNetCents < 0 ? (
                         <span className="value text-expense font-heading">
-                          -¥{centsToYuan(Math.abs(item.netCents))} (应付)
+                          -¥{centsToYuan(Math.abs(item.finalNetCents))} (应付)
                         </span>
                       ) : (
                         <span className="value text-muted">¥0.00 (已结清)</span>

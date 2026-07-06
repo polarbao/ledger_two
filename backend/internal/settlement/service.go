@@ -61,28 +61,33 @@ func (s *Service) GetBalance(ctx context.Context, currentUserID string) (*Balanc
 	var debtors []userNet   // net < 0
 	var creditors []userNet // net > 0
 
-	// 4. 应用差额计算公式：net = paid - share + settled_out - settled_in
+	// 4. 应用差额计算公式：raw_net = paid - share，final_net = raw_net + settled_out - settled_in
 	for _, u := range users {
 		paid := paidMap[u]
 		share := shareMap[u]
 		settledOut := settledOutMap[u]
 		settledIn := settledInMap[u]
 
-		net := paid - share + settledOut - settledIn
+		rawNet := paid - share
+		settlementNet := settledOut - settledIn
+		finalNet := rawNet + settlementNet
 
 		userBalances = append(userBalances, UserBalance{
-			UserID:          u,
-			PaidCents:       paid,
-			ShareCents:      share,
-			SettledOutCents: settledOut,
-			SettledInCents:  settledIn,
-			NetCents:        net,
+			UserID:             u,
+			PaidCents:          paid,
+			ShareCents:         share,
+			RawNetCents:        rawNet,
+			SettledOutCents:    settledOut,
+			SettledInCents:     settledIn,
+			SettlementNetCents: settlementNet,
+			FinalNetCents:      finalNet,
+			NetCents:           finalNet,
 		})
 
-		if net > 0 {
-			creditors = append(creditors, userNet{userID: u, netCents: net})
-		} else if net < 0 {
-			debtors = append(debtors, userNet{userID: u, netCents: net})
+		if finalNet > 0 {
+			creditors = append(creditors, userNet{userID: u, netCents: finalNet})
+		} else if finalNet < 0 {
+			debtors = append(debtors, userNet{userID: u, netCents: finalNet})
 		}
 	}
 

@@ -47,12 +47,15 @@ type SettlementResponse struct {
 // UserBalance 用户结算净额结构
 // @brief 单个用户在账本中的付费、分摊与最终欠款/应收报表
 type UserBalance struct {
-	UserID          string `json:"user_id"`
-	PaidCents       int64  `json:"paid_cents"`
-	ShareCents      int64  `json:"share_cents"`
-	SettledOutCents int64  `json:"settled_out_cents"`
-	SettledInCents  int64  `json:"settled_in_cents"`
-	NetCents        int64  `json:"net_cents"` // > 0 表示应收, < 0 表示应付
+	UserID             string `json:"user_id"`
+	PaidCents          int64  `json:"paid_cents"`
+	ShareCents         int64  `json:"share_cents"`
+	RawNetCents        int64  `json:"raw_net_cents"`        // paid - share
+	SettledOutCents    int64  `json:"settled_out_cents"`    // 当前用户已支付给他人的结算
+	SettledInCents     int64  `json:"settled_in_cents"`     // 当前用户已从他人收到的结算
+	SettlementNetCents int64  `json:"settlement_net_cents"` // settled_out - settled_in
+	FinalNetCents      int64  `json:"final_net_cents"`      // raw_net + settlement_net
+	NetCents           int64  `json:"net_cents"`            // 兼容字段，等同 final_net_cents；> 0 表示应收, < 0 表示应付
 }
 
 // SuggestedTransfer 建议转账路径

@@ -2,8 +2,11 @@ export interface UserBalance {
   user_id: string;
   paid_cents: number;
   share_cents: number;
+  raw_net_cents: number;
   settled_out_cents: number;
   settled_in_cents: number;
+  settlement_net_cents: number;
+  final_net_cents: number;
   net_cents: number;
 }
 

@@ -143,7 +143,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| GET | `/api/settlements/balance` | yes | optional | transitional | `settlement.HandleGetBalance` | 获取共同支出轧差。 |
+| GET | `/api/settlements/balance` | yes | optional | transitional | `settlement.HandleGetBalance` | 获取共同支出轧差，`user_balances` 返回 `paid_cents`、`share_cents`、`raw_net_cents`、`settlement_net_cents`、`final_net_cents` 和兼容字段 `net_cents`。 |
 | GET | `/api/settlements/` | yes | optional | transitional | `settlement.HandleList` | 结算记录列表。 |
 | POST | `/api/settlements/` | yes | optional | transitional | `settlement.HandleCreate` | 创建结算记录和对应 transaction。 |
 

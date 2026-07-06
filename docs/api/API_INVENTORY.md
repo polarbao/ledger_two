@@ -129,7 +129,8 @@
 | DELETE | `/api/recurring-rules/{id}` | yes | optional | transitional | `transaction.HandleDeleteRecurringRule` | 删除周期规则。 |
 | GET | `/api/recurring-reminders/` | yes | optional | transitional | `transaction.HandleListRecurringReminders` | 待确认周期提醒。 |
 | POST | `/api/recurring-reminders/{id}/confirm` | yes | optional | transitional | `transaction.HandleConfirmReminder` | 确认提醒并生成账单。 |
-| POST | `/api/recurring-reminders/{id}/ignore` | yes | optional | transitional | `transaction.HandleIgnoreReminder` | 忽略提醒。 |
+| POST | `/api/recurring-reminders/{id}/skip` | yes | optional | transitional | `transaction.HandleIgnoreReminder` | 跳过本期待确认提醒，不生成真实账单。 |
+| POST | `/api/recurring-reminders/{id}/ignore` | yes | optional | deprecated | `transaction.HandleIgnoreReminder` | 历史兼容入口，当前等同跳过本期。 |
 
 ## 9. Shared Expenses
 

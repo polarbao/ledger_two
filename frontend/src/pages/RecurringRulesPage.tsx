@@ -9,10 +9,12 @@ import {
   ArrowLeft, 
   Plus, 
   Trash2, 
+  CheckCircle2,
   Calendar, 
   DollarSign, 
   Tag, 
   AlertTriangle, 
+  Ban,
   X
 } from 'lucide-react';
 import { transactionsApi } from '../api/transactions.api';
@@ -64,6 +66,12 @@ export default function RecurringRulesPage() {
     queryFn: () => transactionsApi.listRecurringRules(),
   });
 
+  const { data: reminders, isLoading: isLoadingReminders } = useQuery({
+    queryKey: queryKeys.recurringReminders(activeLedgerId),
+    queryFn: () => transactionsApi.listRecurringReminders(),
+  });
+  const pendingReminders = reminders?.filter((item) => item.status === 'pending') || [];
+
   // 2. 获取分类列表
   const { data: categories } = useQuery({
     queryKey: queryKeys.categories(activeLedgerId),
@@ -90,6 +98,15 @@ export default function RecurringRulesPage() {
     if (userId === currentUser?.id) return '我';
     const other = users.find((u) => u.user_id === userId);
     return other ? other.display_name : '对方';
+  };
+
+  const invalidateRecurringFlow = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.recurringRules(activeLedgerId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(activeLedgerId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.settlements.root(activeLedgerId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reports.root(activeLedgerId) });
   };
 
   const getTodayString = () => {
@@ -169,6 +186,34 @@ export default function RecurringRulesPage() {
     },
   });
 
+  const confirmReminderMutation = useMutation({
+    mutationFn: (id: string) => transactionsApi.confirmReminder(id),
+    onSuccess: () => {
+      setSuccessMsg('周期账单已确认生成真实账单！');
+      invalidateRecurringFlow();
+      setTimeout(() => setSuccessMsg(null), 3000);
+    },
+    onError: (err: unknown) => {
+      const error = err as Error;
+      setErrorMsg(error.message || '确认周期账单失败');
+      setTimeout(() => setErrorMsg(null), 4000);
+    },
+  });
+
+  const skipReminderMutation = useMutation({
+    mutationFn: (id: string) => transactionsApi.skipReminder(id),
+    onSuccess: () => {
+      setSuccessMsg('已跳过本期周期账单提醒。');
+      invalidateRecurringFlow();
+      setTimeout(() => setSuccessMsg(null), 3000);
+    },
+    onError: (err: unknown) => {
+      const error = err as Error;
+      setErrorMsg(error.message || '跳过周期账单失败');
+      setTimeout(() => setErrorMsg(null), 4000);
+    },
+  });
+
   const onSubmit = (values: RuleFormValues) => {
     const amountCents = values.amount ? yuanToCents(values.amount) : undefined;
     const tags = values.tag_names
@@ -223,6 +268,89 @@ export default function RecurringRulesPage() {
         <div className="error-banner animate-fade-in" style={{ margin: '0 0 16px 0', borderRadius: '12px' }}>
           <AlertTriangle size={18} style={{ marginRight: '8px', flexShrink: 0 }} />
           <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {(isLoadingReminders || pendingReminders.length > 0) && (
+        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Calendar size={20} className="partner-highlight" />
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>待确认周期账单</h3>
+            </div>
+            <span className="dimmed-desc" style={{ fontSize: '12px' }}>
+              确认后才会生成真实账单；跳过只影响本期提醒。
+            </span>
+          </div>
+
+          {isLoadingReminders ? (
+            <div className="skeleton-item" style={{ height: '80px', borderRadius: '12px' }} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {pendingReminders.map((reminder) => (
+                <div
+                  key={reminder.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 1fr) auto',
+                    gap: '12px',
+                    alignItems: 'center',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.04)',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {reminder.rule_name}
+                      </span>
+                      <span style={{ fontSize: '11px', background: 'rgba(168,85,247,0.1)', color: 'var(--accent-purple)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.2)' }}>
+                        到期 {reminder.due_date}
+                      </span>
+                      <span className={`type-badge ${reminder.type === 'shared_expense' ? 'badge-shared' : reminder.type === 'income' ? 'badge-income' : 'badge-expense'}`}>
+                        {reminder.type === 'shared_expense' ? '共同支出' : reminder.type === 'income' ? '收入' : '支出'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      <span>金额: {reminder.amount_cents != null ? `¥${centsToYuan(reminder.amount_cents)}` : '未设定'}</span>
+                      {reminder.category_id && <span>分类: {catMap[reminder.category_id] || reminder.category_name || '加载中'}</span>}
+                      {reminder.payer_user_id && <span>付款人: {getUserDisplayName(reminder.payer_user_id)}</span>}
+                      {reminder.type === 'shared_expense' && (
+                        <span>分摊: {reminder.split_method === 'payer_only' ? '付款人全额' : '均等平分'}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <PermissionGate allow={['owner', 'editor']}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ padding: '8px 12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
+                        onClick={() => skipReminderMutation.mutate(reminder.id)}
+                      >
+                        <Ban size={14} />
+                        <span>跳过本期</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        style={{ padding: '8px 12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
+                        onClick={() => confirmReminderMutation.mutate(reminder.id)}
+                      >
+                        <CheckCircle2 size={14} />
+                        <span>确认入账</span>
+                      </button>
+                    </div>
+                  </PermissionGate>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

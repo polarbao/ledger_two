@@ -104,6 +104,9 @@ export const transactionsApi = {
   confirmReminder: (id: string) =>
     api.post<void>(`/api/recurring-reminders/${id}/confirm`, {}),
 
+  skipReminder: (id: string) =>
+    api.post<void>(`/api/recurring-reminders/${id}/skip`, {}),
+
   ignoreReminder: (id: string) =>
     api.post<void>(`/api/recurring-reminders/${id}/ignore`, {}),
 

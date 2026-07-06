@@ -176,6 +176,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Route("/recurring-reminders", func(r chi.Router) {
 					r.Get("/", transactionHandler.HandleListRecurringReminders)
 					r.Post("/{id}/confirm", transactionHandler.HandleConfirmReminder)
+					r.Post("/{id}/skip", transactionHandler.HandleIgnoreReminder)
 					r.Post("/{id}/ignore", transactionHandler.HandleIgnoreReminder)
 				})
 

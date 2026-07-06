@@ -1257,19 +1257,19 @@ export default function TransactionFormDrawer() {
           >
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-secondary mobile-full"
               style={{ marginRight: 'auto', borderColor: 'rgba(255, 255, 255, 0.12)' }}
               onClick={() => setIsSaveTmplOpen(true)}
               disabled={isOffline}
             >
               存为模板
             </button>
-            <button type="button" className="btn-secondary" onClick={handleClose}>
+            <button type="button" className="btn-secondary mobile-full" onClick={handleClose}>
               取消
             </button>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-secondary mobile-full"
               style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
               disabled={isSubmitting || createTxMutation.isPending || isOffline}
               onClick={() => {
@@ -1281,9 +1281,8 @@ export default function TransactionFormDrawer() {
             </button>
             <button
               type="submit"
-              className="btn-primary btn-submit"
+              className="btn-primary btn-submit mobile-full"
               style={{
-                width: 'auto',
                 padding: '10px 24px',
                 background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
                 border: 'none',
@@ -1345,17 +1344,17 @@ export default function TransactionFormDrawer() {
                 autoFocus
               />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary mobile-full"
                 onClick={() => setIsSaveTmplOpen(false)}
               >
                 取消
               </button>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn-primary mobile-full"
                 disabled={createTemplateMutation.isPending || !tmplName.trim()}
                 onClick={handleSaveAsTemplate}
               >
@@ -1443,10 +1442,10 @@ export default function TransactionFormDrawer() {
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary mobile-full"
                 onClick={() => setIsManageTmplOpen(false)}
               >
                 关闭
@@ -1611,14 +1610,14 @@ export default function TransactionFormDrawer() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary mobile-full"
                 onClick={() => setEditingTemplate(null)}
               >
                 取消
               </button>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn-primary mobile-full"
                 disabled={updateTemplateMutation.isPending || !editingTemplate.name.trim()}
                 onClick={handleUpdateTemplate}
               >

@@ -190,5 +190,7 @@ docker compose logs -f
 
 部署注意：
 
-1. 下一次 NAS 部署后，`GET http://192.168.0.115:38088/api/healthz` 应返回 `version=1.1.0-rc`、`db=ok`、`schema_version=12`。
-2. 若该接口仍返回 `version=0.2.0`，应优先判断 NAS 是否仍运行旧镜像或部署包未更新。
+1. 已于 2026-07-07 重新部署到 NAS，部署前备份数据库到 `/volume1/docker/ledger-two/backups/predeploy/ledger-predeploy-version-fix-20260707-125317.db`。
+2. 部署后 `GET http://192.168.0.115:38088/api/healthz` 返回 `version=1.1.0-rc`、`db=ok`、`schema_version=12`。
+3. 容器 `ledger-two` 状态为 `healthy`，端口映射仍为 `0.0.0.0:38088->8080/tcp`。
+4. 若后续该接口再次返回 `version=0.2.0`，应优先判断 NAS 是否运行了旧镜像或部署包未更新。

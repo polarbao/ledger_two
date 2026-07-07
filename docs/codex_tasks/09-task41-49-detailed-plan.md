@@ -267,5 +267,6 @@
 以下事项不属于单一业务 Task，但必须在 v1.1 冻结前完成或形成明确验收记录：
 
 - 健康检查版本口径：`GET /api/healthz` 返回 `version=1.1.0-rc`、`db` 和 `schema_version`，用于区分 NAS 是否运行最新候选版本。（代码、OpenAPI 和 NAS 部署验证已完成）
+- 前端质量门禁：`corepack pnpm test` 与 `corepack pnpm build` 已通过；主 JS chunk 大小警告进入后续性能优化，不阻断 v1.1 内测。
 - 移动端验收记录：补齐 375px/390px/430px 关键路径截图或手工验收记录，覆盖记账、筛选、结算复制、设置管理。
 - NAS 内测验收记录：完成登录、记账、附件、手动备份、系统诊断的浏览器内验证。

@@ -194,3 +194,5 @@ docker compose logs -f
 2. 部署后 `GET http://192.168.0.115:38088/api/healthz` 返回 `version=1.1.0-rc`、`db=ok`、`schema_version=12`。
 3. 容器 `ledger-two` 状态为 `healthy`，端口映射仍为 `0.0.0.0:38088->8080/tcp`。
 4. 若后续该接口再次返回 `version=0.2.0`，应优先判断 NAS 是否运行了旧镜像或部署包未更新。
+
+详细 v1.1 收口验证记录见 `docs/project_analysis/2026-07-07-v1.1-closure-validation.md`。

@@ -1,0 +1,58 @@
+{
+  "captured_at": "2026-07-07T09:36:07.442Z",
+  "login": {
+    "ok": true,
+    "status": 200
+  },
+  "url": "/transactions",
+  "cardCount": 8,
+  "cards": [
+    {
+      "text": "v1.1 ????????\n88.00\n????\n2026/7/7",
+      "category": "????",
+      "title": "v1.1 ????????"
+    },
+    {
+      "text": "v1.1 ????????\n24.68\n????\n2026/7/7",
+      "category": "????",
+      "title": "v1.1 ????????"
+    },
+    {
+      "text": "v1.1 UI accept shared expense 20260707091935\n66.00\n未分类\n2026/7/7",
+      "category": "未分类",
+      "title": "v1.1 UI accept shared expense 20260707091935"
+    },
+    {
+      "text": "v1.1 UI accept continue expense 20260707091935\n31.23\n未分类\n2026/7/7",
+      "category": "未分类",
+      "title": "v1.1 UI accept continue expense 20260707091935"
+    },
+    {
+      "text": "v1.1 UI accept continue expense 20260707091827\n31.23\n未分类\n2026/7/7",
+      "category": "未分类",
+      "title": "v1.1 UI accept continue expense 20260707091827"
+    },
+    {
+      "text": "v1.1 continue diagnostic 1783415859054\n12.34\n未分类\n2026/7/7",
+      "category": "未分类",
+      "title": "v1.1 continue diagnostic 1783415859054"
+    },
+    {
+      "text": "v1.1 UI accept continue expense 20260707091635\n31.23\n????\n2026/7/7",
+      "category": "????",
+      "title": "v1.1 UI accept continue expense 20260707091635"
+    },
+    {
+      "text": "v1.1 UI accept continue expense 20260707091107\n31.23\n????\n2026/7/7",
+      "category": "????",
+      "title": "v1.1 UI accept continue expense 20260707091107"
+    }
+  ],
+  "uuidInCards": false,
+  "uuidInBody": false,
+  "overflow": false,
+  "scrollWidth": 375,
+  "innerWidth": 375,
+  "bodyPrefix": "LedgerTwo\n交易明细流水\n\n在此您可以查看与维护 2026-07 账期内所有的普通收支及共享支出\n\n高级筛选\n批量管理\n已选择 0 笔账单\n批量打标签\nv1.1 ????????\n88.00\n????\n2026/7/7\nv1.1 ????????\n24.68\n????\n2026/7/7\nv1.1 UI accept shared expense 20260707091935\n66.00\n未分类\n2026/7/7\nv1.1 UI accept continue expense 20260707091935\n31.23\n未分类\n2026/7/7\nv1.1 UI accept continue expense 20260707091827\n31.23\n未分类\n2026/7/7\nv1.1 continue diagnostic 1783415859054\n12.34\n未分类\n2026/7/7\nv1.1 UI accept continue expense 20260707091635\n31.23\n????\n2026/7/7\nv1.1 UI accept continue expense 20260707091107\n31.23\n????\n2026/7/7\n当前页码：1\n上一页\n下一页\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+  "screenshot": "screenshots/06-transactions-card-category-after-fix.png"
+}

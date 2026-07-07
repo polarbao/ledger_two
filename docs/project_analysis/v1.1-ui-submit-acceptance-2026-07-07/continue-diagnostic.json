@@ -1,0 +1,27 @@
+{
+  "url": "/",
+  "drawerCount": 1,
+  "formCount": 1,
+  "amount": "",
+  "title": "",
+  "buttons": [
+    "退出登录",
+    "记一笔",
+    "管理模板",
+    "⚡ v1.1 ????",
+    "个人支出",
+    "个人收入",
+    "共同支出",
+    "对方可见 (只读)",
+    "仅自己可见 (Private)",
+    "存为模板",
+    "取消",
+    "保存并继续",
+    "确认记账"
+  ],
+  "body": "LedgerTwo\n欢迎回来，User A\n\n这是你们在 2026-07 账期的共享记账空间。\n\n记一笔\n本月总支出\n¥175.14\n包含个人及共同分摊消费\n本月总收入\n¥0.00\n个人独立录入的资金进账\n当月垫付与实际承担\n我 (User A)\n垫付 ¥175.14\n/\n承担 ¥131.14\n伙伴 (User B)\n垫付 ¥0.00\n/\n承担 ¥44.00\n全局未结余额 (跨月)\n\nUser B 需要向你支付\n\n¥44.00\n\n结账可抵扣净额，在结算中心生成记录即可。\n\n分类消费排行 (Top N)\n????\n¥175.14(100.0%)\n最近流水时间线 (Max 10)\n共享\nv1.1 ????????\n07-07 14:28 · 我付\n-¥88.00\n个人\nv1.1 ????????\n07-07 14:28 · 我付\n-¥24.68\n个人\nv1.1 UI accept continue expense 20260707091635\n07-07 08:00 · 我付\n-¥31.23\n个人\nv1.1 UI accept continue expense 20260707091107\n07-07 08:00 · 我付\n-¥31.23\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置\n记一笔账单\n使用模板快速填入\n管理模板\n-- 选择模板一键回填表单 --\nv1.1 ???? (支出)\n⚡ v1.1 ????\n账单类型\n个人支出\n个人收入\n共同支出\n交易金额 (元)\n¥\n账单标题\n所属分类\n-- 请选择分类 (选填) --\n餐饮美食\n交通出行\n购物娱乐\n生活缴费\n共同居住\n????\n支付账户\n-- 请选择账户 (选填) --\nUser A日常账户\nUser B日常账户\n????\n发生日期\n账单标签\n账单可见性\n对方可见 (只读)\n仅自己可见 (Private)\n交易备注\n图片附件与小票 (0/5)\n添加图片\n存为模板\n取消\n保存并继续\n确认记账",
+  "html": "\n    <div id=\"root\"><div class=\"app-shell\"><aside class=\"sidebar glass-card\"><div class=\"sidebar-brand\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-sparkles brand-logo\" aria-hidden=\"true\"><path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"></path><path d=\"M20 2v4\"></path><path d=\"M22 4h-4\"></path><circle cx=\"4\" cy=\"20\" r=\"2\"></circle></svg><span>LedgerTwo</span></div><div style=\"padding: 0px 1rem; margin-bottom: 1rem;\"><select style=\"width: 100%; padding: 0.5rem; border-radius: 8px; background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-primary);\"><option value=\"1c8ec09e-b662-4d96-a894-e455b88639a4\">LedgerTwo Local QA (owner)</option></select></div><nav class=\"sidebar-nav\"><a class=\"nav-item active\" href=\"/\" data-discover=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-layout-dashboard\" aria-hidden=\"true\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"></rect><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"></rect><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"></rect><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"></rect></svg><span>仪表盘</span></a><a class=\"nav-item \" href=\"/transactions\" data-discover=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-receipt-text\" aria-hidden=\"true\"><path d=\"M13 16H8\"></path><path d=\"M14 8H8\"></path><path d=\"M16 12H8\"></path><path d=\"M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z\"></path></svg><span>账单明细</span></a><a class=\"nav-item \" href=\"/settlement\" data-discover=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-dollar-sign\" aria-hidden=\"true\"><line x1=\"12\" x2=\"12\" y1=\"2\" y2=\"22\"></line><path d=\"M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6\"></path></svg><span>结算中心</span></a><a class=\"nav-item \" href=\"/analytics\" data-discover=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chart-column\" aria-hidden=\"true\"><path d=\"M3 3v16a2 2 0 0 0 2 2h16\"></path><path d=\"M18 17V9\"></path><path d=\"M13 17V5\"></path><path d=\"M8 17v-3\"></path></svg><span>分析统计</span></a><a class=\"nav-item \" href=\"/settings\" data-discover=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-settings\" aria-hidden=\"true\"><path d=\"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915\"></pat",
+  "overflow": false,
+  "sw": 375,
+  "iw": 375
+}

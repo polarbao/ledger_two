@@ -82,6 +82,7 @@ export default function TransactionFormDrawer() {
 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [submitAction, setSubmitAction] = useState<'close' | 'continue'>('close');
+  const submitActionRef = useRef<'close' | 'continue'>('close');
   const [isSaveTmplOpen, setIsSaveTmplOpen] = useState(false);
   const [tmplName, setTmplName] = useState('');
   const [isManageTmplOpen, setIsManageTmplOpen] = useState(false);
@@ -500,7 +501,7 @@ export default function TransactionFormDrawer() {
         localStorage.removeItem(LAST_TAGS_KEY);
       }
 
-      if (submitAction === 'continue') {
+      if (submitActionRef.current === 'continue') {
         setShowSuccessBanner(true);
         setTimeout(() => setShowSuccessBanner(false), 3000);
 
@@ -545,6 +546,11 @@ export default function TransactionFormDrawer() {
       return;
     }
     createTxMutation.mutate(values);
+  };
+
+  const setCurrentSubmitAction = (action: 'close' | 'continue') => {
+    submitActionRef.current = action;
+    setSubmitAction(action);
   };
 
   const handleClose = () => {
@@ -1261,7 +1267,7 @@ export default function TransactionFormDrawer() {
               style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
               disabled={isSubmitting || createTxMutation.isPending || isOffline}
               onClick={() => {
-                setSubmitAction('continue');
+                setCurrentSubmitAction('continue');
                 handleSubmit(onSubmit)();
               }}
             >
@@ -1280,7 +1286,7 @@ export default function TransactionFormDrawer() {
                 transition: 'all 0.2s',
               }}
               disabled={isSubmitting || createTxMutation.isPending}
-              onClick={() => setSubmitAction('close')}
+              onClick={() => setCurrentSubmitAction('close')}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 6px 20px rgba(168, 85, 247, 0.5)';
                 e.currentTarget.style.transform = 'translateY(-1px)';

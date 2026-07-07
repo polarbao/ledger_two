@@ -440,6 +440,7 @@ export default function TransactionsPage() {
                     <TransactionCard 
                       tx={tx} 
                       currentUserId={currentUser?.id || ''} 
+                      categoryName={tx.category_id ? catMap[tx.category_id] || '已设分类' : '未分类'}
                       onClick={() => { setSelectedTx(tx); setDetailOpen(true); }}
                     />
                   </div>

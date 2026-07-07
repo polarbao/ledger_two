@@ -1,0 +1,150 @@
+{
+  "stamp": "20260707091935",
+  "ordinaryTitle": "v1.1 UI accept continue expense 20260707091935",
+  "sharedTitle": "v1.1 UI accept shared expense 20260707091935",
+  "ordinaryLookup": {
+    "ok": true,
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": "f3079096-5042-4846-8cbe-590495613c29",
+          "type": "expense",
+          "title": "v1.1 UI accept continue expense 20260707091935",
+          "amount_cents": 3123,
+          "currency": "CNY",
+          "occurred_at": "2026-07-07T00:00:00Z",
+          "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "account_id": "d3b8e8bd-82e5-4091-bb64-b2aeb447a2a5",
+          "category_id": null,
+          "visibility": "partner_readable",
+          "note": "",
+          "status": "normal",
+          "tags": null,
+          "attachment_paths": [],
+          "created_at": "2026-07-07T17:19:41+08:00",
+          "updated_at": "2026-07-07T17:19:41+08:00"
+        }
+      ]
+    }
+  },
+  "sharedLookup": {
+    "ok": true,
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": "25a7df7c-ad7f-4999-b9ed-ed3ca314fbad",
+          "type": "shared_expense",
+          "title": "v1.1 UI accept shared expense 20260707091935",
+          "amount_cents": 6600,
+          "currency": "CNY",
+          "occurred_at": "2026-07-07T00:00:00Z",
+          "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "account_id": null,
+          "category_id": null,
+          "visibility": "shared",
+          "note": "",
+          "status": "normal",
+          "tags": null,
+          "split_method": "equal",
+          "participants": [
+            {
+              "user_id": "d4c393ae-1816-47df-882e-916143096834",
+              "share_amount_cents": 3300
+            },
+            {
+              "user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+              "share_amount_cents": 3300
+            }
+          ],
+          "attachment_paths": [],
+          "created_at": "2026-07-07T17:19:46+08:00",
+          "updated_at": "2026-07-07T17:19:46+08:00"
+        }
+      ]
+    }
+  },
+  "settlementLookup": {
+    "ok": true,
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "user_balances": [
+          {
+            "user_id": "d4c393ae-1816-47df-882e-916143096834",
+            "paid_cents": 15400,
+            "share_cents": 7700,
+            "raw_net_cents": 7700,
+            "settled_out_cents": 0,
+            "settled_in_cents": 0,
+            "settlement_net_cents": 0,
+            "final_net_cents": 7700,
+            "net_cents": 7700
+          },
+          {
+            "user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+            "paid_cents": 0,
+            "share_cents": 7700,
+            "raw_net_cents": -7700,
+            "settled_out_cents": 0,
+            "settled_in_cents": 0,
+            "settlement_net_cents": 0,
+            "final_net_cents": -7700,
+            "net_cents": -7700
+          }
+        ],
+        "suggested_transfers": [
+          {
+            "from_user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+            "to_user_id": "d4c393ae-1816-47df-882e-916143096834",
+            "amount_cents": 7700
+          }
+        ],
+        "user_a_paid_cents": 15400,
+        "user_a_share_cents": 7700,
+        "user_b_paid_cents": 0,
+        "user_b_share_cents": 7700,
+        "user_a_settled_to_b_cents": 0,
+        "user_b_settled_to_a_cents": 0,
+        "user_a_net_cents": 7700,
+        "user_b_net_cents": -7700,
+        "from_user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+        "to_user_id": "d4c393ae-1816-47df-882e-916143096834",
+        "amount_cents": 7700
+      }
+    }
+  },
+  "afterContinue": {
+    "drawerOpen": true,
+    "amount": null,
+    "title": null,
+    "text": "LedgerTwo\n欢迎回来，User A\n\n这是你们在 2026-07 账期的共享记账空间。\n\n记一笔\n本月总支出\n¥249.94\n包含个人及共同分摊消费\n本月总收入\n¥0.00\n个人独立录入的资金进账\n当月垫付与实际承担\n我 (User A)\n垫付 ¥249.94\n/\n承担 ¥205.94\n伙伴 (User B)\n垫付 ¥0.00\n/\n承担 ¥44.00\n全局未结余额 (跨月)\n\nUser B 需要向你支付\n\n¥44.00\n\n结账可抵扣净额，在结算中心生成记录即可。\n\n分类消费排行 (Top N)\n????\n¥175.14(70.1%)\n未分类消费\n¥74.80(29.9%)\n最近流水时间线 (Max 10)\n共享\nv1.1 ????????\n07-07 14:28 · 我付\n-¥88.00\n个人\nv1.1 ????????\n07-07 14:28 · 我付\n-¥24.68\n个人\nv1.1 UI accept continue expense 20260707091935\n07-07 08:00 · 我付\n-¥31.23\n个人\nv1.1 UI accept continue expense 20260707091827\n07-07 08:00 · 我付\n-¥31.23\n个人\nv1.1 continue diagnostic 1783415859054\n07-07 08:00 · 我付\n-¥12.34\n个人\nv1.1 UI accept continue expense 20260707091635\n07-07 08:00 · 我付\n-¥31.23\n个人\nv1.1 UI accept continue expense 20260707091107\n07-07 08:00 · 我付\n-¥31.23\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置\n记一笔账单\n账单已成功保存！您可以继续录入下一笔。\n使用模板快速填入\n管理模板\n-- 选择模板一键回填表单 --\nv1.1 ???? (支出)\n⚡ v1.1 ????\n账单类型\n个人支出\n个人收入\n共同支出\n交易金额 (元)\n¥\n账单标题\n所属分类\n-- 请选择分类 (选填) --\n餐饮美食\n交通出行\n购物娱乐\n生活缴费\n共同居住\n????\n支付账户\n-- 请选择账户 (选填) --\nUser A日常账户\nUser B日常账户\n????\n发生日期\n账单标签\n账单可见性\n对方可见 (只读)\n仅自己可见 (Private)\n交易备注\n图片附件与小票 (0/5)\n添加图片\n存为模板\n取消\n保存并继续\n确认记账",
+    "overflow": false,
+    "scrollWidth": 375,
+    "innerWidth": 375
+  },
+  "afterShared": {
+    "drawerOpen": false,
+    "amount": null,
+    "title": null,
+    "text": "LedgerTwo\n欢迎回来，User A\n\n这是你们在 2026-07 账期的共享记账空间。\n\n记一笔\n本月总支出\n¥315.94\n包含个人及共同分摊消费\n本月总收入\n¥0.00\n个人独立录入的资金进账\n当月垫付与实际承担\n我 (User A)\n垫付 ¥315.94\n/\n承担 ¥238.94\n伙伴 (User B)\n垫付 ¥0.00\n/\n承担 ¥77.00\n全局未结余额 (跨月)\n\nUser B 需要向你支付\n\n¥77.00\n\n结账可抵扣净额，在结算中心生成记录即可。\n\n分类消费排行 (Top N)\n????\n¥175.14(55.4%)\n未分类消费\n¥140.80(44.6%)\n最近流水时间线 (Max 10)\n共享\nv1.1 ????????\n07-07 14:28 · 我付\n-¥88.00\n个人\nv1.1 ????????\n07-07 14:28 · 我付\n-¥24.68\n共享\nv1.1 UI accept shared expense 20260707091935\n07-07 08:00 · 我付\n-¥66.00\n个人\nv1.1 UI accept continue expense 20260707091935\n07-07 08:00 · 我付\n-¥31.23\n个人\nv1.1 UI accept continue expense 20260707091827\n07-07 08:00 · 我付\n-¥31.23\n个人\nv1.1 continue diagnostic 1783415859054\n07-07 08:00 · 我付\n-¥12.34\n个人\nv1.1 UI accept continue expense 20260707091635\n07-07 08:00 · 我付\n-¥31.23\n个人\nv1.1 UI accept continue expense 20260707091107\n07-07 08:00 · 我付\n-¥31.23\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "overflow": false,
+    "scrollWidth": 375,
+    "innerWidth": 375
+  },
+  "screenshots": [
+    "screenshots/01-drawer-open.png",
+    "screenshots/02-ordinary-before-continue.png",
+    "screenshots/03-after-save-continue.png",
+    "screenshots/04-shared-before-submit.png",
+    "screenshots/05-transactions-after-submit.png"
+  ]
+}

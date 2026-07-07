@@ -19,6 +19,7 @@
 12-foundation-framework-ui.md Foundation before v1.1 UI
 13-settings-management-redesign.md 设置管理重构
 14-v1.1-v1.2-module-flows.md  v1.1-v1.2 模块流程细化
+15-ledgertwo-ux-optimization-program.md LedgerTwo 长期 UI/UX 专项
 ```
 
 ## 设计原则
@@ -35,3 +36,4 @@
 1. `12-foundation-framework-ui.md`
 2. `13-settings-management-redesign.md`
 3. `14-v1.1-v1.2-module-flows.md`
+4. `15-ledgertwo-ux-optimization-program.md`

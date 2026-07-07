@@ -205,13 +205,13 @@ v1.1 不追求大功能扩张，而是围绕可信赖、高频、清晰、可维
 
 - [ ] 普通支出 10 秒内完成。
 - [ ] 共同支出 20 秒内完成。
-- [ ] 复制一笔不修改原账单。
-- [ ] 模板不进入统计。
+- [x] 复制一笔不修改原账单。证据：`docs/project_analysis/v1.1-copy-template-acceptance-2026-07-07/`
+- [x] 模板不进入统计。证据：`docs/project_analysis/v1.1-copy-template-acceptance-2026-07-07/`
 - [ ] 周期账单确认后才入账。
 - [ ] 分类/标签/账户可归档恢复。
 - [ ] 历史账单保留归档项展示。
-- [ ] 结算页可复制结算文案。
-- [ ] 移动端 375px 无横向滚动。
+- [x] 结算页可复制结算文案。证据：`docs/project_analysis/v1.1-settlement-acceptance-2026-07-07/`
+- [x] 移动端 375px 无横向滚动。证据：`docs/project_analysis/v1.1-local-acceptance-2026-07-07/`、`docs/project_analysis/v1.1-ui-submit-acceptance-2026-07-07/`、`docs/project_analysis/v1.1-copy-template-acceptance-2026-07-07/`、`docs/project_analysis/v1.1-settlement-acceptance-2026-07-07/`
 - [ ] viewer 看不到写入按钮，后端也拒绝写入。
 
 ## 9. 风险

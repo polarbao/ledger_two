@@ -1,0 +1,195 @@
+{
+  "captured_at": "2026-07-07T10:55:36.578Z",
+  "login": {
+    "ok": true,
+    "status": 200
+  },
+  "titles": {
+    "sourceTitle": "v1.1 copy source 20260707105508",
+    "copiedTitle": "v1.1 copied bill 20260707105508",
+    "templateName": "v1.1 template 20260707105508",
+    "templatedTitle": "v1.1 template bill 20260707105508"
+  },
+  "sourceCreate": {
+    "ok": true,
+    "status": 201,
+    "id": "cde257a3-de9a-463b-80eb-20c25ca55591",
+    "amount_cents": 2356
+  },
+  "copyFlow": {
+    "openedForCopy": {
+      "ok": true,
+      "cardText": "v1.1 copy source 20260707105508\n23.56\n未分类\n2026/7/7"
+    },
+    "detailState": {
+      "hasDetail": true,
+      "buttons": [
+        "退出登录",
+        "高级筛选",
+        "批量管理",
+        "清空筛选",
+        "应用筛选",
+        "批量打标签",
+        "删除",
+        "上一页",
+        "下一页",
+        "删除账单",
+        "存为模板",
+        "复制一笔"
+      ],
+      "overflow": false,
+      "scrollWidth": 375,
+      "innerWidth": 375
+    },
+    "clickedCopy": true,
+    "copyDrawer": {
+      "hasCopyBanner": true,
+      "hasSaveNewButton": true,
+      "title": "v1.1 copy source 20260707105508",
+      "amount": "23.56",
+      "overflow": false,
+      "scrollWidth": 375,
+      "innerWidth": 375
+    },
+    "savedCopy": {
+      "ok": true
+    },
+    "copiedCount": 1,
+    "copiedLatest": {
+      "id": "8eb0fc90-186b-45bd-8b53-8f48d9afaaa0",
+      "type": "expense",
+      "title": "v1.1 copied bill 20260707105508",
+      "amount_cents": 2356,
+      "currency": "CNY",
+      "occurred_at": "2026-07-07T00:00:00Z",
+      "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "account_id": null,
+      "category_id": null,
+      "visibility": "partner_readable",
+      "note": "copy/template acceptance source",
+      "status": "normal",
+      "tags": [
+        "v11-copy"
+      ],
+      "attachment_paths": [],
+      "created_at": "2026-07-07T18:55:14+08:00",
+      "updated_at": "2026-07-07T18:55:14+08:00"
+    },
+    "sourceAfterCount": 1,
+    "sourceAfterLatest": {
+      "id": "cde257a3-de9a-463b-80eb-20c25ca55591",
+      "type": "expense",
+      "title": "v1.1 copy source 20260707105508",
+      "amount_cents": 2356,
+      "currency": "CNY",
+      "occurred_at": "2026-07-07T10:55:08Z",
+      "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "account_id": null,
+      "category_id": null,
+      "visibility": "partner_readable",
+      "note": "copy/template acceptance source",
+      "status": "normal",
+      "tags": [
+        "v11-copy"
+      ],
+      "attachment_paths": [],
+      "created_at": "2026-07-07T18:55:08+08:00",
+      "updated_at": "2026-07-07T18:55:08+08:00"
+    }
+  },
+  "templateFlow": {
+    "openedForTemplate": {
+      "ok": true,
+      "cardText": "v1.1 copy source 20260707105508\n23.56\n未分类\n2026/7/7"
+    },
+    "clickedSaveTemplate": true,
+    "templateModalBefore": {
+      "hasModal": true,
+      "defaultName": "v1.1 copy source 20260707105508模板",
+      "overflow": false,
+      "scrollWidth": 375,
+      "innerWidth": 375
+    },
+    "templateSaved": {
+      "ok": true
+    },
+    "templateCount": 3,
+    "savedTemplate": {
+      "id": "47f3ac23-f462-47f7-9cd5-2543d71a4716",
+      "name": "v1.1 template 20260707105508",
+      "type": "expense",
+      "title": "v1.1 copy source 20260707105508",
+      "amount_cents": 2356,
+      "category_id": "",
+      "account_id": "",
+      "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "split_method": "equal",
+      "tag_names": [
+        "v11-copy"
+      ],
+      "note": "copy/template acceptance source",
+      "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "is_archived": false,
+      "created_at": "2026-07-07T18:55:23+08:00",
+      "updated_at": "2026-07-07T18:55:23+08:00"
+    },
+    "clickedAdd": true,
+    "templateApplied": {
+      "ok": true,
+      "selectedText": "v1.1 template 20260707105508 (支出)"
+    },
+    "afterTemplateApply": {
+      "hasTemplateName": true,
+      "title": "v1.1 copy source 20260707105508",
+      "amount": "23.56",
+      "overflow": false,
+      "scrollWidth": 375,
+      "innerWidth": 375
+    },
+    "savedTemplated": {
+      "ok": true
+    },
+    "templatedCount": 1,
+    "templatedLatest": {
+      "id": "c4ef0f79-e946-4aad-bde8-816d184209fa",
+      "type": "expense",
+      "title": "v1.1 template bill 20260707105508",
+      "amount_cents": 2356,
+      "currency": "CNY",
+      "occurred_at": "2026-07-07T00:00:00Z",
+      "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "account_id": null,
+      "category_id": null,
+      "visibility": "partner_readable",
+      "note": "copy/template acceptance source",
+      "status": "normal",
+      "tags": [
+        "v11-copy"
+      ],
+      "attachment_paths": [],
+      "created_at": "2026-07-07T18:55:30+08:00",
+      "updated_at": "2026-07-07T18:55:30+08:00"
+    },
+    "templateNameTransactionCount": null
+  },
+  "finalUi": {
+    "bodyHasTemplatedTitle": true,
+    "overflow": false,
+    "scrollWidth": 375,
+    "innerWidth": 375,
+    "textPrefix": "LedgerTwo\n交易明细流水\n\n在此您可以查看与维护 2026-07 账期内所有的普通收支及共享支出\n\n高级筛选\n批量管理\n已选择 0 笔账单\n批量打标签\nv1.1 template bill 20260707105508\n23.56\n未分类\n2026/7/7\n当前页码：1\n上一页\n下一页\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置"
+  },
+  "screenshots": [
+    "screenshots/01-source-detail.png",
+    "screenshots/02-copy-drawer.png",
+    "screenshots/03-template-save-modal.png",
+    "screenshots/04-template-applied.png",
+    "screenshots/05-templated-transaction-list.png"
+  ]
+}

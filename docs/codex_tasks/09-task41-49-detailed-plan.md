@@ -12,6 +12,7 @@
 3. 对应模块 PRD
 4. `docs/tech/18-short-mid-architecture-slices.md`
 5. `docs/ui/14-v1.1-v1.2-module-flows.md`
+6. Task47-Task49 额外读取 `docs/tech/20-v1.2-import-implementation-contract.md`
 
 ## 2. Task41：快捷记账默认值
 
@@ -186,31 +187,37 @@
 
 - v1.1 完成。
 - 分类、标签、账户管理稳定。
+- `docs/tech/20-v1.2-import-implementation-contract.md` 已确认 API 迁移策略、状态机和 DTO。
 
 开发范围：
 
-- 微信/支付宝/通用 CSV parser。
-- 上传并生成预览批次。
-- 字段映射。
-- 错误行展示。
+- 新建或整理 `internal/importer`，旧 `/api/transactions/import/*` 仅作为 transitional 兼容入口。
+- 实现 `/api/imports/preview`，上传并生成 `ready` 预览批次。
+- 微信/支付宝/通用 CSV parser 与 normalizer。
+- 字段映射、金额转整数分、时间标准化。
+- 行级状态和错误展示。
 
 完成标准：
 
 - 预览不写 transactions。
 - 金额转整数分。
 - 错误提示包含行号和原因。
+- invalid 行不得进入可提交状态。
+- owner 以外角色默认不可预览导入。
 
 验证：
 
 - parser fixture test。
 - 上传预览 API test。
 - 前端预览页测试。
+- 375px 预览卡片或核心字段视图无横向滚动。
 
 ## 9. Task48：导入去重与事务落库
 
 依赖：
 
 - Task47 完成。
+- import_hash 存储方案定案：新增 `transactions.import_hash` 或独立映射表二选一。
 
 开发范围：
 
@@ -218,41 +225,50 @@
 - duplicate/suspicious/invalid 状态。
 - commit 事务落库。
 - import batch 结果页。
+- audit log 写入。
 
 完成标准：
 
 - 同一文件重复导入不重复。
 - 任一必需行失败整批回滚。
 - 审计日志记录导入提交。
+- duplicate 默认跳过。
+- suspicious 必须用户明确确认导入或跳过。
+- 转账类默认 skipped 或 unknown，不自动写入正式账单。
 
 验证：
 
 - dedupe service test。
 - transaction rollback test。
 - 重复导入手工验证。
+- Case I02/I03/I04 全覆盖。
 
 ## 10. Task49：导入规则
 
 依赖：
 
 - Task48 完成。
+- 分类、标签、账户归档规则稳定。
 
 开发范围：
 
-- 导入规则 CRUD。
+- 导入规则 CRUD、归档、恢复。
 - 预览页规则命中。
 - 用户手工调整优先。
+- 引用已归档元数据时阻止静默应用。
 
 完成标准：
 
 - 规则只推荐，不自动提交。
 - 禁用规则后不再命中。
 - 手工修改不被规则覆盖。
+- 规则命中记录可在预览行看到，方便解释分类来源。
 
 验证：
 
 - rule matching test。
 - 前端预览页调整测试。
+- 归档规则和归档元数据回归测试。
 
 ## 11. 禁止混入
 

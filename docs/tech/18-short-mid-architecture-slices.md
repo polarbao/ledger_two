@@ -129,6 +129,8 @@ import_rules
 - updated_at
 ```
 
+说明：v1.2 导入模块的最终字段、索引、状态机、DTO、API 迁移和回滚策略以 `docs/tech/20-v1.2-import-implementation-contract.md` 为准。本文保留高层切片，不替代 Task47-Task49 的实施契约。
+
 ## 4. API 切片
 
 ### 4.1 v1.1 API
@@ -171,6 +173,8 @@ POST   /api/import-rules
 PATCH  /api/import-rules/{id}
 POST   /api/import-rules/{id}/archive
 ```
+
+说明：当前代码中仍存在早期 `/api/transactions/import/*` 接口。v1.2 新开发以 `/api/imports/*` 为目标契约，旧接口只作为 transitional 兼容入口，不应继续承载新增业务逻辑。
 
 ## 5. 服务层边界
 
@@ -237,4 +241,3 @@ Query key 必须包含 ledger id，避免跨账本缓存污染。
 - 周期账单若有问题，关闭 pending 生成，不影响已确认账单。
 - 导入若有问题，关闭 commit 入口，保留 preview 只读能力。
 - 不允许通过修改历史 migration 回滚，必须新增 migration 修正。
-

@@ -93,6 +93,10 @@
 | import/export/backup | IMPORT_FILE_INVALID | 400 | 导入文件格式不支持 |
 | import/export/backup | IMPORT_DUPLICATE_ITEM | 409 | 导入项重复 |
 | import/export/backup | IMPORT_PREVIEW_EXPIRED | 409 | 导入预览已过期 |
+| import/export/backup | IMPORT_BATCH_NOT_FOUND | 404 | 导入批次不存在或对当前用户不可见 |
+| import/export/backup | IMPORT_ROW_INVALID | 400 | 导入行必需字段缺失、金额或时间无法解析 |
+| import/export/backup | IMPORT_ROW_REQUIRES_CONFIRMATION | 409 | suspicious 行尚未由用户确认导入或跳过 |
+| import/export/backup | IMPORT_COMMIT_CONFLICT | 409 | 导入批次状态不允许提交、已提交或已过期 |
 
 ## 3. Details 字段
 

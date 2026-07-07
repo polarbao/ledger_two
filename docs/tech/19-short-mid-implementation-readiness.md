@@ -5,11 +5,11 @@
 
 ## 1. 结论
 
-当前短中期产品模块已经足够进入分阶段开发。截至 2026-07-06，Foundation before v1.1 的 Task33-Task40 已补齐基础冻结能力，可以进入 v1.1 中期任务。正确顺序是：
+当前短中期产品模块已经足够进入分阶段开发。截至 2026-07-07，Foundation before v1.1 的 Task33-Task40 已补齐基础冻结能力，v1.1 代码已进入收口验收阶段，v1.2 文档已补齐导入实施契约。正确顺序是：
 
 1. 先做 v1.1 分类、标签、账户管理体验收口。
 2. 再进入快捷记账、模板、周期账单、结算解释和移动端优化。
-3. 最后进入 v1.2 导入能力。
+3. v1.1 冻结后进入 v1.2 导入能力。
 
 原因：
 
@@ -23,9 +23,10 @@
 | 项目 | 状态 |
 |---|---|
 | Foundation Task31-Task40 | 完成 |
-| NAS 内测部署 | 可进行 |
-| v1.1 开发冻结 | 可进入 |
-| 中期当前入口 | Task44 分类、标签、账户管理体验 |
+| NAS 内测部署 | 已具备部署基础，仍需 v1.1 最终复核 |
+| v1.1 开发冻结 | 可继续收口，暂不建议直接冻结 |
+| v1.1 当前入口 | UI 实际提交、附件/备份、NAS 复核 |
+| v1.2 文档状态 | 产品/UI/技术方向闭环；实施契约已补齐 |
 
 ## 2. 文档充分性判断
 
@@ -39,6 +40,7 @@
 - `docs/prd/27-acceptance-case-matrix.md`
 - `docs/prd/28-transaction-caliber-supplement.md`
 - `docs/tech/18-short-mid-architecture-slices.md`
+- `docs/tech/20-v1.2-import-implementation-contract.md`
 - `docs/ui/14-v1.1-v1.2-module-flows.md`
 - `docs/codex_tasks/09-task41-49-detailed-plan.md`
 - `docs/codex_tasks/10-task33-40-detailed-plan.md`
@@ -53,6 +55,7 @@
 - 测试方向。
 - 冻结验收样例。
 - 退款、报销、转账和账户口径。
+- v1.2 导入的 API 迁移策略、状态机、DTO、权限、数据模型、任务完成标准和回滚策略。
 
 ### 2.2 仍需在实施中补齐
 
@@ -60,11 +63,11 @@
 
 | 缺口 | 处理方式 |
 |---|---|
-| 精确 migration 字段、索引、唯一约束 | 每个涉及数据模型的任务新增 migration 设计说明 |
-| API request/response DTO | 每个任务更新 OpenAPI 或 API contract |
+| 精确 migration 字段、索引、唯一约束 | v1.2 已在 `docs/tech/20-v1.2-import-implementation-contract.md` 给出建议，具体任务仍需随 migration 定案 |
+| API request/response DTO | v1.2 已补标准 DTO，具体实现仍需更新 OpenAPI |
 | service/repository 接口 | 在任务实现中随代码明确，不提前写死 |
 | 测试 fixture | 跟随后端测试和前端测试落地 |
-| feature flag 或入口关闭策略 | 涉及 v1.1/v1.2 新入口时补充 |
+| feature flag 或入口关闭策略 | v1.2 已明确 preview/commit/rule 分层关闭策略；具体代码实现时补入口开关 |
 | 迁移回滚方案 | 每个 migration 任务给出修正策略，不修改历史 migration |
 
 ## 3. 推荐执行顺序

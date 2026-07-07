@@ -21,6 +21,7 @@
 17-data-migration-test-quality.md 数据迁移、测试与质量门禁
 18-short-mid-architecture-slices.md 短中期模块架构切片
 19-short-mid-implementation-readiness.md 短中期实施就绪评审
+20-v1.2-import-implementation-contract.md v1.2 导入模块实施契约
 ```
 
 ## 技术原则
@@ -40,3 +41,4 @@ Task30 后的技术规划建议优先阅读：
 2. `13-foundation-framework-before-v1.1.md`
 3. `18-short-mid-architecture-slices.md`
 4. `19-short-mid-implementation-readiness.md`
+5. `20-v1.2-import-implementation-contract.md`（进入 Task47-Task49 前必读）

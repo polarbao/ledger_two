@@ -1856,6 +1856,36 @@ button {
   padding: 24px;
 }
 
+.settlement-copy-fallback {
+  width: 100%;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  background: rgba(239, 68, 68, 0.06);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: left;
+}
+
+.settlement-copy-fallback .fallback-title {
+  margin-bottom: 8px;
+  color: #fecaca;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settlement-copy-fallback textarea {
+  width: 100%;
+  min-height: 128px;
+  resize: vertical;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(10, 12, 16, 0.62);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 /* ==========================================
    Task 08: 前端状态、错误态与高风险确认统一 样式
    ========================================== */

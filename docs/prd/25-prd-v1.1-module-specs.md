@@ -6,7 +6,7 @@
 
 ## 1. 快捷记账模块
 
-当前实现状态：已完成服务端默认值持久化、`GET /api/transaction-defaults` 读取、表单默认值回填、普通账单账户选择与保存并继续记基础逻辑；待补 375px 移动端浏览器验收和金额输入细节复核。
+当前实现状态：已完成服务端默认值持久化、`GET /api/transaction-defaults` 读取、表单默认值回填、普通账单账户选择、保存并继续记、金额输入移动端优化和 375px 真实 UI 提交验收；验收证据见 `docs/project_analysis/v1.1-ui-submit-acceptance-2026-07-07/`。
 
 ### 1.1 目标
 
@@ -157,6 +157,8 @@
 - 归档分类后，历史账单仍正常显示。
 
 ## 5. 结算可解释性模块
+
+当前实现状态：已完成结算余额解释字段、结算页 paid/share/raw_net/settlement/final_net 展示、影响明细入口、复制结算文案、剪贴板失败手动复制兜底、登记结算和当期历史记录真实 UI 验收；验收证据见 `docs/project_analysis/v1.1-settlement-acceptance-2026-07-07/`。
 
 ### 5.1 目标
 

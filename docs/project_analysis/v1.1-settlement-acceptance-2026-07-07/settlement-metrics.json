@@ -1,0 +1,198 @@
+{
+  "captured_at": "2026-07-07T10:20:57.041Z",
+  "login": {
+    "ok": true,
+    "status": 200
+  },
+  "setupSharedExpense": {
+    "created": true,
+    "response": {
+      "ok": true,
+      "status": 201,
+      "body": {
+        "success": true,
+        "data": {
+          "id": "66d7c097-b70c-4aa0-937d-519e7119d5e3",
+          "type": "shared_expense",
+          "title": "v1.1 settlement accept shared 20260707102048",
+          "amount_cents": 8888,
+          "currency": "CNY",
+          "occurred_at": "2026-07-07T10:20:48Z",
+          "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "account_id": null,
+          "category_id": null,
+          "visibility": "shared",
+          "note": "settlement acceptance setup",
+          "status": "",
+          "tags": [],
+          "split_method": "equal",
+          "participants": [
+            {
+              "user_id": "d4c393ae-1816-47df-882e-916143096834",
+              "share_amount_cents": 4444
+            },
+            {
+              "user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+              "share_amount_cents": 4444
+            }
+          ],
+          "attachment_paths": [],
+          "created_at": "0001-01-01T00:00:00Z",
+          "updated_at": "0001-01-01T00:00:00Z"
+        }
+      }
+    }
+  },
+  "balanceBefore": {
+    "user_balances": [
+      {
+        "user_id": "d4c393ae-1816-47df-882e-916143096834",
+        "paid_cents": 24288,
+        "share_cents": 12144,
+        "raw_net_cents": 12144,
+        "settled_out_cents": 0,
+        "settled_in_cents": 7700,
+        "settlement_net_cents": -7700,
+        "final_net_cents": 4444,
+        "net_cents": 4444
+      },
+      {
+        "user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+        "paid_cents": 0,
+        "share_cents": 12144,
+        "raw_net_cents": -12144,
+        "settled_out_cents": 7700,
+        "settled_in_cents": 0,
+        "settlement_net_cents": 7700,
+        "final_net_cents": -4444,
+        "net_cents": -4444
+      }
+    ],
+    "suggested_transfers": [
+      {
+        "from_user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+        "to_user_id": "d4c393ae-1816-47df-882e-916143096834",
+        "amount_cents": 4444
+      }
+    ],
+    "user_a_paid_cents": 24288,
+    "user_a_share_cents": 12144,
+    "user_b_paid_cents": 0,
+    "user_b_share_cents": 12144,
+    "user_a_settled_to_b_cents": 0,
+    "user_b_settled_to_a_cents": 7700,
+    "user_a_net_cents": 4444,
+    "user_b_net_cents": -4444,
+    "from_user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+    "to_user_id": "d4c393ae-1816-47df-882e-916143096834",
+    "amount_cents": 4444
+  },
+  "beforeUi": {
+    "url": "/settlement",
+    "overflow": false,
+    "scrollWidth": 375,
+    "innerWidth": 375,
+    "buttons": [
+      "退出登录",
+      "复制文案",
+      "登记结算"
+    ],
+    "textPrefix": "LedgerTwo\n结算中心\n\n在此进行双人债务清偿轧差与结账补款。\n\n当前待结账目\nUser B\n我\n对方需要向您转账汇款的差额。\n¥44.44\n复制文案\n登记结算\n我 (我) 的对账单\n累计实际垫付\n¥242.88\n累计应承担消费\n¥121.44\n共同消费原始净额\n+¥121.44\n已结算影响\n-¥77.00\n最终应收/应付净额\n+¥44.44 (应收)\nUser B (对方) 的对账单\n累计实际垫付\n¥0.00\n累计应承担消费\n¥121.44\n共同消费原始净额\n-¥121.44\n已结算影响\n+¥77.00\n最终应收/应付净额\n-¥44.44 (应付)\n影响结算的共同支出明细\n查看明细\n\n共同支出会进入 paid/share/raw_net 计算；已登记的结算记录只影响 settlement/final_net，不会修改这些历史账单。\n\n当期结算流水历史 (2026-07)\n结算\nUser B ➔ 我\n07-07 18:16\n¥77.00\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置"
+  },
+  "copy": {
+    "forcedClipboardFailure": true,
+    "clickedCopy": true,
+    "bodyIncludesCopied": false,
+    "bodyIncludesCopyFail": true,
+    "hasFallback": true,
+    "fallbackPrefix": "【LedgerTwo 结算】2026-07\nUser B 需转给 我 ¥44.44\n\n对账拆解：\n我: paid ¥242.88 / share ¥121.44 / raw +¥121.44 / settlement -¥77.00 / final +¥44.44 应收\nUser B: paid ¥0.00 / share ¥121.44 / raw -¥121.44 / settlement +¥77.00 / final -¥44.44 应付",
+    "fallbackHasMonth": true,
+    "fallbackHasAmount": true,
+    "overflow": false,
+    "scrollWidth": 375,
+    "innerWidth": 375
+  },
+  "modal": {
+    "clickedRegister": true,
+    "hasModal": true,
+    "hasAmount": true,
+    "overflow": false,
+    "scrollWidth": 375,
+    "innerWidth": 375
+  },
+  "createSettlement": {
+    "confirmed": true,
+    "note": "v1.1 settlement acceptance 1783419654425"
+  },
+  "balanceAfter": {
+    "user_balances": [
+      {
+        "user_id": "d4c393ae-1816-47df-882e-916143096834",
+        "paid_cents": 24288,
+        "share_cents": 12144,
+        "raw_net_cents": 12144,
+        "settled_out_cents": 0,
+        "settled_in_cents": 12144,
+        "settlement_net_cents": -12144,
+        "final_net_cents": 0,
+        "net_cents": 0
+      },
+      {
+        "user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+        "paid_cents": 0,
+        "share_cents": 12144,
+        "raw_net_cents": -12144,
+        "settled_out_cents": 12144,
+        "settled_in_cents": 0,
+        "settlement_net_cents": 12144,
+        "final_net_cents": 0,
+        "net_cents": 0
+      }
+    ],
+    "suggested_transfers": null,
+    "user_a_paid_cents": 24288,
+    "user_a_share_cents": 12144,
+    "user_b_paid_cents": 0,
+    "user_b_share_cents": 12144,
+    "user_a_settled_to_b_cents": 0,
+    "user_b_settled_to_a_cents": 12144,
+    "user_a_net_cents": 0,
+    "user_b_net_cents": 0,
+    "from_user_id": "",
+    "to_user_id": "",
+    "amount_cents": 0
+  },
+  "historyAfter": {
+    "ok": true,
+    "count": 2,
+    "latest": {
+      "id": "f8e0e9d2-4425-4fe7-a47b-cf56a9c6b4fd",
+      "from_user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+      "to_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "amount_cents": 4444,
+      "currency": "CNY",
+      "occurred_at": "2026-07-07T10:20:54Z",
+      "note": "v1.1 settlement acceptance 1783419654425",
+      "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "created_at": "2026-07-07T18:20:54+08:00"
+    },
+    "containsNote": true
+  },
+  "afterUi": {
+    "hasSettledState": true,
+    "hasHistory": true,
+    "hasNote": true,
+    "overflow": false,
+    "scrollWidth": 375,
+    "innerWidth": 375,
+    "textPrefix": "LedgerTwo\n结算中心\n\n在此进行双人债务清偿轧差与结账补款。\n\n账目已完全结清\n\n本期共享记账对账单无任何未结欠款，继续保持吧！\n\n我 (我) 的对账单\n累计实际垫付\n¥242.88\n累计应承担消费\n¥121.44\n共同消费原始净额\n+¥121.44\n已结算影响\n-¥121.44\n最终应收/应付净额\n¥0.00 (已结清)\nUser B (对方) 的对账单\n累计实际垫付\n¥0.00\n累计应承担消费\n¥121.44\n共同消费原始净额\n-¥121.44\n已结算影响\n+¥121.44\n最终应收/应付净额\n¥0.00 (已结清)\n影响结算的共同支出明细\n查看明细\n\n共同支出会进入 paid/share/raw_net 计算；已登记的结算记录只影响 settlement/final_net，不会修改这些历史账单。\n\n当期结算流水历史 (2026-07)\n结算\nUser B ➔ 我\n07-07 18:20 · 备注: v1.1 settlement acceptance 1783419654425\n¥44.44\n结算\nUser B ➔ 我\n07-07 18:16\n¥77.00\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置"
+  },
+  "screenshots": [
+    "screenshots/01-settlement-before.png",
+    "screenshots/02-after-copy-fallback.png",
+    "screenshots/03-confirm-modal.png",
+    "screenshots/04-after-settlement.png"
+  ]
+}

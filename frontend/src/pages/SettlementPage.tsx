@@ -29,6 +29,7 @@ export default function SettlementPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [note, setNote] = useState('');
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [copyFallbackText, setCopyFallbackText] = useState<string | null>(null);
 
   // 1. 获取结算轧差详情 (Balance)
   const { data: balance, isLoading: isBalanceLoading, isError: isBalanceError, error: balanceError, refetch: refetchBalance } = useQuery({
@@ -126,6 +127,7 @@ export default function SettlementPage() {
 
   const handleCopySettlementText = async (transfer: { from_user_id: string; to_user_id: string; amount_cents: number }) => {
     const text = buildSettlementCopyText(transfer);
+    setCopyFallbackText(null);
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
@@ -143,8 +145,9 @@ export default function SettlementPage() {
       setCopyStatus('结算文案已复制');
       window.setTimeout(() => setCopyStatus(null), 2400);
     } catch {
-      setCopyStatus('复制失败，请手动复制结算金额');
-      window.setTimeout(() => setCopyStatus(null), 3000);
+      setCopyFallbackText(text);
+      setCopyStatus('复制失败，请长按下方文案手动复制');
+      window.setTimeout(() => setCopyStatus(null), 5000);
     }
   };
 
@@ -252,6 +255,16 @@ export default function SettlementPage() {
                     {copyStatus && (
                       <div style={{ color: copyStatus.includes('失败') ? '#ef4444' : 'var(--accent-green)', fontSize: '12px', textAlign: 'right' }}>
                         {copyStatus}
+                      </div>
+                    )}
+                    {copyFallbackText && (
+                      <div className="settlement-copy-fallback" aria-label="可手动复制的结算文案">
+                        <div className="fallback-title">结算文案</div>
+                        <textarea
+                          readOnly
+                          value={copyFallbackText}
+                          onFocus={(event) => event.currentTarget.select()}
+                        />
                       </div>
                     )}
                   </div>

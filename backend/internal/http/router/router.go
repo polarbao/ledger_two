@@ -26,6 +26,8 @@ import (
 	"ledger_two/internal/transaction"
 )
 
+const appVersion = "1.1.0-rc"
+
 // New 接收数据库与环境配置进行依赖链式组装
 func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	r := chi.NewRouter()
@@ -96,7 +98,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 			response.JSON(w, http.StatusOK, map[string]interface{}{
 				"status":         "ok",
 				"db":             dbStatus,
-				"version":        "0.2.0",
+				"version":        appVersion,
 				"schema_version": schemaVersion,
 			})
 		})

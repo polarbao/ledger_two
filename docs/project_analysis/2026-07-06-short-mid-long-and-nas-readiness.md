@@ -177,3 +177,18 @@ docker compose logs -f
 1. 本次只验证健康检查和首页可访问，尚未完成浏览器内登录、记账、附件、备份按钮等人工验收。
 2. v1.1 冻结前仍需补 375px/390px/430px 移动端截图或手工验收记录。
 3. 后续如要公网访问，仍需先完成 HTTPS 反向代理与 `COOKIE_SECURE=true` 配置。
+
+## 7. 2026-07-07 v1.1 健康检查版本口径收口
+
+本轮发现 `/api/healthz` 已能返回 `schema_version`，但服务版本仍硬编码为历史 `0.2.0`。该问题会影响 NAS 试部署后的版本判断，因此已将后端健康检查版本口径调整为 `1.1.0-rc`，并同步 OpenAPI 的 API 版本与 health 响应结构。
+
+验证结果：
+
+1. `CGO_ENABLED=0 go test ./internal/http/router -run TestHealthz -count=1` 通过。
+2. `go test ./internal/http/router -count=1` 在 Windows 原生环境失败于 `github.com/mattn/go-sqlite3` cgo 对象解析，未进入本次 healthz 断言。
+3. `CGO_ENABLED=0 go test ./internal/http/router -count=1` 可编译运行，但同包 RBAC 验收测试需要真实 SQLite migration，按预期失败于 sqlite3 cgo stub。
+
+部署注意：
+
+1. 下一次 NAS 部署后，`GET http://192.168.0.115:38088/api/healthz` 应返回 `version=1.1.0-rc`、`db=ok`、`schema_version=12`。
+2. 若该接口仍返回 `version=0.2.0`，应优先判断 NAS 是否仍运行旧镜像或部署包未更新。

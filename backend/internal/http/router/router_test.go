@@ -27,17 +27,33 @@ func TestHealthz(t *testing.T) {
 			status, http.StatusOK)
 	}
 
-	// 检查返回体结构是否符合文档约定
 	var resp struct {
-		Success bool                   `json:"success"`
-		Data    map[string]interface{} `json:"data"`
+		Success bool `json:"success"`
+		Data    struct {
+			Status        string `json:"status"`
+			DB            string `json:"db"`
+			Version       string `json:"version"`
+			SchemaVersion int64  `json:"schema_version"`
+		} `json:"data"`
 	}
 
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode JSON response: %v", err)
 	}
 
-	if !resp.Success || resp.Data["status"] != "ok" {
+	if !resp.Success {
 		t.Errorf("handler returned unexpected body: %v", rr.Body.String())
+	}
+	if resp.Data.Status != "ok" {
+		t.Errorf("status = %q, want ok", resp.Data.Status)
+	}
+	if resp.Data.DB != "none" {
+		t.Errorf("db = %q, want none", resp.Data.DB)
+	}
+	if resp.Data.Version != appVersion {
+		t.Errorf("version = %q, want %q", resp.Data.Version, appVersion)
+	}
+	if resp.Data.SchemaVersion != 0 {
+		t.Errorf("schema_version = %d, want 0", resp.Data.SchemaVersion)
 	}
 }

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LedgerTwo API
-  version: 0.2.0-foundation
+  version: 1.1.0-rc
   description: |
     LedgerTwo 当前实现 API 草案。
 
@@ -38,7 +38,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                $ref: "#/components/schemas/HealthResponse"
 
   /init/status:
     get:
@@ -1069,6 +1069,29 @@ components:
           enum: [true]
         data:
           nullable: true
+    HealthResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [status, db, version, schema_version]
+          properties:
+            status:
+              type: string
+              enum: [ok]
+            db:
+              type: string
+              enum: [ok, error, none]
+            version:
+              type: string
+              example: 1.1.0-rc
+            schema_version:
+              type: integer
+              format: int64
     ErrorResponse:
       type: object
       required: [success, error]

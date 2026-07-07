@@ -77,10 +77,10 @@ func (s *Service) checkBackupDirWritable(dir string) error {
 func (s *Service) requireLedgerOwner(ctx context.Context, userID string) error {
 	lc, ok := ledgerctx.LedgerContextFromContext(ctx)
 	if !ok || lc.UserID != userID {
-		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeForbidden, "需要选择账本后才能查看系统诊断")
+		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeForbidden, "需要选择账本后才能执行该操作")
 	}
 	if lc.Role != ledgerctx.RoleOwner {
-		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeForbidden, "仅 Owner 可查看系统诊断")
+		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeForbidden, "仅 Owner 可执行该操作")
 	}
 	return nil
 }
@@ -276,6 +276,10 @@ func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, e
 
 // ManualBackup 手动备份 SQLite 数据库
 func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string, error) {
+	if err := s.requireLedgerOwner(ctx, actorUserID); err != nil {
+		return "", err
+	}
+
 	backupDir := s.cfg.BackupDir
 	manualDir := filepath.Join(backupDir, "manual")
 	if err := s.checkBackupDirWritable(manualDir); err != nil {
@@ -331,6 +335,10 @@ func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string,
 
 // RestoreBackup 准备恢复流程。因操作系统文件锁机制，后端仅执行自动前置备份并返回操作指引。
 func (s *Service) RestoreBackup(ctx context.Context, actorUserID string, targetFilename string) (string, error) {
+	if err := s.requireLedgerOwner(ctx, actorUserID); err != nil {
+		return "", err
+	}
+
 	backupDir := s.cfg.BackupDir
 	targetPath := filepath.Join(backupDir, filepath.Clean(targetFilename))
 

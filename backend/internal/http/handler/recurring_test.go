@@ -232,7 +232,28 @@ func TestRecurringBilling(t *testing.T) {
 		t.Errorf("expected transaction occurred_at %s, got %s", dueDate, occurredAtStr)
 	}
 
-	// 6. 测试删除规则
+	// 6. 已确认后无 pending 提醒时应返回空数组，而不是 JSON null。
+	reqListEmpty, _ := http.NewRequest("GET", "/api/recurring-reminders", nil)
+	reqListEmpty.AddCookie(cookieA)
+	rrListEmpty := httptest.NewRecorder()
+	r.ServeHTTP(rrListEmpty, reqListEmpty)
+	if rrListEmpty.Code != http.StatusOK {
+		t.Fatalf("failed to list empty reminders: %v", rrListEmpty.Body.String())
+	}
+	var emptyListResp struct {
+		Data []map[string]interface{} `json:"data"`
+	}
+	if err := json.Unmarshal(rrListEmpty.Body.Bytes(), &emptyListResp); err != nil {
+		t.Fatalf("failed to decode empty reminders: %v", err)
+	}
+	if emptyListResp.Data == nil {
+		t.Fatalf("expected empty reminder list to be [], got null. Response: %s", rrListEmpty.Body.String())
+	}
+	if len(emptyListResp.Data) != 0 {
+		t.Fatalf("expected no pending reminders after confirmation, got %d. Response: %s", len(emptyListResp.Data), rrListEmpty.Body.String())
+	}
+
+	// 7. 测试删除规则
 	reqDel, _ := http.NewRequest("DELETE", "/api/recurring-rules/"+createdRule.Data.ID, nil)
 	reqDel.AddCookie(cookieA)
 	rrDel := httptest.NewRecorder()

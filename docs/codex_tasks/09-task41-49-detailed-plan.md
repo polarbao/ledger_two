@@ -77,7 +77,7 @@
 
 - Task42 的模板 payload 设计稳定，或明确独立 payload。
 
-状态：已启动；既有代码已具备周期规则 CRUD、pending reminder 生成、确认生成真实账单和历史 ignore 入口；本轮补充 `/skip` 语义兼容入口，并在周期规则页展示待确认项、确认入账和跳过本期操作。
+状态：已完成核心收口；既有代码已具备周期规则 CRUD、pending reminder 生成、确认生成真实账单和历史 ignore 入口；已补充 `/skip` 语义兼容入口，并在周期规则页展示待确认项、确认入账和跳过本期操作。本机 WSL2 API 验收已覆盖跳过本期不生成账单、确认后生成真实账单，以及空 pending 提醒列表返回 `[]` 而非 `null`。
 
 开发范围：
 
@@ -97,10 +97,11 @@
 - rule next_run 计算测试。
 - confirm/skip service test。
 - Dashboard 待确认入口手工验证。
+- 本机 API 验收记录：`docs/project_analysis/v1.1-settings-safety-acceptance-2026-07-07/`
 
 ## 5. Task44：分类、标签、账户管理体验
 
-状态：已启动；Task44.1 元数据排序能力完成，Task44.2 归档确认与历史引用信息完成，Task44.3 管理列表筛选与移动端密度代码收口完成。本机 WSL2 移动端验收已覆盖分类管理页 375px 无横向溢出；归档/恢复仍需 UI 实际操作闭环。
+状态：已完成核心收口；Task44.1 元数据排序能力完成，Task44.2 归档确认与历史引用信息完成，Task44.3 管理列表筛选与移动端密度代码收口完成。本机 WSL2 移动端验收已覆盖分类管理页 375px 无横向溢出；本机 WSL2 API 验收已覆盖分类、标签、账户归档恢复和 editor 拒绝创建。
 
 依赖：
 
@@ -288,4 +289,5 @@
 - 健康检查版本口径：`GET /api/healthz` 返回 `version=1.1.0-rc`、`db` 和 `schema_version`，用于区分 NAS 是否运行最新候选版本。（代码、OpenAPI 和 NAS 部署验证已完成）
 - 前端质量门禁：`corepack pnpm test` 与 `corepack pnpm build` 已通过；主 JS chunk 大小警告进入后续性能优化，不阻断 v1.1 内测。
 - 移动端验收记录：本机 WSL2 已补齐 375px/390px/430px 关键入口截图和 scrollWidth 指标，详见 `docs/project_analysis/v1.1-local-acceptance-2026-07-07/`；普通支出保存并继续、共同支出提交、equal split 和结算余额联动已补 UI 实际提交闭环，详见 `docs/project_analysis/v1.1-ui-submit-acceptance-2026-07-07/`。
+- 设置与数据安全验收记录：本机 WSL2 API 已覆盖分类/标签/账户归档恢复、模板管理、周期确认/跳过、附件受控读取、手动备份、系统诊断和非 owner 拒绝高风险入口，详见 `docs/project_analysis/v1.1-settings-safety-acceptance-2026-07-07/`。
 - NAS 内测验收记录：完成登录、记账、附件、手动备份、系统诊断的浏览器内验证。

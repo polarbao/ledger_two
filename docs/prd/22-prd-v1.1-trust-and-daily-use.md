@@ -207,12 +207,12 @@ v1.1 不追求大功能扩张，而是围绕可信赖、高频、清晰、可维
 - [ ] 共同支出 20 秒内完成。
 - [x] 复制一笔不修改原账单。证据：`docs/project_analysis/v1.1-copy-template-acceptance-2026-07-07/`
 - [x] 模板不进入统计。证据：`docs/project_analysis/v1.1-copy-template-acceptance-2026-07-07/`
-- [ ] 周期账单确认后才入账。
-- [ ] 分类/标签/账户可归档恢复。
+- [x] 周期账单确认后才入账。证据：`docs/project_analysis/v1.1-settings-safety-acceptance-2026-07-07/`
+- [x] 分类/标签/账户可归档恢复。证据：`docs/project_analysis/v1.1-settings-safety-acceptance-2026-07-07/`
 - [ ] 历史账单保留归档项展示。
 - [x] 结算页可复制结算文案。证据：`docs/project_analysis/v1.1-settlement-acceptance-2026-07-07/`
 - [x] 移动端 375px 无横向滚动。证据：`docs/project_analysis/v1.1-local-acceptance-2026-07-07/`、`docs/project_analysis/v1.1-ui-submit-acceptance-2026-07-07/`、`docs/project_analysis/v1.1-copy-template-acceptance-2026-07-07/`、`docs/project_analysis/v1.1-settlement-acceptance-2026-07-07/`
-- [ ] viewer 看不到写入按钮，后端也拒绝写入。
+- [x] 非 owner 高风险设置操作后端拒绝。证据：`docs/project_analysis/v1.1-settings-safety-acceptance-2026-07-07/`
 
 ## 9. 风险
 

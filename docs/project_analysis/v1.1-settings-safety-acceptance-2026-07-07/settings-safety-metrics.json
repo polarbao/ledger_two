@@ -1,0 +1,71 @@
+{
+  "timestamp": "20260707193934",
+  "base_url": "http://localhost:38088",
+  "ledger_id": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+  "checks": {
+    "login": {
+      "owner": 200,
+      "editor": 200
+    },
+    "metadata_archive_restore": {
+      "categories": {
+        "id": "01b2589b-4a61-4246-85c5-44355e8a7275",
+        "archived_flag_after_archive": true,
+        "archived_flag_after_restore": false,
+        "editor_create_status": 403
+      },
+      "tags": {
+        "id": "cedbac12-76eb-43f8-8499-07df3eb9b373",
+        "archived_flag_after_archive": true,
+        "archived_flag_after_restore": false,
+        "editor_create_status": 403
+      },
+      "accounts": {
+        "id": "239b6cce-fc3e-427a-845c-337ec961944b",
+        "archived_flag_after_archive": true,
+        "archived_flag_after_restore": false,
+        "editor_create_status": 403
+      }
+    },
+    "template_archive_restore": {
+      "id": "df0b36b2-748e-447d-8eb3-3b7651a77a1d",
+      "archived_flag_after_archive": true,
+      "archived_flag_after_restore": false
+    },
+    "recurring_skip_confirm": {
+      "skip_rule_id": "316ec3a6-dd23-461e-9076-7bad937e36cd",
+      "skip_reminder_status_code": 200,
+      "skip_transaction_count": 0,
+      "confirm_rule_id": "6ef89a6b-11d7-4777-a1cc-c843b2d408b6",
+      "confirm_reminder_status_code": 200,
+      "confirm_transaction_id": "a454fc32-bda3-4a28-aeaf-f84ce171e16c",
+      "empty_reminders_type": "array",
+      "empty_reminders_count": 0
+    },
+    "backup_diagnostics": {
+      "backup_count_before": 2,
+      "created_backup": "manual/backup_manual_20260707_193935_283380473.db",
+      "download_status": 200,
+      "download_bytes": 307200,
+      "diagnostics_database_status": "ok",
+      "diagnostics_storage_statuses": [
+        "ok",
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "editor_diagnostics_status": 403,
+      "editor_backup_status": 403,
+      "editor_backup_list_status": 403,
+      "editor_backup_download_status": 403
+    },
+    "attachments": {
+      "upload_path": "/uploads/3d1f61ab-f4dc-42e7-b126-58f064f705c1.png",
+      "transaction_id": "8ce81bee-1fdc-4f1c-a8c0-5d4f534d3882",
+      "owner_read_status": 200,
+      "owner_read_bytes": 75,
+      "editor_private_read_status": 404,
+      "raw_upload_status": 404
+    }
+  }
+}

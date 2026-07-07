@@ -84,6 +84,10 @@ func (h *Handler) HandleGetBackups(w http.ResponseWriter, r *http.Request) {
 		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
+	if err := h.service.requireLedgerOwner(r.Context(), currentUserID); err != nil {
+		response.WriteError(w, err)
+		return
+	}
 
 	list, err := h.service.GetBackups(r.Context())
 	if err != nil {
@@ -116,6 +120,10 @@ func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 	currentUserID := middleware.GetUserIDFromContext(r.Context())
 	if currentUserID == "" {
 		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
+		return
+	}
+	if err := h.service.requireLedgerOwner(r.Context(), currentUserID); err != nil {
+		response.WriteError(w, err)
 		return
 	}
 

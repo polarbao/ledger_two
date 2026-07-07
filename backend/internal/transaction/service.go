@@ -1488,7 +1488,7 @@ func (s *Service) ListRecurringReminders(ctx context.Context, currentUserID stri
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取周期提醒列表失败")
 	}
 
-	var res []*RecurringReminderResponse
+	res := make([]*RecurringReminderResponse, 0, len(details))
 	for _, d := range details {
 		res = append(res, s.toRecurringReminderResponse(d))
 	}

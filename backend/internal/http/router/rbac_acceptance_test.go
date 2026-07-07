@@ -185,6 +185,71 @@ func TestRBACAcceptanceDiagnosticsOwnerOnlyAndSanitized(t *testing.T) {
 	}
 }
 
+func TestRBACAcceptanceBackupEndpointsOwnerOnly(t *testing.T) {
+	database := setupRBACRouterDB(t)
+	cfg := rbacRouterConfig(t)
+	router := New(database, cfg)
+
+	fixture := seedRBACLedger(t, database)
+
+	reqEditorBackup := httptest.NewRequest(http.MethodPost, "/api/admin/backup", nil)
+	reqEditorBackup.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqEditorBackup.AddCookie(authCookie(t, fixture.UserBID))
+	rrEditorBackup := httptest.NewRecorder()
+	router.ServeHTTP(rrEditorBackup, reqEditorBackup)
+	if rrEditorBackup.Code != http.StatusForbidden {
+		t.Fatalf("expected editor backup to return 403, got %d body: %s", rrEditorBackup.Code, rrEditorBackup.Body.String())
+	}
+
+	reqOwnerBackup := httptest.NewRequest(http.MethodPost, "/api/admin/backup", nil)
+	reqOwnerBackup.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqOwnerBackup.AddCookie(authCookie(t, fixture.UserAID))
+	rrOwnerBackup := httptest.NewRecorder()
+	router.ServeHTTP(rrOwnerBackup, reqOwnerBackup)
+	if rrOwnerBackup.Code != http.StatusOK {
+		t.Fatalf("expected owner backup to return 200, got %d body: %s", rrOwnerBackup.Code, rrOwnerBackup.Body.String())
+	}
+	var backupResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Filename string `json:"filename"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rrOwnerBackup.Body.Bytes(), &backupResp); err != nil {
+		t.Fatalf("decode backup response: %v", err)
+	}
+	if backupResp.Data.Filename == "" {
+		t.Fatalf("expected owner backup response to include filename, body: %s", rrOwnerBackup.Body.String())
+	}
+
+	reqEditorList := httptest.NewRequest(http.MethodGet, "/api/admin/backups", nil)
+	reqEditorList.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqEditorList.AddCookie(authCookie(t, fixture.UserBID))
+	rrEditorList := httptest.NewRecorder()
+	router.ServeHTTP(rrEditorList, reqEditorList)
+	if rrEditorList.Code != http.StatusForbidden {
+		t.Fatalf("expected editor backup list to return 403, got %d body: %s", rrEditorList.Code, rrEditorList.Body.String())
+	}
+
+	reqOwnerList := httptest.NewRequest(http.MethodGet, "/api/admin/backups", nil)
+	reqOwnerList.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqOwnerList.AddCookie(authCookie(t, fixture.UserAID))
+	rrOwnerList := httptest.NewRecorder()
+	router.ServeHTTP(rrOwnerList, reqOwnerList)
+	if rrOwnerList.Code != http.StatusOK {
+		t.Fatalf("expected owner backup list to return 200, got %d body: %s", rrOwnerList.Code, rrOwnerList.Body.String())
+	}
+
+	reqEditorDownload := httptest.NewRequest(http.MethodGet, "/api/admin/backups/"+backupResp.Data.Filename, nil)
+	reqEditorDownload.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	reqEditorDownload.AddCookie(authCookie(t, fixture.UserBID))
+	rrEditorDownload := httptest.NewRecorder()
+	router.ServeHTTP(rrEditorDownload, reqEditorDownload)
+	if rrEditorDownload.Code != http.StatusForbidden {
+		t.Fatalf("expected editor backup download to return 403, got %d body: %s", rrEditorDownload.Code, rrEditorDownload.Body.String())
+	}
+}
+
 func setupRBACRouterDB(t *testing.T) *sql.DB {
 	t.Helper()
 

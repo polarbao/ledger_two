@@ -1,0 +1,647 @@
+[
+  {
+    "step": "login page",
+    "viewport": 375,
+    "url": "/login",
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [],
+    "actions": [
+      "立即登录"
+    ],
+    "visibleText": "LedgerTwo 共享记账\n\n欢迎回来，请登录您的账本账户\n\n用户名\n密码\n立即登录",
+    "screenshot": "screenshots/01-login-375.png"
+  },
+  {
+    "step": "dashboard after login",
+    "viewport": 375,
+    "url": "/",
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "记一笔",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n欢迎回来，User A\n\n这是你们在 2026-07 账期的共享记账空间。\n\n记一笔\n本月总支出\n¥112.68\n包含个人及共同分摊消费\n本月总收入\n¥0.00\n个人独立录入的资金进账\n当月垫付与实际承担\n我 (User A)\n垫付 ¥112.68\n/\n承担 ¥68.68\n伙伴 (User B)\n垫付 ¥0.00\n/\n承担 ¥44.00\n全局未结余额 (跨月)\n\nUser B 需要向你支付\n\n¥44.00\n\n结账可抵扣净额，在结算中心生成记录即可。\n\n分类消费排行 (Top N)\n????\n¥112.68(100.0%)\n最近流水时间线 (Max 10)\n共享\nv1.1 ????????\n07-07 14:28 · 我付\n-¥88.00\n个人\nv1.1 ????????\n07-07 14:28 · 我付\n-¥24.68\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/02-dashboard-375.png"
+  },
+  {
+    "step": "transaction drawer opened=true",
+    "viewport": 375,
+    "url": "/",
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "",
+        "text": "-- 选择模板一键回填表单 --"
+      },
+      {
+        "value": "b7a3c9d4-8faa-4d8f-8487-dc6c89623e57",
+        "text": "????"
+      },
+      {
+        "value": "d4c393ae-1816-47df-882e-916143096834",
+        "text": "User A (我)"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "记一笔",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "管理模板",
+      "⚡ v1.1 ????",
+      "个人支出",
+      "个人收入",
+      "共同支出",
+      "均等平分 (Equal)",
+      "付款人全额承担",
+      "存为模板",
+      "取消",
+      "保存并继续",
+      "确认记账"
+    ],
+    "visibleText": "LedgerTwo\n欢迎回来，User A\n\n这是你们在 2026-07 账期的共享记账空间。\n\n记一笔\n本月总支出\n¥112.68\n包含个人及共同分摊消费\n本月总收入\n¥0.00\n个人独立录入的资金进账\n当月垫付与实际承担\n我 (User A)\n垫付 ¥112.68\n/\n承担 ¥68.68\n伙伴 (User B)\n垫付 ¥0.00\n/\n承担 ¥44.00\n全局未结余额 (跨月)\n\nUser B 需要向你支付\n\n¥44.00\n\n结账可抵扣净额，在结算中心生成记录即可。\n\n分类消费排行 (Top N)\n????\n¥112.68(100.0%)\n最近流水时间线 (Max 10)\n共享\nv1.1 ????????\n07-07 14:28 · 我付\n-¥88.00\n个人\nv1.1 ????????\n07-07 14:28 · 我付\n-¥24.68\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置\n记一笔账单\n使用模板快速填入\n管理模板\n-- 选择模板一键回填表单 --\nv1.1 ???? (支出)\n⚡ v1.1 ????\n账单类型\n个人支出\n个人收入\n共同支出\n交易金额 (元)\n¥\n账单标题\n所属分类\n-- 请选择分类 (选填) --\n餐饮美食\n交通出行\n购物娱乐\n生活缴费\n共同居住\n????\n发生日期\n账单标签\n付款人\n-- 请选择付款人 --\nUser A (我)\nUser B\n分摊方式\n均等平分 (Equal)\n付款人全额承担\n账单参与人\nUser A (我)\nUser B\n\n均等平分模式下，全员均自动勾选参与。\n\n交易备注\n存为模板\n取消\n保存并继续\n确认记账",
+    "screenshot": "screenshots/03-transaction-drawer-375.png"
+  },
+  {
+    "step": "transactions list",
+    "viewport": 375,
+    "url": "/transactions",
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "",
+        "text": "全部类型"
+      },
+      {
+        "value": "",
+        "text": "全部分类"
+      },
+      {
+        "value": "",
+        "text": "全部付款人"
+      },
+      {
+        "value": "",
+        "text": "全部可见性"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "高级筛选",
+      "批量管理",
+      "清空筛选",
+      "应用筛选",
+      "批量打标签",
+      "删除",
+      "删除",
+      "上一页",
+      "下一页",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n交易明细流水\n\n在此您可以查看与维护 2026-07 账期内所有的普通收支及共享支出\n\n高级筛选\n批量管理\n已选择 0 笔账单\n批量打标签\nv1.1 ????????\n88.00\nb7a3c9d4-8faa-4d8f-8487-dc6c89623e57\n2026/7/7\nv1.1 ????????\n24.68\nb7a3c9d4-8faa-4d8f-8487-dc6c89623e57\n2026/7/7\n当前页码：1\n上一页\n下一页\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/04-transactions-375.png"
+  },
+  {
+    "step": "transactions mobile filter opened=true",
+    "viewport": 375,
+    "url": "/transactions",
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "",
+        "text": "全部类型"
+      },
+      {
+        "value": "",
+        "text": "全部分类"
+      },
+      {
+        "value": "",
+        "text": "全部付款人"
+      },
+      {
+        "value": "",
+        "text": "全部可见性"
+      },
+      {
+        "value": "",
+        "text": "全部类型"
+      },
+      {
+        "value": "",
+        "text": "全部分类"
+      },
+      {
+        "value": "",
+        "text": "全部付款人"
+      },
+      {
+        "value": "",
+        "text": "全部可见性"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "高级筛选",
+      "批量管理",
+      "清空筛选",
+      "应用筛选",
+      "批量打标签",
+      "删除",
+      "删除",
+      "上一页",
+      "下一页",
+      "重置",
+      "应用筛选",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n交易明细流水\n\n在此您可以查看与维护 2026-07 账期内所有的普通收支及共享支出\n\n高级筛选\n批量管理\n已选择 0 笔账单\n批量打标签\nv1.1 ????????\n88.00\nb7a3c9d4-8faa-4d8f-8487-dc6c89623e57\n2026/7/7\nv1.1 ????????\n24.68\nb7a3c9d4-8faa-4d8f-8487-dc6c89623e57\n2026/7/7\n当前页码：1\n上一页\n下一页\n高级筛选\n账单类型\n全部类型\n个人支出\n个人收入\n共同支出\n所属分类\n全部分类\n餐饮美食\n交通出行\n购物娱乐\n生活缴费\n共同居住\n????\n付款人\n全部付款人\nUser A (我)\nUser B\n可见性\n全部可见性\n仅自己可见\n对方可见 (只读)\n关联标签\n最小金额 (元)\n最大金额 (元)\n标题/备注关键词\n重置\n应用筛选\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/05-transactions-filter-375.png"
+  },
+  {
+    "step": "settlement page",
+    "viewport": 375,
+    "url": "/settlement",
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "复制文案",
+      "登记结算",
+      "查看明细",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n结算中心\n\n在此进行双人债务清偿轧差与结账补款。\n\n当前待结账目\nUser B\n我\n对方需要向您转账汇款的差额。\n¥44.00\n复制文案\n登记结算\n我 (我) 的对账单\n累计实际垫付\n¥88.00\n累计应承担消费\n¥44.00\n共同消费原始净额\n+¥44.00\n已结算影响\n¥0.00\n最终应收/应付净额\n+¥44.00 (应收)\nUser B (对方) 的对账单\n累计实际垫付\n¥0.00\n累计应承担消费\n¥44.00\n共同消费原始净额\n-¥44.00\n已结算影响\n¥0.00\n最终应收/应付净额\n-¥44.00 (应付)\n影响结算的共同支出明细\n查看明细\n\n共同支出会进入 paid/share/raw_net 计算；已登记的结算记录只影响 settlement/final_net，不会修改这些历史账单。\n\n当期结算流水历史 (2026-07)\n暂无历史结算记录\n\n本月账期中双方尚未登记过清偿补款账单。在上方发起一键结算，或者新生成共同支出后即可自动激活。\n\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/06-settlement-375.png"
+  },
+  {
+    "step": "settings page",
+    "viewport": 375,
+    "url": "/settings",
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "viewer",
+        "text": "Viewer"
+      },
+      {
+        "value": "editor",
+        "text": "Editor"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "创建新账本",
+      "添加成员",
+      "移除",
+      "管理分类",
+      "管理标签",
+      "管理支付账户",
+      "进入周期规则",
+      "进入 CSV 导入工作区",
+      "导出 CSV",
+      "导出全量 JSON 数据包",
+      "立即创建手动安全备份",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n系统设置\n\n按账号、账本、元数据、导入导出、备份恢复和诊断能力分区管理。\n\n账号与登录\n\n当前登录账号和显示名称。登录态由浏览器 Cookie 维护。\n\n显示名：User A\n用户名：@userA\n当前账本角色\nowner\n\n前端会按角色隐藏高风险操作，后端仍是最终权限边界。\n\n账本与成员\n\n管理当前账本、已有成员和成员角色。当前是直接添加已有用户，不是公开邀请机制。\n\n成员与权限\nowner 管理\n\nOwner 可以创建账本、添加已有用户、调整成员角色或移除成员。Editor 和 Viewer 只展示权限说明。\n\n下方成员管理区保留现有能力\n账本成员管理\n创建新账本\nEditor\nViewer\n添加成员\nuserAowner\nuserBeditor\nEditor\nViewer\n移除\n分类、标签与支付账户\n\n长期记账的基础元数据。后端归档基础已建立，前端管理页将在后续 Task35.2 接入。\n\n分类管理\n\n新增、编辑、归档和恢复分类。归档项不会进入新增账单默认选择器。\n\n管理分类\n标签管理\n\n维护账单标签和自动补全数据源。历史账单会保留已归档标签展示。\n\n管理标签\n支付账户\n\n管理现金、银行卡、支付宝、微信等支付来源，服务导入和快捷记账。\n\n管理支付账户\n周期规则与模板\n\n管理可复用的记账配置，减少重复录入。周期规则需要用户确认后才会生成真实账单。\n\n周期账单规则\n\n配置每周、每月、每年自动触发的待确认记账提醒。\n\n进入周期规则\n账单模板\n抽屉内管理\n\n模板入口当前集成在记账抽屉中。后续会拆出独立模板管理区。\n\n导入与导出\n\n用于补账、审计和迁移。导出文件包含明文账目信息，请妥善保管。\n\nCSV 账单导入\n\n支持将微信、支付宝等账单 CSV 上传到预览工作区，核对后再提交。\n\n进入 CSV 导入工作区\nCSV 交易流水导出\n\n包含发生时间、标题、分类、金额、付款人、可见性和备注，适合 Excel 审计。\n\n导出 CSV\nJSON 全量数据包导出\n\n包含脱敏后的成员、分类、标签、交易分摊和结算记录，可用于迁移归档。\n\n导出全量 JSON 数据包\n备份与恢复\n\nSQLite 物理备份和恢复属于高风险操作，仅 Owner 显示入口。恢复前仍需要二次确认。\n\nSQLite 物理安全备份\nOwner\n\n利用 SQLite 在线事务安全备份机制生成数据库镜像文件。\n\n立即创建手动安全备份\n历史手动备份文件\n\n展示已生成的备份文件，可下载或发起恢复。恢复前系统会再次确认。\n\n备份列表\n暂无手动备份\n\n系统暂未生成备份文件。建议在日常正式记账前，先创建一次手动备份以确保安全。\n\n系统诊断\n\n用于定位配置、数据库、备份目录、上传目录和运行环境问题。仅 Owner 可查看脱敏诊断结果。\n\n诊断面板\nOwner\n\n展示运行环境、数据库 schema、目录可写性、Cookie 策略和最近备份，不展示 secret、DSN 或绝对路径。\n\n运行环境\nproduction\nCookie 策略\nSecure false · Lax\n外部访问地址\n已配置\nSQLite 数据库\nschema v12\n正常\n数据库目录\n已配置 · 可写\n正常\n备份目录\n已配置 · 可写\n正常\n上传目录\n已配置 · 可写\n正常\n日志目录\n已配置 · 可写\n正常\n最近备份：暂无\n生成时间：2026/7/7 14:42:07\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/07-settings-375.png"
+  },
+  {
+    "step": "category management",
+    "viewport": 375,
+    "url": "/settings/categories",
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "expense",
+        "text": "支出"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "返回设置",
+      "新增分类",
+      "全部",
+      "活跃",
+      "归档",
+      "编辑",
+      "归档",
+      "编辑",
+      "归档",
+      "编辑",
+      "归档",
+      "编辑",
+      "归档",
+      "编辑",
+      "归档",
+      "编辑",
+      "归档",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n分类管理\n\n维护支出和收入分类。已归档分类不会出现在新增账单默认选择器中，历史账单仍保留展示。\n\n返回设置\n新增分类\n分类名称\n分类类型\n支出\n收入\n图标\n颜色\n新增分类\n当前分类\n\n活跃 6 个，已归档 0 个。\n\n全部\n活跃\n归档\n活跃项\n餐饮美食\n#1\nexpense\n引用 0 笔\n编辑\n归档\n交通出行\n#2\nexpense\n引用 0 笔\n编辑\n归档\n购物娱乐\n#3\nexpense\n引用 0 笔\n编辑\n归档\n生活缴费\n#4\nexpense\n引用 0 笔\n编辑\n归档\n共同居住\n#5\nexpense\n引用 0 笔\n编辑\n归档\n????\n#6\nexpense\n引用 2 笔\n图标：receipt / 颜色：#10b981\n编辑\n归档\n已归档项\n暂无匹配的归档项。\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/08-categories-375.png"
+  },
+  {
+    "step": "dashboard 390",
+    "viewport": 390,
+    "url": "/",
+    "innerWidth": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "记一笔",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n欢迎回来，User A\n\n这是你们在 2026-07 账期的共享记账空间。\n\n记一笔\n本月总支出\n¥112.68\n包含个人及共同分摊消费\n本月总收入\n¥0.00\n个人独立录入的资金进账\n当月垫付与实际承担\n我 (User A)\n垫付 ¥112.68\n/\n承担 ¥68.68\n伙伴 (User B)\n垫付 ¥0.00\n/\n承担 ¥44.00\n全局未结余额 (跨月)\n\nUser B 需要向你支付\n\n¥44.00\n\n结账可抵扣净额，在结算中心生成记录即可。\n\n分类消费排行 (Top N)\n????\n¥112.68(100.0%)\n最近流水时间线 (Max 10)\n共享\nv1.1 ????????\n07-07 14:28 · 我付\n-¥88.00\n个人\nv1.1 ????????\n07-07 14:28 · 我付\n-¥24.68\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/09-dashboard-390.png"
+  },
+  {
+    "step": "transactions 390",
+    "viewport": 390,
+    "url": "/transactions",
+    "innerWidth": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "",
+        "text": "全部类型"
+      },
+      {
+        "value": "",
+        "text": "全部分类"
+      },
+      {
+        "value": "",
+        "text": "全部付款人"
+      },
+      {
+        "value": "",
+        "text": "全部可见性"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "高级筛选",
+      "批量管理",
+      "清空筛选",
+      "应用筛选",
+      "批量打标签",
+      "删除",
+      "删除",
+      "上一页",
+      "下一页",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n交易明细流水\n\n在此您可以查看与维护 2026-07 账期内所有的普通收支及共享支出\n\n高级筛选\n批量管理\n已选择 0 笔账单\n批量打标签\nv1.1 ????????\n88.00\nb7a3c9d4-8faa-4d8f-8487-dc6c89623e57\n2026/7/7\nv1.1 ????????\n24.68\nb7a3c9d4-8faa-4d8f-8487-dc6c89623e57\n2026/7/7\n当前页码：1\n上一页\n下一页\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/10-transactions-390.png"
+  },
+  {
+    "step": "settings 390",
+    "viewport": 390,
+    "url": "/settings",
+    "innerWidth": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "viewer",
+        "text": "Viewer"
+      },
+      {
+        "value": "editor",
+        "text": "Editor"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "创建新账本",
+      "添加成员",
+      "移除",
+      "管理分类",
+      "管理标签",
+      "管理支付账户",
+      "进入周期规则",
+      "进入 CSV 导入工作区",
+      "导出 CSV",
+      "导出全量 JSON 数据包",
+      "立即创建手动安全备份",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n系统设置\n\n按账号、账本、元数据、导入导出、备份恢复和诊断能力分区管理。\n\n账号与登录\n\n当前登录账号和显示名称。登录态由浏览器 Cookie 维护。\n\n显示名：User A\n用户名：@userA\n当前账本角色\nowner\n\n前端会按角色隐藏高风险操作，后端仍是最终权限边界。\n\n账本与成员\n\n管理当前账本、已有成员和成员角色。当前是直接添加已有用户，不是公开邀请机制。\n\n成员与权限\nowner 管理\n\nOwner 可以创建账本、添加已有用户、调整成员角色或移除成员。Editor 和 Viewer 只展示权限说明。\n\n下方成员管理区保留现有能力\n账本成员管理\n创建新账本\nEditor\nViewer\n添加成员\nuserAowner\nuserBeditor\nEditor\nViewer\n移除\n分类、标签与支付账户\n\n长期记账的基础元数据。后端归档基础已建立，前端管理页将在后续 Task35.2 接入。\n\n分类管理\n\n新增、编辑、归档和恢复分类。归档项不会进入新增账单默认选择器。\n\n管理分类\n标签管理\n\n维护账单标签和自动补全数据源。历史账单会保留已归档标签展示。\n\n管理标签\n支付账户\n\n管理现金、银行卡、支付宝、微信等支付来源，服务导入和快捷记账。\n\n管理支付账户\n周期规则与模板\n\n管理可复用的记账配置，减少重复录入。周期规则需要用户确认后才会生成真实账单。\n\n周期账单规则\n\n配置每周、每月、每年自动触发的待确认记账提醒。\n\n进入周期规则\n账单模板\n抽屉内管理\n\n模板入口当前集成在记账抽屉中。后续会拆出独立模板管理区。\n\n导入与导出\n\n用于补账、审计和迁移。导出文件包含明文账目信息，请妥善保管。\n\nCSV 账单导入\n\n支持将微信、支付宝等账单 CSV 上传到预览工作区，核对后再提交。\n\n进入 CSV 导入工作区\nCSV 交易流水导出\n\n包含发生时间、标题、分类、金额、付款人、可见性和备注，适合 Excel 审计。\n\n导出 CSV\nJSON 全量数据包导出\n\n包含脱敏后的成员、分类、标签、交易分摊和结算记录，可用于迁移归档。\n\n导出全量 JSON 数据包\n备份与恢复\n\nSQLite 物理备份和恢复属于高风险操作，仅 Owner 显示入口。恢复前仍需要二次确认。\n\nSQLite 物理安全备份\nOwner\n\n利用 SQLite 在线事务安全备份机制生成数据库镜像文件。\n\n立即创建手动安全备份\n历史手动备份文件\n\n展示已生成的备份文件，可下载或发起恢复。恢复前系统会再次确认。\n\n备份列表\n暂无手动备份\n\n系统暂未生成备份文件。建议在日常正式记账前，先创建一次手动备份以确保安全。\n\n系统诊断\n\n用于定位配置、数据库、备份目录、上传目录和运行环境问题。仅 Owner 可查看脱敏诊断结果。\n\n诊断面板\nOwner\n\n展示运行环境、数据库 schema、目录可写性、Cookie 策略和最近备份，不展示 secret、DSN 或绝对路径。\n\n运行环境\nproduction\nCookie 策略\nSecure false · Lax\n外部访问地址\n已配置\nSQLite 数据库\nschema v12\n正常\n数据库目录\n已配置 · 可写\n正常\n备份目录\n已配置 · 可写\n正常\n上传目录\n已配置 · 可写\n正常\n日志目录\n已配置 · 可写\n正常\n最近备份：暂无\n生成时间：2026/7/7 14:42:07\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/11-settings-390.png"
+  },
+  {
+    "step": "dashboard 430",
+    "viewport": 430,
+    "url": "/",
+    "innerWidth": 430,
+    "docScrollWidth": 430,
+    "bodyScrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "记一笔",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n欢迎回来，User A\n\n这是你们在 2026-07 账期的共享记账空间。\n\n记一笔\n本月总支出\n¥112.68\n包含个人及共同分摊消费\n本月总收入\n¥0.00\n个人独立录入的资金进账\n当月垫付与实际承担\n我 (User A)\n垫付 ¥112.68\n/\n承担 ¥68.68\n伙伴 (User B)\n垫付 ¥0.00\n/\n承担 ¥44.00\n全局未结余额 (跨月)\n\nUser B 需要向你支付\n\n¥44.00\n\n结账可抵扣净额，在结算中心生成记录即可。\n\n分类消费排行 (Top N)\n????\n¥112.68(100.0%)\n最近流水时间线 (Max 10)\n共享\nv1.1 ????????\n07-07 14:28 · 我付\n-¥88.00\n个人\nv1.1 ????????\n07-07 14:28 · 我付\n-¥24.68\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/09-dashboard-430.png"
+  },
+  {
+    "step": "transactions 430",
+    "viewport": 430,
+    "url": "/transactions",
+    "innerWidth": 430,
+    "docScrollWidth": 430,
+    "bodyScrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "",
+        "text": "全部类型"
+      },
+      {
+        "value": "",
+        "text": "全部分类"
+      },
+      {
+        "value": "",
+        "text": "全部付款人"
+      },
+      {
+        "value": "",
+        "text": "全部可见性"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "高级筛选",
+      "批量管理",
+      "清空筛选",
+      "应用筛选",
+      "批量打标签",
+      "删除",
+      "删除",
+      "上一页",
+      "下一页",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n交易明细流水\n\n在此您可以查看与维护 2026-07 账期内所有的普通收支及共享支出\n\n高级筛选\n批量管理\n已选择 0 笔账单\n批量打标签\nv1.1 ????????\n88.00\nb7a3c9d4-8faa-4d8f-8487-dc6c89623e57\n2026/7/7\nv1.1 ????????\n24.68\nb7a3c9d4-8faa-4d8f-8487-dc6c89623e57\n2026/7/7\n当前页码：1\n上一页\n下一页\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/10-transactions-430.png"
+  },
+  {
+    "step": "settings 430",
+    "viewport": 430,
+    "url": "/settings",
+    "innerWidth": 430,
+    "docScrollWidth": 430,
+    "bodyScrollWidth": 430,
+    "hasHorizontalOverflow": false,
+    "hasRouterError": false,
+    "selected": [
+      {
+        "value": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+        "text": "LedgerTwo Local QA (owner)"
+      },
+      {
+        "value": "viewer",
+        "text": "Viewer"
+      },
+      {
+        "value": "editor",
+        "text": "Editor"
+      }
+    ],
+    "actions": [
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置",
+      "退出登录",
+      "创建新账本",
+      "添加成员",
+      "移除",
+      "管理分类",
+      "管理标签",
+      "管理支付账户",
+      "进入周期规则",
+      "进入 CSV 导入工作区",
+      "导出 CSV",
+      "导出全量 JSON 数据包",
+      "立即创建手动安全备份",
+      "仪表盘",
+      "账单明细",
+      "结算中心",
+      "分析统计",
+      "系统设置"
+    ],
+    "visibleText": "LedgerTwo\n系统设置\n\n按账号、账本、元数据、导入导出、备份恢复和诊断能力分区管理。\n\n账号与登录\n\n当前登录账号和显示名称。登录态由浏览器 Cookie 维护。\n\n显示名：User A\n用户名：@userA\n当前账本角色\nowner\n\n前端会按角色隐藏高风险操作，后端仍是最终权限边界。\n\n账本与成员\n\n管理当前账本、已有成员和成员角色。当前是直接添加已有用户，不是公开邀请机制。\n\n成员与权限\nowner 管理\n\nOwner 可以创建账本、添加已有用户、调整成员角色或移除成员。Editor 和 Viewer 只展示权限说明。\n\n下方成员管理区保留现有能力\n账本成员管理\n创建新账本\nEditor\nViewer\n添加成员\nuserAowner\nuserBeditor\nEditor\nViewer\n移除\n分类、标签与支付账户\n\n长期记账的基础元数据。后端归档基础已建立，前端管理页将在后续 Task35.2 接入。\n\n分类管理\n\n新增、编辑、归档和恢复分类。归档项不会进入新增账单默认选择器。\n\n管理分类\n标签管理\n\n维护账单标签和自动补全数据源。历史账单会保留已归档标签展示。\n\n管理标签\n支付账户\n\n管理现金、银行卡、支付宝、微信等支付来源，服务导入和快捷记账。\n\n管理支付账户\n周期规则与模板\n\n管理可复用的记账配置，减少重复录入。周期规则需要用户确认后才会生成真实账单。\n\n周期账单规则\n\n配置每周、每月、每年自动触发的待确认记账提醒。\n\n进入周期规则\n账单模板\n抽屉内管理\n\n模板入口当前集成在记账抽屉中。后续会拆出独立模板管理区。\n\n导入与导出\n\n用于补账、审计和迁移。导出文件包含明文账目信息，请妥善保管。\n\nCSV 账单导入\n\n支持将微信、支付宝等账单 CSV 上传到预览工作区，核对后再提交。\n\n进入 CSV 导入工作区\nCSV 交易流水导出\n\n包含发生时间、标题、分类、金额、付款人、可见性和备注，适合 Excel 审计。\n\n导出 CSV\nJSON 全量数据包导出\n\n包含脱敏后的成员、分类、标签、交易分摊和结算记录，可用于迁移归档。\n\n导出全量 JSON 数据包\n备份与恢复\n\nSQLite 物理备份和恢复属于高风险操作，仅 Owner 显示入口。恢复前仍需要二次确认。\n\nSQLite 物理安全备份\nOwner\n\n利用 SQLite 在线事务安全备份机制生成数据库镜像文件。\n\n立即创建手动安全备份\n历史手动备份文件\n\n展示已生成的备份文件，可下载或发起恢复。恢复前系统会再次确认。\n\n备份列表\n暂无手动备份\n\n系统暂未生成备份文件。建议在日常正式记账前，先创建一次手动备份以确保安全。\n\n系统诊断\n\n用于定位配置、数据库、备份目录、上传目录和运行环境问题。仅 Owner 可查看脱敏诊断结果。\n\n诊断面板\nOwner\n\n展示运行环境、数据库 schema、目录可写性、Cookie 策略和最近备份，不展示 secret、DSN 或绝对路径。\n\n运行环境\nproduction\nCookie 策略\nSecure false · Lax\n外部访问地址\n已配置\nSQLite 数据库\nschema v12\n正常\n数据库目录\n已配置 · 可写\n正常\n备份目录\n已配置 · 可写\n正常\n上传目录\n已配置 · 可写\n正常\n日志目录\n已配置 · 可写\n正常\n最近备份：暂无\n生成时间：2026/7/7 14:42:07\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置",
+    "screenshot": "screenshots/11-settings-430.png"
+  }
+]

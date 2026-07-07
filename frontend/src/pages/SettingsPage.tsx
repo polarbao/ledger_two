@@ -159,7 +159,7 @@ export default function SettingsPage() {
     setErrorMsg(null);
     try {
       const data = await api.get<BackupInfo[]>('/api/admin/backups');
-      setBackups(data);
+      setBackups(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setErrorMsg(`加载备份列表失败: ${err.message}`);

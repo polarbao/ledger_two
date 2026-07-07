@@ -176,7 +176,7 @@ export default function AppShell() {
             />
           </div>
 
-          <div className="desktop-user-info" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="desktop-user-info">
             {drafts.length > 0 && (
               <button className="btn-icon" onClick={() => setIsDraftListOpen(true)} title="草稿箱" style={{ position: 'relative' }}>
                 <CloudOff size={20} />

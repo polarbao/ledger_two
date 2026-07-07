@@ -389,7 +389,7 @@ func (s *Service) GetBackups(ctx context.Context) ([]BackupInfo, error) {
 		_ = os.MkdirAll(backupDir, 0755)
 	}
 
-	var list []BackupInfo
+	list := make([]BackupInfo, 0)
 	err := filepath.Walk(backupDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil

@@ -12,7 +12,7 @@
 3. 对应模块 PRD
 4. `docs/tech/18-short-mid-architecture-slices.md`
 5. `docs/ui/14-v1.1-v1.2-module-flows.md`
-6. Task47-Task49 额外读取 `docs/tech/20-v1.2-import-implementation-contract.md`
+6. Task47-Task49 额外读取 `docs/prd/29-prd-v1.2-module-business-service-breakdown.md` 与 `docs/tech/20-v1.2-import-implementation-contract.md`
 
 ## 2. Task41：快捷记账默认值
 
@@ -187,6 +187,7 @@
 
 - v1.1 完成。
 - 分类、标签、账户管理稳定。
+- `docs/prd/29-prd-v1.2-module-business-service-breakdown.md` 已明确 ImportBatch、ImportRow、Parser、Normalizer、Batch、Row、Dedupe、Rule、Commit 服务边界。
 - `docs/tech/20-v1.2-import-implementation-contract.md` 已确认 API 迁移策略、状态机和 DTO。
 
 开发范围：
@@ -218,6 +219,7 @@
 
 - Task47 完成。
 - import_hash 存储方案定案：新增 `transactions.import_hash` 或独立映射表二选一。
+- Task47 的 batch/row service 和预览工作台已冻结。
 
 开发范围：
 
@@ -249,6 +251,7 @@
 
 - Task48 完成。
 - 分类、标签、账户归档规则稳定。
+- ImportRule 业务对象、权限、规则优先级和归档语义已按 v1.2 细分文档冻结。
 
 开发范围：
 

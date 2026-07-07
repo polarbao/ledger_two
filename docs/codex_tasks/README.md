@@ -32,14 +32,15 @@
 3. 产品规划类任务读取 `docs/prd/20-product-retrospective-and-positioning.md` 到 `docs/prd/23-feature-priority-and-deferral-decisions.md`。
 4. 短中期业务开发读取 `docs/prd/24-short-mid-module-breakdown.md`、`docs/prd/25-prd-v1.1-module-specs.md`、`docs/prd/26-prd-v1.2-import-module-specs.md`。
 5. 短中期冻结或开发前读取 `docs/prd/27-acceptance-case-matrix.md` 和 `docs/prd/28-transaction-caliber-supplement.md`。
-6. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
-7. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
-8. 读取本目录代码风格文档。
-9. 读取对应任务。
-10. 输出计划和预计修改文件，等待确认。
-11. 只实现当前任务。
-12. 运行测试和构建。
-13. 输出变更摘要、验证命令、风险和下一步建议。
+6. v1.2 Task47-Task49 开发前额外读取 `docs/prd/29-prd-v1.2-module-business-service-breakdown.md` 和 `docs/tech/20-v1.2-import-implementation-contract.md`。
+7. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
+8. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
+9. 读取本目录代码风格文档。
+10. 读取对应任务。
+11. 输出计划和预计修改文件，等待确认。
+12. 只实现当前任务。
+13. 运行测试和构建。
+14. 输出变更摘要、验证命令、风险和下一步建议。
 
 ## 4. 禁止事项
 

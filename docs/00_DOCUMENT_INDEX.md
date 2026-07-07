@@ -1,6 +1,6 @@
 # LedgerTwo 文档索引与 AI 实现阅读顺序
 
-> 当前事实源提示：Task01-Task40 已完成，Foundation before v1.1 已完成基础冻结，中期 v1.1 已进入收口阶段。本文保留早期 v0.3 / Demo 文档索引作为历史背景，但后续开发应优先读取 `docs/README.md`、`docs/prd/20-28`、`docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md`、`docs/ui/14-v1.1-v1.2-module-flows.md`、`docs/ui/15-ledgertwo-ux-optimization-program.md` 和 `docs/codex_tasks/`。
+> 当前事实源提示：Task01-Task40 已完成，Foundation before v1.1 已完成基础冻结，中期 v1.1 已进入收口阶段。本文保留早期 v0.3 / Demo 文档索引作为历史背景，但后续开发应优先读取 `docs/README.md`、`docs/prd/20-29`、`docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md`、`docs/ui/14-v1.1-v1.2-module-flows.md`、`docs/ui/15-ledgertwo-ux-optimization-program.md` 和 `docs/codex_tasks/`。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -28,6 +28,7 @@ docs/prd/23-feature-priority-and-deferral-decisions.md
 docs/prd/24-short-mid-module-breakdown.md
 docs/prd/25-prd-v1.1-module-specs.md
 docs/prd/26-prd-v1.2-import-module-specs.md
+docs/prd/29-prd-v1.2-module-business-service-breakdown.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md
@@ -74,6 +75,7 @@ docs/prd/23-feature-priority-and-deferral-decisions.md
 docs/prd/24-short-mid-module-breakdown.md
 docs/prd/25-prd-v1.1-module-specs.md
 docs/prd/26-prd-v1.2-import-module-specs.md
+docs/prd/29-prd-v1.2-module-business-service-breakdown.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md

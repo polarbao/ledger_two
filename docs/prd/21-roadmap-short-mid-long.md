@@ -112,6 +112,8 @@ LedgerTwo 后续规划分三层：
 细化文档：
 
 - `docs/prd/26-prd-v1.2-import-module-specs.md`
+- `docs/prd/29-prd-v1.2-module-business-service-breakdown.md`
+- `docs/tech/20-v1.2-import-implementation-contract.md`
 - `docs/codex_tasks/09-task41-49-detailed-plan.md`
 
 ### 3.2 导入规则

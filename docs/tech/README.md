@@ -42,3 +42,4 @@ Task30 后的技术规划建议优先阅读：
 3. `18-short-mid-architecture-slices.md`
 4. `19-short-mid-implementation-readiness.md`
 5. `20-v1.2-import-implementation-contract.md`（进入 Task47-Task49 前必读）
+6. `../prd/29-prd-v1.2-module-business-service-breakdown.md`（进入 Task47-Task49 前用于确认业务对象、服务边界和 UI 工作台）

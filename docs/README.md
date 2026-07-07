@@ -26,19 +26,20 @@ docs/
 8. `docs/prd/24-short-mid-module-breakdown.md`
 9. `docs/prd/25-prd-v1.1-module-specs.md`
 10. `docs/prd/26-prd-v1.2-import-module-specs.md`
-11. `docs/prd/27-acceptance-case-matrix.md`
-12. `docs/prd/28-transaction-caliber-supplement.md`
-13. `docs/tech/18-short-mid-architecture-slices.md`
-14. `docs/api/API_INVENTORY.md`
-15. `docs/api/API_CONVENTIONS.md`
-16. `docs/api/openapi.yaml`
-17. `docs/ui/14-v1.1-v1.2-module-flows.md`
-18. `docs/project_analysis/2026-07-06-short-mid-long-and-nas-readiness.md`
-19. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
-20. `docs/codex_tasks/README.md`
-21. 进入具体业务模块文档。
+11. `docs/prd/29-prd-v1.2-module-business-service-breakdown.md`
+12. `docs/prd/27-acceptance-case-matrix.md`
+13. `docs/prd/28-transaction-caliber-supplement.md`
+14. `docs/tech/18-short-mid-architecture-slices.md`
+15. `docs/api/API_INVENTORY.md`
+16. `docs/api/API_CONVENTIONS.md`
+17. `docs/api/openapi.yaml`
+18. `docs/ui/14-v1.1-v1.2-module-flows.md`
+19. `docs/project_analysis/2026-07-06-short-mid-long-and-nas-readiness.md`
+20. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
+21. `docs/codex_tasks/README.md`
+22. 进入具体业务模块文档。
 
-当前项目已完成 Task01-Task40，Foundation before v1.1 已完成基础冻结；中期 v1.1 已从 Task44「分类、标签、账户管理体验」启动。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/`、`docs/prd/24-28` 和 `docs/tech/18-19` 为主要入口。
+当前项目已完成 Task01-Task40，Foundation before v1.1 已完成基础冻结；中期 v1.1 已进入收口阶段。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/`、`docs/prd/24-29` 和 `docs/tech/18-20` 为主要入口。
 
 ## AI 开发使用方式
 

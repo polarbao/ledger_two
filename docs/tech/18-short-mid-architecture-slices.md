@@ -129,7 +129,7 @@ import_rules
 - updated_at
 ```
 
-说明：v1.2 导入模块的最终字段、索引、状态机、DTO、API 迁移和回滚策略以 `docs/tech/20-v1.2-import-implementation-contract.md` 为准。本文保留高层切片，不替代 Task47-Task49 的实施契约。
+说明：v1.2 导入模块的业务对象、服务职责、UI 工作台和任务冻结标准以 `docs/prd/29-prd-v1.2-module-business-service-breakdown.md` 为准；最终字段、索引、状态机、DTO、API 迁移和回滚策略以 `docs/tech/20-v1.2-import-implementation-contract.md` 为准。本文保留高层切片，不替代 Task47-Task49 的实施契约。
 
 ## 4. API 切片
 

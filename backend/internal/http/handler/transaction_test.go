@@ -76,9 +76,15 @@ func TestTransactionFlow(t *testing.T) {
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
 	cookieB := getLoginCookie(t, r, "userB", "pass456")
 
+	var userAID string
+	err := db.QueryRow("SELECT id FROM users WHERE username = 'userA'").Scan(&userAID)
+	if err != nil {
+		t.Fatalf("query userA id failed: %v", err)
+	}
+
 	// 提取分类 ID 以供记账关联
 	var categoryID string
-	err := db.QueryRow("SELECT id FROM categories LIMIT 1").Scan(&categoryID)
+	err = db.QueryRow("SELECT id FROM categories LIMIT 1").Scan(&categoryID)
 	if err != nil {
 		t.Fatalf("query category failed: %v", err)
 	}
@@ -90,7 +96,7 @@ func TestTransactionFlow(t *testing.T) {
 		"amount_cents":  int64(1500), // 15元
 		"currency":      "CNY",
 		"occurred_at":   time.Now().Format(time.RFC3339),
-		"payer_user_id": "userA",
+		"payer_user_id": userAID,
 		"category_id":   categoryID,
 		"visibility":    "private",
 		"tag_names":     []string{"外卖", "工作餐"},
@@ -169,7 +175,7 @@ func TestTransactionFlow(t *testing.T) {
 		"amount_cents":  int64(500000), // 5000元
 		"currency":      "CNY",
 		"occurred_at":   time.Now().Format(time.RFC3339),
-		"payer_user_id": "userA",
+		"payer_user_id": userAID,
 		"visibility":    "partner_readable",
 	}
 	bodyIncome, _ := json.Marshal(reqPayloadIncome)
@@ -195,7 +201,7 @@ func TestTransactionFlow(t *testing.T) {
 	if defaultsData["type"].(string) != "income" {
 		t.Errorf("expected last transaction type income in defaults, got %v", defaultsData["type"])
 	}
-	if defaultsData["payer_user_id"].(string) != "userA" {
+	if defaultsData["payer_user_id"].(string) != userAID {
 		t.Errorf("expected payer userA in defaults, got %v", defaultsData["payer_user_id"])
 	}
 	if defaultsData["visibility"].(string) != "partner_readable" {

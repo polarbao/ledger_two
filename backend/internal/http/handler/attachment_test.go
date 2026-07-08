@@ -70,6 +70,10 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	}
 
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
+	var userAID string
+	if err := db.QueryRow("SELECT id FROM users WHERE username = 'userA'").Scan(&userAID); err != nil {
+		t.Fatalf("query userA id failed: %v", err)
+	}
 
 	// 2. 测试未鉴权拦截
 	reqUnauth, _ := http.NewRequest("POST", "/api/attachments", nil)
@@ -140,7 +144,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 		"amount_cents":     int64(1500),
 		"currency":         "CNY",
 		"occurred_at":      time.Now().Format(time.RFC3339),
-		"payer_user_id":    "userA",
+		"payer_user_id":    userAID,
 		"visibility":       "private",
 		"attachment_paths": []string{"/uploads/../hack.png"},
 	}
@@ -160,7 +164,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 		"amount_cents":  int64(1500),
 		"currency":      "CNY",
 		"occurred_at":   time.Now().Format(time.RFC3339),
-		"payer_user_id": "userA",
+		"payer_user_id": userAID,
 		"visibility":    "private",
 		"attachment_paths": []string{
 			"/uploads/1.png",
@@ -187,7 +191,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 		"amount_cents":     int64(1500),
 		"currency":         "CNY",
 		"occurred_at":      time.Now().Format(time.RFC3339),
-		"payer_user_id":    "userA",
+		"payer_user_id":    userAID,
 		"visibility":       "private",
 		"attachment_paths": []string{filePath},
 	}

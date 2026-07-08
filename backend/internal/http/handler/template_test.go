@@ -76,6 +76,10 @@ func TestTransactionTemplates(t *testing.T) {
 	}
 
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
+	var userAID string
+	if err := db.QueryRow("SELECT id FROM users WHERE username = 'userA'").Scan(&userAID); err != nil {
+		t.Fatalf("query userA id failed: %v", err)
+	}
 
 	// 2. 测试创建模板：参数边界防错
 	// 2.1 模板名为空失败
@@ -194,7 +198,7 @@ func TestTransactionTemplates(t *testing.T) {
 		"title":         "吃黄焖鸡米饭",
 		"amount_cents":  1500,
 		"occurred_at":   time.Now().Format(time.RFC3339),
-		"payer_user_id": "userA",
+		"payer_user_id": userAID,
 		"tag_names":     []string{"工作餐", "修改版"},
 		"note":          "每周固定吃黄焖鸡",
 	}

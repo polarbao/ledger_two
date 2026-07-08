@@ -18,6 +18,7 @@ import (
 	"ledger_two/internal/http/handler"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
+	ledgerctx "ledger_two/internal/ledger"
 	"ledger_two/internal/safety"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
@@ -53,6 +54,9 @@ func TestSafetyFlow(t *testing.T) {
 	txSvc := transaction.NewService(txRepo)
 	txHandler := transaction.NewHandler(txSvc)
 
+	ledgerRepo := ledgerctx.NewRepository(db)
+	ledgerSvc := ledgerctx.NewService(ledgerRepo)
+
 	safetySvc := safety.NewService(db, cfg)
 	safetyHandler := safety.NewHandler(safetySvc)
 
@@ -62,6 +66,7 @@ func TestSafetyFlow(t *testing.T) {
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(ledgerctx.WithLedgerContext(ledgerSvc))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreate)
 		})
@@ -99,6 +104,16 @@ func TestSafetyFlow(t *testing.T) {
 	// 2. 获取用户 A 和用户 B 的登录 Token
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
 	cookieB := getLoginCookie(t, r, "userB", "pass456")
+	var ledgerID string
+	err = db.QueryRow("SELECT id FROM ledgers LIMIT 1").Scan(&ledgerID)
+	if err != nil {
+		t.Fatalf("query ledger id failed: %v", err)
+	}
+	var userAID string
+	err = db.QueryRow("SELECT id FROM users WHERE username = 'userA'").Scan(&userAID)
+	if err != nil {
+		t.Fatalf("query userA id failed: %v", err)
+	}
 
 	// 3. 拦截未登录测试
 	reqNoAuth, _ := http.NewRequest("POST", "/api/admin/backup", nil)
@@ -111,6 +126,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 4. 手动备份成功测试
 	reqBackup, _ := http.NewRequest("POST", "/api/admin/backup", nil)
 	reqBackup.AddCookie(cookieA)
+	reqBackup.Header.Set("X-Ledger-Id", ledgerID)
 	rrBackup := httptest.NewRecorder()
 	r.ServeHTTP(rrBackup, reqBackup)
 	if rrBackup.Code != http.StatusOK {
@@ -147,6 +163,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 5. 备份列表查询测试
 	reqBackupsList, _ := http.NewRequest("GET", "/api/admin/backups", nil)
 	reqBackupsList.AddCookie(cookieA)
+	reqBackupsList.Header.Set("X-Ledger-Id", ledgerID)
 	rrBackupsList := httptest.NewRecorder()
 	r.ServeHTTP(rrBackupsList, reqBackupsList)
 	if rrBackupsList.Code != http.StatusOK {
@@ -179,6 +196,7 @@ func TestSafetyFlow(t *testing.T) {
 	cfg.BackupDir = invalidBackupRoot
 	reqBackupErr, _ := http.NewRequest("POST", "/api/admin/backup", nil)
 	reqBackupErr.AddCookie(cookieA)
+	reqBackupErr.Header.Set("X-Ledger-Id", ledgerID)
 	rrBackupErr := httptest.NewRecorder()
 	r.ServeHTTP(rrBackupErr, reqBackupErr)
 	if rrBackupErr.Code != http.StatusInternalServerError {
@@ -214,7 +232,7 @@ func TestSafetyFlow(t *testing.T) {
 		"amount_cents":  int64(9900), // 99元
 		"currency":      "CNY",
 		"occurred_at":   time.Now().Format(time.RFC3339),
-		"payer_user_id": "userA",
+		"payer_user_id": userAID,
 		"category_id":   categoryID,
 		"visibility":    "private",
 		"note":          "只有A可见",
@@ -231,6 +249,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 7.2 用户 A 导出 JSON，应当包含该账单，且包含脱敏的用户信息，不含 password_hash
 	reqExportJSONA, _ := http.NewRequest("GET", "/api/export/full.json", nil)
 	reqExportJSONA.AddCookie(cookieA)
+	reqExportJSONA.Header.Set("X-Ledger-Id", ledgerID)
 	rrExportJSONA := httptest.NewRecorder()
 	r.ServeHTTP(rrExportJSONA, reqExportJSONA)
 	if rrExportJSONA.Code != http.StatusOK {
@@ -265,6 +284,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 7.3 用户 B 导出 JSON，应当绝不包含 A 的 private 账单
 	reqExportJSONB, _ := http.NewRequest("GET", "/api/export/full.json", nil)
 	reqExportJSONB.AddCookie(cookieB)
+	reqExportJSONB.Header.Set("X-Ledger-Id", ledgerID)
 	rrExportJSONB := httptest.NewRecorder()
 	r.ServeHTTP(rrExportJSONB, reqExportJSONB)
 	if rrExportJSONB.Code != http.StatusOK {
@@ -289,6 +309,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 7.4 用户 A 导出 CSV，应当包含该账单，且验证 CSV 审计日志写入
 	reqExportCSVA, _ := http.NewRequest("GET", "/api/export/transactions.csv", nil)
 	reqExportCSVA.AddCookie(cookieA)
+	reqExportCSVA.Header.Set("X-Ledger-Id", ledgerID)
 	rrExportCSVA := httptest.NewRecorder()
 	r.ServeHTTP(rrExportCSVA, reqExportCSVA)
 	if rrExportCSVA.Code != http.StatusOK {
@@ -303,6 +324,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 7.5 用户 B 导出 CSV，应当不包含 A 的 private 账单
 	reqExportCSVB, _ := http.NewRequest("GET", "/api/export/transactions.csv", nil)
 	reqExportCSVB.AddCookie(cookieB)
+	reqExportCSVB.Header.Set("X-Ledger-Id", ledgerID)
 	rrExportCSVB := httptest.NewRecorder()
 	r.ServeHTTP(rrExportCSVB, reqExportCSVB)
 	if rrExportCSVB.Code != http.StatusOK {

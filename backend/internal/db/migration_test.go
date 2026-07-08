@@ -10,7 +10,7 @@ import (
 	"ledger_two/migrations"
 )
 
-const latestMigrationVersion int64 = 13
+const latestMigrationVersion int64 = 14
 
 func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 	database := openMigrationTestDB(t)
@@ -123,6 +123,13 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"error_code",
 		"error_message",
 		"generated_transaction_id",
+		"suggested_category_id",
+		"suggested_account_id",
+		"suggested_tag_ids_json",
+		"selected_category_id",
+		"selected_account_id",
+		"selected_tag_ids_json",
+		"visibility",
 	})
 
 	assertIndexesExist(t, database, []string{
@@ -145,6 +152,8 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"idx_import_items_batch_row_number",
 		"idx_import_items_batch_duplicate_status",
 		"idx_import_items_batch_row_status",
+		"idx_import_items_selected_category",
+		"idx_import_items_selected_account",
 	})
 }
 

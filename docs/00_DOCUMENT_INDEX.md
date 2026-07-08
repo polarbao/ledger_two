@@ -35,6 +35,7 @@ docs/tech/18-short-mid-architecture-slices.md
 docs/tech/19-short-mid-implementation-readiness.md
 docs/tech/20-v1.2-import-implementation-contract.md
 docs/tech/21-v1.2-import-migration-review.md
+docs/tech/22-v1.2-import-task47-implementation-plan.md
 docs/api/API_INVENTORY.md
 docs/api/API_CONVENTIONS.md
 docs/api/openapi.yaml
@@ -86,6 +87,7 @@ docs/tech/18-short-mid-architecture-slices.md
 docs/tech/19-short-mid-implementation-readiness.md
 docs/tech/20-v1.2-import-implementation-contract.md
 docs/tech/21-v1.2-import-migration-review.md
+docs/tech/22-v1.2-import-task47-implementation-plan.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
 docs/ui/figma/README.md

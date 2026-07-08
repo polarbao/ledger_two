@@ -1,0 +1,52 @@
+{
+  "source_type": "alipay",
+  "fixture": "../alipay-basic.csv",
+  "expected_rows": [
+    {
+      "row_number": 1,
+      "occurred_at": "2026-07-04T12:10:10+08:00",
+      "title": "午餐套餐",
+      "merchant": "快餐店",
+      "amount_cents": 4250,
+      "direction": "expense",
+      "target_transaction_type": "expense",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    },
+    {
+      "row_number": 2,
+      "occurred_at": "2026-07-04T12:12:10+08:00",
+      "title": "午餐套餐",
+      "merchant": "快餐店",
+      "amount_cents": 4250,
+      "direction": "expense",
+      "target_transaction_type": "expense",
+      "duplicate_status": "suspicious",
+      "row_status": "pending",
+      "suspicious_reason_contains": "同商户"
+    },
+    {
+      "row_number": 3,
+      "occurred_at": "2026-07-05T19:30:10+08:00",
+      "title": "日用品",
+      "merchant": "超市",
+      "amount_cents": 12890,
+      "direction": "expense",
+      "target_transaction_type": "expense",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    },
+    {
+      "row_number": 4,
+      "occurred_at": "2026-07-06T09:00:10+08:00",
+      "title": "咖啡退款",
+      "merchant": "咖啡店",
+      "amount_cents": 1500,
+      "direction": "refund",
+      "target_transaction_type": "income",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    }
+  ]
+}
+

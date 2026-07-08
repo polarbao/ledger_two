@@ -23,6 +23,7 @@
 19-short-mid-implementation-readiness.md 短中期实施就绪评审
 20-v1.2-import-implementation-contract.md v1.2 导入模块实施契约
 21-v1.2-import-migration-review.md v1.2 导入模块 Migration 评审
+22-v1.2-import-task47-implementation-plan.md v1.2 Task47 导入预览实施计划
 ```
 
 ## 技术原则
@@ -44,4 +45,5 @@ Task30 后的技术规划建议优先阅读：
 4. `19-short-mid-implementation-readiness.md`
 5. `20-v1.2-import-implementation-contract.md`（进入 Task47-Task49 前必读）
 6. `21-v1.2-import-migration-review.md`（进入 Task47-Task49 前用于确认 migration 切片）
-7. `../prd/29-prd-v1.2-module-business-service-breakdown.md`（进入 Task47-Task49 前用于确认业务对象、服务边界和 UI 工作台）
+7. `22-v1.2-import-task47-implementation-plan.md`（Task47 开工时用于确认 parser、repository、service、handler 和前端切片）
+8. `../prd/29-prd-v1.2-module-business-service-breakdown.md`（进入 Task47-Task49 前用于确认业务对象、服务边界和 UI 工作台）

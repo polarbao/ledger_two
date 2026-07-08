@@ -1,0 +1,65 @@
+{
+  "source_type": "wechat",
+  "fixture": "../wechat-basic.csv",
+  "expected_rows": [
+    {
+      "row_number": 1,
+      "occurred_at": "2026-07-01T12:30:00+08:00",
+      "title": "午餐",
+      "merchant": "便利店",
+      "amount_cents": 3580,
+      "direction": "expense",
+      "target_transaction_type": "expense",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    },
+    {
+      "row_number": 2,
+      "occurred_at": "2026-07-01T18:12:00+08:00",
+      "title": "交通出行",
+      "merchant": "地铁",
+      "amount_cents": 600,
+      "direction": "expense",
+      "target_transaction_type": "expense",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    },
+    {
+      "row_number": 3,
+      "occurred_at": "2026-07-02T09:00:00+08:00",
+      "title": "咖啡退款",
+      "merchant": "咖啡店",
+      "amount_cents": 1200,
+      "direction": "refund",
+      "target_transaction_type": "income",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    },
+    {
+      "row_number": 4,
+      "occurred_at": "2026-07-02T20:00:00+08:00",
+      "title": "微信转账",
+      "merchant": "polar",
+      "amount_cents": 20000,
+      "direction": "transfer",
+      "target_transaction_type": "skipped",
+      "duplicate_status": "new",
+      "row_status": "skipped"
+    },
+    {
+      "row_number": 5,
+      "title": "早餐",
+      "merchant": "早餐店",
+      "amount_cents": 0,
+      "direction": "expense",
+      "target_transaction_type": "skipped",
+      "duplicate_status": "invalid",
+      "row_status": "failed",
+      "error": {
+        "code": "IMPORT_ROW_AMOUNT_INVALID",
+        "message_contains": "金额"
+      }
+    }
+  ]
+}
+

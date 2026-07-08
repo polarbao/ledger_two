@@ -11,6 +11,7 @@
 | `wechat-basic.csv` | `wechat` | 微信支出、收入、退款、转账跳过、缺金额 invalid |
 | `alipay-basic.csv` | `alipay` | 支付宝支出、收入、退款、疑似重复字段 |
 | `generic-basic.csv` | `generic` | 通用 CSV 标准字段映射 |
+| `expected/*.preview.json` | parser 预期结果 | Task47 parser/preview 断言基线 |
 
 ## 2. 使用规则
 
@@ -19,6 +20,7 @@
 3. 转账、理财、信用卡还款等不明确流水默认 `unknown` 或 `skipped`，不得自动写入正式账单。
 4. Task47 至少用每个文件覆盖 parser 和 preview。
 5. Task48 复制同一 fixture 再导入，用于 duplicate 与 rollback。
+6. Task47 parser 测试必须以 `expected/*.preview.json` 为断言基线；如实现调整预期，需同步更新 fixture 评审文档。
 
 ## 3. 预期重点
 
@@ -30,4 +32,3 @@
 | 缺金额行 | `invalid`，错误包含行号 |
 | 支付宝同商户近时间 | 可用于构造 `suspicious` |
 | 通用 CSV | 字段映射可直接进入标准 DTO |
-

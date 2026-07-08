@@ -1,0 +1,51 @@
+{
+  "source_type": "generic",
+  "fixture": "../generic-basic.csv",
+  "expected_rows": [
+    {
+      "row_number": 1,
+      "occurred_at": "2026-07-07T10:00:00+08:00",
+      "title": "早餐",
+      "merchant": "早餐店",
+      "amount_cents": 1800,
+      "direction": "expense",
+      "target_transaction_type": "expense",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    },
+    {
+      "row_number": 2,
+      "occurred_at": "2026-07-07T13:00:00+08:00",
+      "title": "午餐",
+      "merchant": "园区餐厅",
+      "amount_cents": 3200,
+      "direction": "expense",
+      "target_transaction_type": "expense",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    },
+    {
+      "row_number": 3,
+      "occurred_at": "2026-07-07T20:00:00+08:00",
+      "title": "报销到账",
+      "merchant": "公司",
+      "amount_cents": 10000,
+      "direction": "income",
+      "target_transaction_type": "income",
+      "duplicate_status": "new",
+      "row_status": "pending"
+    },
+    {
+      "row_number": 4,
+      "occurred_at": "2026-07-07T21:00:00+08:00",
+      "title": "朋友转账",
+      "merchant": "polar",
+      "amount_cents": 5000,
+      "direction": "transfer",
+      "target_transaction_type": "skipped",
+      "duplicate_status": "new",
+      "row_status": "skipped"
+    }
+  ]
+}
+

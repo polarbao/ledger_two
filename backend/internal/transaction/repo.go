@@ -750,18 +750,30 @@ func (r *Repository) GetSplitsByTxIDs(ctx context.Context, txIDs []string) (map[
 
 // Category 分类列表返回 DTO
 type Category struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	IsArchived bool   `json:"is_archived"`
 }
 
 // ListCategories 查询账本下所有的系统分类列表
 // @brief 从 categories 数据库表中拉取当前 ledger 对应的分类
 // @param ctx context.Context 上下文
 // @param ledgerID string 账本 ID
+// @param includeArchived bool 是否包含已归档分类，用于历史流水展示
 // @return []Category 分类数据列表
 // @return error 错误信息
-func (r *Repository) ListCategories(ctx context.Context, ledgerID string) ([]Category, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id, name FROM categories WHERE ledger_id = ? AND is_archived = 0 ORDER BY sort_order ASC", ledgerID)
+func (r *Repository) ListCategories(ctx context.Context, ledgerID string, includeArchived bool) ([]Category, error) {
+	whereArchived := "AND is_archived = 0"
+	if includeArchived {
+		whereArchived = ""
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, name, is_archived
+		FROM categories
+		WHERE ledger_id = ? `+whereArchived+`
+		ORDER BY is_archived ASC, sort_order ASC
+	`, ledgerID)
 	if err != nil {
 		return nil, err
 	}
@@ -770,9 +782,11 @@ func (r *Repository) ListCategories(ctx context.Context, ledgerID string) ([]Cat
 	var list []Category
 	for rows.Next() {
 		var c Category
-		if err := rows.Scan(&c.ID, &c.Name); err != nil {
+		var isArchived int
+		if err := rows.Scan(&c.ID, &c.Name, &isArchived); err != nil {
 			return nil, err
 		}
+		c.IsArchived = isArchived == 1
 		list = append(list, c)
 	}
 	return list, nil

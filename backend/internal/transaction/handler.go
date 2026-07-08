@@ -246,7 +246,8 @@ func (h *Handler) HandleListCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.service.ListCategories(r.Context(), currentUserID)
+	includeArchived := r.URL.Query().Get("include_archived") == "true"
+	res, err := h.service.ListCategories(r.Context(), currentUserID, includeArchived)
 	if err != nil {
 		response.WriteError(w, err)
 		return

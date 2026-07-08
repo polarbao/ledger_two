@@ -205,7 +205,7 @@ paths:
           required: false
           schema:
             type: boolean
-          description: When true, archived templates are included for management views.
+          description: When true, archived categories are included for historical transaction display.
       responses:
         "200":
           $ref: "#/components/responses/Success"

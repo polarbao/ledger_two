@@ -19,7 +19,8 @@ export const queryKeys = {
     list: (ledgerId: string | null | undefined, filter: TransactionListFilter) =>
       ['transactions', ledgerScope(ledgerId), filter] as const,
   },
-  categories: (ledgerId?: string | null) => ['categories', ledgerScope(ledgerId)] as const,
+  categories: (ledgerId?: string | null, includeArchived = false) =>
+    ['categories', ledgerScope(ledgerId), includeArchived ? 'include-archived' : 'active'] as const,
   accounts: (ledgerId?: string | null) => ['accounts', ledgerScope(ledgerId)] as const,
   transactionDefaults: (ledgerId?: string | null) =>
     ['transaction-defaults', ledgerScope(ledgerId)] as const,

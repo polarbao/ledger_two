@@ -50,6 +50,7 @@ func TestTransactionFlow(t *testing.T) {
 			r.Patch("/{id}", txHandler.HandleUpdate)
 			r.Delete("/{id}", txHandler.HandleDelete)
 		})
+		r.Get("/api/categories", txHandler.HandleListCategories)
 		r.Get("/api/transaction-defaults", txHandler.HandleGetTransactionDefault)
 	})
 
@@ -109,6 +110,57 @@ func TestTransactionFlow(t *testing.T) {
 	json.Unmarshal(rrCreate.Body.Bytes(), &createResp)
 	txData := createResp.Data.(map[string]interface{})
 	txID := txData["id"].(string)
+
+	var categoryName string
+	err = db.QueryRow("SELECT name FROM categories WHERE id = ?", categoryID).Scan(&categoryName)
+	if err != nil {
+		t.Fatalf("query category name failed: %v", err)
+	}
+	if _, err = db.Exec("UPDATE categories SET is_archived = 1 WHERE id = ?", categoryID); err != nil {
+		t.Fatalf("archive category fixture failed: %v", err)
+	}
+
+	reqCategoriesActive, _ := http.NewRequest("GET", "/api/categories", nil)
+	reqCategoriesActive.AddCookie(cookieA)
+	rrCategoriesActive := httptest.NewRecorder()
+	r.ServeHTTP(rrCategoriesActive, reqCategoriesActive)
+	if rrCategoriesActive.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for active categories, got %d. Body: %s", rrCategoriesActive.Code, rrCategoriesActive.Body.String())
+	}
+	var categoriesActiveResp response.SuccessResponse
+	json.Unmarshal(rrCategoriesActive.Body.Bytes(), &categoriesActiveResp)
+	for _, item := range categoriesActiveResp.Data.([]interface{}) {
+		cat := item.(map[string]interface{})
+		if cat["id"].(string) == categoryID {
+			t.Fatalf("archived category should not be returned by default /api/categories")
+		}
+	}
+
+	reqCategoriesAll, _ := http.NewRequest("GET", "/api/categories?include_archived=true", nil)
+	reqCategoriesAll.AddCookie(cookieA)
+	rrCategoriesAll := httptest.NewRecorder()
+	r.ServeHTTP(rrCategoriesAll, reqCategoriesAll)
+	if rrCategoriesAll.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for include_archived categories, got %d. Body: %s", rrCategoriesAll.Code, rrCategoriesAll.Body.String())
+	}
+	var categoriesAllResp response.SuccessResponse
+	json.Unmarshal(rrCategoriesAll.Body.Bytes(), &categoriesAllResp)
+	foundArchivedCategory := false
+	for _, item := range categoriesAllResp.Data.([]interface{}) {
+		cat := item.(map[string]interface{})
+		if cat["id"].(string) == categoryID {
+			foundArchivedCategory = true
+			if cat["name"].(string) != categoryName {
+				t.Fatalf("expected archived category name %q, got %q", categoryName, cat["name"])
+			}
+			if cat["is_archived"].(bool) != true {
+				t.Fatalf("expected archived category is_archived=true, got %+v", cat)
+			}
+		}
+	}
+	if !foundArchivedCategory {
+		t.Fatalf("expected include_archived categories to contain historical category %s", categoryID)
+	}
 
 	// 4. 测试创建：正常收入
 	reqPayloadIncome := map[string]interface{}{

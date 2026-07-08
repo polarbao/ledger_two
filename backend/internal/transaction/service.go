@@ -917,17 +917,18 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	return dto, nil
 }
 
-// ListCategories 获取可用分类数据
+// ListCategories 获取分类数据
 // @brief 获取当前账本下所有的系统通用分类和用户自定义分类
 // @param ctx context.Context
+// @param includeArchived bool 是否包含已归档分类，用于历史流水展示
 // @return []Category 分类数据列表
 // @return error 错误信息
-func (s *Service) ListCategories(ctx context.Context, currentUserID string) ([]Category, error) {
+func (s *Service) ListCategories(ctx context.Context, currentUserID string, includeArchived bool) ([]Category, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
 	}
-	return s.repo.ListCategories(ctx, ledgerID)
+	return s.repo.ListCategories(ctx, ledgerID, includeArchived)
 }
 
 // toTemplateResponse 辅助实体转换为统一 DTO 输出模型
@@ -2340,7 +2341,7 @@ func (s *Service) CreateImportRule(ctx context.Context, currentUserID string, re
 
 	// 2. 检查分类和账户是否存在以确保关联的合法性
 	if req.CategoryID != "" {
-		categories, err := s.repo.ListCategories(ctx, ledgerID)
+		categories, err := s.repo.ListCategories(ctx, ledgerID, false)
 		if err != nil {
 			return nil, err
 		}

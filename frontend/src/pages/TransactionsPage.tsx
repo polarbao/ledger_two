@@ -124,14 +124,19 @@ export default function TransactionsPage() {
 
   // 1. 获取分类名称列表映射
   const { data: categories } = useQuery({
-    queryKey: queryKeys.categories(activeLedgerId),
-    queryFn: () => transactionsApi.getCategories(),
+    queryKey: queryKeys.categories(activeLedgerId, true),
+    queryFn: () => transactionsApi.getCategories({ includeArchived: true }),
   });
 
   const catMap = categories?.reduce((acc, cat) => {
-    acc[cat.id] = cat.name;
+    acc[cat.id] = cat.is_archived ? `${cat.name}（已归档）` : cat.name;
     return acc;
   }, {} as Record<string, string>) || {};
+
+  const getCategoryLabel = (categoryId?: string | null) => {
+    if (!categoryId) return '未分类';
+    return catMap[categoryId] || '已设分类';
+  };
 
   const minAmount = minAmountStr ? Math.round(parseFloat(minAmountStr) * 100) : undefined;
   const maxAmount = maxAmountStr ? Math.round(parseFloat(maxAmountStr) * 100) : undefined;
@@ -440,7 +445,7 @@ export default function TransactionsPage() {
                     <TransactionCard 
                       tx={tx} 
                       currentUserId={currentUser?.id || ''} 
-                      categoryName={tx.category_id ? catMap[tx.category_id] || '已设分类' : '未分类'}
+                      categoryName={getCategoryLabel(tx.category_id)}
                       onClick={() => { setSelectedTx(tx); setDetailOpen(true); }}
                     />
                   </div>
@@ -536,7 +541,7 @@ export default function TransactionsPage() {
                           <span className={`type-badge ${badgeClass}`}>{badgeLabel}</span>
                         </td>
                         <td style={{ padding: '14px 20px', color: 'var(--text-primary)' }}>
-                          {tx.category_id ? catMap[tx.category_id] || '已设分类' : '未分类'}
+                          {getCategoryLabel(tx.category_id)}
                         </td>
                         <td style={{ padding: '14px 20px', color: 'var(--text-primary)', fontWeight: 500 }}>
                           {tx.title}
@@ -658,7 +663,7 @@ export default function TransactionsPage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span className="dimmed">所属分类</span>
-                  <span>{selectedTx.category_id ? catMap[selectedTx.category_id] || '已设分类' : '未分类'}</span>
+                  <span>{getCategoryLabel(selectedTx.category_id)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span className="dimmed">发生日期</span>

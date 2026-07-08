@@ -79,7 +79,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| GET | `/api/categories` | yes | optional | transitional | `transaction.HandleListCategories` | 列出当前账本分类。 |
+| GET | `/api/categories` | yes | optional | transitional | `transaction.HandleListCategories` | 列出当前账本分类；默认仅未归档，`include_archived=true` 用于历史账单展示归档分类名称。 |
 | GET | `/api/accounts` | yes | optional | transitional | `transaction.HandleListAccounts` | 列出当前账本支付账户。 |
 | GET | `/api/metadata/{kind}/` | yes | optional | transitional | `metadata.List` | 元数据列表，kind 为 categories/tags/accounts，支持 include_archived，返回 `sort_order` 与 `usage_count`。 |
 | POST | `/api/metadata/{kind}/` | yes | optional | transitional | `metadata.Create` | 创建分类、标签或账户，仅 owner。 |

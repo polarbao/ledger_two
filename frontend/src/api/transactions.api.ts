@@ -38,9 +38,15 @@ export interface BatchTagPayload {
   tag_names: string[];
 }
 
+export interface ListCategoryOptions {
+  includeArchived?: boolean;
+}
+
 export const transactionsApi = {
-  getCategories: () =>
-    api.get<Category[]>('/api/categories'),
+  getCategories: (options: ListCategoryOptions = {}) => {
+    const qs = options.includeArchived ? '?include_archived=true' : '';
+    return api.get<Category[]>(`/api/categories${qs}`);
+  },
 
   /** GET /api/transactions — 分页流水列表 */
   list: (filter: TransactionListFilter = {}) => {

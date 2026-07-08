@@ -22,6 +22,8 @@ export interface TransactionResponse {
   payer_user_id: string;
   account_id?: string | null;
   category_id?: string | null;
+  category_name?: string | null;
+  category_is_archived?: boolean | null;
   visibility: 'private' | 'partner_readable' | 'shared';
   split_method?: 'equal' | 'payer_only';
   note?: string;

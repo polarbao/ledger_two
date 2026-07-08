@@ -602,6 +602,14 @@ func (s *Service) toDTO(tx *Transaction, tags []string) *TransactionResponse {
 	if tx.CategoryID.Valid {
 		category = &tx.CategoryID.String
 	}
+	var categoryName *string
+	if tx.CategoryName.Valid {
+		categoryName = &tx.CategoryName.String
+	}
+	var categoryArchived *bool
+	if tx.CategoryArchived.Valid {
+		categoryArchived = &tx.CategoryArchived.Bool
+	}
 	note := ""
 	if tx.Note.Valid {
 		note = tx.Note.String
@@ -613,24 +621,26 @@ func (s *Service) toDTO(tx *Transaction, tags []string) *TransactionResponse {
 	}
 
 	return &TransactionResponse{
-		ID:              tx.ID,
-		Type:            tx.Type,
-		Title:           tx.Title,
-		AmountCents:     tx.Amount,
-		Currency:        tx.Currency,
-		OccurredAt:      tx.OccurredAt.Format(time.RFC3339),
-		OwnerUserID:     tx.OwnerUserID,
-		CreatedByUserID: tx.CreatedByUserID,
-		PayerUserID:     tx.PayerUserID,
-		AccountID:       account,
-		CategoryID:      category,
-		Visibility:      tx.Visibility,
-		Note:            note,
-		Status:          tx.Status,
-		Tags:            tags,
-		AttachmentPaths: attachmentPaths,
-		CreatedAt:       tx.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:       tx.UpdatedAt.Format(time.RFC3339),
+		ID:               tx.ID,
+		Type:             tx.Type,
+		Title:            tx.Title,
+		AmountCents:      tx.Amount,
+		Currency:         tx.Currency,
+		OccurredAt:       tx.OccurredAt.Format(time.RFC3339),
+		OwnerUserID:      tx.OwnerUserID,
+		CreatedByUserID:  tx.CreatedByUserID,
+		PayerUserID:      tx.PayerUserID,
+		AccountID:        account,
+		CategoryID:       category,
+		CategoryName:     categoryName,
+		CategoryArchived: categoryArchived,
+		Visibility:       tx.Visibility,
+		Note:             note,
+		Status:           tx.Status,
+		Tags:             tags,
+		AttachmentPaths:  attachmentPaths,
+		CreatedAt:        tx.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        tx.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

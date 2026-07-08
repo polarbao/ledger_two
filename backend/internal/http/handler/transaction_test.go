@@ -168,6 +168,32 @@ func TestTransactionFlow(t *testing.T) {
 		t.Fatalf("expected include_archived categories to contain historical category %s", categoryID)
 	}
 
+	reqListWithArchivedCategory, _ := http.NewRequest("GET", "/api/transactions", nil)
+	reqListWithArchivedCategory.AddCookie(cookieA)
+	rrListWithArchivedCategory := httptest.NewRecorder()
+	r.ServeHTTP(rrListWithArchivedCategory, reqListWithArchivedCategory)
+	if rrListWithArchivedCategory.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for transaction list with archived category, got %d. Body: %s", rrListWithArchivedCategory.Code, rrListWithArchivedCategory.Body.String())
+	}
+	var listWithArchivedCategoryResp response.SuccessResponse
+	json.Unmarshal(rrListWithArchivedCategory.Body.Bytes(), &listWithArchivedCategoryResp)
+	foundTxWithCategoryName := false
+	for _, item := range listWithArchivedCategoryResp.Data.([]interface{}) {
+		tx := item.(map[string]interface{})
+		if tx["id"].(string) == txID {
+			foundTxWithCategoryName = true
+			if tx["category_name"].(string) != categoryName {
+				t.Fatalf("expected transaction category_name %q, got %v", categoryName, tx["category_name"])
+			}
+			if tx["category_is_archived"].(bool) != true {
+				t.Fatalf("expected transaction category_is_archived=true, got %+v", tx)
+			}
+		}
+	}
+	if !foundTxWithCategoryName {
+		t.Fatalf("expected transaction list to contain transaction %s with archived category display fields", txID)
+	}
+
 	// 4. 测试创建：正常收入
 	reqPayloadIncome := map[string]interface{}{
 		"type":          "income",

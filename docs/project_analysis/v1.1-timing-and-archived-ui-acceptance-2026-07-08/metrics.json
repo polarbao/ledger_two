@@ -1,0 +1,199 @@
+{
+  "generated_at": "2026-07-08T05:02:12.491Z",
+  "environment": {
+    "app_url": "http://localhost:38088",
+    "cdp": "127.0.0.1:9333",
+    "browser": "Chrome headless via CDP"
+  },
+  "timing": {
+    "base_url": "http://localhost:38088",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "stamp": "20260708050207",
+    "healthz": {
+      "status": 200,
+      "ok": true,
+      "payload": {
+        "success": true,
+        "data": {
+          "db": "ok",
+          "schema_version": 12,
+          "status": "ok",
+          "version": "1.1.0-rc"
+        }
+      }
+    },
+    "ledger_id": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+    "current_user_id": "d4c393ae-1816-47df-882e-916143096834",
+    "ordinary": {
+      "title": "v11-timing-ordinary-20260708050207",
+      "drawer_open_at": "2026-07-08T05:02:08.142Z",
+      "drawer_open_epoch_ms": 1783486928142,
+      "submit_click_at": "2026-07-08T05:02:08.144Z",
+      "success_at": "2026-07-08T05:02:08.266Z",
+      "success_epoch_ms": 1783486928266,
+      "elapsed_ms_from_drawer_open": 124,
+      "lookup": {
+        "status": 200,
+        "transaction": {
+          "id": "390fb2b4-f759-4fc5-8686-4f6dc320a025",
+          "type": "expense",
+          "title": "v11-timing-ordinary-20260708050207",
+          "amount_cents": 1234,
+          "currency": "CNY",
+          "occurred_at": "2026-07-08T00:00:00Z",
+          "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "account_id": null,
+          "category_id": null,
+          "visibility": "partner_readable",
+          "note": "",
+          "status": "normal",
+          "tags": null,
+          "attachment_paths": [],
+          "created_at": "2026-07-08T13:02:08+08:00",
+          "updated_at": "2026-07-08T13:02:08+08:00"
+        }
+      },
+      "pass_10s": true,
+      "drawer_still_open": true
+    },
+    "shared": {
+      "title": "v11-timing-shared-20260708050207",
+      "drawer_open_at": "2026-07-08T05:02:08.266Z",
+      "drawer_open_epoch_ms": 1783486928266,
+      "before_submit": {
+        "participants_count": 2,
+        "equal_button_active": true
+      },
+      "submit_click_at": "2026-07-08T05:02:08.375Z",
+      "success_at": "2026-07-08T05:02:08.499Z",
+      "success_epoch_ms": 1783486928499,
+      "elapsed_ms_from_drawer_open": 233,
+      "lookup": {
+        "status": 200,
+        "transaction": {
+          "id": "3d0227d0-5ad8-43dd-966e-86f5ed4d1739",
+          "type": "shared_expense",
+          "title": "v11-timing-shared-20260708050207",
+          "amount_cents": 6600,
+          "currency": "CNY",
+          "occurred_at": "2026-07-08T00:00:00Z",
+          "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+          "account_id": null,
+          "category_id": null,
+          "visibility": "shared",
+          "note": "",
+          "status": "normal",
+          "tags": null,
+          "split_method": "equal",
+          "participants": [
+            {
+              "user_id": "d4c393ae-1816-47df-882e-916143096834",
+              "share_amount_cents": 3300
+            },
+            {
+              "user_id": "d4d0a07f-4d58-47a0-ac89-9e03aa9696cd",
+              "share_amount_cents": 3300
+            }
+          ],
+          "attachment_paths": [],
+          "created_at": "2026-07-08T13:02:08+08:00",
+          "updated_at": "2026-07-08T13:02:08+08:00"
+        }
+      },
+      "pass_20s": true,
+      "split_summary": {
+        "split_method": "equal",
+        "participant_count": 2,
+        "shares": [
+          3300,
+          3300
+        ]
+      }
+    },
+    "page_after_submit": {
+      "url": "http://localhost:38088/transactions",
+      "overflow": false,
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "ordinary_visible": true,
+      "shared_visible": true,
+      "router_error": false
+    },
+    "login_submit_at": "2026-07-08T05:02:07.811Z"
+  },
+  "archived_category": {
+    "category_name": "v11-archived-category-20260708050207",
+    "title": "v11-archived-category-bill-20260708050207",
+    "created_at": "2026-07-08T05:02:09.795Z",
+    "category": {
+      "id": "0b51baa0-1648-4e30-ac9b-b0b6b36f5bf5",
+      "ledger_id": "1c8ec09e-b662-4d96-a894-e455b88639a4",
+      "name": "v11-archived-category-20260708050207",
+      "type": "expense",
+      "icon": "P",
+      "color": "#14b8a6",
+      "sort_order": 14,
+      "usage_count": 0,
+      "is_archived": false
+    },
+    "transaction": {
+      "id": "3a49fe55-f89a-4df2-83a2-f5a4b344d94c",
+      "type": "expense",
+      "title": "v11-archived-category-bill-20260708050207",
+      "amount_cents": 2345,
+      "currency": "CNY",
+      "occurred_at": "2026-07-08T05:02:09Z",
+      "owner_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "created_by_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "payer_user_id": "d4c393ae-1816-47df-882e-916143096834",
+      "account_id": null,
+      "category_id": "0b51baa0-1648-4e30-ac9b-b0b6b36f5bf5",
+      "visibility": "partner_readable",
+      "note": "v1.1 archived category display acceptance",
+      "status": "",
+      "tags": null,
+      "attachment_paths": [],
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z"
+    },
+    "archive": {
+      "success": true
+    },
+    "category_active_contains": false,
+    "category_all_entry": {
+      "id": "0b51baa0-1648-4e30-ac9b-b0b6b36f5bf5",
+      "name": "v11-archived-category-20260708050207",
+      "is_archived": true
+    },
+    "category_all_status": 200,
+    "page": {
+      "url": "http://localhost:38088/transactions?keyword=v11-archived-category-bill-20260708050207",
+      "visible_title": true,
+      "visible_category_name": true,
+      "visible_archived_hint": true,
+      "uuid_exposed": false,
+      "overflow": false,
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "router_error": false,
+      "text_prefix": "LedgerTwo\n交易明细流水\n\n在此您可以查看与维护 2026-07 账期内所有的普通收支及共享支出\n\n高级筛选\n批量管理\n已选择 0 笔账单\n批量打标签\nv11-archived-category-bill-20260708050207\n23.45\nv11-archived-category-20260708050207（已归档）\n2026/7/8\n当前页码：1\n上一页\n下一页\n仪表盘\n账单明细\n结算中心\n分析统计\n系统设置"
+    }
+  },
+  "screenshots": [
+    "screenshots/01-after-timing-submit.png",
+    "screenshots/02-archived-category-history.png"
+  ],
+  "conclusions": {
+    "ordinary_10s_pass": true,
+    "shared_20s_pass": true,
+    "archived_category_display_pass": true,
+    "mobile_overflow_pass": true
+  }
+}

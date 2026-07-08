@@ -138,6 +138,13 @@ export default function TransactionsPage() {
     return catMap[categoryId] || '已设分类';
   };
 
+  const getTransactionCategoryLabel = (tx: TransactionResponse) => {
+    if (tx.category_name) {
+      return tx.category_is_archived ? `${tx.category_name}（已归档）` : tx.category_name;
+    }
+    return getCategoryLabel(tx.category_id);
+  };
+
   const minAmount = minAmountStr ? Math.round(parseFloat(minAmountStr) * 100) : undefined;
   const maxAmount = maxAmountStr ? Math.round(parseFloat(maxAmountStr) * 100) : undefined;
   const transactionFilter = {
@@ -445,7 +452,7 @@ export default function TransactionsPage() {
                     <TransactionCard 
                       tx={tx} 
                       currentUserId={currentUser?.id || ''} 
-                      categoryName={getCategoryLabel(tx.category_id)}
+                      categoryName={getTransactionCategoryLabel(tx)}
                       onClick={() => { setSelectedTx(tx); setDetailOpen(true); }}
                     />
                   </div>
@@ -541,7 +548,7 @@ export default function TransactionsPage() {
                           <span className={`type-badge ${badgeClass}`}>{badgeLabel}</span>
                         </td>
                         <td style={{ padding: '14px 20px', color: 'var(--text-primary)' }}>
-                          {getCategoryLabel(tx.category_id)}
+                          {getTransactionCategoryLabel(tx)}
                         </td>
                         <td style={{ padding: '14px 20px', color: 'var(--text-primary)', fontWeight: 500 }}>
                           {tx.title}
@@ -663,7 +670,7 @@ export default function TransactionsPage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span className="dimmed">所属分类</span>
-                  <span>{getCategoryLabel(selectedTx.category_id)}</span>
+                  <span>{getTransactionCategoryLabel(selectedTx)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span className="dimmed">发生日期</span>

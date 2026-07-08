@@ -8,26 +8,28 @@ import (
 // Transaction 交易明细实体
 // @brief 表示系统中的单条普通收支或结算流水
 type Transaction struct {
-	ID              string
-	LedgerID        string
-	Type            string // expense, income, settlement
-	Title           string
-	Amount          int64 // 整数分
-	Currency        string
-	OccurredAt      time.Time
-	OwnerUserID     string
-	CreatedByUserID string
-	PayerUserID     string
-	AccountID       sql.NullString
-	CategoryID      sql.NullString
-	Visibility      string // private, partner_readable, shared
-	SplitMethod     sql.NullString
-	Note            sql.NullString
-	AttachmentPaths sql.NullString // 附件相对路径 JSON 数组或列表
-	Status          string         // normal, deleted
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	DeletedAt       sql.NullTime
+	ID               string
+	LedgerID         string
+	Type             string // expense, income, settlement
+	Title            string
+	Amount           int64 // 整数分
+	Currency         string
+	OccurredAt       time.Time
+	OwnerUserID      string
+	CreatedByUserID  string
+	PayerUserID      string
+	AccountID        sql.NullString
+	CategoryID       sql.NullString
+	CategoryName     sql.NullString
+	CategoryArchived sql.NullBool
+	Visibility       string // private, partner_readable, shared
+	SplitMethod      sql.NullString
+	Note             sql.NullString
+	AttachmentPaths  sql.NullString // 附件相对路径 JSON 数组或列表
+	Status           string         // normal, deleted
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        sql.NullTime
 }
 
 // TransactionDefault 记录当前用户在当前账本下的快捷记账偏好
@@ -93,26 +95,28 @@ type UpdateTransactionRequest struct {
 // TransactionResponse 统一输出的账单明细 DTO
 // @brief 交易流水的标准 API 输出模型
 type TransactionResponse struct {
-	ID              string          `json:"id"`
-	Type            string          `json:"type"`
-	Title           string          `json:"title"`
-	AmountCents     int64           `json:"amount_cents"`
-	Currency        string          `json:"currency"`
-	OccurredAt      string          `json:"occurred_at"`
-	OwnerUserID     string          `json:"owner_user_id"`
-	CreatedByUserID string          `json:"created_by_user_id"`
-	PayerUserID     string          `json:"payer_user_id"`
-	AccountID       *string         `json:"account_id"`
-	CategoryID      *string         `json:"category_id"`
-	Visibility      string          `json:"visibility"`
-	Note            string          `json:"note"`
-	Status          string          `json:"status"`
-	Tags            []string        `json:"tags"`
-	SplitMethod     *string         `json:"split_method,omitempty"`
-	Participants    []SplitResponse `json:"participants,omitempty"`
-	AttachmentPaths []string        `json:"attachment_paths"`
-	CreatedAt       string          `json:"created_at"`
-	UpdatedAt       string          `json:"updated_at"`
+	ID               string          `json:"id"`
+	Type             string          `json:"type"`
+	Title            string          `json:"title"`
+	AmountCents      int64           `json:"amount_cents"`
+	Currency         string          `json:"currency"`
+	OccurredAt       string          `json:"occurred_at"`
+	OwnerUserID      string          `json:"owner_user_id"`
+	CreatedByUserID  string          `json:"created_by_user_id"`
+	PayerUserID      string          `json:"payer_user_id"`
+	AccountID        *string         `json:"account_id"`
+	CategoryID       *string         `json:"category_id"`
+	CategoryName     *string         `json:"category_name,omitempty"`
+	CategoryArchived *bool           `json:"category_is_archived,omitempty"`
+	Visibility       string          `json:"visibility"`
+	Note             string          `json:"note"`
+	Status           string          `json:"status"`
+	Tags             []string        `json:"tags"`
+	SplitMethod      *string         `json:"split_method,omitempty"`
+	Participants     []SplitResponse `json:"participants,omitempty"`
+	AttachmentPaths  []string        `json:"attachment_paths"`
+	CreatedAt        string          `json:"created_at"`
+	UpdatedAt        string          `json:"updated_at"`
 }
 
 // TransactionSplit 分摊明细实体

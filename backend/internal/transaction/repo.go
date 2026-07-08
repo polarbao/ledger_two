@@ -82,20 +82,24 @@ func (r *Repository) CreateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 // @return error 错误信息
 func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []string, error) {
 	var tx Transaction
-	var accountID, categoryID, splitMethod, note, attachmentPaths sql.NullString
+	var accountID, categoryID, categoryName, splitMethod, note, attachmentPaths sql.NullString
+	var categoryArchived sql.NullBool
 	var occurredAtStr, createdAtStr, updatedAtStr string
 	var deletedAtStr sql.NullString
 
 	err := r.db.QueryRowContext(ctx, `
 		SELECT 
-			id, ledger_id, type, title, amount, currency, occurred_at,
-			owner_user_id, created_by_user_id, payer_user_id, account_id, category_id,
-			visibility, split_method, note, attachment_paths, status, created_at, updated_at, deleted_at
-		FROM transactions
-		WHERE id = ?
+			t.id, t.ledger_id, t.type, t.title, t.amount, t.currency, t.occurred_at,
+			t.owner_user_id, t.created_by_user_id, t.payer_user_id, t.account_id, t.category_id,
+			c.name AS category_name, c.is_archived AS category_is_archived,
+			t.visibility, t.split_method, t.note, t.attachment_paths, t.status, t.created_at, t.updated_at, t.deleted_at
+		FROM transactions t
+		LEFT JOIN categories c ON c.id = t.category_id AND c.ledger_id = t.ledger_id
+		WHERE t.id = ?
 	`, id).Scan(
 		&tx.ID, &tx.LedgerID, &tx.Type, &tx.Title, &tx.Amount, &tx.Currency, &occurredAtStr,
 		&tx.OwnerUserID, &tx.CreatedByUserID, &tx.PayerUserID, &accountID, &categoryID,
+		&categoryName, &categoryArchived,
 		&tx.Visibility, &splitMethod, &note, &attachmentPaths, &tx.Status, &createdAtStr, &updatedAtStr, &deletedAtStr,
 	)
 	if err != nil {
@@ -116,6 +120,8 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []st
 
 	tx.AccountID = accountID
 	tx.CategoryID = categoryID
+	tx.CategoryName = categoryName
+	tx.CategoryArchived = categoryArchived
 	tx.SplitMethod = splitMethod
 	tx.Note = note
 	tx.AttachmentPaths = attachmentPaths
@@ -277,76 +283,78 @@ type TransactionFilter struct {
 func (r *Repository) List(ctx context.Context, ledgerID string, userID string, filter TransactionFilter) ([]*Transaction, map[string][]string, error) {
 	query := `
 		SELECT 
-			id, ledger_id, type, title, amount, currency, occurred_at,
-			owner_user_id, created_by_user_id, payer_user_id, account_id, category_id,
-			visibility, split_method, note, attachment_paths, status, created_at, updated_at
-		FROM transactions
-		WHERE ledger_id = ? AND status != 'deleted'
+			t.id, t.ledger_id, t.type, t.title, t.amount, t.currency, t.occurred_at,
+			t.owner_user_id, t.created_by_user_id, t.payer_user_id, t.account_id, t.category_id,
+			c.name AS category_name, c.is_archived AS category_is_archived,
+			t.visibility, t.split_method, t.note, t.attachment_paths, t.status, t.created_at, t.updated_at
+		FROM transactions t
+		LEFT JOIN categories c ON c.id = t.category_id AND c.ledger_id = t.ledger_id
+		WHERE t.ledger_id = ? AND t.status != 'deleted'
 		AND (
-			created_by_user_id = ? 
-			OR owner_user_id = ? 
-			OR payer_user_id = ? 
-			OR visibility IN ('partner_readable', 'shared')
+			t.created_by_user_id = ?
+			OR t.owner_user_id = ?
+			OR t.payer_user_id = ?
+			OR t.visibility IN ('partner_readable', 'shared')
 		)
 	`
 	args := []interface{}{ledgerID, userID, userID, userID}
 
 	// 月度过滤 (occurred_at 是 ISO 字符串，通过 LIKE '2025-04%' 匹配)
 	if filter.Month != "" {
-		query += " AND occurred_at LIKE ?"
+		query += " AND t.occurred_at LIKE ?"
 		args = append(args, filter.Month+"%")
 	}
 
 	// 类型过滤
 	if filter.Type != "" {
-		query += " AND type = ?"
+		query += " AND t.type = ?"
 		args = append(args, filter.Type)
 	}
 
 	// 分类过滤
 	if filter.CategoryID != "" {
-		query += " AND category_id = ?"
+		query += " AND t.category_id = ?"
 		args = append(args, filter.CategoryID)
 	}
 
 	// 关键字搜索
 	if filter.Keyword != "" {
-		query += " AND (title LIKE ? OR note LIKE ?)"
+		query += " AND (t.title LIKE ? OR t.note LIKE ?)"
 		args = append(args, "%"+filter.Keyword+"%", "%"+filter.Keyword+"%")
 	}
 
 	// 金额下限过滤
 	if filter.MinAmount != nil {
-		query += " AND amount >= ?"
+		query += " AND t.amount >= ?"
 		args = append(args, *filter.MinAmount)
 	}
 
 	// 金额上限过滤
 	if filter.MaxAmount != nil {
-		query += " AND amount <= ?"
+		query += " AND t.amount <= ?"
 		args = append(args, *filter.MaxAmount)
 	}
 
 	// 付款人过滤
 	if filter.PayerUserID != "" {
-		query += " AND payer_user_id = ?"
+		query += " AND t.payer_user_id = ?"
 		args = append(args, filter.PayerUserID)
 	}
 
 	// 可见性过滤
 	if filter.Visibility != "" {
-		query += " AND visibility = ?"
+		query += " AND t.visibility = ?"
 		args = append(args, filter.Visibility)
 	}
 
 	// 标签名称过滤
 	if filter.Tag != "" {
-		query += " AND id IN (SELECT tt.transaction_id FROM transaction_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tg.name = ?)"
+		query += " AND t.id IN (SELECT tt.transaction_id FROM transaction_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tg.name = ?)"
 		args = append(args, filter.Tag)
 	}
 
 	// 按时间倒序排序
-	query += " ORDER BY occurred_at DESC, created_at DESC"
+	query += " ORDER BY t.occurred_at DESC, t.created_at DESC"
 
 	// 分页处理
 	page := filter.Page
@@ -371,12 +379,14 @@ func (r *Repository) List(ctx context.Context, ledgerID string, userID string, f
 	var ids []string
 	for rows.Next() {
 		var tx Transaction
-		var accountID, categoryID, splitMethod, note, attachmentPaths sql.NullString
+		var accountID, categoryID, categoryName, splitMethod, note, attachmentPaths sql.NullString
+		var categoryArchived sql.NullBool
 		var occurredAtStr, createdAtStr, updatedAtStr string
 
 		err := rows.Scan(
 			&tx.ID, &tx.LedgerID, &tx.Type, &tx.Title, &tx.Amount, &tx.Currency, &occurredAtStr,
 			&tx.OwnerUserID, &tx.CreatedByUserID, &tx.PayerUserID, &accountID, &categoryID,
+			&categoryName, &categoryArchived,
 			&tx.Visibility, &splitMethod, &note, &attachmentPaths, &tx.Status, &createdAtStr, &updatedAtStr,
 		)
 		if err != nil {
@@ -388,6 +398,8 @@ func (r *Repository) List(ctx context.Context, ledgerID string, userID string, f
 		tx.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
 		tx.AccountID = accountID
 		tx.CategoryID = categoryID
+		tx.CategoryName = categoryName
+		tx.CategoryArchived = categoryArchived
 		tx.SplitMethod = splitMethod
 		tx.Note = note
 		tx.AttachmentPaths = attachmentPaths

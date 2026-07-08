@@ -1,0 +1,18 @@
+{
+  "url": "http://localhost:38088/import",
+  "loginSuccess": true,
+  "ledgerRole": "owner",
+  "innerWidth": 375,
+  "docScrollWidth": 375,
+  "bodyScrollWidth": 375,
+  "rowCards": 5,
+  "summaryCards": 5,
+  "safeBannerText": "当前批次只保存预览数据，没有写入 transactions。",
+  "disabledCommitText": "预览阶段暂不可提交",
+  "invalidMessage": "IMPORT_ROW_AMOUNT_INVALID：金额不能为空或格式不正确",
+  "hasPreviewSafetyCopy": true,
+  "hasInvalidErrorCode": true,
+  "hasDisabledCommitCopy": true,
+  "hasHorizontalOverflow": false,
+  "firstVisibleCardTitle": "午餐"
+}

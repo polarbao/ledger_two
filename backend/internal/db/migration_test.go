@@ -10,7 +10,7 @@ import (
 	"ledger_two/migrations"
 )
 
-const latestMigrationVersion int64 = 12
+const latestMigrationVersion int64 = 13
 
 func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 	database := openMigrationTestDB(t)
@@ -93,6 +93,37 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"is_archived",
 		"archived_at",
 	})
+	assertColumnsExist(t, database, "import_batches", []string{
+		"source_type",
+		"file_sha256",
+		"total_rows",
+		"new_rows",
+		"duplicate_rows",
+		"suspicious_rows",
+		"invalid_rows",
+		"imported_rows",
+		"skipped_rows",
+		"updated_at",
+	})
+	assertColumnsExist(t, database, "import_items", []string{
+		"row_number",
+		"source_type",
+		"external_order_id",
+		"occurred_at",
+		"title",
+		"merchant",
+		"description",
+		"amount_cents",
+		"direction",
+		"target_transaction_type",
+		"duplicate_status",
+		"row_status",
+		"normalized_json",
+		"user_adjustment_json",
+		"error_code",
+		"error_message",
+		"generated_transaction_id",
+	})
 
 	assertIndexesExist(t, database, []string{
 		"idx_transactions_ledger_month",
@@ -110,6 +141,10 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"idx_accounts_ledger_sort",
 		"idx_transaction_defaults_ledger_user",
 		"idx_templates_ledger_archived",
+		"idx_import_batches_ledger_status",
+		"idx_import_items_batch_row_number",
+		"idx_import_items_batch_duplicate_status",
+		"idx_import_items_batch_row_status",
 	})
 }
 

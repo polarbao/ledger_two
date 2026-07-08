@@ -17,6 +17,7 @@ import (
 	"ledger_two/internal/http/handler"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
+	"ledger_two/internal/importer"
 	"ledger_two/internal/ledger"
 	"ledger_two/internal/metadata"
 	"ledger_two/internal/reports"
@@ -56,6 +57,10 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 		uploadDir = cfg.UploadDir
 	}
 	transactionHandler := transaction.NewHandler(transactionSvc, uploadDir)
+
+	importRepo := importer.NewRepository(dbConn)
+	importSvc := importer.NewService(importRepo)
+	importHandler := importer.NewHandler(importSvc)
 
 	settlementRepo := settlement.NewRepository(dbConn)
 	settlementSvc := settlement.NewService(settlementRepo)
@@ -151,6 +156,11 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 					r.Get("/{id}", transactionHandler.HandleGetByID)
 					r.Patch("/{id}", transactionHandler.HandleUpdate)
 					r.Delete("/{id}", transactionHandler.HandleDelete)
+				})
+
+				r.Route("/imports", func(r chi.Router) {
+					r.Post("/preview", importHandler.HandlePreview)
+					r.Get("/{batchID}", importHandler.HandleGetBatch)
 				})
 
 				r.Route("/import-rules", func(r chi.Router) {

@@ -16,6 +16,7 @@ const (
 	TargetTransactionSkipped = "skipped"
 
 	DuplicateStatusNew        = "new"
+	DuplicateStatusDuplicate  = "duplicate"
 	DuplicateStatusSuspicious = "suspicious"
 	DuplicateStatusInvalid    = "invalid"
 
@@ -32,7 +33,29 @@ type Preview struct {
 	Rows       []PreviewRow `json:"rows"`
 }
 
+type PreviewBatch struct {
+	ID              string       `json:"id"`
+	LedgerID        string       `json:"ledger_id"`
+	SourceType      string       `json:"source_type"`
+	Filename        string       `json:"filename"`
+	FileSHA256      string       `json:"file_sha256"`
+	Status          string       `json:"status"`
+	TotalRows       int          `json:"total_rows"`
+	NewRows         int          `json:"new_rows"`
+	DuplicateRows   int          `json:"duplicate_rows"`
+	SuspiciousRows  int          `json:"suspicious_rows"`
+	InvalidRows     int          `json:"invalid_rows"`
+	ImportedRows    int          `json:"imported_rows"`
+	SkippedRows     int          `json:"skipped_rows"`
+	CreatedByUserID string       `json:"created_by_user_id"`
+	CreatedAt       string       `json:"created_at"`
+	UpdatedAt       string       `json:"updated_at"`
+	Rows            []PreviewRow `json:"rows"`
+}
+
 type PreviewRow struct {
+	ID                    string    `json:"id,omitempty"`
+	BatchID               string    `json:"batch_id,omitempty"`
 	RowNumber             int       `json:"row_number"`
 	OccurredAt            string    `json:"occurred_at,omitempty"`
 	Title                 string    `json:"title"`

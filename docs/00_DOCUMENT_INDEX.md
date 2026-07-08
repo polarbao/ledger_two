@@ -1,6 +1,6 @@
 # LedgerTwo 文档索引与 AI 实现阅读顺序
 
-> 当前事实源提示：Task01-Task40 已完成，Foundation before v1.1 已完成基础冻结，中期 v1.1 已进入收口阶段。本文保留早期 v0.3 / Demo 文档索引作为历史背景，但后续开发应优先读取 `docs/README.md`、`docs/prd/20-29`、`docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md`、`docs/ui/14-v1.1-v1.2-module-flows.md`、`docs/ui/15-ledgertwo-ux-optimization-program.md` 和 `docs/codex_tasks/`。
+> 当前事实源提示：Task01-Task40 已完成，Foundation before v1.1 已完成基础冻结，中期 v1.1 已进入收口阶段。本文保留早期 v0.3 / Demo 文档索引作为历史背景，但后续开发应优先读取 `docs/README.md`、`docs/prd/20-29`、`docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md`、`docs/ui/14-v1.1-v1.2-module-flows.md`、`docs/ui/15-ledgertwo-ux-optimization-program.md`、`docs/ui/figma/README.md` 和 `docs/codex_tasks/`。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -39,6 +39,7 @@ docs/api/API_CONVENTIONS.md
 docs/api/openapi.yaml
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
+docs/ui/figma/README.md
 docs/codex_tasks/05-foundation-task-plan.md
 docs/codex_tasks/08-product-roadmap-dev-plan.md
 docs/codex_tasks/09-task41-49-detailed-plan.md
@@ -83,6 +84,7 @@ docs/tech/19-short-mid-implementation-readiness.md
 docs/tech/20-v1.2-import-implementation-contract.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
+docs/ui/figma/README.md
 docs/codex_tasks/README.md
 ```
 

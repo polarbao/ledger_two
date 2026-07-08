@@ -1,0 +1,133 @@
+{
+  "file_name": "LedgerTwo v1.1-v1.2 Product UI System",
+  "created_at": "2026-07-08",
+  "source_reference": "docs/ui/lynntest(1).html",
+  "pages": [
+    {
+      "name": "00 Foundations",
+      "frames": [
+        {
+          "name": "Color Variables - Fresh Light and Dark Glass",
+          "size": "1440x900",
+          "purpose": "展示颜色变量、状态色和主题模式"
+        },
+        {
+          "name": "Typography and Spacing",
+          "size": "1440x900",
+          "purpose": "展示字体、字号、间距和圆角"
+        },
+        {
+          "name": "Icon and Status Language",
+          "size": "1440x900",
+          "purpose": "展示 lucide 图标、状态 chip、金额语义色"
+        }
+      ]
+    },
+    {
+      "name": "01 Components",
+      "frames": [
+        {
+          "name": "Buttons and Icon Buttons",
+          "size": "1440x900",
+          "purpose": "主按钮、次按钮、危险按钮、图标按钮、禁用和加载态"
+        },
+        {
+          "name": "Cards and List Rows",
+          "size": "1440x900",
+          "purpose": "交易卡片、导入行卡片、设置 action card、统计卡片"
+        },
+        {
+          "name": "Filters and Segmented Controls",
+          "size": "1440x900",
+          "purpose": "月份筛选、状态筛选、类型筛选、搜索和清空"
+        },
+        {
+          "name": "Drawers and Confirm Modals",
+          "size": "1440x900",
+          "purpose": "记账抽屉、行编辑抽屉、高风险确认弹窗"
+        }
+      ]
+    },
+    {
+      "name": "02 v1.1 Daily Use",
+      "frames": [
+        {
+          "name": "Dashboard Mobile 390",
+          "size": "390x844",
+          "purpose": "本月摘要、待确认周期账单、最近流水、记一笔入口"
+        },
+        {
+          "name": "Transactions Mobile 390",
+          "size": "390x844",
+          "purpose": "流水卡片、筛选底部抽屉、复制/模板动作入口"
+        },
+        {
+          "name": "Transaction Drawer Mobile",
+          "size": "390x844",
+          "purpose": "普通支出和共同支出高频录入"
+        },
+        {
+          "name": "Settlement Mobile 390",
+          "size": "390x844",
+          "purpose": "谁给谁、金额解释、复制文案、登记结算"
+        },
+        {
+          "name": "Settings Desktop",
+          "size": "1440x900",
+          "purpose": "账号、账本、元数据、模板周期、导入导出、备份诊断分区"
+        }
+      ]
+    },
+    {
+      "name": "03 v1.2 Import Workbench",
+      "frames": [
+        {
+          "name": "Import Entry Desktop",
+          "size": "1440x900",
+          "purpose": "来源选择、上传区、权限提示、历史批次入口"
+        },
+        {
+          "name": "Import Preview Desktop",
+          "size": "1440x900",
+          "purpose": "批次摘要、状态筛选、行表格、提交阻断"
+        },
+        {
+          "name": "Import Preview Mobile 390",
+          "size": "390x844",
+          "purpose": "导入行卡片、状态 chip、行编辑入口"
+        },
+        {
+          "name": "Import Row Editor Drawer",
+          "size": "390x844",
+          "purpose": "分类、账户、标签、可见性、跳过和疑似确认"
+        },
+        {
+          "name": "Commit Confirm Modal",
+          "size": "390x844",
+          "purpose": "导入、跳过、疑似、错误数量二次确认"
+        },
+        {
+          "name": "Import Rule Manager Desktop",
+          "size": "1440x900",
+          "purpose": "规则列表、优先级、归档恢复、命中解释"
+        }
+      ]
+    },
+    {
+      "name": "04 Future Exploration",
+      "frames": [
+        {
+          "name": "Light Theme Dashboard Exploration",
+          "size": "1440x900",
+          "purpose": "评估 Fresh Light 是否适合全局主题迁移"
+        },
+        {
+          "name": "Calendar and Report Drilldown",
+          "size": "1440x900",
+          "purpose": "v1.3+ 月历视图和报表钻取探索"
+        }
+      ]
+    }
+  ]
+}
+

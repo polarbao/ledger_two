@@ -1,0 +1,108 @@
+{
+  "collection": "LedgerTwo",
+  "modes": ["Fresh Light", "Dark Glass"],
+  "variables": [
+    {
+      "name": "color/bg/page",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#F5F9FC",
+        "Dark Glass": "#0A0C10"
+      }
+    },
+    {
+      "name": "color/bg/surface",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#FFFFFF",
+        "Dark Glass": "#12151E"
+      }
+    },
+    {
+      "name": "color/border/subtle",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#E7F0ED",
+        "Dark Glass": "rgba(255,255,255,0.06)"
+      }
+    },
+    {
+      "name": "color/text/primary",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#0B3B3B",
+        "Dark Glass": "#F3F4F6"
+      }
+    },
+    {
+      "name": "color/text/secondary",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#4F6F7A",
+        "Dark Glass": "#9CA3AF"
+      }
+    },
+    {
+      "name": "color/brand/primary",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#10B981",
+        "Dark Glass": "#10B981"
+      }
+    },
+    {
+      "name": "color/brand/support",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#AF7AC5",
+        "Dark Glass": "#9333EA"
+      }
+    },
+    {
+      "name": "color/state/danger",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#EF4444",
+        "Dark Glass": "#F87171"
+      }
+    },
+    {
+      "name": "color/state/warning",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#F6B83E",
+        "Dark Glass": "#FBBF24"
+      }
+    },
+    {
+      "name": "radius/control",
+      "type": "FLOAT",
+      "values": {
+        "Fresh Light": 8,
+        "Dark Glass": 8
+      }
+    },
+    {
+      "name": "radius/card",
+      "type": "FLOAT",
+      "values": {
+        "Fresh Light": 12,
+        "Dark Glass": 16
+      }
+    },
+    {
+      "name": "space/4",
+      "type": "FLOAT",
+      "values": {
+        "Fresh Light": 16,
+        "Dark Glass": 16
+      }
+    }
+  ],
+  "notes": [
+    "Fresh Light 来自 docs/ui/lynntest(1).html 的浅色财务方向。",
+    "Dark Glass 映射当前 frontend/src/index.css，不在 v1.1 冻结前强制迁移。",
+    "Figma 中建议将 Fresh Light 作为 v1.2 导入工作台默认设计模式。"
+  ]
+}
+

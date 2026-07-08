@@ -20,6 +20,7 @@
 13-settings-management-redesign.md 设置管理重构
 14-v1.1-v1.2-module-flows.md  v1.1-v1.2 模块流程细化
 15-ledgertwo-ux-optimization-program.md LedgerTwo 长期 UI/UX 专项
+figma/                         Figma 配套变量、组件、页面设计稿与交接清单
 ```
 
 ## 设计原则
@@ -37,3 +38,4 @@
 2. `13-settings-management-redesign.md`
 3. `14-v1.1-v1.2-module-flows.md`
 4. `15-ledgertwo-ux-optimization-program.md`
+5. `figma/README.md`

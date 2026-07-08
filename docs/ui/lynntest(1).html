@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>共享记账 · 原型 (polar & lynn)</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: #f5f9fc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            min-height: 100vh;
+        }
+
+        .prototype-container {
+            max-width: 450px;
+            width: 100%;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 10px 25px rgba(0, 80, 100, 0.08);
+            padding: 20px 20px 80px;
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logo-icon {
+            background: #10b981;
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+        .app-title {
+            font-weight: 600;
+            font-size: 18px;
+            color: #0b3b3b;
+        }
+        .sync-status {
+            color: #10b981;
+            background: #e0f2e9;
+            padding: 6px 12px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .sync-status i {
+            font-size: 12px;
+        }
+
+        .month-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            background: #f0faf5;
+            padding: 16px 18px;
+            border-radius: 24px;
+            margin-bottom: 24px;
+        }
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #16635b;
+        }
+        .month-selector i {
+            font-size: 14px;
+            color: #10b981;
+        }
+        .total-amount {
+            text-align: right;
+        }
+        .total-label {
+            font-size: 13px;
+            color: #6b9080;
+        }
+        .total-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0e5e4f;
+            line-height: 1.2;
+        }
+
+        .tab-bar {
+            display: flex;
+            background: #f3f9f7;
+            border-radius: 40px;
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            font-size: 15px;
+            font-weight: 500;
+            color: #4f6f7a;
+            border-radius: 30px;
+            transition: 0.2s;
+            cursor: default;
+        }
+        .tab.active {
+            background: white;
+            color: #10b981;
+            box-shadow: 0 2px 8px rgba(16,185,129,0.1);
+            font-weight: 600;
+        }
+
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .list-header h3 {
+            font-size: 16px;
+            color: #14555a;
+            font-weight: 600;
+        }
+        .filter-chip {
+            background: #eff7f2;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            color: #0b6e5c;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .expense-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .expense-item {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            border: 1px solid #ecf3f0;
+        }
+        .category-icon {
+            width: 48px;
+            height: 48px;
+            background: #f3faf6;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #10b981;
+            font-size: 22px;
+            margin-right: 14px;
+        }
+        .expense-info {
+            flex: 1;
+        }
+        .expense-row1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 6px;
+        }
+        .category-name {
+            font-weight: 600;
+            color: #1a3b3a;
+            font-size: 16px;
+        }
+        .expense-amount {
+            font-weight: 700;
+            color: #1e3b3a;
+            font-size: 18px;
+        }
+        .expense-row2 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        .payer-tag {
+            background: #deeceb;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 12px;
+            color: #1c6b5f;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .note {
+            color: #6f8b86;
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .date {
+            color: #8ca9a2;
+            font-size: 12px;
+        }
+
+        .fab {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: #10b981;
+            border-radius: 30px;
+            box-shadow: 0 6px 16px rgba(16,185,129,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 26px;
+            cursor: default;
+            border: 4px solid white;
+        }
+
+        .stats-container {
+            margin-top: 20px;
+        }
+        .stats-card {
+            background: white;
+            border-radius: 24px;
+            padding: 20px 18px;
+            margin-bottom: 20px;
+            border: 1px solid #e7f0ed;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+        }
+        .stats-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #13544e;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stats-title i {
+            color: #10b981;
+        }
+        .pie-placeholder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .pie-svg {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(#10b981 0% 45%, #f6b83e 45% 65%, #3a9bdc 65% 80%, #af7ac5 80% 95%, #b0c4b3 95% 100%);
+            border: 5px solid white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .category-stat-item, .tag-stat-item, .payer-stat-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f5f3;
+        }
+        .stat-left {
+            width: 80px;
+            font-size: 14px;
+            color: #1d5a55;
+            font-weight: 500;
+        }
+        .stat-bar-bg {
+            flex: 1;
+            height: 8px;
+            background: #e2eeeb;
+            border-radius: 10px;
+            margin: 0 12px;
+        }
+        .stat-bar-fill {
+            height: 8px;
+            background: #10b981;
+            border-radius: 10px;
+            width: 60%;
+        }
+        .stat-amount {
+            font-weight: 600;
+            color: #0e4f47;
+            font-size: 14px;
+        }
+        .tag-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .tag-badge {
+            background: #eff7f2;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 14px;
+            color: #0f6a5c;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tag-badge i {
+            color: #10b981;
+            font-size: 12px;
+        }
+
+        .payer-rank {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .payer-item {
+            display: flex;
+            align-items: center;
+        }
+        .payer-name {
+            width: 70px;
+            font-size: 14px;
+            color: #1d5a55;
+            font-weight: 500;
+        }
+        .payer-bar {
+            flex: 1;
+            height: 8px;
+            background: #e2eeeb;
+            border-radius: 10px;
+            margin: 0 12px;
+        }
+        .payer-fill {
+            height: 8px;
+            background: #10b981;
+            border-radius: 10px;
+            width: 55%;
+        }
+        .payer-fill2 {
+            width: 45%;
+            background: #f6b83e;
+        }
+
+        @media (max-width: 400px) {
+            .prototype-container {
+                padding: 16px 16px 70px;
+            }
+            .expense-row2 .note {
+                max-width: 110px;
+            }
+        }
+
+        .demo-hint {
+            text-align: center;
+            margin-top: 8px;
+            color: #8ca9a2;
+            font-size: 12px;
+            border-top: 1px dashed #cbdad6;
+            padding-top: 16px;
+        }
+        hr {
+            border: none;
+            border-top: 2px dashed #cbdad6;
+            margin: 30px 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="prototype-container">
+        <!-- 头部：无账号，直接显示同步状态 -->
+        <div class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon"><i class="fas fa-receipt"></i></div>
+                <span class="app-title">共享账本</span>
+            </div>
+            <div class="sync-status">
+                <i class="fas fa-cloud-check"></i> 已同步
+                <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: 4px;"></i>
+            </div>
+        </div>
+
+        <!-- 月份切换 + 总支出卡片 -->
+        <div class="month-section">
+            <div class="month-selector">
+                <i class="fas fa-chevron-left"></i>
+                <span>2025年4月</span>
+                <i class="fas fa-chevron-right"></i>
+            </div>
+            <div class="total-amount">
+                <div class="total-label">总支出</div>
+                <div class="total-number">¥3,280.50</div>
+            </div>
+        </div>
+
+        <!-- 标签页：流水 / 统计  当前激活“流水” -->
+        <div class="tab-bar">
+            <div class="tab active"><i class="fas fa-list-ul" style="margin-right: 6px;"></i>流水</div>
+            <div class="tab"><i class="fas fa-chart-pie" style="margin-right: 6px;"></i>统计</div>
+        </div>
+
+        <!-- ========= 流水视图：支出记录，记账人已改为 polar / lynn ========= -->
+        <div>
+            <div class="list-header">
+                <h3><i class="fas fa-clock" style="color: #10b981; margin-right: 6px;"></i>最新记录</h3>
+                <div class="filter-chip">
+                    <i class="fas fa-sliders-h"></i> 筛选
+                </div>
+            </div>
+            <div class="expense-list">
+                <!-- 记录1：餐饮，polar -->
+                <div class="expense-item">
+                    <div class="category-icon"><i class="fas fa-utensils"></i></div>
+                    <div class="expense-info">
+                        <div class="expense-row1">
+                            <span class="category-name">餐饮</span>
+                            <span class="expense-amount">¥48.50</span>
+                        </div>
+                        <div class="expense-row2">
+                            <span class="payer-tag"><i class="fas fa-user"></i> polar</span>
+                            <span class="note">🍜 牛肉面</span>
+                            <span class="date">04-09</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 记录2：购物，lynn -->
+                <div class="expense-item">
+                    <div class="category-icon"><i class="fas fa-shopping-bag"></i></div>
+                    <div class="expense-info">
+                        <div class="expense-row1">
+                            <span class="category-name">购物</span>
+                            <span class="expense-amount">¥199.90</span>
+                        </div>
+                        <div class="expense-row2">
+                            <span class="payer-tag"><i class="fas fa-user"></i> lynn</span>
+                            <span class="note">🛒 超市 #日用</span>
+                            <span class="date">04-08</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 记录3：交通，polar -->
+                <div class="expense-item">
+                    <div class="category-icon"><i class="fas fa-bus"></i></div>
+                    <div class="expense-info">
+                        <div class="expense-row1">
+                            <span class="category-name">交通</span>
+                            <span class="expense-amount">¥14.00</span>
+                        </div>
+                        <div class="expense-row2">
+                            <span class="payer-tag"><i class="fas fa-user"></i> polar</span>
+                            <span class="note">🚌 公交卡</span>
+                            <span class="date">04-07</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 记录4：娱乐，lynn -->
+                <div class="expense-item">
+                    <div class="category-icon"><i class="fas fa-film"></i></div>
+                    <div class="expense-info">
+                        <div class="expense-row1">
+                            <span class="category-name">娱乐</span>
+                            <span class="expense-amount">¥88.00</span>
+                        </div>
+                        <div class="expense-row2">
+                            <span class="payer-tag"><i class="fas fa-user"></i> lynn</span>
+                            <span class="note">🎬 电影</span>
+                            <span class="date">04-05</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: center; padding: 16px 0 8px; color: #8ca9a2; font-size: 13px;">
+                <i class="fas fa-spinner"></i> 下拉加载更多
+            </div>
+        </div>
+
+        <!-- ========= 统计视图（月度） ========= -->
+        <hr>
+        <div style="margin-top: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                <i class="fas fa-chart-simple" style="color: #10b981; font-size: 20px;"></i>
+                <span style="font-weight: 600; color: #13544e;">2025年4月 支出分析</span>
+            </div>
+            
+            <!-- 类目统计卡片 -->
+            <div class="stats-card">
+                <div class="stats-title">
+                    <i class="fas fa-tag"></i> 支出类目
+                </div>
+                <div class="pie-placeholder">
+                    <div class="pie-svg"></div>
+                    <div style="margin-left: 20px;">
+                        <div><span style="display:inline-block; width:12px; height:12px; background:#10b981; border-radius:4px;"></span> 餐饮 45%</div>
+                        <div><span style="display:inline-block; width:12px; height:12px; background:#f6b83e; border-radius:4px;"></span> 购物 20%</div>
+                        <div><span style="display:inline-block; width:12px; height:12px; background:#3a9bdc; border-radius:4px;"></span> 交通 15%</div>
+                    </div>
+                </div>
+                <div style="margin-top: 16px;">
+                    <div class="category-stat-item">
+                        <span class="stat-left"><i class="fas fa-utensils" style="color:#10b981;"></i> 餐饮</span>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 60%;"></div></div>
+                        <span class="stat-amount">¥1,476</span>
+                    </div>
+                    <div class="category-stat-item">
+                        <span class="stat-left"><i class="fas fa-shopping-bag" style="color:#f6b83e;"></i> 购物</span>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 25%; background: #f6b83e;"></div></div>
+                        <span class="stat-amount">¥656</span>
+                    </div>
+                    <div class="category-stat-item">
+                        <span class="stat-left"><i class="fas fa-bus" style="color:#3a9bdc;"></i> 交通</span>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 18%; background: #3a9bdc;"></div></div>
+                        <span class="stat-amount">¥492</span>
+                    </div>
+                    <div class="category-stat-item">
+                        <span class="stat-left"><i class="fas fa-film" style="color:#af7ac5;"></i> 娱乐</span>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 15%; background: #af7ac5;"></div></div>
+                        <span class="stat-amount">¥328</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 标签统计卡片 (无独立表，通过数组聚合) -->
+            <div class="stats-card">
+                <div class="stats-title">
+                    <i class="fas fa-hashtag"></i> 热门标签
+                </div>
+                <div class="tag-cloud">
+                    <span class="tag-badge"><i class="fas fa-tag"></i> 午餐 · ¥860</span>
+                    <span class="tag-badge"><i class="fas fa-tag"></i> 外卖 · ¥520</span>
+                    <span class="tag-badge"><i class="fas fa-tag"></i> 超市 · ¥399</span>
+                    <span class="tag-badge"><i class="fas fa-tag"></i> 电影 · ¥176</span>
+                    <span class="tag-badge"><i class="fas fa-tag"></i> 咖啡 · ¥128</span>
+                    <span class="tag-badge"><i class="fas fa-tag"></i> 滴滴 · ¥94</span>
+                </div>
+                <div style="color:#4f9b8c; font-size:13px; margin-top:12px;">
+                    <i class="fas fa-rotate-right"></i> 来自历史标签联想
+                </div>
+            </div>
+
+            <!-- 记账人统计卡片 (仅 polar 和 lynn) -->
+            <div class="stats-card">
+                <div class="stats-title">
+                    <i class="fas fa-users"></i> 记账人支出排行
+                </div>
+                <div class="payer-rank">
+                    <div class="payer-item">
+                        <span class="payer-name"><i class="fas fa-user"></i> polar</span>
+                        <div class="payer-bar"><div class="payer-fill" style="width: 58%;"></div></div>
+                        <span class="stat-amount">¥1,880</span>
+                    </div>
+                    <div class="payer-item">
+                        <span class="payer-name"><i class="fas fa-user"></i> lynn</span>
+                        <div class="payer-bar"><div class="payer-fill2" style="width: 42%;"></div></div>
+                        <span class="stat-amount">¥1,400</span>
+                    </div>
+                </div>
+                <!-- 总计金额说明 -->
+                <div style="color:#4f9b8c; font-size:13px; margin-top:12px; text-align: right;">
+                    合计 ¥3,280.50
+                </div>
+            </div>
+        </div>
+
+        <!-- 浮动添加按钮（新增支出） -->
+        <div class="fab">
+            <i class="fas fa-plus"></i>
+        </div>
+
+        <!-- 底部提示：记账人枚举已改为 polar · lynn -->
+        <div class="demo-hint">
+            <i class="fas fa-user-pen"></i> 记账人：polar · lynn  |  <i class="fas fa-cloud"></i> 公共账本 · 实时同步
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 10px; color: #6f8b86; font-size: 13px;">
+        ⚡ 原型符合PRD · category独立实体 · tag数组存储 · 记账人枚举: polar / lynn
+    </div>
+</body>
+</html>

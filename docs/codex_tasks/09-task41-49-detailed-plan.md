@@ -246,7 +246,92 @@
 - 重复导入手工验证。
 - Case I02/I03/I04 全覆盖。
 
-## 10. Task49：导入规则
+## 10. v1.2 UI/UX 并行切片
+
+v1.2 的 UI/UX 不作为“最后美化”处理，而是随 Task47-Task49 并行交付。编号采用 `Task47U/48U/49U`，避免打乱既有后端导入任务编号。
+
+### 10.1 Task47U：导入入口与预览工作台
+
+依赖：
+
+- Task47 后端 preview API 可用，或 mock DTO 与 OpenAPI 草案稳定。
+- `docs/ui/figma/v1.1-v1.2-ui-draft-spec.md`、`docs/ui/figma/component-library.md` 已确认。
+
+开发范围：
+
+- 设置页导入入口状态：owner 可进入，editor/viewer 显示无权限说明。
+- Import Entry：来源选择、上传区、格式错误提示。
+- Preview Workbench：批次统计、行状态汇总、移动端行卡片。
+- invalid/duplicate/suspicious/new 四类状态视觉和文案。
+
+完成标准：
+
+- 375px 移动端不使用宽表格，无横向滚动。
+- 用户能在预览页理解“尚未写入正式账单”。
+- invalid 行展示行号、错误码和可行动说明。
+- commit 按钮在 Task47 阶段隐藏或 disabled，并标注“预览阶段暂不可提交”。
+
+验证：
+
+- 前端 build。
+- 375px/390px 导入预览截图或 CDP 指标。
+- owner/editor/viewer 入口状态验收。
+
+### 10.2 Task48U：提交确认与结果反馈
+
+依赖：
+
+- Task48 commit API 可用。
+- duplicate/suspicious/invalid 状态语义冻结。
+
+开发范围：
+
+- Commit Confirm Modal。
+- 导入、跳过、疑似、错误数量二次确认。
+- 导入结果页或结果区。
+- duplicate 默认跳过、suspicious 必须人工确认的提示。
+
+完成标准：
+
+- 提交前明确展示本次会写入多少正式账单。
+- suspicious 未确认时不能提交。
+- 提交成功后可回看 imported/skipped/failed。
+- 失败时不暗示已写入半批数据。
+
+验证：
+
+- commit modal 前端测试或 CDP 验收。
+- 事务失败 UI 状态验收。
+- 375px 无横向滚动。
+
+### 10.3 Task49U：规则管理与推荐解释
+
+依赖：
+
+- Task49 规则 API 可用。
+- 分类、标签、账户归档规则稳定。
+
+开发范围：
+
+- Import Rule Manager。
+- 规则命中来源说明。
+- 规则归档/恢复状态。
+- 规则引用归档元数据时的阻断或替换提示。
+
+完成标准：
+
+- 规则只展示建议，不自动提交账单。
+- 用户手工调整优先于规则。
+- archived 规则不再命中。
+- 规则命中解释在预览行可见。
+
+验证：
+
+- 规则命中前端状态测试。
+- 归档规则和归档元数据回归验收。
+- Figma handoff checklist 同步更新。
+
+## 11. Task49：导入规则
 
 依赖：
 
@@ -274,7 +359,7 @@
 - 前端预览页调整测试。
 - 归档规则和归档元数据回归测试。
 
-## 11. 禁止混入
+## 12. 禁止混入
 
 - Task41-Task46 不做 CSV 导入。
 - Task47-Task49 不做 OCR。
@@ -282,7 +367,7 @@
 - 不新增银行同步。
 - 不绕过 service 层业务规则。
 
-## 12. v1.1 冻结收口项
+## 13. v1.1 冻结收口项
 
 以下事项不属于单一业务 Task，但必须在 v1.1 冻结前完成或形成明确验收记录：
 

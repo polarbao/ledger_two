@@ -30,6 +30,11 @@ export const queryKeys = {
       ['metadata', ledgerScope(ledgerId), kind] as const,
   },
   importRules: (ledgerId?: string | null) => ['importRules', ledgerScope(ledgerId)] as const,
+  imports: {
+    root: (ledgerId?: string | null) => ['imports', ledgerScope(ledgerId)] as const,
+    batch: (ledgerId: string | null | undefined, batchId: string) =>
+      ['imports', ledgerScope(ledgerId), batchId] as const,
+  },
   templates: (ledgerId?: string | null) => ['transaction-templates', ledgerScope(ledgerId)] as const,
   recurringRules: (ledgerId?: string | null) => ['recurring-rules', ledgerScope(ledgerId)] as const,
   recurringReminders: (ledgerId?: string | null) => ['recurring-reminders', ledgerScope(ledgerId)] as const,

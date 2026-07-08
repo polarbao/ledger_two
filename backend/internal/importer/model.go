@@ -20,9 +20,10 @@ const (
 	DuplicateStatusSuspicious = "suspicious"
 	DuplicateStatusInvalid    = "invalid"
 
-	RowStatusPending = "pending"
-	RowStatusSkipped = "skipped"
-	RowStatusFailed  = "failed"
+	RowStatusPending  = "pending"
+	RowStatusAdjusted = "adjusted"
+	RowStatusSkipped  = "skipped"
+	RowStatusFailed   = "failed"
 
 	ErrorCodeAmountInvalid = "IMPORT_ROW_AMOUNT_INVALID"
 	ErrorCodeTimeInvalid   = "IMPORT_ROW_TIME_INVALID"
@@ -69,10 +70,35 @@ type PreviewRow struct {
 	SourceAccount         string    `json:"source_account,omitempty"`
 	ExternalOrderID       string    `json:"external_order_id,omitempty"`
 	SuspiciousReason      string    `json:"suspicious_reason,omitempty"`
+	SuggestedCategoryID   string    `json:"suggested_category_id,omitempty"`
+	SuggestedAccountID    string    `json:"suggested_account_id,omitempty"`
+	SuggestedTagIDs       []string  `json:"suggested_tag_ids,omitempty"`
+	SelectedCategoryID    string    `json:"selected_category_id,omitempty"`
+	SelectedAccountID     string    `json:"selected_account_id,omitempty"`
+	SelectedTagIDs        []string  `json:"selected_tag_ids,omitempty"`
+	Visibility            string    `json:"visibility,omitempty"`
 	Error                 *RowError `json:"error,omitempty"`
 }
 
 type RowError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+type UpdateRowRequest struct {
+	TargetTransactionType *string  `json:"target_transaction_type,omitempty"`
+	RowStatus             *string  `json:"row_status,omitempty"`
+	SelectedCategoryID    *string  `json:"selected_category_id,omitempty"`
+	SelectedAccountID     *string  `json:"selected_account_id,omitempty"`
+	SelectedTagIDs        []string `json:"selected_tag_ids,omitempty"`
+	Visibility            *string  `json:"visibility,omitempty"`
+}
+
+type RowAdjustment struct {
+	TargetTransactionType string   `json:"target_transaction_type,omitempty"`
+	RowStatus             string   `json:"row_status,omitempty"`
+	SelectedCategoryID    string   `json:"selected_category_id,omitempty"`
+	SelectedAccountID     string   `json:"selected_account_id,omitempty"`
+	SelectedTagIDs        []string `json:"selected_tag_ids,omitempty"`
+	Visibility            string   `json:"visibility,omitempty"`
 }

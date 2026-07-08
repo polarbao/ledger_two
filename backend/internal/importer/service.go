@@ -79,6 +79,96 @@ func (s *Service) GetPreviewBatch(ctx context.Context, lc ledger.LedgerContext, 
 	return batch, nil
 }
 
+type UpdateRowCommand struct {
+	LedgerContext ledger.LedgerContext
+	BatchID       string
+	RowID         string
+	Patch         UpdateRowRequest
+}
+
+func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*PreviewBatch, error) {
+	if cmd.LedgerContext.Role != ledger.RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可调整导入预览")
+	}
+	if cmd.BatchID == "" || cmd.RowID == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 和行 ID 不能为空")
+	}
+
+	batch, row, err := s.repo.GetPreviewRow(ctx, cmd.LedgerContext.LedgerID, cmd.BatchID, cmd.RowID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入预览行不存在")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入预览行失败")
+	}
+	if batch.Status == "committed" {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeConflict, "已提交的导入批次不可调整")
+	}
+
+	updated := *row
+	adjustment := RowAdjustment{}
+	if cmd.Patch.TargetTransactionType != nil {
+		if !isValidTargetTransactionType(*cmd.Patch.TargetTransactionType) {
+			return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入目标类型无效")
+		}
+		updated.TargetTransactionType = *cmd.Patch.TargetTransactionType
+		adjustment.TargetTransactionType = *cmd.Patch.TargetTransactionType
+	}
+	if cmd.Patch.RowStatus != nil {
+		if !isValidMutableRowStatus(*cmd.Patch.RowStatus) {
+			return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入行状态无效")
+		}
+		updated.RowStatus = *cmd.Patch.RowStatus
+		adjustment.RowStatus = *cmd.Patch.RowStatus
+	}
+	if cmd.Patch.SelectedCategoryID != nil {
+		updated.SelectedCategoryID = *cmd.Patch.SelectedCategoryID
+		adjustment.SelectedCategoryID = *cmd.Patch.SelectedCategoryID
+	}
+	if cmd.Patch.SelectedAccountID != nil {
+		updated.SelectedAccountID = *cmd.Patch.SelectedAccountID
+		adjustment.SelectedAccountID = *cmd.Patch.SelectedAccountID
+	}
+	if cmd.Patch.SelectedTagIDs != nil {
+		updated.SelectedTagIDs = cmd.Patch.SelectedTagIDs
+		adjustment.SelectedTagIDs = cmd.Patch.SelectedTagIDs
+	}
+	if cmd.Patch.Visibility != nil {
+		if !isValidVisibility(*cmd.Patch.Visibility) {
+			return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入行可见性无效")
+		}
+		updated.Visibility = *cmd.Patch.Visibility
+		adjustment.Visibility = *cmd.Patch.Visibility
+	}
+
+	if updated.DuplicateStatus == DuplicateStatusInvalid && updated.RowStatus != RowStatusSkipped {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "无效导入行只能跳过，需修正字段后才能导入")
+	}
+	if updated.RowStatus == RowStatusSkipped {
+		updated.TargetTransactionType = TargetTransactionSkipped
+		adjustment.TargetTransactionType = TargetTransactionSkipped
+	}
+	if updated.RowStatus == RowStatusAdjusted && updated.TargetTransactionType == TargetTransactionSkipped {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "调整为待导入时必须选择有效的目标类型")
+	}
+
+	for i := range batch.Rows {
+		if batch.Rows[i].ID == updated.ID {
+			batch.Rows[i] = updated
+			break
+		}
+	}
+
+	updatedBatch, err := s.repo.UpdatePreviewRow(ctx, batch, updated, adjustment)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入预览行不存在")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "保存导入预览行失败")
+	}
+	return updatedBatch, nil
+}
+
 func buildPreviewBatch(req PreviewFileRequest, rows []PreviewRow) *PreviewBatch {
 	now := time.Now().Format(time.RFC3339)
 	fileHash := sha256.Sum256(req.Content)
@@ -159,6 +249,33 @@ func recountBatch(batch *PreviewBatch) {
 func isSupportedSourceType(sourceType string) bool {
 	switch sourceType {
 	case SourceTypeWechat, SourceTypeAlipay, SourceTypeGeneric:
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidTargetTransactionType(value string) bool {
+	switch value {
+	case TargetTransactionExpense, TargetTransactionIncome, TargetTransactionSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidMutableRowStatus(value string) bool {
+	switch value {
+	case RowStatusPending, RowStatusAdjusted, RowStatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidVisibility(value string) bool {
+	switch value {
+	case "private", "shared", "partner_readable":
 		return true
 	default:
 		return false

@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -80,6 +81,38 @@ func (h *Handler) HandleGetBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	batch, err := h.service.GetPreviewBatch(r.Context(), lc, chi.URLParam(r, "batchID"))
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, batch)
+}
+
+func (h *Handler) HandleUpdateRow(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
+		return
+	}
+	lc, ok := ledger.LedgerContextFromContext(r.Context())
+	if !ok {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "缺少账本上下文"))
+		return
+	}
+
+	var patch UpdateRowRequest
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体格式无效"))
+		return
+	}
+
+	batch, err := h.service.UpdatePreviewRow(r.Context(), UpdateRowCommand{
+		LedgerContext: lc,
+		BatchID:       chi.URLParam(r, "batchID"),
+		RowID:         chi.URLParam(r, "rowID"),
+		Patch:         patch,
+	})
 	if err != nil {
 		response.WriteError(w, err)
 		return

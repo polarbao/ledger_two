@@ -82,6 +82,95 @@ func TestPreviewCSVRequiresOwner(t *testing.T) {
 	}
 }
 
+func TestUpdatePreviewRowPersistsUserAdjustment(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	row := batch.Rows[0]
+	adjustedStatus := RowStatusAdjusted
+	targetType := TargetTransactionExpense
+	categoryID := "cat-food"
+	accountID := "account-cash"
+	visibility := "partner_readable"
+
+	updated, err := service.UpdatePreviewRow(context.Background(), UpdateRowCommand{
+		LedgerContext: ownerLedgerContext(),
+		BatchID:       batch.ID,
+		RowID:         row.ID,
+		Patch: UpdateRowRequest{
+			TargetTransactionType: &targetType,
+			RowStatus:             &adjustedStatus,
+			SelectedCategoryID:    &categoryID,
+			SelectedAccountID:     &accountID,
+			SelectedTagIDs:        []string{"tag-breakfast", "tag-workday"},
+			Visibility:            &visibility,
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpdatePreviewRow returned error: %v", err)
+	}
+
+	updatedRow := findPreviewRow(t, updated, row.ID)
+	if updatedRow.RowStatus != RowStatusAdjusted {
+		t.Fatalf("expected adjusted row status, got %s", updatedRow.RowStatus)
+	}
+	if updatedRow.SelectedCategoryID != categoryID || updatedRow.SelectedAccountID != accountID {
+		t.Fatalf("selection not persisted: category=%s account=%s", updatedRow.SelectedCategoryID, updatedRow.SelectedAccountID)
+	}
+	if updatedRow.Visibility != visibility {
+		t.Fatalf("expected visibility %s, got %s", visibility, updatedRow.Visibility)
+	}
+	if len(updatedRow.SelectedTagIDs) != 2 || updatedRow.SelectedTagIDs[0] != "tag-breakfast" {
+		t.Fatalf("selected tags not persisted: %#v", updatedRow.SelectedTagIDs)
+	}
+	if countRows(t, database, "transactions") != 0 {
+		t.Fatalf("row adjustment must not write transactions")
+	}
+}
+
+func TestUpdatePreviewRowRejectsInvalidRowAsAdjusted(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "wechat-basic.csv",
+		SourceType:    SourceTypeWechat,
+		Content:       readImportFixture(t, "wechat-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	invalidRow := batch.Rows[4]
+	adjustedStatus := RowStatusAdjusted
+	_, err = service.UpdatePreviewRow(context.Background(), UpdateRowCommand{
+		LedgerContext: ownerLedgerContext(),
+		BatchID:       batch.ID,
+		RowID:         invalidRow.ID,
+		Patch: UpdateRowRequest{
+			RowStatus: &adjustedStatus,
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected invalid row adjusted update to fail")
+	}
+}
+
 func TestHandlePreviewAcceptsMultipartCSV(t *testing.T) {
 	t.Parallel()
 
@@ -109,6 +198,18 @@ func TestHandlePreviewAcceptsMultipartCSV(t *testing.T) {
 	if !res.Success {
 		t.Fatalf("expected success response")
 	}
+}
+
+func findPreviewRow(t *testing.T, batch *PreviewBatch, rowID string) PreviewRow {
+	t.Helper()
+
+	for _, row := range batch.Rows {
+		if row.ID == rowID {
+			return row
+		}
+	}
+	t.Fatalf("row %s not found", rowID)
+	return PreviewRow{}
 }
 
 func openImporterTestDB(t *testing.T) *sql.DB {

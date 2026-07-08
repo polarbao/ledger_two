@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strings"
+	"time"
 )
 
 type Repository struct {
@@ -54,13 +55,17 @@ func (r *Repository) CreatePreviewBatch(ctx context.Context, batch *PreviewBatch
 				id, batch_id, transaction_id, import_hash, status, created_at,
 				row_number, source_type, external_order_id, occurred_at, title,
 				merchant, description, amount_cents, direction, target_transaction_type,
-				duplicate_status, row_status, normalized_json, error_code, error_message
-			) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				duplicate_status, row_status, normalized_json, error_code, error_message,
+				suggested_category_id, suggested_account_id, suggested_tag_ids_json,
+				selected_category_id, selected_account_id, selected_tag_ids_json, visibility
+			) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`,
 			row.ID, batch.ID, calculateImportHash(batch.LedgerID, batch.SourceType, row), row.RowStatus, batch.CreatedAt,
 			row.RowNumber, batch.SourceType, nullString(row.ExternalOrderID), nullString(row.OccurredAt), row.Title,
 			row.Merchant, nullString(row.Description), row.AmountCents, row.Direction, row.TargetTransactionType,
 			row.DuplicateStatus, row.RowStatus, string(normalizedJSON), errorCode, errorMessage,
+			nullString(row.SuggestedCategoryID), nullString(row.SuggestedAccountID), jsonString(row.SuggestedTagIDs),
+			nullString(row.SelectedCategoryID), nullString(row.SelectedAccountID), jsonString(row.SelectedTagIDs), defaultVisibility(row.Visibility),
 		)
 		if err != nil {
 			return err
@@ -90,7 +95,9 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, batch_id, row_number, occurred_at, title, merchant, description,
 		       amount_cents, direction, target_transaction_type, duplicate_status,
-		       row_status, source_type, external_order_id, error_code, error_message
+		       row_status, source_type, external_order_id, error_code, error_message,
+		       suggested_category_id, suggested_account_id, suggested_tag_ids_json,
+		       selected_category_id, selected_account_id, selected_tag_ids_json, visibility
 		FROM import_items
 		WHERE batch_id = ?
 		ORDER BY row_number ASC
@@ -103,10 +110,14 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 	for rows.Next() {
 		var row PreviewRow
 		var occurredAt, description, sourceAccount, externalOrderID, errorCode, errorMessage sql.NullString
+		var suggestedCategoryID, suggestedAccountID, suggestedTagIDs sql.NullString
+		var selectedCategoryID, selectedAccountID, selectedTagIDs, visibility sql.NullString
 		err := rows.Scan(
 			&row.ID, &row.BatchID, &row.RowNumber, &occurredAt, &row.Title, &row.Merchant, &description,
 			&row.AmountCents, &row.Direction, &row.TargetTransactionType, &row.DuplicateStatus,
 			&row.RowStatus, &sourceAccount, &externalOrderID, &errorCode, &errorMessage,
+			&suggestedCategoryID, &suggestedAccountID, &suggestedTagIDs,
+			&selectedCategoryID, &selectedAccountID, &selectedTagIDs, &visibility,
 		)
 		if err != nil {
 			return nil, err
@@ -115,6 +126,13 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 		row.Description = valueOf(description)
 		row.SourceAccount = valueOf(sourceAccount)
 		row.ExternalOrderID = valueOf(externalOrderID)
+		row.SuggestedCategoryID = valueOf(suggestedCategoryID)
+		row.SuggestedAccountID = valueOf(suggestedAccountID)
+		row.SuggestedTagIDs = parseStringList(valueOf(suggestedTagIDs))
+		row.SelectedCategoryID = valueOf(selectedCategoryID)
+		row.SelectedAccountID = valueOf(selectedAccountID)
+		row.SelectedTagIDs = parseStringList(valueOf(selectedTagIDs))
+		row.Visibility = defaultVisibility(valueOf(visibility))
 		if errorCode.Valid || errorMessage.Valid {
 			row.Error = &RowError{Code: errorCode.String, Message: errorMessage.String}
 		}
@@ -162,6 +180,99 @@ func (r *Repository) ExistingImportedHashes(ctx context.Context, ledgerID string
 	return existing, rows.Err()
 }
 
+func (r *Repository) GetPreviewRow(ctx context.Context, ledgerID string, batchID string, rowID string) (*PreviewBatch, *PreviewRow, error) {
+	batch, err := r.GetPreviewBatch(ctx, ledgerID, batchID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for i := range batch.Rows {
+		if batch.Rows[i].ID == rowID {
+			return batch, &batch.Rows[i], nil
+		}
+	}
+	return batch, nil, sql.ErrNoRows
+}
+
+func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, row PreviewRow, adjustment RowAdjustment) (*PreviewBatch, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	now := time.Now().Format(time.RFC3339)
+	adjustmentJSON, err := json.Marshal(adjustment)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := tx.ExecContext(ctx, `
+		UPDATE import_items
+		SET target_transaction_type = ?,
+		    row_status = ?,
+		    status = ?,
+		    selected_category_id = ?,
+		    selected_account_id = ?,
+		    selected_tag_ids_json = ?,
+		    visibility = ?,
+		    user_adjustment_json = ?
+		WHERE id = ? AND batch_id = ?
+	`,
+		row.TargetTransactionType,
+		row.RowStatus,
+		row.RowStatus,
+		nullString(row.SelectedCategoryID),
+		nullString(row.SelectedAccountID),
+		jsonString(row.SelectedTagIDs),
+		defaultVisibility(row.Visibility),
+		string(adjustmentJSON),
+		row.ID,
+		batch.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	recountBatch(batch)
+	_, err = tx.ExecContext(ctx, `
+		UPDATE import_batches
+		SET total_rows = ?,
+		    new_rows = ?,
+		    duplicate_rows = ?,
+		    suspicious_rows = ?,
+		    invalid_rows = ?,
+		    imported_rows = ?,
+		    skipped_rows = ?,
+		    updated_at = ?
+		WHERE id = ?
+	`,
+		batch.TotalRows,
+		batch.NewRows,
+		batch.DuplicateRows,
+		batch.SuspiciousRows,
+		batch.InvalidRows,
+		batch.ImportedRows,
+		batch.SkippedRows,
+		now,
+		batch.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return r.GetPreviewBatch(ctx, batch.LedgerID, batch.ID)
+}
+
 func nullString(value string) sql.NullString {
 	if value == "" {
 		return sql.NullString{}
@@ -174,4 +285,33 @@ func valueOf(value sql.NullString) string {
 		return value.String
 	}
 	return ""
+}
+
+func jsonString(values []string) string {
+	if values == nil {
+		return "[]"
+	}
+	data, err := json.Marshal(values)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
+}
+
+func parseStringList(value string) []string {
+	if value == "" {
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal([]byte(value), &list); err != nil {
+		return nil
+	}
+	return list
+}
+
+func defaultVisibility(value string) string {
+	if value == "" {
+		return "private"
+	}
+	return value
 }

@@ -34,9 +34,12 @@ docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md
 docs/tech/19-short-mid-implementation-readiness.md
 docs/tech/20-v1.2-import-implementation-contract.md
+docs/tech/21-v1.2-import-migration-review.md
 docs/api/API_INVENTORY.md
 docs/api/API_CONVENTIONS.md
 docs/api/openapi.yaml
+docs/api/openapi-v1.2-import-draft.yaml
+docs/fixtures/imports/README.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
 docs/ui/figma/README.md
@@ -82,9 +85,11 @@ docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md
 docs/tech/19-short-mid-implementation-readiness.md
 docs/tech/20-v1.2-import-implementation-contract.md
+docs/tech/21-v1.2-import-migration-review.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
 docs/ui/figma/README.md
+docs/fixtures/imports/README.md
 docs/codex_tasks/README.md
 ```
 

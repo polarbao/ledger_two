@@ -1,0 +1,514 @@
+openapi: 3.0.3
+info:
+  title: LedgerTwo v1.2 Import API Draft
+  version: 1.2.0-draft
+  description: |
+    v1.2 CSV 导入模块目标 OpenAPI 草案。当前文件描述 Task47-Task49 目标契约，
+    不代表现有 router 已实现。当前已实现旧接口仍记录在 openapi.yaml 与 API_INVENTORY.md 中。
+servers:
+  - url: /api
+    description: Current compatibility API root
+tags:
+  - name: imports
+  - name: import-rules
+paths:
+  /imports/preview:
+    post:
+      tags: [imports]
+      summary: Upload CSV and create preview batch
+      description: Owner only. Preview must not create transactions.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, metadata]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                metadata:
+                  type: string
+                  description: JSON string of ImportPreviewMetadata.
+      responses:
+        "201":
+          description: Preview batch created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportBatchResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /imports/{batch_id}:
+    get:
+      tags: [imports]
+      summary: Get import batch detail
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+      responses:
+        "200":
+          description: Import batch detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportBatchResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /imports/{batch_id}/rows/{row_id}:
+    patch:
+      tags: [imports]
+      summary: Update import preview row selection
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+        - $ref: "#/components/parameters/RowIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportRowUpdateRequest"
+      responses:
+        "200":
+          description: Row updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRowResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /imports/{batch_id}/commit:
+    post:
+      tags: [imports]
+      summary: Commit ready import batch
+      description: Owner only. Must run in a single database transaction.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+      responses:
+        "200":
+          description: Commit result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportCommitResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /import-rules:
+    get:
+      tags: [import-rules]
+      summary: List import rules
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, archived, all]
+      responses:
+        "200":
+          description: Rule list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleListResponse"
+    post:
+      tags: [import-rules]
+      summary: Create import rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportRuleUpsertRequest"
+      responses:
+        "201":
+          description: Rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+
+  /import-rules/{rule_id}:
+    patch:
+      tags: [import-rules]
+      summary: Update import rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/RuleIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportRuleUpsertRequest"
+      responses:
+        "200":
+          description: Rule updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+
+  /import-rules/{rule_id}/archive:
+    post:
+      tags: [import-rules]
+      summary: Archive import rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/RuleIdPath"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+  /import-rules/{rule_id}/restore:
+    post:
+      tags: [import-rules]
+      summary: Restore archived import rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/RuleIdPath"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+  parameters:
+    LedgerIdHeaderRequired:
+      name: X-Ledger-Id
+      in: header
+      required: true
+      schema:
+        type: string
+    BatchIdPath:
+      name: batch_id
+      in: path
+      required: true
+      schema:
+        type: string
+    RowIdPath:
+      name: row_id
+      in: path
+      required: true
+      schema:
+        type: string
+    RuleIdPath:
+      name: rule_id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Success:
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SuccessResponse"
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    SuccessResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          nullable: true
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              nullable: true
+    ImportPreviewMetadata:
+      type: object
+      required: [source_type]
+      properties:
+        source_type:
+          type: string
+          enum: [wechat, alipay, generic]
+        mapping:
+          type: object
+          additionalProperties:
+            type: string
+    ImportBatchResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [id, source_type, status, total_rows, rows]
+          properties:
+            id:
+              type: string
+            source_type:
+              type: string
+              enum: [wechat, alipay, generic]
+            filename:
+              type: string
+            status:
+              type: string
+              enum: [previewing, ready, committed, failed, expired]
+            total_rows:
+              type: integer
+            new_rows:
+              type: integer
+            duplicate_rows:
+              type: integer
+            suspicious_rows:
+              type: integer
+            invalid_rows:
+              type: integer
+            rows:
+              type: array
+              items:
+                $ref: "#/components/schemas/ImportRow"
+    ImportRowResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/ImportRow"
+    ImportRow:
+      type: object
+      required: [id, row_number, amount_cents, duplicate_status, row_status]
+      properties:
+        id:
+          type: string
+        row_number:
+          type: integer
+        occurred_at:
+          type: string
+          format: date-time
+        title:
+          type: string
+        merchant:
+          type: string
+        description:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+        direction:
+          type: string
+          enum: [expense, income, refund, transfer, unknown]
+        target_transaction_type:
+          type: string
+          enum: [expense, income, shared_expense, skipped]
+        duplicate_status:
+          type: string
+          enum: [new, duplicate, suspicious, invalid]
+        row_status:
+          type: string
+          enum: [pending, adjusted, skipped, imported, failed]
+        suggestions:
+          $ref: "#/components/schemas/ImportSuggestion"
+        selected:
+          $ref: "#/components/schemas/ImportSelectedFields"
+        error:
+          nullable: true
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    ImportSuggestion:
+      type: object
+      properties:
+        category_id:
+          type: string
+        account_id:
+          type: string
+        tag_ids:
+          type: array
+          items:
+            type: string
+        rule_id:
+          type: string
+        reason:
+          type: string
+    ImportSelectedFields:
+      type: object
+      properties:
+        category_id:
+          type: string
+        account_id:
+          type: string
+        tag_ids:
+          type: array
+          items:
+            type: string
+        visibility:
+          type: string
+          enum: [private, partner_readable, shared]
+    ImportRowUpdateRequest:
+      type: object
+      properties:
+        selected:
+          $ref: "#/components/schemas/ImportSelectedFields"
+        row_status:
+          type: string
+          enum: [pending, adjusted, skipped]
+        target_transaction_type:
+          type: string
+          enum: [expense, income, shared_expense, skipped]
+    ImportCommitResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [batch_id, status, imported_rows, skipped_rows, failed_rows]
+          properties:
+            batch_id:
+              type: string
+            status:
+              type: string
+              enum: [committed]
+            imported_rows:
+              type: integer
+            skipped_rows:
+              type: integer
+            failed_rows:
+              type: integer
+            generated_transaction_ids:
+              type: array
+              items:
+                type: string
+    ImportRuleListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportRule"
+    ImportRuleResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/ImportRule"
+    ImportRule:
+      type: object
+      required: [id, match_type, pattern, priority, status]
+      properties:
+        id:
+          type: string
+        match_type:
+          type: string
+          enum: [merchant_contains, description_contains, source_account, amount_range]
+        pattern:
+          type: string
+        amount_min_cents:
+          type: integer
+          nullable: true
+        amount_max_cents:
+          type: integer
+          nullable: true
+        priority:
+          type: integer
+        status:
+          type: string
+          enum: [active, archived]
+        result:
+          $ref: "#/components/schemas/ImportSelectedFields"
+    ImportRuleUpsertRequest:
+      type: object
+      required: [match_type, pattern, result]
+      properties:
+        match_type:
+          type: string
+          enum: [merchant_contains, description_contains, source_account, amount_range]
+        pattern:
+          type: string
+        amount_min_cents:
+          type: integer
+          nullable: true
+        amount_max_cents:
+          type: integer
+          nullable: true
+        priority:
+          type: integer
+        result:
+          $ref: "#/components/schemas/ImportSelectedFields"
+

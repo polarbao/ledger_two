@@ -1,0 +1,6 @@
+occurred_at,title,merchant,description,amount_cents,direction,source_account,external_order_id
+2026-07-07T10:00:00+08:00,早餐,早餐店,通用模板支出,1800,expense,wechat,generic-demo-0001
+2026-07-07T13:00:00+08:00,午餐,园区餐厅,通用模板支出,3200,expense,alipay,generic-demo-0002
+2026-07-07T20:00:00+08:00,报销到账,公司,通用模板收入,10000,income,bank,generic-demo-0003
+2026-07-07T21:00:00+08:00,朋友转账,polar,转账默认不自动入账,5000,transfer,wechat,generic-demo-0004
+

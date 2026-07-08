@@ -10,6 +10,7 @@
 ```text
 API_INVENTORY.md  当前 router 实际暴露接口清单、认证要求、账本要求和稳定性标记
 openapi.yaml      OpenAPI 草案，覆盖当前核心 API 路径、通用响应和主要请求 DTO
+openapi-v1.2-import-draft.yaml v1.2 导入模块目标接口草案，未代表当前 router 已实现
 API_CONVENTIONS.md 错误码、分页、筛选、排序、金额、时间和 Ledger Context 规范
 ```
 

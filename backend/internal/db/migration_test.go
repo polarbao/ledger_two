@@ -10,7 +10,7 @@ import (
 	"ledger_two/migrations"
 )
 
-const latestMigrationVersion int64 = 16
+const latestMigrationVersion int64 = 17
 
 func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 	database := openMigrationTestDB(t)
@@ -135,6 +135,17 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"selected_tag_ids_json",
 		"visibility",
 	})
+	assertColumnsExist(t, database, "import_rules", []string{
+		"name",
+		"match_type",
+		"pattern",
+		"amount_min_cents",
+		"amount_max_cents",
+		"priority",
+		"result_json",
+		"status",
+		"archived_at",
+	})
 	assertColumnsExist(t, database, "transaction_import_refs", []string{
 		"ledger_id",
 		"transaction_id",
@@ -171,6 +182,7 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"idx_transaction_import_refs_hash",
 		"idx_transaction_import_refs_tx",
 		"idx_transaction_import_refs_batch",
+		"idx_import_rules_ledger_status_priority",
 	})
 }
 

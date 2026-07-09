@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
+  Archive,
   Ban,
   CheckCircle2,
   CircleAlert,
@@ -10,12 +11,17 @@ import {
   FileWarning,
   Loader2,
   RefreshCw,
+  RotateCcw,
+  Save,
   ShieldCheck,
+  Sparkles,
   Upload,
   X,
 } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { importsApi } from '../api/imports.api';
+import { metadataApi } from '../api/metadata.api';
+import { queryKeys } from '../api/queryKeys';
 import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import type {
@@ -23,9 +29,13 @@ import type {
   ImportCommitResult,
   ImportPreviewBatch,
   ImportPreviewRow,
+  ImportRule,
+  ImportRuleMatchType,
+  ImportRuleUpsertPayload,
   ImportRowStatus,
   ImportSourceType,
 } from '../types/imports';
+import type { MetadataItem } from '../types/metadata';
 
 const sourceOptions: Array<{ value: ImportSourceType; label: string; description: string }> = [
   { value: 'wechat', label: '微信账单', description: '微信支付导出的 CSV' },
@@ -51,8 +61,27 @@ const rowStatusCopy: Record<ImportRowStatus, string> = {
   failed: '不可用',
 };
 
+const matchTypeOptions: Array<{ value: ImportRuleMatchType; label: string }> = [
+  { value: 'merchant_contains', label: '商户包含' },
+  { value: 'description_contains', label: '描述包含' },
+  { value: 'source_account', label: '来源账户' },
+  { value: 'amount_range', label: '金额区间' },
+];
+
+const defaultRuleForm = {
+  name: '',
+  match_type: 'merchant_contains' as ImportRuleMatchType,
+  pattern: '',
+  category_id: '',
+  account_id: '',
+  tag_id: '',
+  priority: '100',
+};
+
 export default function ImportPage() {
   const activeRole = useLedgerStore((state) => state.activeRole);
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [sourceType, setSourceType] = useState<ImportSourceType>('wechat');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -60,8 +89,30 @@ export default function ImportPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [commitResult, setCommitResult] = useState<ImportCommitResult | null>(null);
+  const [ruleForm, setRuleForm] = useState(defaultRuleForm);
 
   const isOwner = activeRole === 'owner';
+
+  const { data: importRules = [] } = useQuery({
+    queryKey: queryKeys.importRules(activeLedgerId),
+    queryFn: () => importsApi.listRules('all'),
+    enabled: isOwner,
+  });
+  const { data: categories = [] } = useQuery({
+    queryKey: queryKeys.metadata.list(activeLedgerId, 'categories'),
+    queryFn: () => metadataApi.list('categories', true),
+    enabled: isOwner,
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: queryKeys.metadata.list(activeLedgerId, 'accounts'),
+    queryFn: () => metadataApi.list('accounts', true),
+    enabled: isOwner,
+  });
+  const { data: tags = [] } = useQuery({
+    queryKey: queryKeys.metadata.list(activeLedgerId, 'tags'),
+    queryFn: () => metadataApi.list('tags', true),
+    enabled: isOwner,
+  });
 
   const previewMutation = useMutation({
     mutationFn: (file: File) => importsApi.preview({ file, sourceType }),
@@ -113,6 +164,38 @@ export default function ImportPage() {
     },
   });
 
+  const createRuleMutation = useMutation({
+    mutationFn: (payload: ImportRuleUpsertPayload) => importsApi.createRule(payload),
+    onSuccess: () => {
+      setRuleForm(defaultRuleForm);
+      queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
+      setErrorMsg(null);
+    },
+    onError: (err: unknown) => {
+      setErrorMsg(resolveErrorMessage(err, '创建导入规则失败'));
+    },
+  });
+
+  const archiveRuleMutation = useMutation({
+    mutationFn: (ruleId: string) => importsApi.archiveRule(ruleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
+    },
+    onError: (err: unknown) => {
+      setErrorMsg(resolveErrorMessage(err, '归档导入规则失败'));
+    },
+  });
+
+  const restoreRuleMutation = useMutation({
+    mutationFn: (ruleId: string) => importsApi.restoreRule(ruleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
+    },
+    onError: (err: unknown) => {
+      setErrorMsg(resolveErrorMessage(err, '恢复导入规则失败'));
+    },
+  });
+
   const handleFile = (file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
       setErrorMsg('当前仅支持 CSV 文件');
@@ -143,6 +226,20 @@ export default function ImportPage() {
     }
     setIsConfirmOpen(true);
   };
+
+  const handleCreateRule = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const payload = buildRulePayload(ruleForm);
+    if (!payload) {
+      setErrorMsg('规则需要填写匹配内容，并至少选择分类、账户或标签');
+      return;
+    }
+    createRuleMutation.mutate(payload);
+  };
+
+  const activeCategories = categories.filter((item) => !item.is_archived);
+  const activeAccounts = accounts.filter((item) => !item.is_archived);
+  const activeTags = tags.filter((item) => !item.is_archived);
 
   return (
     <div className="page-content animate-fade-in text-left import-workbench">
@@ -241,6 +338,23 @@ export default function ImportPage() {
             </button>
           </div>
         </div>
+
+        {isOwner && (
+          <ImportRuleManager
+            rules={importRules}
+            categories={activeCategories}
+            accounts={activeAccounts}
+            tags={activeTags}
+            form={ruleForm}
+            creating={createRuleMutation.isPending}
+            archiving={archiveRuleMutation.isPending}
+            restoring={restoreRuleMutation.isPending}
+            onFormChange={setRuleForm}
+            onCreate={handleCreateRule}
+            onArchive={(ruleId) => archiveRuleMutation.mutate(ruleId)}
+            onRestore={(ruleId) => restoreRuleMutation.mutate(ruleId)}
+          />
+        )}
 
         <div className="glass-card import-preview-panel">
           <div className="import-section-title">
@@ -360,6 +474,129 @@ export default function ImportPage() {
   );
 }
 
+function ImportRuleManager({
+  rules,
+  categories,
+  accounts,
+  tags,
+  form,
+  creating,
+  archiving,
+  restoring,
+  onFormChange,
+  onCreate,
+  onArchive,
+  onRestore,
+}: {
+  rules: ImportRule[];
+  categories: MetadataItem[];
+  accounts: MetadataItem[];
+  tags: MetadataItem[];
+  form: typeof defaultRuleForm;
+  creating: boolean;
+  archiving: boolean;
+  restoring: boolean;
+  onFormChange: (form: typeof defaultRuleForm) => void;
+  onCreate: (event: FormEvent<HTMLFormElement>) => void;
+  onArchive: (ruleId: string) => void;
+  onRestore: (ruleId: string) => void;
+}) {
+  const activeRules = rules.filter((rule) => rule.status === 'active');
+  const archivedRules = rules.filter((rule) => rule.status === 'archived');
+  const busy = creating || archiving || restoring;
+
+  return (
+    <div className="glass-card import-rule-manager">
+      <div className="import-section-title">
+        <span>导入规则</span>
+        <small>{activeRules.length} 条启用</small>
+      </div>
+
+      <form className="import-rule-form" onSubmit={onCreate}>
+        <input
+          value={form.name}
+          onChange={(event) => onFormChange({ ...form, name: event.target.value })}
+          placeholder="规则名称"
+        />
+        <select
+          value={form.match_type}
+          onChange={(event) => onFormChange({ ...form, match_type: event.target.value as ImportRuleMatchType })}
+        >
+          {matchTypeOptions.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <input
+          value={form.pattern}
+          onChange={(event) => onFormChange({ ...form, pattern: event.target.value })}
+          placeholder="匹配内容，例如 星巴克"
+        />
+        <select
+          value={form.category_id}
+          onChange={(event) => onFormChange({ ...form, category_id: event.target.value })}
+        >
+          <option value="">不推荐分类</option>
+          {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select>
+        <select
+          value={form.account_id}
+          onChange={(event) => onFormChange({ ...form, account_id: event.target.value })}
+        >
+          <option value="">不推荐账户</option>
+          {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select>
+        <select
+          value={form.tag_id}
+          onChange={(event) => onFormChange({ ...form, tag_id: event.target.value })}
+        >
+          <option value="">不推荐标签</option>
+          {tags.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select>
+        <input
+          type="number"
+          min="0"
+          value={form.priority}
+          onChange={(event) => onFormChange({ ...form, priority: event.target.value })}
+          placeholder="优先级"
+        />
+        <button type="submit" className="btn-primary" disabled={creating}>
+          {creating ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+          创建规则
+        </button>
+      </form>
+
+      <div className="import-rule-list">
+        {[...activeRules, ...archivedRules].map((rule) => (
+          <article key={rule.id} className={`import-rule-card ${rule.status === 'archived' ? 'is-archived' : ''}`}>
+            <div>
+              <strong>{rule.name || rule.pattern}</strong>
+              <span>{matchTypeLabel(rule.match_type)}「{rule.pattern}」 · 优先级 {rule.priority}</span>
+              <small>{describeRuleResult(rule, categories, accounts, tags)}</small>
+            </div>
+            {rule.status === 'active' ? (
+              <button type="button" className="btn-secondary" disabled={busy} onClick={() => onArchive(rule.id)}>
+                <Archive size={14} />
+                归档
+              </button>
+            ) : (
+              <button type="button" className="btn-secondary" disabled={busy} onClick={() => onRestore(rule.id)}>
+                <RotateCcw size={14} />
+                恢复
+              </button>
+            )}
+          </article>
+        ))}
+        {rules.length === 0 && (
+          <div className="import-rule-empty">
+            <Sparkles size={18} />
+            <span>还没有导入规则</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ImportRowCard({
   row,
   disabled,
@@ -422,6 +659,13 @@ function ImportRowCard({
         </div>
       )}
 
+      {row.suggestion_reason && (
+        <div className="import-rule-suggestion">
+          <Sparkles size={14} />
+          <span>{row.suggestion_reason}</span>
+        </div>
+      )}
+
       <div className="import-row-actions">
         {canSkip && (
           <button type="button" className="btn-secondary" onClick={onSkip} disabled={disabled}>
@@ -444,6 +688,43 @@ function ImportRowCard({
       </div>
     </article>
   );
+}
+
+function buildRulePayload(form: typeof defaultRuleForm): ImportRuleUpsertPayload | null {
+  const pattern = form.pattern.trim();
+  if (!pattern || (!form.category_id && !form.account_id && !form.tag_id)) {
+    return null;
+  }
+  const priority = Number.parseInt(form.priority || '100', 10);
+  return {
+    name: form.name.trim() || pattern,
+    match_type: form.match_type,
+    pattern,
+    priority: Number.isFinite(priority) ? priority : 100,
+    result: {
+      category_id: form.category_id || undefined,
+      account_id: form.account_id || undefined,
+      tag_ids: form.tag_id ? [form.tag_id] : [],
+      visibility: 'private',
+    },
+  };
+}
+
+function matchTypeLabel(matchType: ImportRuleMatchType) {
+  return matchTypeOptions.find((option) => option.value === matchType)?.label || matchType;
+}
+
+function describeRuleResult(rule: ImportRule, categories: MetadataItem[], accounts: MetadataItem[], tags: MetadataItem[]) {
+  const parts = [
+    rule.result.category_id ? `分类 ${metadataName(categories, rule.result.category_id)}` : '',
+    rule.result.account_id ? `账户 ${metadataName(accounts, rule.result.account_id)}` : '',
+    rule.result.tag_ids?.length ? `标签 ${rule.result.tag_ids.map((id) => metadataName(tags, id)).join('、')}` : '',
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : '仅记录命中解释';
+}
+
+function metadataName(items: MetadataItem[], id: string) {
+  return items.find((item) => item.id === id)?.name || id.slice(0, 8);
 }
 
 function StatusPill({ status }: { status: ImportDuplicateStatus }) {

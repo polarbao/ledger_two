@@ -10,6 +10,10 @@ export type ImportRowStatus = 'pending' | 'adjusted' | 'skipped' | 'imported' | 
 
 export type ImportVisibility = 'private' | 'shared' | 'partner_readable';
 
+export type ImportRuleMatchType = 'merchant_contains' | 'description_contains' | 'source_account' | 'amount_range';
+
+export type ImportRuleStatus = 'active' | 'archived';
+
 export interface ImportRowError {
   code: string;
   message: string;
@@ -73,6 +77,39 @@ export interface ImportCommitResult {
   skipped_rows: number;
   failed_rows: number;
   generated_transaction_ids: string[];
+}
+
+export interface ImportRuleResult {
+  category_id?: string;
+  account_id?: string;
+  tag_ids?: string[];
+  visibility?: ImportVisibility;
+}
+
+export interface ImportRule {
+  id: string;
+  name: string;
+  match_type: ImportRuleMatchType;
+  pattern: string;
+  amount_min_cents?: number;
+  amount_max_cents?: number;
+  priority: number;
+  status: ImportRuleStatus;
+  result: ImportRuleResult;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  archived_at?: string;
+}
+
+export interface ImportRuleUpsertPayload {
+  name?: string;
+  match_type: ImportRuleMatchType;
+  pattern: string;
+  amount_min_cents?: number;
+  amount_max_cents?: number;
+  priority?: number;
+  result: ImportRuleResult;
 }
 
 export interface UpdateImportRowPayload {

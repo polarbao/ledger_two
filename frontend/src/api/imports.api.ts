@@ -2,6 +2,8 @@ import { api } from './client';
 import type {
   ImportCommitResult,
   ImportPreviewBatch,
+  ImportRule,
+  ImportRuleUpsertPayload,
   ImportSourceType,
   UpdateImportRowPayload,
 } from '../types/imports';
@@ -22,4 +24,16 @@ export const importsApi = {
 
   commit: (batchId: string) =>
     api.post<ImportCommitResult>(`/api/imports/${batchId}/commit`, {}),
+
+  listRules: (status: 'active' | 'archived' | 'all' = 'all') =>
+    api.get<ImportRule[]>(`/api/import-rules/?status=${status}`),
+
+  createRule: (payload: ImportRuleUpsertPayload) =>
+    api.post<ImportRule>('/api/import-rules/', payload),
+
+  archiveRule: (ruleId: string) =>
+    api.post<ImportRule>(`/api/import-rules/${ruleId}/archive`, {}),
+
+  restoreRule: (ruleId: string) =>
+    api.post<ImportRule>(`/api/import-rules/${ruleId}/restore`, {}),
 };

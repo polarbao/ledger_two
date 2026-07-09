@@ -2698,6 +2698,106 @@ button {
   line-height: 1.5;
 }
 
+.import-rule-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.import-rule-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.import-rule-form input,
+.import-rule-form select {
+  min-width: 0;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(10,12,16,0.58);
+  color: var(--text-primary);
+  padding: 9px 10px;
+  font-size: 13px;
+}
+
+.import-rule-form button {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+
+.import-rule-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.import-rule-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+}
+
+.import-rule-card.is-archived {
+  opacity: 0.62;
+}
+
+.import-rule-card div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.import-rule-card strong,
+.import-rule-card span,
+.import-rule-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.import-rule-card span,
+.import-rule-card small {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.import-rule-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255,255,255,0.08);
+}
+
+.import-rule-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.07);
+  border: 1px solid rgba(134, 239, 172, 0.18);
+  color: #bbf7d0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.import-rule-suggestion span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .import-commit-modal {
   max-width: 520px;
 }
@@ -2734,6 +2834,16 @@ button {
   }
   .import-entry__actions {
     flex-direction: column;
+  }
+  .import-rule-form {
+    grid-template-columns: 1fr;
+  }
+  .import-rule-card {
+    grid-template-columns: 1fr;
+  }
+  .import-rule-card > button {
+    width: 100%;
+    justify-content: center;
   }
   .import-row-card__top {
     grid-template-columns: 1fr;

@@ -68,15 +68,25 @@ const matchTypeOptions: Array<{ value: ImportRuleMatchType; label: string }> = [
   { value: 'amount_range', label: '金额区间' },
 ];
 
-const defaultRuleForm = {
+type ImportRuleForm = {
+  name: string;
+  match_type: ImportRuleMatchType;
+  pattern: string;
+  category_id: string;
+  account_id: string;
+  tag_ids: string[];
+  priority: string;
+};
+
+const createDefaultRuleForm = (): ImportRuleForm => ({
   name: '',
-  match_type: 'merchant_contains' as ImportRuleMatchType,
+  match_type: 'merchant_contains',
   pattern: '',
   category_id: '',
   account_id: '',
-  tag_id: '',
+  tag_ids: [],
   priority: '100',
-};
+});
 
 export default function ImportPage() {
   const activeRole = useLedgerStore((state) => state.activeRole);
@@ -89,7 +99,7 @@ export default function ImportPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [commitResult, setCommitResult] = useState<ImportCommitResult | null>(null);
-  const [ruleForm, setRuleForm] = useState(defaultRuleForm);
+  const [ruleForm, setRuleForm] = useState<ImportRuleForm>(() => createDefaultRuleForm());
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleStatusFilter, setRuleStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
 
@@ -169,7 +179,7 @@ export default function ImportPage() {
   const createRuleMutation = useMutation({
     mutationFn: (payload: ImportRuleUpsertPayload) => importsApi.createRule(payload),
     onSuccess: () => {
-      setRuleForm(defaultRuleForm);
+      setRuleForm(createDefaultRuleForm());
       queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
       setErrorMsg(null);
     },
@@ -181,7 +191,7 @@ export default function ImportPage() {
   const updateRuleMutation = useMutation({
     mutationFn: ({ ruleId, payload }: { ruleId: string; payload: ImportRuleUpsertPayload }) => importsApi.updateRule(ruleId, payload),
     onSuccess: () => {
-      setRuleForm(defaultRuleForm);
+      setRuleForm(createDefaultRuleForm());
       setEditingRuleId(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
       setErrorMsg(null);
@@ -264,14 +274,14 @@ export default function ImportPage() {
       pattern: rule.pattern,
       category_id: rule.result.category_id || '',
       account_id: rule.result.account_id || '',
-      tag_id: rule.result.tag_ids?.[0] || '',
+      tag_ids: rule.result.tag_ids || [],
       priority: String(rule.priority),
     });
   };
 
   const handleCancelRuleEdit = () => {
     setEditingRuleId(null);
-    setRuleForm(defaultRuleForm);
+    setRuleForm(createDefaultRuleForm());
   };
 
   const activeCategories = categories.filter((item) => !item.is_archived);
@@ -454,6 +464,9 @@ export default function ImportPage() {
                 <ImportRowCard
                   key={row.id}
                   row={row}
+                  categories={activeCategories}
+                  accounts={activeAccounts}
+                  tags={activeTags}
                   disabled={updateRowMutation.isPending}
                   onSkip={() => updateRowMutation.mutate({ row, rowStatus: 'skipped' })}
                   onRestore={() => updateRowMutation.mutate({ row, rowStatus: 'pending' })}
@@ -541,14 +554,14 @@ function ImportRuleManager({
   categories: MetadataItem[];
   accounts: MetadataItem[];
   tags: MetadataItem[];
-  form: typeof defaultRuleForm;
+  form: ImportRuleForm;
   creating: boolean;
   updating: boolean;
   archiving: boolean;
   restoring: boolean;
   editingRuleId: string | null;
   statusFilter: 'all' | 'active' | 'archived';
-  onFormChange: (form: typeof defaultRuleForm) => void;
+  onFormChange: (form: ImportRuleForm) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancelEdit: () => void;
   onEdit: (rule: ImportRule) => void;
@@ -559,6 +572,14 @@ function ImportRuleManager({
   const activeRules = rules.filter((rule) => rule.status === 'active');
   const visibleRules = rules.filter((rule) => statusFilter === 'all' || rule.status === statusFilter);
   const busy = creating || updating || archiving || restoring;
+  const selectedTagIds = new Set(form.tag_ids);
+
+  const toggleTag = (tagId: string) => {
+    onFormChange({
+      ...form,
+      tag_ids: selectedTagIds.has(tagId) ? form.tag_ids.filter((id) => id !== tagId) : [...form.tag_ids, tagId],
+    });
+  };
 
   return (
     <div className="glass-card import-rule-manager">
@@ -613,13 +634,20 @@ function ImportRuleManager({
           <option value="">不推荐账户</option>
           {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
-        <select
-          value={form.tag_id}
-          onChange={(event) => onFormChange({ ...form, tag_id: event.target.value })}
-        >
-          <option value="">不推荐标签</option>
-          {tags.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        <div className="import-rule-tag-options" aria-label="推荐标签">
+          {tags.length === 0 ? (
+            <span>暂无可用标签</span>
+          ) : tags.map((item) => (
+            <label key={item.id} className={`import-rule-tag-option ${selectedTagIds.has(item.id) ? 'is-selected' : ''}`}>
+              <input
+                type="checkbox"
+                checked={selectedTagIds.has(item.id)}
+                onChange={() => toggleTag(item.id)}
+              />
+              <span>{item.name}</span>
+            </label>
+          ))}
+        </div>
         <input
           type="number"
           min="0"
@@ -678,12 +706,18 @@ function ImportRuleManager({
 
 function ImportRowCard({
   row,
+  categories,
+  accounts,
+  tags,
   disabled,
   onSkip,
   onRestore,
   onConfirmImport,
 }: {
   row: ImportPreviewRow;
+  categories: MetadataItem[];
+  accounts: MetadataItem[];
+  tags: MetadataItem[];
   disabled: boolean;
   onSkip: () => void;
   onRestore: () => void;
@@ -695,6 +729,7 @@ function ImportRowCard({
   const canRestore = isSkipped && row.duplicate_status !== 'invalid' && row.duplicate_status !== 'duplicate';
   const canSkip = !isSkipped && row.row_status !== 'failed';
   const canConfirmImport = row.duplicate_status === 'suspicious' && row.row_status === 'pending';
+  const suggestionDetail = describeRowSuggestion(row, categories, accounts, tags);
 
   return (
     <article className={`import-row-card tone-${status.tone}`}>
@@ -738,10 +773,13 @@ function ImportRowCard({
         </div>
       )}
 
-      {row.suggestion_reason && (
+      {(row.suggestion_reason || suggestionDetail) && (
         <div className="import-rule-suggestion">
           <Sparkles size={14} />
-          <span>{row.suggestion_reason}</span>
+          <span>
+            {row.suggestion_reason || '导入规则已命中'}
+            {suggestionDetail && <small>{suggestionDetail}</small>}
+          </span>
         </div>
       )}
 
@@ -769,9 +807,10 @@ function ImportRowCard({
   );
 }
 
-function buildRulePayload(form: typeof defaultRuleForm): ImportRuleUpsertPayload | null {
+function buildRulePayload(form: ImportRuleForm): ImportRuleUpsertPayload | null {
   const pattern = form.pattern.trim();
-  if (!pattern || (!form.category_id && !form.account_id && !form.tag_id)) {
+  const tagIds = Array.from(new Set(form.tag_ids.filter(Boolean)));
+  if (!pattern || (!form.category_id && !form.account_id && tagIds.length === 0)) {
     return null;
   }
   const priority = Number.parseInt(form.priority || '100', 10);
@@ -783,7 +822,7 @@ function buildRulePayload(form: typeof defaultRuleForm): ImportRuleUpsertPayload
     result: {
       category_id: form.category_id || undefined,
       account_id: form.account_id || undefined,
-      tag_ids: form.tag_id ? [form.tag_id] : [],
+      tag_ids: tagIds,
       visibility: 'private',
     },
   };
@@ -800,6 +839,15 @@ function describeRuleResult(rule: ImportRule, categories: MetadataItem[], accoun
     rule.result.tag_ids?.length ? `标签 ${rule.result.tag_ids.map((id) => metadataName(tags, id)).join('、')}` : '',
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(' · ') : '仅记录命中解释';
+}
+
+function describeRowSuggestion(row: ImportPreviewRow, categories: MetadataItem[], accounts: MetadataItem[], tags: MetadataItem[]) {
+  const parts = [
+    row.suggested_category_id ? `分类 ${metadataName(categories, row.suggested_category_id)}` : '',
+    row.suggested_account_id ? `账户 ${metadataName(accounts, row.suggested_account_id)}` : '',
+    row.suggested_tag_ids?.length ? `标签 ${row.suggested_tag_ids.map((id) => metadataName(tags, id)).join('、')}` : '',
+  ].filter(Boolean);
+  return parts.length > 0 ? `建议：${parts.join(' · ')}` : '';
 }
 
 function metadataName(items: MetadataItem[], id: string) {

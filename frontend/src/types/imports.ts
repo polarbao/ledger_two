@@ -34,6 +34,8 @@ export interface ImportPreviewRow {
   suggested_category_id?: string;
   suggested_account_id?: string;
   suggested_tag_ids?: string[];
+  suggested_rule_id?: string;
+  suggestion_reason?: string;
   selected_category_id?: string;
   selected_account_id?: string;
   selected_tag_ids?: string[];

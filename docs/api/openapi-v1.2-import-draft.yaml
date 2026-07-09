@@ -384,6 +384,10 @@ components:
           enum: [pending, adjusted, skipped, imported, failed]
         suggestions:
           $ref: "#/components/schemas/ImportSuggestion"
+        suggested_rule_id:
+          type: string
+        suggestion_reason:
+          type: string
         selected:
           $ref: "#/components/schemas/ImportSelectedFields"
         error:

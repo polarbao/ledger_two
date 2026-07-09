@@ -79,6 +79,8 @@ type PreviewRow struct {
 	SuggestedCategoryID   string    `json:"suggested_category_id,omitempty"`
 	SuggestedAccountID    string    `json:"suggested_account_id,omitempty"`
 	SuggestedTagIDs       []string  `json:"suggested_tag_ids,omitempty"`
+	SuggestedRuleID       string    `json:"suggested_rule_id,omitempty"`
+	SuggestionReason      string    `json:"suggestion_reason,omitempty"`
 	SelectedCategoryID    string    `json:"selected_category_id,omitempty"`
 	SelectedAccountID     string    `json:"selected_account_id,omitempty"`
 	SelectedTagIDs        []string  `json:"selected_tag_ids,omitempty"`

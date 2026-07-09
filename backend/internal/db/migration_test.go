@@ -10,7 +10,7 @@ import (
 	"ledger_two/migrations"
 )
 
-const latestMigrationVersion int64 = 17
+const latestMigrationVersion int64 = 18
 
 func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 	database := openMigrationTestDB(t)
@@ -130,6 +130,8 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"suggested_category_id",
 		"suggested_account_id",
 		"suggested_tag_ids_json",
+		"suggested_rule_id",
+		"suggestion_reason",
 		"selected_category_id",
 		"selected_account_id",
 		"selected_tag_ids_json",
@@ -183,6 +185,7 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"idx_transaction_import_refs_tx",
 		"idx_transaction_import_refs_batch",
 		"idx_import_rules_ledger_status_priority",
+		"idx_import_items_suggested_rule",
 	})
 }
 

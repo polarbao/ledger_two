@@ -52,6 +52,9 @@ func (s *Service) PreviewCSV(ctx context.Context, req PreviewFileRequest) (*Prev
 	if len(preview.Rows) > MaxPreviewRows {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, fmt.Sprintf("单批导入最多支持 %d 行", MaxPreviewRows))
 	}
+	if err := s.applyImportRules(ctx, req.LedgerContext.LedgerID, preview.Rows); err != nil {
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "应用导入规则失败")
+	}
 
 	batch := buildPreviewBatch(req, preview.Rows)
 	if err := s.applyExistingDuplicates(ctx, batch); err != nil {
@@ -398,6 +401,74 @@ func (s *Service) applyExistingDuplicates(ctx context.Context, batch *PreviewBat
 		}
 	}
 	return nil
+}
+
+func (s *Service) applyImportRules(ctx context.Context, ledgerID string, rows []PreviewRow) error {
+	rules, err := s.repo.ListImportRules(ctx, ledgerID, "active")
+	if err != nil {
+		return err
+	}
+	if len(rules) == 0 {
+		return nil
+	}
+
+	for i := range rows {
+		if rows[i].DuplicateStatus == DuplicateStatusInvalid || rows[i].TargetTransactionType == TargetTransactionSkipped {
+			continue
+		}
+		for _, rule := range rules {
+			if !importRuleMatches(rule, rows[i]) {
+				continue
+			}
+			rows[i].SuggestedCategoryID = rule.Result.CategoryID
+			rows[i].SuggestedAccountID = rule.Result.AccountID
+			rows[i].SuggestedTagIDs = append([]string(nil), rule.Result.TagIDs...)
+			rows[i].SuggestedRuleID = rule.ID
+			rows[i].SuggestionReason = buildRuleSuggestionReason(rule)
+			break
+		}
+	}
+	return nil
+}
+
+func importRuleMatches(rule ImportRuleResponse, row PreviewRow) bool {
+	pattern := strings.TrimSpace(rule.Pattern)
+	if pattern == "" {
+		return false
+	}
+	switch rule.MatchType {
+	case "merchant_contains":
+		return strings.Contains(row.Merchant, pattern)
+	case "description_contains":
+		return strings.Contains(row.Description, pattern)
+	case "source_account":
+		return strings.EqualFold(strings.TrimSpace(row.SourceAccount), pattern)
+	case "amount_range":
+		if rule.AmountMinCents != nil && row.AmountCents < *rule.AmountMinCents {
+			return false
+		}
+		if rule.AmountMaxCents != nil && row.AmountCents > *rule.AmountMaxCents {
+			return false
+		}
+		return strings.Contains(row.Title, pattern) || strings.Contains(row.Merchant, pattern) || strings.Contains(row.Description, pattern)
+	default:
+		return false
+	}
+}
+
+func buildRuleSuggestionReason(rule ImportRuleResponse) string {
+	switch rule.MatchType {
+	case "merchant_contains":
+		return "商户包含「" + rule.Pattern + "」"
+	case "description_contains":
+		return "描述包含「" + rule.Pattern + "」"
+	case "source_account":
+		return "来源账户匹配「" + rule.Pattern + "」"
+	case "amount_range":
+		return "金额区间与文本匹配「" + rule.Pattern + "」"
+	default:
+		return "命中导入规则「" + rule.Name + "」"
+	}
 }
 
 func recountBatch(batch *PreviewBatch) {

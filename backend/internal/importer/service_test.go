@@ -368,6 +368,62 @@ func TestImportRuleRejectsEditorAndArchivedMetadata(t *testing.T) {
 	}
 }
 
+func TestPreviewCSVAppliesActiveImportRuleAsSuggestion(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	seedImportRuleMetadata(t, database)
+	service := NewService(NewRepository(database))
+
+	_, err := service.CreateImportRule(context.Background(), ownerLedgerContext(), ImportRuleUpsertRequest{
+		Name:      "早餐店规则",
+		MatchType: "merchant_contains",
+		Pattern:   "早餐店",
+		Result: ImportRuleResult{
+			CategoryID: "cat-food",
+			AccountID:  "account-cash",
+			TagIDs:     []string{"tag-coffee"},
+			Visibility: "private",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateImportRule returned error: %v", err)
+	}
+
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	row := findPreviewRowByNumber(t, batch, 1)
+	if row.SuggestedCategoryID != "cat-food" || row.SuggestedAccountID != "account-cash" {
+		t.Fatalf("expected rule suggestion on row 1, got category=%s account=%s", row.SuggestedCategoryID, row.SuggestedAccountID)
+	}
+	if len(row.SuggestedTagIDs) != 1 || row.SuggestedTagIDs[0] != "tag-coffee" {
+		t.Fatalf("expected suggested tag, got %#v", row.SuggestedTagIDs)
+	}
+	if row.SuggestedRuleID == "" || row.SuggestionReason == "" {
+		t.Fatalf("expected rule id and reason, got rule=%s reason=%s", row.SuggestedRuleID, row.SuggestionReason)
+	}
+	if row.SelectedCategoryID != "" || row.SelectedAccountID != "" || len(row.SelectedTagIDs) != 0 {
+		t.Fatalf("rule suggestions must not overwrite selected fields: %+v", row)
+	}
+
+	stored, err := service.GetPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID)
+	if err != nil {
+		t.Fatalf("GetPreviewBatch returned error: %v", err)
+	}
+	storedRow := findPreviewRowByNumber(t, stored, 1)
+	if storedRow.SuggestedRuleID != row.SuggestedRuleID || storedRow.SuggestionReason == "" {
+		t.Fatalf("expected persisted suggestion fields, got %+v", storedRow)
+	}
+}
+
 func TestHandlePreviewAcceptsMultipartCSV(t *testing.T) {
 	t.Parallel()
 
@@ -465,6 +521,18 @@ func readImportFixture(t *testing.T, name string) []byte {
 		t.Fatalf("read fixture %s: %v", name, err)
 	}
 	return data
+}
+
+func findPreviewRowByNumber(t *testing.T, batch *PreviewBatch, rowNumber int) PreviewRow {
+	t.Helper()
+
+	for _, row := range batch.Rows {
+		if row.RowNumber == rowNumber {
+			return row
+		}
+	}
+	t.Fatalf("row number %d not found", rowNumber)
+	return PreviewRow{}
 }
 
 func seedImportRuleMetadata(t *testing.T, database *sql.DB) {

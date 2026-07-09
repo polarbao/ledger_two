@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LedgerTwo API
-  version: 1.1.0-rc
+  version: 1.2.0-rc
   description: |
     LedgerTwo 当前实现 API 草案。
 
@@ -1088,7 +1088,7 @@ components:
               enum: [ok, error, none]
             version:
               type: string
-              example: 1.1.0-rc
+              example: 1.2.0-rc
             schema_version:
               type: integer
               format: int64

@@ -4,7 +4,7 @@
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
-更新时间：2026-07-06
+更新时间：2026-07-09
 
 ## 1. 总体约定
 
@@ -109,16 +109,16 @@
 | POST | `/api/transactions/import/parse` | yes | optional | transitional | `transaction.HandleParseCSV` | 解析 CSV 文件。 |
 | POST | `/api/transactions/import/analyze` | yes | optional | transitional | `transaction.HandleAnalyzeImport` | 预览、匹配规则和重复检测。 |
 | POST | `/api/transactions/import/commit` | yes | optional | transitional | `transaction.HandleCommitImport` | 提交导入批次。 |
-| POST | `/api/imports/preview` | yes | required | v1.2 | `importer.HandlePreview` | 上传 CSV 并生成预览批次，不写正式账单。 |
-| GET | `/api/imports/{batchID}` | yes | required | v1.2 | `importer.HandleGetBatch` | 读取导入批次和行级预览。 |
-| PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | v1.2 | `importer.HandleUpdateRow` | 调整导入行状态、目标类型、分类、账户、标签和可见性。 |
-| POST | `/api/imports/{batchID}/commit` | yes | required | v1.2 | `importer.HandleCommit` | Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
-| POST | `/api/import-rules/` | yes | required | v1.2 | `importer.HandleCreateRule` | 创建导入规则，规则只产生建议。 |
-| GET | `/api/import-rules/` | yes | required | v1.2 | `importer.HandleListRules` | 列出导入规则，支持 `status=active/archived/all`。 |
-| PATCH | `/api/import-rules/{ruleID}` | yes | required | v1.2 | `importer.HandleUpdateRule` | 更新导入规则。 |
-| POST | `/api/import-rules/{ruleID}/archive` | yes | required | v1.2 | `importer.HandleArchiveRule` | 归档导入规则。 |
-| POST | `/api/import-rules/{ruleID}/restore` | yes | required | v1.2 | `importer.HandleRestoreRule` | 恢复导入规则。 |
-| DELETE | `/api/import-rules/{ruleID}` | yes | required | transitional | `importer.HandleArchiveRule` | 兼容旧删除入口，实际执行归档。 |
+| POST | `/api/imports/preview` | yes | required | stable | `importer.HandlePreview` | v1.2 Owner 上传 CSV 并生成预览批次，不写正式账单。 |
+| GET | `/api/imports/{batchID}` | yes | required | stable | `importer.HandleGetBatch` | v1.2 Owner 读取导入批次和行级预览。 |
+| PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | stable | `importer.HandleUpdateRow` | v1.2 Owner 调整导入行状态、目标类型、分类、账户、标签和可见性。 |
+| POST | `/api/imports/{batchID}/commit` | yes | required | stable | `importer.HandleCommit` | v1.2 Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
+| POST | `/api/import-rules/` | yes | required | stable | `importer.HandleCreateRule` | v1.2 Owner 创建导入规则，规则只产生建议。 |
+| GET | `/api/import-rules/` | yes | required | stable | `importer.HandleListRules` | v1.2 Owner 列出导入规则，支持 `status=active/archived/all`。 |
+| PATCH | `/api/import-rules/{ruleID}` | yes | required | stable | `importer.HandleUpdateRule` | v1.2 Owner 更新导入规则。 |
+| POST | `/api/import-rules/{ruleID}/archive` | yes | required | stable | `importer.HandleArchiveRule` | v1.2 Owner 归档导入规则。 |
+| POST | `/api/import-rules/{ruleID}/restore` | yes | required | stable | `importer.HandleRestoreRule` | v1.2 Owner 恢复导入规则。 |
+| DELETE | `/api/import-rules/{ruleID}` | yes | required | transitional | `importer.HandleArchiveRule` | Owner 兼容旧删除入口，实际执行归档。 |
 
 ## 8. Templates 与周期账单
 

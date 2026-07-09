@@ -1,6 +1,6 @@
 # LedgerTwo 文档索引与 AI 实现阅读顺序
 
-> 当前事实源提示：Task01-Task40 已完成，Foundation before v1.1 已完成基础冻结，中期 v1.1 已进入收口阶段。本文保留早期 v0.3 / Demo 文档索引作为历史背景，但后续开发应优先读取 `docs/README.md`、`docs/prd/20-29`、`docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md`、`docs/ui/14-v1.1-v1.2-module-flows.md`、`docs/ui/15-ledgertwo-ux-optimization-program.md`、`docs/ui/figma/README.md` 和 `docs/codex_tasks/`。
+> 当前事实源提示：Task01-Task49 已完成，Foundation、v1.1 和 v1.2 导入业务开发均已收口，当前进入 `1.2.0-rc` 冻结检查。本文保留早期 v0.3 / Demo 文档索引作为历史背景，但后续开发应优先读取 `docs/README.md`、`docs/prd/20-29`、`docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md`、`docs/ui/14-v1.1-v1.2-module-flows.md`、`docs/ui/15-ledgertwo-ux-optimization-program.md`、`docs/ui/figma/README.md`、`docs/project_analysis/2026-07-09-v1.2-freeze-readiness.md` 和 `docs/codex_tasks/`。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -8,14 +8,13 @@
 
 ### 1.1 Task30 后当前结论
 
-当前项目已经具备 v1.0/MVP 级别能力。后续重点不是继续堆功能，而是：
+当前项目已经具备 v1.2 发布候选能力。后续重点不是继续堆功能，而是：
 
-1. 文档事实源收口。
-2. 配置与部署安全。
-3. LedgerContext 与 RBAC。
-4. API 契约与 OpenAPI。
-5. 测试与质量门禁。
-6. 快捷记账、分类标签账户管理、移动端体验和数据导入。
+1. 保持 v1.2 业务范围冻结。
+2. 完成发布说明与升级说明。
+3. 在部署窗口同步本机验收版本到 NAS。
+4. 处理阻断级缺陷和非阻断性能债务。
+5. v1.3 开工前重新冻结多账本、多成员和多人分摊范围。
 
 当前产品与开发规划入口：
 

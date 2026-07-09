@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
-  title: LedgerTwo v1.2 Import API Draft
-  version: 1.2.0-draft
+  title: LedgerTwo v1.2 Import API
+  version: 1.2.0-rc
   description: |
-    v1.2 CSV 导入模块目标 OpenAPI 草案。当前文件描述 Task47-Task49 目标契约，
-    不代表现有 router 已实现。当前已实现旧接口仍记录在 openapi.yaml 与 API_INVENTORY.md 中。
+    v1.2 CSV 导入模块已实现契约，覆盖 Task47-Task49。
+    本文件是 openapi.yaml 的 v1.2 导入补充；实际 router 路径记录在 API_INVENTORY.md。
 servers:
   - url: /api
     description: Current compatibility API root
@@ -51,6 +51,7 @@ paths:
     get:
       tags: [imports]
       summary: Get import batch detail
+      description: Owner only.
       security:
         - cookieAuth: []
       parameters:
@@ -72,6 +73,7 @@ paths:
     patch:
       tags: [imports]
       summary: Update import preview row selection
+      description: Owner only. A failed batch returns to ready after its blocking row is handled.
       security:
         - cookieAuth: []
       parameters:
@@ -126,6 +128,7 @@ paths:
     get:
       tags: [import-rules]
       summary: List import rules
+      description: Owner only.
       security:
         - cookieAuth: []
       parameters:
@@ -145,6 +148,7 @@ paths:
     post:
       tags: [import-rules]
       summary: Create import rule
+      description: Owner only. Rules create suggestions and never commit transactions.
       security:
         - cookieAuth: []
       parameters:
@@ -167,6 +171,7 @@ paths:
     patch:
       tags: [import-rules]
       summary: Update import rule
+      description: Owner only.
       security:
         - cookieAuth: []
       parameters:
@@ -185,11 +190,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportRuleResponse"
+    delete:
+      tags: [import-rules]
+      summary: Archive import rule through the transitional delete endpoint
+      description: Owner only. Compatibility endpoint; the rule is soft archived.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/RuleIdPath"
+      responses:
+        "200":
+          description: Rule archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
 
   /import-rules/{rule_id}/archive:
     post:
       tags: [import-rules]
       summary: Archive import rule
+      description: Owner only.
       security:
         - cookieAuth: []
       parameters:
@@ -197,12 +223,21 @@ paths:
         - $ref: "#/components/parameters/RuleIdPath"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Rule archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
 
   /import-rules/{rule_id}/restore:
     post:
       tags: [import-rules]
       summary: Restore archived import rule
+      description: Owner only.
       security:
         - cookieAuth: []
       parameters:
@@ -210,7 +245,15 @@ paths:
         - $ref: "#/components/parameters/RuleIdPath"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Rule restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
 
 components:
   securitySchemes:
@@ -307,10 +350,14 @@ components:
           properties:
             id:
               type: string
+            ledger_id:
+              type: string
             source_type:
               type: string
               enum: [wechat, alipay, generic]
             filename:
+              type: string
+            file_sha256:
               type: string
             status:
               type: string
@@ -335,6 +382,14 @@ components:
               type: string
               format: date-time
             expires_at:
+              type: string
+              format: date-time
+            created_by_user_id:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
               type: string
               format: date-time
             rows:
@@ -375,21 +430,42 @@ components:
           enum: [expense, income, refund, transfer, unknown]
         target_transaction_type:
           type: string
-          enum: [expense, income, shared_expense, skipped]
+          enum: [expense, income, skipped]
         duplicate_status:
           type: string
           enum: [new, duplicate, suspicious, invalid]
         row_status:
           type: string
           enum: [pending, adjusted, skipped, imported, failed]
-        suggestions:
-          $ref: "#/components/schemas/ImportSuggestion"
+        source_account:
+          type: string
+        external_order_id:
+          type: string
+        suspicious_reason:
+          type: string
+        suggested_category_id:
+          type: string
+        suggested_account_id:
+          type: string
+        suggested_tag_ids:
+          type: array
+          items:
+            type: string
         suggested_rule_id:
           type: string
         suggestion_reason:
           type: string
-        selected:
-          $ref: "#/components/schemas/ImportSelectedFields"
+        selected_category_id:
+          type: string
+        selected_account_id:
+          type: string
+        selected_tag_ids:
+          type: array
+          items:
+            type: string
+        visibility:
+          type: string
+          enum: [private, partner_readable, shared]
         error:
           nullable: true
           type: object
@@ -430,14 +506,23 @@ components:
     ImportRowUpdateRequest:
       type: object
       properties:
-        selected:
-          $ref: "#/components/schemas/ImportSelectedFields"
+        selected_category_id:
+          type: string
+        selected_account_id:
+          type: string
+        selected_tag_ids:
+          type: array
+          items:
+            type: string
+        visibility:
+          type: string
+          enum: [private, partner_readable, shared]
         row_status:
           type: string
           enum: [pending, adjusted, skipped]
         target_transaction_type:
           type: string
-          enum: [expense, income, shared_expense, skipped]
+          enum: [expense, income, skipped]
     ImportCommitResponse:
       type: object
       required: [success, data]

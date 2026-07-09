@@ -84,7 +84,7 @@ export default function TransactionFormDrawer() {
   const [submitAction, setSubmitAction] = useState<'close' | 'continue'>('close');
   const submitActionRef = useRef<'close' | 'continue'>('close');
   const [isSaveTmplOpen, setIsSaveTmplOpen] = useState(false);
-  const [tmplName, setTmplName] = useState('');
+  const [tmplName, setTmplName] = useState<string | null>(null);
   const [isManageTmplOpen, setIsManageTmplOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateEditState | null>(null);
   const [templateEditError, setTemplateEditError] = useState<string | null>(null);
@@ -151,7 +151,8 @@ export default function TransactionFormDrawer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.templates(activeLedgerId) });
       setIsSaveTmplOpen(false);
-      setTmplName('');
+      setOpenTemplateSaveOnDrawerOpen(false);
+      setTmplName(null);
     },
   });
 
@@ -199,7 +200,14 @@ export default function TransactionFormDrawer() {
   };
 
   const handleSaveAsTemplate = () => {
-    if (!tmplName.trim()) {
+    const resolvedName = tmplName ?? (
+      openTemplateSaveOnDrawerOpen
+        ? copySourceTransaction?.title
+          ? `${copySourceTransaction.title}模板`
+          : '账单模板'
+        : ''
+    );
+    if (!resolvedName.trim()) {
       return;
     }
     const formVals = watch();
@@ -209,7 +217,7 @@ export default function TransactionFormDrawer() {
       : [];
 
     createTemplateMutation.mutate({
-      name: tmplName.trim(),
+      name: resolvedName.trim(),
       type: formVals.type,
       title: formVals.title || undefined,
       amount_cents: cents,
@@ -394,12 +402,7 @@ export default function TransactionFormDrawer() {
     if (addDrawerOpen && copySourceTransaction) {
       const amountYuan = (copySourceTransaction.amount_cents / 100).toFixed(2);
       const tagsStr = copySourceTransaction.tags ? copySourceTransaction.tags.join(', ') : '';
-      if (openTemplateSaveOnDrawerOpen) {
-        setTmplName(copySourceTransaction.title ? `${copySourceTransaction.title}模板` : '账单模板');
-        setIsSaveTmplOpen(true);
-        setOpenTemplateSaveOnDrawerOpen(false);
-      }
-      
+
       reset({
         type: copySourceTransaction.type === 'settlement' ? 'expense' : copySourceTransaction.type,
         amount: amountYuan,
@@ -415,7 +418,7 @@ export default function TransactionFormDrawer() {
         attachment_paths: copySourceTransaction.attachment_paths || [],
       });
     }
-  }, [addDrawerOpen, copySourceTransaction, reset, currentUser, openTemplateSaveOnDrawerOpen, setOpenTemplateSaveOnDrawerOpen]);
+  }, [addDrawerOpen, copySourceTransaction, reset, currentUser]);
 
   // 4. 定义创建账单的 Mutation
   const createTxMutation = useMutation({
@@ -558,6 +561,17 @@ export default function TransactionFormDrawer() {
     setCopySourceTransaction(null);
     setOpenTemplateSaveOnDrawerOpen(false);
     setEditingDraftId(null);
+  };
+
+  const copyTemplateDefaultName = copySourceTransaction?.title
+    ? `${copySourceTransaction.title}模板`
+    : '账单模板';
+  const resolvedTemplateName = tmplName ?? (openTemplateSaveOnDrawerOpen ? copyTemplateDefaultName : '');
+  const templateSaveOpen = isSaveTmplOpen || openTemplateSaveOnDrawerOpen;
+  const closeTemplateSave = () => {
+    setIsSaveTmplOpen(false);
+    setOpenTemplateSaveOnDrawerOpen(false);
+    setTmplName(null);
   };
 
   if (!addDrawerOpen) return null;
@@ -1316,8 +1330,8 @@ export default function TransactionFormDrawer() {
       </div>
 
       {/* 另存为模板对话框 */}
-      {isSaveTmplOpen && (
-        <div className="modal-overlay" onClick={() => setIsSaveTmplOpen(false)}>
+      {templateSaveOpen && (
+        <div className="modal-overlay" onClick={closeTemplateSave}>
           <div className="modal-content glass-card" style={{ maxWidth: '380px' }} onClick={(e) => e.stopPropagation()}>
             <h4 style={{ margin: '0 0 16px 0', fontSize: '18px', display: 'flex', gap: '8px', alignItems: 'center' }}>
               <Sparkles size={18} className="text-glow" style={{ color: 'var(--accent-purple)' }} />
@@ -1332,7 +1346,7 @@ export default function TransactionFormDrawer() {
                 type="text"
                 placeholder="例如: 每周吃黄焖鸡、日常午餐"
                 className="form-input"
-                value={tmplName}
+                value={resolvedTemplateName}
                 onChange={(e) => setTmplName(e.target.value)}
                 style={{ width: '100%' }}
                 autoFocus
@@ -1342,14 +1356,14 @@ export default function TransactionFormDrawer() {
               <button
                 type="button"
                 className="btn-secondary mobile-full"
-                onClick={() => setIsSaveTmplOpen(false)}
+                onClick={closeTemplateSave}
               >
                 取消
               </button>
               <button
                 type="button"
                 className="btn-primary mobile-full"
-                disabled={createTemplateMutation.isPending || !tmplName.trim()}
+                disabled={createTemplateMutation.isPending || !resolvedTemplateName.trim()}
                 onClick={handleSaveAsTemplate}
               >
                 {createTemplateMutation.isPending ? '保存中...' : '确认保存'}

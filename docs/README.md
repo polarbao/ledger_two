@@ -10,7 +10,7 @@ docs/
   ui/       UI 交互设计文档，按页面和交互模块拆分
   tech/     技术设计与实现文档，按工程模块拆分
   api/      API inventory、OpenAPI 草案和接口契约冻结资料
-  codex_tasks/      Task30 后 Foundation before v1.1 的 AI/Codex 任务入口
+  codex_tasks/      Task31+ 与版本冻结阶段的 AI/Codex 任务入口
   project_analysis/ 项目分析、压缩包解压内容和文档冲突评估
 ```
 
@@ -37,9 +37,10 @@ docs/
 19. `docs/project_analysis/2026-07-06-short-mid-long-and-nas-readiness.md`
 20. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
 21. `docs/codex_tasks/README.md`
-22. 进入具体业务模块文档。
+22. `docs/project_analysis/2026-07-09-v1.2-freeze-readiness.md`
+23. 进入具体业务模块文档。
 
-当前项目已完成 Task01-Task40，Foundation before v1.1 已完成基础冻结；中期 v1.1 已进入收口阶段。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/`、`docs/prd/24-29` 和 `docs/tech/18-20` 为主要入口。
+当前项目已完成 Task01-Task49，Foundation、v1.1 和 v1.2 导入模块均已收口，当前进入 `1.2.0-rc` 冻结阶段。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/`、`docs/prd/24-29`、`docs/tech/18-21` 和最新 `docs/project_analysis/` 冻结记录为主要入口。
 
 ## AI 开发使用方式
 

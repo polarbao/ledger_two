@@ -10,7 +10,7 @@
 ```text
 API_INVENTORY.md  当前 router 实际暴露接口清单、认证要求、账本要求和稳定性标记
 openapi.yaml      OpenAPI 草案，覆盖当前核心 API 路径、通用响应和主要请求 DTO
-openapi-v1.2-import-draft.yaml v1.2 导入模块目标接口草案，未代表当前 router 已实现
+openapi-v1.2-import-draft.yaml v1.2 导入模块已实现补充契约；文件名保留 draft 以避免破坏既有引用
 API_CONVENTIONS.md 错误码、分页、筛选、排序、金额、时间和 Ledger Context 规范
 ```
 
@@ -23,6 +23,7 @@ API_CONVENTIONS.md 错误码、分页、筛选、排序、金额、时间和 Led
 5. 时间字段统一使用 ISO8601 字符串。
 6. 失败响应统一为 `{ "success": false, "error": { "code", "message", "details" } }`。
 7. Foundation 阶段实际路径仍为 `/api/...`，文档可同时标注未来 `/api/v1/...` 目标路径，但不得把未实现 alias 描述为已上线。
+8. v1.2 导入接口以 `openapi-v1.2-import-draft.yaml` 为已实现补充契约，冻结检查需与 `API_INVENTORY.md` 和 router 同步核对。
 
 ## 稳定性标记
 

@@ -1,5 +1,7 @@
 package importer
 
+import "database/sql"
+
 const (
 	SourceTypeWechat  = "wechat"
 	SourceTypeAlipay  = "alipay"
@@ -115,4 +117,54 @@ type CommitResult struct {
 	SkippedRows             int      `json:"skipped_rows"`
 	FailedRows              int      `json:"failed_rows"`
 	GeneratedTransactionIDs []string `json:"generated_transaction_ids"`
+}
+
+type ImportRuleResult struct {
+	CategoryID string   `json:"category_id,omitempty"`
+	AccountID  string   `json:"account_id,omitempty"`
+	TagIDs     []string `json:"tag_ids,omitempty"`
+	Visibility string   `json:"visibility,omitempty"`
+}
+
+type ImportRuleUpsertRequest struct {
+	Name           string           `json:"name,omitempty"`
+	MatchType      string           `json:"match_type"`
+	Pattern        string           `json:"pattern"`
+	AmountMinCents *int64           `json:"amount_min_cents,omitempty"`
+	AmountMaxCents *int64           `json:"amount_max_cents,omitempty"`
+	Priority       *int             `json:"priority,omitempty"`
+	Result         ImportRuleResult `json:"result"`
+}
+
+type ImportRuleResponse struct {
+	ID              string           `json:"id"`
+	Name            string           `json:"name"`
+	MatchType       string           `json:"match_type"`
+	Pattern         string           `json:"pattern"`
+	AmountMinCents  *int64           `json:"amount_min_cents,omitempty"`
+	AmountMaxCents  *int64           `json:"amount_max_cents,omitempty"`
+	Priority        int              `json:"priority"`
+	Status          string           `json:"status"`
+	Result          ImportRuleResult `json:"result"`
+	CreatedByUserID string           `json:"created_by_user_id"`
+	CreatedAt       string           `json:"created_at"`
+	UpdatedAt       string           `json:"updated_at"`
+	ArchivedAt      string           `json:"archived_at,omitempty"`
+}
+
+type importRuleRecord struct {
+	ID              string
+	LedgerID        string
+	Name            string
+	MatchType       string
+	Pattern         string
+	AmountMinCents  sql.NullInt64
+	AmountMaxCents  sql.NullInt64
+	Priority        int
+	ResultJSON      string
+	Status          string
+	CreatedByUserID string
+	CreatedAt       string
+	UpdatedAt       string
+	ArchivedAt      string
 }

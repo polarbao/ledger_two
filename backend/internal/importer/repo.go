@@ -466,11 +466,273 @@ func markRowSkipped(ctx context.Context, tx *sql.Tx, rowID string, batchID strin
 	return err
 }
 
+func (r *Repository) CreateImportRule(ctx context.Context, ledgerID string, userID string, ruleID string, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {
+	now := time.Now().Format(time.RFC3339)
+	resultJSON, err := json.Marshal(req.Result)
+	if err != nil {
+		return nil, err
+	}
+	priority := importRulePriority(req.Priority)
+	name := importRuleName(req.Name, req.Pattern)
+
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO import_rules (
+			id, ledger_id, keyword, category_id, tag_names, account_id,
+			created_by_user_id, created_at, updated_at,
+			name, match_type, pattern, amount_min_cents, amount_max_cents,
+			priority, result_json, status
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+	`,
+		ruleID,
+		ledgerID,
+		req.Pattern,
+		nullString(req.Result.CategoryID),
+		nullString(strings.Join(req.Result.TagIDs, ",")),
+		nullString(req.Result.AccountID),
+		userID,
+		now,
+		now,
+		name,
+		req.MatchType,
+		req.Pattern,
+		nullInt64(req.AmountMinCents),
+		nullInt64(req.AmountMaxCents),
+		priority,
+		string(resultJSON),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.GetImportRule(ctx, ledgerID, ruleID)
+}
+
+func (r *Repository) UpdateImportRule(ctx context.Context, ledgerID string, ruleID string, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {
+	resultJSON, err := json.Marshal(req.Result)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().Format(time.RFC3339)
+	priority := importRulePriority(req.Priority)
+	name := importRuleName(req.Name, req.Pattern)
+
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE import_rules
+		SET keyword = ?,
+		    category_id = ?,
+		    tag_names = ?,
+		    account_id = ?,
+		    name = ?,
+		    match_type = ?,
+		    pattern = ?,
+		    amount_min_cents = ?,
+		    amount_max_cents = ?,
+		    priority = ?,
+		    result_json = ?,
+		    updated_at = ?
+		WHERE id = ? AND ledger_id = ?
+	`, req.Pattern, nullString(req.Result.CategoryID), nullString(strings.Join(req.Result.TagIDs, ",")),
+		nullString(req.Result.AccountID), name, req.MatchType, req.Pattern, nullInt64(req.AmountMinCents),
+		nullInt64(req.AmountMaxCents), priority, string(resultJSON), now, ruleID, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	if affected, err := res.RowsAffected(); err != nil {
+		return nil, err
+	} else if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return r.GetImportRule(ctx, ledgerID, ruleID)
+}
+
+func (r *Repository) ListImportRules(ctx context.Context, ledgerID string, status string) ([]ImportRuleResponse, error) {
+	query := `
+		SELECT id, ledger_id, COALESCE(name, ''), COALESCE(match_type, ''), COALESCE(pattern, keyword),
+		       amount_min_cents, amount_max_cents, priority, COALESCE(result_json, '{}'),
+		       COALESCE(status, 'active'), created_by_user_id, created_at, updated_at, COALESCE(archived_at, '')
+		FROM import_rules
+		WHERE ledger_id = ?
+	`
+	args := []any{ledgerID}
+	if status != "" && status != "all" {
+		query += " AND COALESCE(status, 'active') = ?"
+		args = append(args, status)
+	}
+	query += " ORDER BY priority ASC, created_at DESC"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := []ImportRuleResponse{}
+	for rows.Next() {
+		var record importRuleRecord
+		if err := rows.Scan(
+			&record.ID,
+			&record.LedgerID,
+			&record.Name,
+			&record.MatchType,
+			&record.Pattern,
+			&record.AmountMinCents,
+			&record.AmountMaxCents,
+			&record.Priority,
+			&record.ResultJSON,
+			&record.Status,
+			&record.CreatedByUserID,
+			&record.CreatedAt,
+			&record.UpdatedAt,
+			&record.ArchivedAt,
+		); err != nil {
+			return nil, err
+		}
+		resp, err := importRuleRecordToResponse(record)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, resp)
+	}
+	return list, rows.Err()
+}
+
+func (r *Repository) GetImportRule(ctx context.Context, ledgerID string, ruleID string) (*ImportRuleResponse, error) {
+	var record importRuleRecord
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, ledger_id, COALESCE(name, ''), COALESCE(match_type, ''), COALESCE(pattern, keyword),
+		       amount_min_cents, amount_max_cents, priority, COALESCE(result_json, '{}'),
+		       COALESCE(status, 'active'), created_by_user_id, created_at, updated_at, COALESCE(archived_at, '')
+		FROM import_rules
+		WHERE id = ? AND ledger_id = ?
+	`, ruleID, ledgerID).Scan(
+		&record.ID,
+		&record.LedgerID,
+		&record.Name,
+		&record.MatchType,
+		&record.Pattern,
+		&record.AmountMinCents,
+		&record.AmountMaxCents,
+		&record.Priority,
+		&record.ResultJSON,
+		&record.Status,
+		&record.CreatedByUserID,
+		&record.CreatedAt,
+		&record.UpdatedAt,
+		&record.ArchivedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := importRuleRecordToResponse(record)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (r *Repository) SetImportRuleStatus(ctx context.Context, ledgerID string, ruleID string, status string) (*ImportRuleResponse, error) {
+	now := time.Now().Format(time.RFC3339)
+	archivedAt := sql.NullString{}
+	if status == "archived" {
+		archivedAt = sql.NullString{String: now, Valid: true}
+	}
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE import_rules
+		SET status = ?,
+		    archived_at = ?,
+		    updated_at = ?
+		WHERE id = ? AND ledger_id = ?
+	`, status, archivedAt, now, ruleID, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	if affected, err := res.RowsAffected(); err != nil {
+		return nil, err
+	} else if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return r.GetImportRule(ctx, ledgerID, ruleID)
+}
+
+func (r *Repository) CreateImportRuleAudit(ctx context.Context, ledgerID string, userID string, action string, ruleID string, after any) error {
+	now := time.Now().Format(time.RFC3339)
+	afterJSON, err := json.Marshal(after)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO audit_logs (id, ledger_id, actor_user_id, action, entity_type, entity_id, before_json, after_json, created_at)
+		VALUES (?, ?, ?, ?, 'import_rule', ?, NULL, ?, ?)
+	`, uuid.NewString(), ledgerID, userID, action, ruleID, string(afterJSON), now)
+	return err
+}
+
+func (r *Repository) ActiveMetadataExists(ctx context.Context, ledgerID string, table string, id string) (bool, error) {
+	var exists bool
+	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE ledger_id = ? AND id = ? AND COALESCE(is_archived, 0) = 0)", table)
+	err := r.db.QueryRowContext(ctx, query, ledgerID, id).Scan(&exists)
+	return exists, err
+}
+
 func nullString(value string) sql.NullString {
 	if value == "" {
 		return sql.NullString{}
 	}
 	return sql.NullString{String: value, Valid: true}
+}
+
+func nullInt64(value *int64) sql.NullInt64 {
+	if value == nil {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: *value, Valid: true}
+}
+
+func importRulePriority(value *int) int {
+	if value == nil {
+		return 100
+	}
+	return *value
+}
+
+func importRuleName(name string, pattern string) string {
+	name = strings.TrimSpace(name)
+	if name != "" {
+		return name
+	}
+	return strings.TrimSpace(pattern)
+}
+
+func importRuleRecordToResponse(record importRuleRecord) (ImportRuleResponse, error) {
+	var result ImportRuleResult
+	if record.ResultJSON != "" && record.ResultJSON != "{}" {
+		if err := json.Unmarshal([]byte(record.ResultJSON), &result); err != nil {
+			return ImportRuleResponse{}, err
+		}
+	}
+	resp := ImportRuleResponse{
+		ID:              record.ID,
+		Name:            record.Name,
+		MatchType:       record.MatchType,
+		Pattern:         record.Pattern,
+		Priority:        record.Priority,
+		Status:          record.Status,
+		Result:          result,
+		CreatedByUserID: record.CreatedByUserID,
+		CreatedAt:       record.CreatedAt,
+		UpdatedAt:       record.UpdatedAt,
+		ArchivedAt:      record.ArchivedAt,
+	}
+	if record.AmountMinCents.Valid {
+		value := record.AmountMinCents.Int64
+		resp.AmountMinCents = &value
+	}
+	if record.AmountMaxCents.Valid {
+		value := record.AmountMaxCents.Int64
+		resp.AmountMaxCents = &value
+	}
+	return resp, nil
 }
 
 func valueOf(value sql.NullString) string {

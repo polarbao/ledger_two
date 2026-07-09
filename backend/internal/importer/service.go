@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -201,6 +202,153 @@ func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContex
 	return result, nil
 }
 
+func (s *Service) CreateImportRule(ctx context.Context, lc ledger.LedgerContext, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {
+	if err := s.validateRuleWrite(ctx, lc, &req); err != nil {
+		return nil, err
+	}
+	ruleID := uuid.NewString()
+	rule, err := s.repo.CreateImportRule(ctx, lc.LedgerID, lc.UserID, ruleID, req)
+	if err != nil {
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "创建导入规则失败")
+	}
+	if err := s.repo.CreateImportRuleAudit(ctx, lc.LedgerID, lc.UserID, "import_rule_create", rule.ID, rule); err != nil {
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "记录导入规则审计失败")
+	}
+	return rule, nil
+}
+
+func (s *Service) UpdateImportRule(ctx context.Context, lc ledger.LedgerContext, ruleID string, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {
+	if ruleID == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则 ID 不能为空")
+	}
+	if err := s.validateRuleWrite(ctx, lc, &req); err != nil {
+		return nil, err
+	}
+	rule, err := s.repo.UpdateImportRule(ctx, lc.LedgerID, ruleID, req)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入规则不存在")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "更新导入规则失败")
+	}
+	if err := s.repo.CreateImportRuleAudit(ctx, lc.LedgerID, lc.UserID, "import_rule_update", rule.ID, rule); err != nil {
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "记录导入规则审计失败")
+	}
+	return rule, nil
+}
+
+func (s *Service) ListImportRules(ctx context.Context, lc ledger.LedgerContext, status string) ([]ImportRuleResponse, error) {
+	if !isValidImportRuleStatusFilter(status) {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则状态过滤无效")
+	}
+	list, err := s.repo.ListImportRules(ctx, lc.LedgerID, status)
+	if err != nil {
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入规则失败")
+	}
+	return list, nil
+}
+
+func (s *Service) ArchiveImportRule(ctx context.Context, lc ledger.LedgerContext, ruleID string) (*ImportRuleResponse, error) {
+	return s.setImportRuleStatus(ctx, lc, ruleID, "archived", "import_rule_archive")
+}
+
+func (s *Service) RestoreImportRule(ctx context.Context, lc ledger.LedgerContext, ruleID string) (*ImportRuleResponse, error) {
+	return s.setImportRuleStatus(ctx, lc, ruleID, "active", "import_rule_restore")
+}
+
+func (s *Service) setImportRuleStatus(ctx context.Context, lc ledger.LedgerContext, ruleID string, status string, action string) (*ImportRuleResponse, error) {
+	if lc.Role != ledger.RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可管理导入规则")
+	}
+	if ruleID == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则 ID 不能为空")
+	}
+	rule, err := s.repo.SetImportRuleStatus(ctx, lc.LedgerID, ruleID, status)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入规则不存在")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "更新导入规则状态失败")
+	}
+	if err := s.repo.CreateImportRuleAudit(ctx, lc.LedgerID, lc.UserID, action, rule.ID, rule); err != nil {
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "记录导入规则审计失败")
+	}
+	return rule, nil
+}
+
+func (s *Service) validateRuleWrite(ctx context.Context, lc ledger.LedgerContext, req *ImportRuleUpsertRequest) error {
+	if lc.Role != ledger.RoleOwner {
+		return appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可管理导入规则")
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.MatchType = strings.TrimSpace(req.MatchType)
+	req.Pattern = strings.TrimSpace(req.Pattern)
+	req.Result.Visibility = defaultVisibility(req.Result.Visibility)
+	if !isValidImportRuleMatchType(req.MatchType) {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则匹配类型无效")
+	}
+	if req.Pattern == "" {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则匹配内容不能为空")
+	}
+	if req.Priority != nil && *req.Priority < 0 {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则优先级不能为负数")
+	}
+	if req.AmountMinCents != nil && *req.AmountMinCents < 0 {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "金额下限不能为负数")
+	}
+	if req.AmountMaxCents != nil && *req.AmountMaxCents < 0 {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "金额上限不能为负数")
+	}
+	if req.AmountMinCents != nil && req.AmountMaxCents != nil && *req.AmountMinCents > *req.AmountMaxCents {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "金额下限不能大于上限")
+	}
+	if !isValidVisibility(req.Result.Visibility) {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则可见性无效")
+	}
+	if req.Result.CategoryID == "" && req.Result.AccountID == "" && len(req.Result.TagIDs) == 0 {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则至少需要配置分类、账户或标签")
+	}
+	if err := s.validateRuleMetadata(ctx, lc.LedgerID, req.Result); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) validateRuleMetadata(ctx context.Context, ledgerID string, result ImportRuleResult) error {
+	if result.CategoryID != "" {
+		ok, err := s.repo.ActiveMetadataExists(ctx, ledgerID, "categories", result.CategoryID)
+		if err != nil {
+			return appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "校验导入规则分类失败")
+		}
+		if !ok {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则分类不存在或已归档")
+		}
+	}
+	if result.AccountID != "" {
+		ok, err := s.repo.ActiveMetadataExists(ctx, ledgerID, "accounts", result.AccountID)
+		if err != nil {
+			return appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "校验导入规则账户失败")
+		}
+		if !ok {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则账户不存在或已归档")
+		}
+	}
+	for _, tagID := range result.TagIDs {
+		tagID = strings.TrimSpace(tagID)
+		if tagID == "" {
+			continue
+		}
+		ok, err := s.repo.ActiveMetadataExists(ctx, ledgerID, "tags", tagID)
+		if err != nil {
+			return appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "校验导入规则标签失败")
+		}
+		if !ok {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则标签不存在或已归档")
+		}
+	}
+	return nil
+}
+
 func buildPreviewBatch(req PreviewFileRequest, rows []PreviewRow) *PreviewBatch {
 	now := time.Now().Format(time.RFC3339)
 	fileHash := sha256.Sum256(req.Content)
@@ -357,6 +505,24 @@ func isValidMutableRowStatus(value string) bool {
 func isValidVisibility(value string) bool {
 	switch value {
 	case "private", "shared", "partner_readable":
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidImportRuleMatchType(value string) bool {
+	switch value {
+	case "merchant_contains", "description_contains", "source_account", "amount_range":
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidImportRuleStatusFilter(value string) bool {
+	switch value {
+	case "", "active", "archived", "all":
 		return true
 	default:
 		return false

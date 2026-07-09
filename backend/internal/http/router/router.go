@@ -166,9 +166,12 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				})
 
 				r.Route("/import-rules", func(r chi.Router) {
-					r.Post("/", transactionHandler.HandleCreateImportRule)
-					r.Get("/", transactionHandler.HandleListImportRules)
-					r.Delete("/{id}", transactionHandler.HandleDeleteImportRule)
+					r.Post("/", importHandler.HandleCreateRule)
+					r.Get("/", importHandler.HandleListRules)
+					r.Patch("/{ruleID}", importHandler.HandleUpdateRule)
+					r.Post("/{ruleID}/archive", importHandler.HandleArchiveRule)
+					r.Post("/{ruleID}/restore", importHandler.HandleRestoreRule)
+					r.Delete("/{ruleID}", importHandler.HandleArchiveRule)
 				})
 
 				r.Route("/transaction-templates", func(r chi.Router) {

@@ -482,9 +482,11 @@ components:
           $ref: "#/components/schemas/ImportRule"
     ImportRule:
       type: object
-      required: [id, match_type, pattern, priority, status]
+      required: [id, name, match_type, pattern, priority, status]
       properties:
         id:
+          type: string
+        name:
           type: string
         match_type:
           type: string
@@ -504,10 +506,23 @@ components:
           enum: [active, archived]
         result:
           $ref: "#/components/schemas/ImportSelectedFields"
+        created_by_user_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        archived_at:
+          type: string
+          format: date-time
     ImportRuleUpsertRequest:
       type: object
       required: [match_type, pattern, result]
       properties:
+        name:
+          type: string
         match_type:
           type: string
           enum: [merchant_contains, description_contains, source_account, amount_range]

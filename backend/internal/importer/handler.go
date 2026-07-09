@@ -141,3 +141,95 @@ func (h *Handler) HandleCommit(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, result)
 }
+
+func (h *Handler) HandleCreateRule(w http.ResponseWriter, r *http.Request) {
+	lc, ok := h.requireLedgerContext(w, r)
+	if !ok {
+		return
+	}
+
+	var req ImportRuleUpsertRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体格式无效"))
+		return
+	}
+	rule, err := h.service.CreateImportRule(r.Context(), lc, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusCreated, rule)
+}
+
+func (h *Handler) HandleUpdateRule(w http.ResponseWriter, r *http.Request) {
+	lc, ok := h.requireLedgerContext(w, r)
+	if !ok {
+		return
+	}
+
+	var req ImportRuleUpsertRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体格式无效"))
+		return
+	}
+	rule, err := h.service.UpdateImportRule(r.Context(), lc, chi.URLParam(r, "ruleID"), req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, rule)
+}
+
+func (h *Handler) HandleListRules(w http.ResponseWriter, r *http.Request) {
+	lc, ok := h.requireLedgerContext(w, r)
+	if !ok {
+		return
+	}
+
+	rules, err := h.service.ListImportRules(r.Context(), lc, strings.TrimSpace(r.URL.Query().Get("status")))
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, rules)
+}
+
+func (h *Handler) HandleArchiveRule(w http.ResponseWriter, r *http.Request) {
+	lc, ok := h.requireLedgerContext(w, r)
+	if !ok {
+		return
+	}
+	rule, err := h.service.ArchiveImportRule(r.Context(), lc, chi.URLParam(r, "ruleID"))
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, rule)
+}
+
+func (h *Handler) HandleRestoreRule(w http.ResponseWriter, r *http.Request) {
+	lc, ok := h.requireLedgerContext(w, r)
+	if !ok {
+		return
+	}
+	rule, err := h.service.RestoreImportRule(r.Context(), lc, chi.URLParam(r, "ruleID"))
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, rule)
+}
+
+func (h *Handler) requireLedgerContext(w http.ResponseWriter, r *http.Request) (ledger.LedgerContext, bool) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
+		return ledger.LedgerContext{}, false
+	}
+	lc, ok := ledger.LedgerContextFromContext(r.Context())
+	if !ok {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "缺少账本上下文"))
+		return ledger.LedgerContext{}, false
+	}
+	return lc, true
+}

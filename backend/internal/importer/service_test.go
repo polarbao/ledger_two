@@ -282,6 +282,92 @@ func TestCommitPreviewBatchRejectsInvalidRowWithoutPartialWrite(t *testing.T) {
 	}
 }
 
+func TestImportRuleLifecycle(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	seedImportRuleMetadata(t, database)
+	service := NewService(NewRepository(database))
+	priority := 10
+
+	created, err := service.CreateImportRule(context.Background(), ownerLedgerContext(), ImportRuleUpsertRequest{
+		Name:      "咖啡规则",
+		MatchType: "merchant_contains",
+		Pattern:   "星巴克",
+		Priority:  &priority,
+		Result: ImportRuleResult{
+			CategoryID: "cat-food",
+			AccountID:  "account-cash",
+			TagIDs:     []string{"tag-coffee"},
+			Visibility: "private",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateImportRule returned error: %v", err)
+	}
+	if created.Status != "active" || created.Priority != priority || created.Result.CategoryID != "cat-food" {
+		t.Fatalf("unexpected created rule: %+v", created)
+	}
+
+	list, err := service.ListImportRules(context.Background(), ownerLedgerContext(), "active")
+	if err != nil {
+		t.Fatalf("ListImportRules returned error: %v", err)
+	}
+	if len(list) != 1 || list[0].ID != created.ID {
+		t.Fatalf("expected created rule in active list, got %+v", list)
+	}
+
+	archived, err := service.ArchiveImportRule(context.Background(), ownerLedgerContext(), created.ID)
+	if err != nil {
+		t.Fatalf("ArchiveImportRule returned error: %v", err)
+	}
+	if archived.Status != "archived" || archived.ArchivedAt == "" {
+		t.Fatalf("expected archived rule with archived_at, got %+v", archived)
+	}
+
+	restored, err := service.RestoreImportRule(context.Background(), ownerLedgerContext(), created.ID)
+	if err != nil {
+		t.Fatalf("RestoreImportRule returned error: %v", err)
+	}
+	if restored.Status != "active" || restored.ArchivedAt != "" {
+		t.Fatalf("expected restored active rule without archived_at, got %+v", restored)
+	}
+
+	if countWhere(t, database, "audit_logs", "entity_type = 'import_rule'") != 3 {
+		t.Fatalf("expected create/archive/restore audit logs")
+	}
+}
+
+func TestImportRuleRejectsEditorAndArchivedMetadata(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	seedImportRuleMetadata(t, database)
+	service := NewService(NewRepository(database))
+
+	_, err := service.CreateImportRule(context.Background(), ledger.LedgerContext{
+		UserID:   "editor-user",
+		LedgerID: "ledger-one",
+		Role:     ledger.RoleEditor,
+	}, ImportRuleUpsertRequest{
+		MatchType: "merchant_contains",
+		Pattern:   "星巴克",
+		Result:    ImportRuleResult{CategoryID: "cat-food"},
+	})
+	if err == nil {
+		t.Fatalf("expected editor rule creation to be rejected")
+	}
+
+	_, err = service.CreateImportRule(context.Background(), ownerLedgerContext(), ImportRuleUpsertRequest{
+		MatchType: "merchant_contains",
+		Pattern:   "星巴克",
+		Result:    ImportRuleResult{CategoryID: "cat-archived"},
+	})
+	if err == nil {
+		t.Fatalf("expected archived category to be rejected")
+	}
+}
+
 func TestHandlePreviewAcceptsMultipartCSV(t *testing.T) {
 	t.Parallel()
 
@@ -379,6 +465,24 @@ func readImportFixture(t *testing.T, name string) []byte {
 		t.Fatalf("read fixture %s: %v", name, err)
 	}
 	return data
+}
+
+func seedImportRuleMetadata(t *testing.T, database *sql.DB) {
+	t.Helper()
+
+	_, err := database.Exec(`
+		INSERT INTO categories (id, ledger_id, owner_user_id, name, type, color, is_archived, created_at, updated_at)
+		VALUES
+			('cat-food', 'ledger-one', 'owner-user', '餐饮', 'expense', '#22c55e', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+			('cat-archived', 'ledger-one', 'owner-user', '旧分类', 'expense', '#94a3b8', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+		INSERT INTO accounts (id, ledger_id, owner_user_id, name, type, currency, initial_balance, is_archived, created_at, updated_at)
+		VALUES ('account-cash', 'ledger-one', 'owner-user', '现金', 'cash', 'CNY', 0, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+		INSERT INTO tags (id, ledger_id, owner_user_id, name, color, is_archived, created_at, updated_at)
+		VALUES ('tag-coffee', 'ledger-one', 'owner-user', '咖啡', '#0f766e', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+	`)
+	if err != nil {
+		t.Fatalf("seed import rule metadata: %v", err)
+	}
 }
 
 func countRows(t *testing.T, database *sql.DB, table string) int {

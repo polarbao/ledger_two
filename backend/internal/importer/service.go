@@ -425,11 +425,22 @@ func (s *Service) applyImportRules(ctx context.Context, ledgerID string, rows []
 		return nil
 	}
 
+	applicableRules := make([]ImportRuleResponse, 0, len(rules))
+	for _, rule := range rules {
+		active, err := s.importRuleMetadataActive(ctx, ledgerID, rule.Result)
+		if err != nil {
+			return err
+		}
+		if active {
+			applicableRules = append(applicableRules, rule)
+		}
+	}
+
 	for i := range rows {
 		if rows[i].DuplicateStatus == DuplicateStatusInvalid || rows[i].TargetTransactionType == TargetTransactionSkipped {
 			continue
 		}
-		for _, rule := range rules {
+		for _, rule := range applicableRules {
 			if !importRuleMatches(rule, rows[i]) {
 				continue
 			}
@@ -442,6 +453,35 @@ func (s *Service) applyImportRules(ctx context.Context, ledgerID string, rows []
 		}
 	}
 	return nil
+}
+
+func (s *Service) importRuleMetadataActive(ctx context.Context, ledgerID string, result ImportRuleResult) (bool, error) {
+	checks := []struct {
+		table string
+		id    string
+	}{
+		{table: "categories", id: result.CategoryID},
+		{table: "accounts", id: result.AccountID},
+	}
+	for _, tagID := range result.TagIDs {
+		checks = append(checks, struct {
+			table string
+			id    string
+		}{table: "tags", id: strings.TrimSpace(tagID)})
+	}
+	for _, check := range checks {
+		if check.id == "" {
+			continue
+		}
+		active, err := s.repo.ActiveMetadataExists(ctx, ledgerID, check.table, check.id)
+		if err != nil {
+			return false, err
+		}
+		if !active {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func importRuleMatches(rule ImportRuleResponse, row PreviewRow) bool {

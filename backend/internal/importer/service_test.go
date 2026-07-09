@@ -538,6 +538,133 @@ func TestPreviewCSVAppliesActiveImportRuleAsSuggestion(t *testing.T) {
 	}
 }
 
+func TestPreviewCSVDoesNotApplyArchivedRuleOrArchivedMetadata(t *testing.T) {
+	t.Parallel()
+
+	t.Run("archived rule", func(t *testing.T) {
+		database := openImporterTestDB(t)
+		seedImportRuleMetadata(t, database)
+		service := NewService(NewRepository(database))
+		rule, err := service.CreateImportRule(context.Background(), ownerLedgerContext(), ImportRuleUpsertRequest{
+			Name:      "早餐店规则",
+			MatchType: "merchant_contains",
+			Pattern:   "早餐店",
+			Result:    ImportRuleResult{CategoryID: "cat-food"},
+		})
+		if err != nil {
+			t.Fatalf("CreateImportRule returned error: %v", err)
+		}
+		if _, err := service.ArchiveImportRule(context.Background(), ownerLedgerContext(), rule.ID); err != nil {
+			t.Fatalf("ArchiveImportRule returned error: %v", err)
+		}
+
+		batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+			LedgerContext: ownerLedgerContext(),
+			Filename:      "generic-basic.csv",
+			SourceType:    SourceTypeGeneric,
+			Content:       readImportFixture(t, "generic-basic.csv"),
+		})
+		if err != nil {
+			t.Fatalf("PreviewCSV returned error: %v", err)
+		}
+		row := findPreviewRowByNumber(t, batch, 1)
+		if row.SuggestedRuleID != "" || row.SuggestedCategoryID != "" {
+			t.Fatalf("archived rule must not suggest metadata: %+v", row)
+		}
+	})
+
+	t.Run("active rule with archived metadata", func(t *testing.T) {
+		database := openImporterTestDB(t)
+		seedImportRuleMetadata(t, database)
+		service := NewService(NewRepository(database))
+		_, err := service.CreateImportRule(context.Background(), ownerLedgerContext(), ImportRuleUpsertRequest{
+			Name:      "早餐店规则",
+			MatchType: "merchant_contains",
+			Pattern:   "早餐店",
+			Result:    ImportRuleResult{CategoryID: "cat-food"},
+		})
+		if err != nil {
+			t.Fatalf("CreateImportRule returned error: %v", err)
+		}
+		if _, err := database.Exec("UPDATE categories SET is_archived = 1 WHERE id = 'cat-food'"); err != nil {
+			t.Fatalf("archive category: %v", err)
+		}
+
+		batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+			LedgerContext: ownerLedgerContext(),
+			Filename:      "generic-basic.csv",
+			SourceType:    SourceTypeGeneric,
+			Content:       readImportFixture(t, "generic-basic.csv"),
+		})
+		if err != nil {
+			t.Fatalf("PreviewCSV returned error: %v", err)
+		}
+		row := findPreviewRowByNumber(t, batch, 1)
+		if row.SuggestedRuleID != "" || row.SuggestedCategoryID != "" {
+			t.Fatalf("rule with archived metadata must not be applied: %+v", row)
+		}
+	})
+}
+
+func TestImportRuleSuggestionDoesNotOverrideManualSelection(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	seedImportRuleMetadata(t, database)
+	service := NewService(NewRepository(database))
+	_, err := service.CreateImportRule(context.Background(), ownerLedgerContext(), ImportRuleUpsertRequest{
+		Name:      "早餐店规则",
+		MatchType: "merchant_contains",
+		Pattern:   "早餐店",
+		Result: ImportRuleResult{
+			CategoryID: "cat-food",
+			AccountID:  "account-cash",
+			TagIDs:     []string{"tag-coffee"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateImportRule returned error: %v", err)
+	}
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+	row := findPreviewRowByNumber(t, batch, 1)
+	adjusted := RowStatusAdjusted
+	categoryID := "cat-travel"
+	accountID := "account-bank"
+	updated, err := service.UpdatePreviewRow(context.Background(), UpdateRowCommand{
+		LedgerContext: ownerLedgerContext(),
+		BatchID:       batch.ID,
+		RowID:         row.ID,
+		Patch: UpdateRowRequest{
+			RowStatus:          &adjusted,
+			SelectedCategoryID: &categoryID,
+			SelectedAccountID:  &accountID,
+			SelectedTagIDs:     []string{"tag-work"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpdatePreviewRow returned error: %v", err)
+	}
+
+	updatedRow := findPreviewRowByNumber(t, updated, 1)
+	if updatedRow.SelectedCategoryID != categoryID || updatedRow.SelectedAccountID != accountID {
+		t.Fatalf("manual selection must remain authoritative: %+v", updatedRow)
+	}
+	if len(updatedRow.SelectedTagIDs) != 1 || updatedRow.SelectedTagIDs[0] != "tag-work" {
+		t.Fatalf("manual tag selection must remain authoritative: %+v", updatedRow.SelectedTagIDs)
+	}
+	if updatedRow.SuggestedCategoryID != "cat-food" || updatedRow.SuggestedAccountID != "account-cash" {
+		t.Fatalf("rule explanation should remain available beside manual selection: %+v", updatedRow)
+	}
+}
+
 func TestHandlePreviewAcceptsMultipartCSV(t *testing.T) {
 	t.Parallel()
 
@@ -656,11 +783,16 @@ func seedImportRuleMetadata(t *testing.T, database *sql.DB) {
 		INSERT INTO categories (id, ledger_id, owner_user_id, name, type, color, is_archived, created_at, updated_at)
 		VALUES
 			('cat-food', 'ledger-one', 'owner-user', '餐饮', 'expense', '#22c55e', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+			('cat-travel', 'ledger-one', 'owner-user', '差旅', 'expense', '#3b82f6', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
 			('cat-archived', 'ledger-one', 'owner-user', '旧分类', 'expense', '#94a3b8', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 		INSERT INTO accounts (id, ledger_id, owner_user_id, name, type, currency, initial_balance, is_archived, created_at, updated_at)
-		VALUES ('account-cash', 'ledger-one', 'owner-user', '现金', 'cash', 'CNY', 0, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+		VALUES
+			('account-cash', 'ledger-one', 'owner-user', '现金', 'cash', 'CNY', 0, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+			('account-bank', 'ledger-one', 'owner-user', '银行卡', 'bank', 'CNY', 0, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 		INSERT INTO tags (id, ledger_id, owner_user_id, name, color, is_archived, created_at, updated_at)
-		VALUES ('tag-coffee', 'ledger-one', 'owner-user', '咖啡', '#0f766e', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+		VALUES
+			('tag-coffee', 'ledger-one', 'owner-user', '咖啡', '#0f766e', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+			('tag-work', 'ledger-one', 'owner-user', '工作', '#0ea5e9', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 	`)
 	if err != nil {
 		t.Fatalf("seed import rule metadata: %v", err)

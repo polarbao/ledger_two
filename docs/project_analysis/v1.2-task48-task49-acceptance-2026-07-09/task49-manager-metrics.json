@@ -1,0 +1,7 @@
+{
+  "width": 390,
+  "scrollWidth": 375,
+  "manager": "导入规则\n1 条启用\n全部\n启用\n归档\n商户包含\n描述包含\n来源账户\n金额区间\n不推荐分类\n餐饮美食\n交通出行\n购物娱乐\n生活缴费\n共同居住\n????\nQA ?? 20260707192455\nQA ?? 20260707192704\nQA Category 20260707193342\nQA Category 20260707193934\n不推荐账户\nUser A日常账户\nUser B日常账户\n????\nQA ?? 20260707192455\nQA ?? 20260707192704\nQA Account 20260707193342\nQA Account 20260707193934\n20260707193934\nQA\nTag\nv11-copy\n系统默认\nv1.1??\nQA ?? 20260707192455\nQA ?? 20260707192704\nQA Tag 20260707193342\nQA Tag 20260707193934\n创建规则\nTask49 QA rule 20260709\n商户包含「早餐店」 · 优先级 100\n分类 餐饮美食 · 账户 User A日常账户 · 标签 20260707193934\n编辑\n归档",
+  "activeCount": 1,
+  "routerError": false
+}

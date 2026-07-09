@@ -41,9 +41,24 @@
 
 Task48 与 Task48U 验收完成，可以标记为已完成。提交确认弹窗曾受页面入场动画 transform 影响而定位到长页面中部，已改用 Portal 挂载到 `document.body`，恢复真正的视口居中。
 
-## 4. Task49 待继续
+## 4. Task49 验收
 
-1. archived 规则不命中预览。
-2. 命中建议存在时，用户手工 selected 字段保持优先。
-3. editor/viewer 对规则读取和写入均返回 403。
-4. 375px/390px 真实规则管理页面截图与指标。
+### 自动化
+
+1. active 规则生成 `suggested_*`、规则 ID 和解释文案。
+2. archived 规则不参与预览命中。
+3. active 规则引用已归档元数据时整条规则不应用，避免静默推荐不可用值。
+4. 用户手工 `selected_*` 字段保持优先，规则建议仅保留为解释信息。
+5. editor/viewer 对规则读取、创建、更新、归档、恢复和兼容删除入口均返回 403。
+6. editor/viewer 不可读取导入批次。
+
+### 浏览器
+
+- `task49-rule-manager-390.png`：390px 规则表单、状态筛选、多标签和规则卡片。
+- `task49-rule-hit-390.png`：预览行展示命中原因及推荐分类、账户、标签名称。
+- `task49-archived-no-hit-390.png`：规则归档后重新预览，同一行不再显示规则建议。
+- 三个场景均无横向溢出和 React Router 错误页。
+
+## 5. Task49 结论
+
+Task49 与 Task49U 的功能和验收项已完成，可以进入 v1.2 冻结前 OpenAPI、API inventory、迁移和综合质量门禁检查。

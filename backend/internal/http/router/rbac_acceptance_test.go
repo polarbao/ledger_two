@@ -57,6 +57,68 @@ func TestRBACAcceptanceViewerCannotCreateTransaction(t *testing.T) {
 	}
 }
 
+func TestRBACAcceptanceImportManagementOwnerOnly(t *testing.T) {
+	database := setupRBACRouterDB(t)
+	router := New(database, rbacRouterConfig(t))
+
+	fixture := seedRBACLedger(t, database)
+	viewerID := insertRBACUser(t, database, "import-viewer", "Import Viewer")
+	addRBACMember(t, database, fixture.LedgerID, viewerID, "viewer")
+	payload, _ := json.Marshal(map[string]any{
+		"name":       "forbidden rule",
+		"match_type": "merchant_contains",
+		"pattern":    "coffee",
+		"result": map[string]any{
+			"category_id": "missing-category",
+		},
+	})
+	endpoints := []struct {
+		method string
+		path   string
+		body   []byte
+	}{
+		{method: http.MethodGet, path: "/api/import-rules?status=all"},
+		{method: http.MethodPost, path: "/api/import-rules", body: payload},
+		{method: http.MethodPatch, path: "/api/import-rules/missing-rule", body: payload},
+		{method: http.MethodPost, path: "/api/import-rules/missing-rule/archive"},
+		{method: http.MethodPost, path: "/api/import-rules/missing-rule/restore"},
+		{method: http.MethodDelete, path: "/api/import-rules/missing-rule"},
+		{method: http.MethodGet, path: "/api/imports/missing-batch"},
+	}
+
+	for _, member := range []struct {
+		name   string
+		userID string
+	}{
+		{name: "editor", userID: fixture.UserBID},
+		{name: "viewer", userID: viewerID},
+	} {
+		for _, endpoint := range endpoints {
+			t.Run(member.name+" "+endpoint.method+" "+endpoint.path, func(t *testing.T) {
+				req := httptest.NewRequest(endpoint.method, endpoint.path, bytes.NewReader(endpoint.body))
+				req.Header.Set("X-Ledger-Id", fixture.LedgerID)
+				req.Header.Set("Content-Type", "application/json")
+				req.AddCookie(authCookie(t, member.userID))
+				rr := httptest.NewRecorder()
+
+				router.ServeHTTP(rr, req)
+
+				if rr.Code != http.StatusForbidden {
+					t.Fatalf("expected forbidden import management request, got %d body: %s", rr.Code, rr.Body.String())
+				}
+			})
+		}
+	}
+
+	var ruleCount int
+	if err := database.QueryRow("SELECT COUNT(*) FROM import_rules").Scan(&ruleCount); err != nil {
+		t.Fatalf("count import rules: %v", err)
+	}
+	if ruleCount != 0 {
+		t.Fatalf("forbidden import management requests must not create rules, got %d", ruleCount)
+	}
+}
+
 func TestRBACAcceptanceNonMemberCannotReadLedgerTransactions(t *testing.T) {
 	database := setupRBACRouterDB(t)
 	router := New(database, rbacRouterConfig(t))

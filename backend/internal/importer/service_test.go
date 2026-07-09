@@ -171,6 +171,117 @@ func TestUpdatePreviewRowRejectsInvalidRowAsAdjusted(t *testing.T) {
 	}
 }
 
+func TestCommitPreviewBatchImportsRowsAndWritesAudit(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	result, err := service.CommitPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID)
+	if err != nil {
+		t.Fatalf("CommitPreviewBatch returned error: %v", err)
+	}
+	if result.Status != "committed" || result.ImportedRows != 3 || result.SkippedRows != 1 || result.FailedRows != 0 {
+		t.Fatalf("unexpected commit result: %+v", result)
+	}
+	if len(result.GeneratedTransactionIDs) != 3 {
+		t.Fatalf("expected 3 generated transactions, got %d", len(result.GeneratedTransactionIDs))
+	}
+	if countRows(t, database, "transactions") != 3 {
+		t.Fatalf("expected 3 transactions after commit")
+	}
+	if countRows(t, database, "transaction_import_refs") != 3 {
+		t.Fatalf("expected 3 import refs after commit")
+	}
+	if countWhere(t, database, "import_items", "row_status = 'imported'") != 3 {
+		t.Fatalf("expected 3 imported rows")
+	}
+	if countWhere(t, database, "import_items", "row_status = 'skipped'") != 1 {
+		t.Fatalf("expected 1 skipped row")
+	}
+	if countWhere(t, database, "import_batches", "status = 'committed' AND committed_at IS NOT NULL") != 1 {
+		t.Fatalf("expected committed batch with committed_at")
+	}
+	if countWhere(t, database, "audit_logs", "action = 'import_commit' AND entity_type = 'import_batch'") != 1 {
+		t.Fatalf("expected import commit audit log")
+	}
+}
+
+func TestCommitPreviewBatchMakesRepeatedFileDuplicate(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+	content := readImportFixture(t, "generic-basic.csv")
+
+	first, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       content,
+	})
+	if err != nil {
+		t.Fatalf("first PreviewCSV returned error: %v", err)
+	}
+	if _, err := service.CommitPreviewBatch(context.Background(), ownerLedgerContext(), first.ID); err != nil {
+		t.Fatalf("first CommitPreviewBatch returned error: %v", err)
+	}
+
+	second, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       content,
+	})
+	if err != nil {
+		t.Fatalf("second PreviewCSV returned error: %v", err)
+	}
+	if second.DuplicateRows != 3 || second.SkippedRows != 4 {
+		t.Fatalf("expected 3 duplicate imported rows and 4 skipped rows, got duplicate=%d skipped=%d", second.DuplicateRows, second.SkippedRows)
+	}
+}
+
+func TestCommitPreviewBatchRejectsInvalidRowWithoutPartialWrite(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "wechat-basic.csv",
+		SourceType:    SourceTypeWechat,
+		Content:       readImportFixture(t, "wechat-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	_, err = service.CommitPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID)
+	if err == nil {
+		t.Fatalf("expected commit with invalid row to fail")
+	}
+	if countRows(t, database, "transactions") != 0 {
+		t.Fatalf("invalid batch must not write partial transactions")
+	}
+	if countRows(t, database, "transaction_import_refs") != 0 {
+		t.Fatalf("invalid batch must not write import refs")
+	}
+	if countWhere(t, database, "import_batches", "status = 'committed'") != 0 {
+		t.Fatalf("invalid batch must not be marked committed")
+	}
+}
+
 func TestHandlePreviewAcceptsMultipartCSV(t *testing.T) {
 	t.Parallel()
 
@@ -276,6 +387,16 @@ func countRows(t *testing.T, database *sql.DB, table string) int {
 	var count int
 	if err := database.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil {
 		t.Fatalf("count %s: %v", table, err)
+	}
+	return count
+}
+
+func countWhere(t *testing.T, database *sql.DB, table string, where string) int {
+	t.Helper()
+
+	var count int
+	if err := database.QueryRow("SELECT COUNT(*) FROM " + table + " WHERE " + where).Scan(&count); err != nil {
+		t.Fatalf("count %s where %s: %v", table, where, err)
 	}
 	return count
 }

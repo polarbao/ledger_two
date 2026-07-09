@@ -72,11 +72,15 @@ const (
 	ErrCodeDuplicateName    = "DUPLICATE_NAME"
 
 	// 导入、导出、备份
-	ErrCodeExportFailed         = "EXPORT_FAILED"
-	ErrCodeBackupFailed         = "BACKUP_FAILED"
-	ErrCodeBackupNotFound       = "BACKUP_NOT_FOUND"
-	ErrCodeBackupPathInvalid    = "BACKUP_PATH_INVALID"
-	ErrCodeImportFileInvalid    = "IMPORT_FILE_INVALID"
-	ErrCodeImportDuplicateItem  = "IMPORT_DUPLICATE_ITEM"
-	ErrCodeImportPreviewExpired = "IMPORT_PREVIEW_EXPIRED"
+	ErrCodeExportFailed                  = "EXPORT_FAILED"
+	ErrCodeBackupFailed                  = "BACKUP_FAILED"
+	ErrCodeBackupNotFound                = "BACKUP_NOT_FOUND"
+	ErrCodeBackupPathInvalid             = "BACKUP_PATH_INVALID"
+	ErrCodeImportFileInvalid             = "IMPORT_FILE_INVALID"
+	ErrCodeImportDuplicateItem           = "IMPORT_DUPLICATE_ITEM"
+	ErrCodeImportPreviewExpired          = "IMPORT_PREVIEW_EXPIRED"
+	ErrCodeImportBatchNotFound           = "IMPORT_BATCH_NOT_FOUND"
+	ErrCodeImportRowInvalid              = "IMPORT_ROW_INVALID"
+	ErrCodeImportRowRequiresConfirmation = "IMPORT_ROW_REQUIRES_CONFIRMATION"
+	ErrCodeImportCommitConflict          = "IMPORT_COMMIT_CONFLICT"
 )

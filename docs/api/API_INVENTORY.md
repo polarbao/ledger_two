@@ -109,6 +109,10 @@
 | POST | `/api/transactions/import/parse` | yes | optional | transitional | `transaction.HandleParseCSV` | 解析 CSV 文件。 |
 | POST | `/api/transactions/import/analyze` | yes | optional | transitional | `transaction.HandleAnalyzeImport` | 预览、匹配规则和重复检测。 |
 | POST | `/api/transactions/import/commit` | yes | optional | transitional | `transaction.HandleCommitImport` | 提交导入批次。 |
+| POST | `/api/imports/preview` | yes | required | v1.2 | `importer.HandlePreview` | 上传 CSV 并生成预览批次，不写正式账单。 |
+| GET | `/api/imports/{batchID}` | yes | required | v1.2 | `importer.HandleGetBatch` | 读取导入批次和行级预览。 |
+| PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | v1.2 | `importer.HandleUpdateRow` | 调整导入行状态、目标类型、分类、账户、标签和可见性。 |
+| POST | `/api/imports/{batchID}/commit` | yes | required | v1.2 | `importer.HandleCommit` | Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
 | POST | `/api/import-rules/` | yes | optional | transitional | `transaction.HandleCreateImportRule` | 创建导入规则。 |
 | GET | `/api/import-rules/` | yes | optional | transitional | `transaction.HandleListImportRules` | 列出导入规则。 |
 | DELETE | `/api/import-rules/{id}` | yes | optional | transitional | `transaction.HandleDeleteImportRule` | 删除导入规则。 |

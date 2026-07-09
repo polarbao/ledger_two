@@ -10,7 +10,7 @@ import (
 	"ledger_two/migrations"
 )
 
-const latestMigrationVersion int64 = 15
+const latestMigrationVersion int64 = 16
 
 func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 	database := openMigrationTestDB(t)
@@ -104,7 +104,10 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"invalid_rows",
 		"imported_rows",
 		"skipped_rows",
+		"failed_rows",
 		"updated_at",
+		"committed_at",
+		"expires_at",
 	})
 	assertColumnsExist(t, database, "import_items", []string{
 		"row_number",

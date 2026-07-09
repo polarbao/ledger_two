@@ -55,10 +55,22 @@ export interface ImportPreviewBatch {
   invalid_rows: number;
   imported_rows: number;
   skipped_rows: number;
+  failed_rows: number;
   created_by_user_id: string;
   created_at: string;
   updated_at: string;
+  committed_at?: string;
+  expires_at?: string;
   rows: ImportPreviewRow[];
+}
+
+export interface ImportCommitResult {
+  batch_id: string;
+  status: 'committed';
+  imported_rows: number;
+  skipped_rows: number;
+  failed_rows: number;
+  generated_transaction_ids: string[];
 }
 
 export interface UpdateImportRowPayload {

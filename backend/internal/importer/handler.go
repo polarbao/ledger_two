@@ -120,3 +120,24 @@ func (h *Handler) HandleUpdateRow(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, batch)
 }
+
+func (h *Handler) HandleCommit(w http.ResponseWriter, r *http.Request) {
+	currentUserID := middleware.GetUserIDFromContext(r.Context())
+	if currentUserID == "" {
+		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
+		return
+	}
+	lc, ok := ledger.LedgerContextFromContext(r.Context())
+	if !ok {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "缺少账本上下文"))
+		return
+	}
+
+	result, err := h.service.CommitPreviewBatch(r.Context(), lc, chi.URLParam(r, "batchID"))
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, result)
+}

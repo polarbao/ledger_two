@@ -1,5 +1,6 @@
 import { api } from './client';
 import type {
+  ImportCommitResult,
   ImportPreviewBatch,
   ImportSourceType,
   UpdateImportRowPayload,
@@ -18,4 +19,7 @@ export const importsApi = {
 
   updateRow: (batchId: string, rowId: string, payload: UpdateImportRowPayload) =>
     api.patch<ImportPreviewBatch>(`/api/imports/${batchId}/rows/${rowId}`, payload),
+
+  commit: (batchId: string) =>
+    api.post<ImportCommitResult>(`/api/imports/${batchId}/commit`, {}),
 };

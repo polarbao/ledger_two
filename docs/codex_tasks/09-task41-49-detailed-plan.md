@@ -218,7 +218,7 @@
 
 ## 9. Task48：导入去重与事务落库
 
-状态：进行中；Task48 已定案采用独立 `transaction_import_refs` 表保存正式账单与导入行的唯一映射，不直接修改 `transactions` 主表。当前阶段先冻结 schema 和契约，再实现 `/api/imports/{batchID}/commit`、提交事务、审计日志和 Task48U 提交确认/结果反馈。
+状态：进行中；Task48 已定案采用独立 `transaction_import_refs` 表保存正式账单与导入行的唯一映射，不直接修改 `transactions` 主表。后端 `/api/imports/{batchID}/commit` 基线已实现，可在单事务内写入正式账单、导入映射、批次状态和审计日志；后续继续补 Task48U 提交确认/结果反馈、suspicious 手工确认 UI 和更完整的事务失败验收。
 
 依赖：
 

@@ -162,6 +162,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 					r.Post("/preview", importHandler.HandlePreview)
 					r.Get("/{batchID}", importHandler.HandleGetBatch)
 					r.Patch("/{batchID}/rows/{rowID}", importHandler.HandleUpdateRow)
+					r.Post("/{batchID}/commit", importHandler.HandleCommit)
 				})
 
 				r.Route("/import-rules", func(r chi.Router) {

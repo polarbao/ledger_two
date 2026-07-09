@@ -169,6 +169,38 @@ func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*
 	return updatedBatch, nil
 }
 
+func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContext, batchID string) (*CommitResult, error) {
+	if lc.Role != ledger.RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可提交导入批次")
+	}
+	if batchID == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 不能为空")
+	}
+
+	batch, err := s.repo.GetPreviewBatch(ctx, lc.LedgerID, batchID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeImportBatchNotFound, "导入批次不存在")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
+	}
+	if batch.Status != "ready" {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "当前导入批次状态不允许提交")
+	}
+	if err := validateRowsForCommit(batch.Rows); err != nil {
+		return nil, err
+	}
+
+	result, err := s.repo.CommitPreviewBatch(ctx, lc, batch)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeImportBatchNotFound, "导入批次不存在")
+		}
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "导入提交失败，可能存在重复数据或批次状态变化")
+	}
+	return result, nil
+}
+
 func buildPreviewBatch(req PreviewFileRequest, rows []PreviewRow) *PreviewBatch {
 	now := time.Now().Format(time.RFC3339)
 	fileHash := sha256.Sum256(req.Content)
@@ -228,6 +260,7 @@ func recountBatch(batch *PreviewBatch) {
 	batch.InvalidRows = 0
 	batch.ImportedRows = 0
 	batch.SkippedRows = 0
+	batch.FailedRows = 0
 
 	for _, row := range batch.Rows {
 		switch row.DuplicateStatus {
@@ -243,7 +276,55 @@ func recountBatch(batch *PreviewBatch) {
 		if row.RowStatus == RowStatusSkipped {
 			batch.SkippedRows++
 		}
+		if row.RowStatus == RowStatusImported {
+			batch.ImportedRows++
+		}
+		if row.RowStatus == RowStatusFailed {
+			batch.FailedRows++
+		}
 	}
+}
+
+func validateRowsForCommit(rows []PreviewRow) error {
+	for _, row := range rows {
+		if row.DuplicateStatus == DuplicateStatusInvalid || row.RowStatus == RowStatusFailed {
+			if row.RowStatus == RowStatusSkipped {
+				continue
+			}
+			return appErrors.NewAppErrorWithDetails(http.StatusBadRequest, appErrors.ErrCodeImportRowInvalid, "存在未跳过的无效导入行", map[string]any{
+				"row_id":     row.ID,
+				"row_number": row.RowNumber,
+			})
+		}
+		if row.RowStatus == RowStatusSkipped || row.TargetTransactionType == TargetTransactionSkipped {
+			continue
+		}
+		if row.DuplicateStatus == DuplicateStatusDuplicate {
+			return appErrors.NewAppErrorWithDetails(http.StatusConflict, appErrors.ErrCodeImportDuplicateItem, "重复导入行必须跳过", map[string]any{
+				"row_id":     row.ID,
+				"row_number": row.RowNumber,
+			})
+		}
+		if row.DuplicateStatus == DuplicateStatusSuspicious && row.RowStatus != RowStatusAdjusted {
+			return appErrors.NewAppErrorWithDetails(http.StatusConflict, appErrors.ErrCodeImportRowRequiresConfirmation, "疑似重复导入行必须人工确认导入或跳过", map[string]any{
+				"row_id":     row.ID,
+				"row_number": row.RowNumber,
+			})
+		}
+		if row.TargetTransactionType != TargetTransactionExpense && row.TargetTransactionType != TargetTransactionIncome {
+			return appErrors.NewAppErrorWithDetails(http.StatusBadRequest, appErrors.ErrCodeImportRowInvalid, "导入目标类型暂不支持自动落库", map[string]any{
+				"row_id":     row.ID,
+				"row_number": row.RowNumber,
+			})
+		}
+		if row.AmountCents <= 0 || row.OccurredAt == "" || row.Title == "" {
+			return appErrors.NewAppErrorWithDetails(http.StatusBadRequest, appErrors.ErrCodeImportRowInvalid, "导入行缺少必需字段", map[string]any{
+				"row_id":     row.ID,
+				"row_number": row.RowNumber,
+			})
+		}
+	}
+	return nil
 }
 
 func isSupportedSourceType(sourceType string) bool {

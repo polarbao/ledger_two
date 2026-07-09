@@ -23,6 +23,7 @@ const (
 	RowStatusPending  = "pending"
 	RowStatusAdjusted = "adjusted"
 	RowStatusSkipped  = "skipped"
+	RowStatusImported = "imported"
 	RowStatusFailed   = "failed"
 
 	ErrorCodeAmountInvalid = "IMPORT_ROW_AMOUNT_INVALID"
@@ -48,9 +49,12 @@ type PreviewBatch struct {
 	InvalidRows     int          `json:"invalid_rows"`
 	ImportedRows    int          `json:"imported_rows"`
 	SkippedRows     int          `json:"skipped_rows"`
+	FailedRows      int          `json:"failed_rows"`
 	CreatedByUserID string       `json:"created_by_user_id"`
 	CreatedAt       string       `json:"created_at"`
 	UpdatedAt       string       `json:"updated_at"`
+	CommittedAt     string       `json:"committed_at,omitempty"`
+	ExpiresAt       string       `json:"expires_at,omitempty"`
 	Rows            []PreviewRow `json:"rows"`
 }
 
@@ -77,6 +81,7 @@ type PreviewRow struct {
 	SelectedAccountID     string    `json:"selected_account_id,omitempty"`
 	SelectedTagIDs        []string  `json:"selected_tag_ids,omitempty"`
 	Visibility            string    `json:"visibility,omitempty"`
+	ImportHash            string    `json:"-"`
 	Error                 *RowError `json:"error,omitempty"`
 }
 
@@ -101,4 +106,13 @@ type RowAdjustment struct {
 	SelectedAccountID     string   `json:"selected_account_id,omitempty"`
 	SelectedTagIDs        []string `json:"selected_tag_ids,omitempty"`
 	Visibility            string   `json:"visibility,omitempty"`
+}
+
+type CommitResult struct {
+	BatchID                 string   `json:"batch_id"`
+	Status                  string   `json:"status"`
+	ImportedRows            int      `json:"imported_rows"`
+	SkippedRows             int      `json:"skipped_rows"`
+	FailedRows              int      `json:"failed_rows"`
+	GeneratedTransactionIDs []string `json:"generated_transaction_ids"`
 }

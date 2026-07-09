@@ -325,6 +325,18 @@ components:
               type: integer
             invalid_rows:
               type: integer
+            imported_rows:
+              type: integer
+            skipped_rows:
+              type: integer
+            failed_rows:
+              type: integer
+            committed_at:
+              type: string
+              format: date-time
+            expires_at:
+              type: string
+              format: date-time
             rows:
               type: array
               items:

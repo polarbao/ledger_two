@@ -189,11 +189,13 @@
 | ImportWorkbench | 建议新增 `frontend/src/pages/ImportPage.tsx` 子组件 |
 | ImportRowCard | 建议新增 `frontend/src/components/import/ImportRowCard.tsx` |
 | ImportRowEditor | 建议新增 `frontend/src/components/import/ImportRowEditorDrawer.tsx` |
+| ImportRuleManager | 当前在 `frontend/src/pages/ImportPage.tsx`，v1.2 冻结后建议拆出 |
+| RuleHitExplanation | 当前在 `frontend/src/pages/ImportPage.tsx`，后续可拆为预览行子组件 |
+| TagMultiSelect | 当前在导入规则表单内局部实现，跨模板/周期规则复用后再抽公共组件 |
 
 ## 5. 建模优先级
 
 1. v1.1 收口：TransactionCard、TransactionDrawer、SettlementSummary、MetadataManager。
 2. v1.2 Task47：ImportEntry、ImportPreview、ImportRowCard、RowEditorDrawer。
 3. v1.2 Task48：CommitConfirm、ImportResultSummary。
-4. v1.2 Task49：ImportRuleManager、RuleHitExplanation。
-
+4. v1.2 Task49：ImportRuleManager、RuleHitExplanation、TagMultiSelect、RuleMetadataWarning。

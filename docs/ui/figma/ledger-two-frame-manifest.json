@@ -110,6 +110,21 @@
           "name": "Import Rule Manager Desktop",
           "size": "1440x900",
           "purpose": "规则列表、优先级、归档恢复、命中解释"
+        },
+        {
+          "name": "Import Rule Manager Mobile 390",
+          "size": "390x844",
+          "purpose": "规则创建编辑、多标签选择、归档恢复在移动端无横向滚动"
+        },
+        {
+          "name": "Rule Hit Explanation States",
+          "size": "390x844",
+          "purpose": "规则命中、无规则、归档规则不命中、推荐元数据名称展示"
+        },
+        {
+          "name": "Rule Metadata Warning",
+          "size": "390x844",
+          "purpose": "规则引用归档分类、账户或标签时的提示与替换路径"
         }
       ]
     },
@@ -130,4 +145,3 @@
     }
   ]
 }
-

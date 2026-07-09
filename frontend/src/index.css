@@ -2674,6 +2674,40 @@ button {
   min-width: 180px;
 }
 
+.import-result-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(134, 239, 172, 0.24);
+  background: rgba(34, 197, 94, 0.08);
+  color: #bbf7d0;
+}
+
+.import-result-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.import-result-card span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.import-commit-modal {
+  max-width: 520px;
+}
+
+.import-commit-modal .modal-body-padding {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 @media (max-width: 980px) {
   .import-layout {
     grid-template-columns: 1fr;

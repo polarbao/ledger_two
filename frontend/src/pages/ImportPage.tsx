@@ -20,6 +20,7 @@ import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import type {
   ImportDuplicateStatus,
+  ImportCommitResult,
   ImportPreviewBatch,
   ImportPreviewRow,
   ImportRowStatus,
@@ -57,6 +58,8 @@ export default function ImportPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [batch, setBatch] = useState<ImportPreviewBatch | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [commitResult, setCommitResult] = useState<ImportCommitResult | null>(null);
 
   const isOwner = activeRole === 'owner';
 
@@ -64,6 +67,7 @@ export default function ImportPage() {
     mutationFn: (file: File) => importsApi.preview({ file, sourceType }),
     onSuccess: (data) => {
       setBatch(data);
+      setCommitResult(null);
       setErrorMsg(null);
     },
     onError: (err: unknown) => {
@@ -73,7 +77,7 @@ export default function ImportPage() {
   });
 
   const updateRowMutation = useMutation({
-    mutationFn: ({ row, rowStatus }: { row: ImportPreviewRow; rowStatus: 'pending' | 'skipped' }) =>
+    mutationFn: ({ row, rowStatus }: { row: ImportPreviewRow; rowStatus: 'pending' | 'adjusted' | 'skipped' }) =>
       importsApi.updateRow(batch?.id || '', row.id, { row_status: rowStatus }),
     onSuccess: (data) => {
       setBatch(data);
@@ -85,6 +89,29 @@ export default function ImportPage() {
   });
 
   const summary = useMemo(() => buildSummary(batch), [batch]);
+  const commitSummary = useMemo(() => buildCommitSummary(batch), [batch]);
+  const canOpenCommit = isOwner && !!batch && batch.status === 'ready' && !previewMutation.isPending && !updateRowMutation.isPending;
+
+  const commitMutation = useMutation({
+    mutationFn: async () => {
+      if (!batch) {
+        throw new Error('missing batch');
+      }
+      const result = await importsApi.commit(batch.id);
+      const latestBatch = await importsApi.getBatch(batch.id);
+      return { result, latestBatch };
+    },
+    onSuccess: ({ result, latestBatch }) => {
+      setBatch(latestBatch);
+      setCommitResult(result);
+      setIsConfirmOpen(false);
+      setErrorMsg(null);
+    },
+    onError: (err: unknown) => {
+      setIsConfirmOpen(false);
+      setErrorMsg(resolveErrorMessage(err, '导入提交失败，当前批次未写入正式账单'));
+    },
+  });
 
   const handleFile = (file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
@@ -99,10 +126,22 @@ export default function ImportPage() {
   const handleReset = () => {
     setSelectedFile(null);
     setBatch(null);
+    setCommitResult(null);
     setErrorMsg(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleOpenCommit = () => {
+    if (!batch) {
+      return;
+    }
+    if (commitSummary.blockingCount > 0) {
+      setErrorMsg('仍有错误或未确认的疑似重复行，请先跳过或确认后再提交');
+      return;
+    }
+    setIsConfirmOpen(true);
   };
 
   return (
@@ -111,7 +150,7 @@ export default function ImportPage() {
         <FileSpreadsheet className="banner-icon" />
         <div>
           <h2>导入预览工作台</h2>
-          <p>CSV 上传后先生成可审阅批次。Task47 阶段只做预览和行级状态处理，不写入正式账单。</p>
+          <p>CSV 上传后先生成可审阅批次，确认无误后再写入正式账单。</p>
         </div>
       </div>
 
@@ -198,7 +237,7 @@ export default function ImportPage() {
               重置
             </button>
             <button type="button" className="btn-primary" disabled>
-              预览阶段暂不可提交
+              上传后在预览区提交
             </button>
           </div>
         </div>
@@ -211,7 +250,7 @@ export default function ImportPage() {
 
           <div className="import-safe-banner">
             <ShieldCheck size={16} />
-            <span>当前批次只保存预览数据，没有写入 transactions。</span>
+            <span>{batch?.status === 'committed' ? '当前批次已写入正式账单，可在流水中查看。' : '当前批次只保存预览数据，提交前不会写入 transactions。'}</span>
           </div>
 
           <div className="import-summary-grid">
@@ -224,10 +263,27 @@ export default function ImportPage() {
           </div>
 
           <div className="import-preview-actions">
-            <button type="button" className="btn-primary" disabled>
-              预览阶段暂不可提交
+            <button type="button" className="btn-primary" disabled={!canOpenCommit || commitMutation.isPending} onClick={handleOpenCommit}>
+              {commitMutation.isPending ? (
+                <>
+                  <Loader2 size={14} className="spin" />
+                  正在提交
+                </>
+              ) : batch?.status === 'committed' ? '已完成导入' : '确认导入'}
             </button>
           </div>
+
+          {commitResult && (
+            <div className="import-result-card" role="status">
+              <CheckCircle2 size={18} />
+              <div>
+                <strong>导入完成</strong>
+                <span>
+                  已导入 {commitResult.imported_rows} 条，跳过 {commitResult.skipped_rows} 条，失败 {commitResult.failed_rows} 条。
+                </span>
+              </div>
+            </div>
+          )}
 
           {!batch ? (
             <div className="import-empty-state">
@@ -244,12 +300,62 @@ export default function ImportPage() {
                   disabled={updateRowMutation.isPending}
                   onSkip={() => updateRowMutation.mutate({ row, rowStatus: 'skipped' })}
                   onRestore={() => updateRowMutation.mutate({ row, rowStatus: 'pending' })}
+                  onConfirmImport={() => updateRowMutation.mutate({ row, rowStatus: 'adjusted' })}
                 />
               ))}
             </div>
           )}
         </div>
       </section>
+
+      {isConfirmOpen && batch && (
+        <div className="modal-overlay" onClick={() => setIsConfirmOpen(false)}>
+          <div className="confirm-modal-box animate-fade-in import-commit-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h3>确认导入账单？</h3>
+              <button type="button" className="btn-close-drawer" onClick={() => setIsConfirmOpen(false)} aria-label="关闭">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body-padding">
+              <p className="modal-alert-text">
+                系统将把当前预览批次写入正式账单。导入过程在单个事务中完成，失败时不会保留半批数据。
+              </p>
+              <div className="import-summary-grid">
+                <div className="import-summary-card new">
+                  <span>将导入</span>
+                  <strong>{commitSummary.importableCount}</strong>
+                </div>
+                <div className="import-summary-card duplicate">
+                  <span>将跳过</span>
+                  <strong>{commitSummary.skippedCount}</strong>
+                </div>
+                <div className="import-summary-card suspicious">
+                  <span>疑似未确认</span>
+                  <strong>{commitSummary.unconfirmedSuspiciousCount}</strong>
+                </div>
+                <div className="import-summary-card invalid">
+                  <span>错误未跳过</span>
+                  <strong>{commitSummary.invalidOpenCount}</strong>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary mobile-full" onClick={() => setIsConfirmOpen(false)}>
+                  返回预览
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger mobile-full"
+                  onClick={() => commitMutation.mutate()}
+                  disabled={commitMutation.isPending || commitSummary.blockingCount > 0}
+                >
+                  {commitMutation.isPending ? '正在导入' : '确认导入'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -259,16 +365,20 @@ function ImportRowCard({
   disabled,
   onSkip,
   onRestore,
+  onConfirmImport,
 }: {
   row: ImportPreviewRow;
   disabled: boolean;
   onSkip: () => void;
   onRestore: () => void;
+  onConfirmImport: () => void;
 }) {
   const status = duplicateStatusCopy[row.duplicate_status];
   const isSkipped = row.row_status === 'skipped';
+  const isConfirmedSuspicious = row.duplicate_status === 'suspicious' && row.row_status === 'adjusted';
   const canRestore = isSkipped && row.duplicate_status !== 'invalid' && row.duplicate_status !== 'duplicate';
   const canSkip = !isSkipped && row.row_status !== 'failed';
+  const canConfirmImport = row.duplicate_status === 'suspicious' && row.row_status === 'pending';
 
   return (
     <article className={`import-row-card tone-${status.tone}`}>
@@ -284,6 +394,7 @@ function ImportRowCard({
       <div className="import-row-meta">
         <StatusPill status={row.duplicate_status} />
         <span className="import-row-status">{rowStatusCopy[row.row_status]}</span>
+        {isConfirmedSuspicious && <span>已确认导入</span>}
         <span>{row.direction}</span>
         {row.occurred_at && <span>{row.occurred_at.replace('T', ' ').slice(0, 16)}</span>}
       </div>
@@ -324,6 +435,12 @@ function ImportRowCard({
             恢复
           </button>
         )}
+        {canConfirmImport && (
+          <button type="button" className="btn-secondary" onClick={onConfirmImport} disabled={disabled}>
+            <CheckCircle2 size={14} />
+            确认导入
+          </button>
+        )}
       </div>
     </article>
   );
@@ -342,6 +459,37 @@ function buildSummary(batch: ImportPreviewBatch | null) {
     { label: '错误', value: batch?.invalid_rows ?? 0, tone: 'invalid' },
     { label: '跳过', value: batch?.skipped_rows ?? 0, tone: 'duplicate' },
   ];
+}
+
+function buildCommitSummary(batch: ImportPreviewBatch | null) {
+  if (!batch) {
+    return {
+      importableCount: 0,
+      skippedCount: 0,
+      unconfirmedSuspiciousCount: 0,
+      invalidOpenCount: 0,
+      blockingCount: 0,
+    };
+  }
+
+  const importableCount = batch.rows.filter((row) =>
+    row.row_status !== 'skipped' &&
+    row.row_status !== 'failed' &&
+    row.target_transaction_type !== 'skipped' &&
+    row.duplicate_status !== 'duplicate' &&
+    row.duplicate_status !== 'invalid'
+  ).length;
+  const skippedCount = batch.rows.filter((row) => row.row_status === 'skipped' || row.target_transaction_type === 'skipped').length;
+  const unconfirmedSuspiciousCount = batch.rows.filter((row) => row.duplicate_status === 'suspicious' && row.row_status === 'pending').length;
+  const invalidOpenCount = batch.rows.filter((row) => row.duplicate_status === 'invalid' && row.row_status !== 'skipped').length;
+
+  return {
+    importableCount,
+    skippedCount,
+    unconfirmedSuspiciousCount,
+    invalidOpenCount,
+    blockingCount: unconfirmedSuspiciousCount + invalidOpenCount,
+  };
 }
 
 function resolveErrorMessage(err: unknown, fallback: string) {

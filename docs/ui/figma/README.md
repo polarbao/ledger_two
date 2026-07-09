@@ -32,7 +32,13 @@
 
 当前目录已经具备 Figma 建模输入包：变量、token、frame manifest、组件库规格、逐屏文字稿和交接清单。
 
-当前目录尚不包含可直接打开的 `.fig` / `.figma` 本地文件，也未记录线上 Figma 文件链接。因此当前资产不应视为“完整最终设计稿”，而应视为“可生成或手工搭建 Figma 文件的配套设计包”。
+当前已生成线上 Figma 设计文件：
+
+- `LedgerTwo v1.2 Import Rules UI System`
+- https://www.figma.com/design/wkU5RRZs5R7McjNUlEaFF2
+- 生成与截图验收记录：`docs/project_analysis/v1.2-task49-figma-2026-07-09/`
+
+仓库本地仍不包含可直接打开的 `.fig` / `.figma` 二进制文件；后续以线上 Figma 文件和本目录结构化规格共同作为设计事实源。
 
 v1.2 Task47-Task49 的导入工作台设计规格已覆盖主流程；Task49 的规则管理、多标签、归档恢复、命中解释已通过 `v1.2-task49-import-rule-manager-handoff.md` 补齐。后续若正式写入 Figma，应把该文件作为 03 v1.2 Import Workbench 页面下的 frame 建模依据。
 

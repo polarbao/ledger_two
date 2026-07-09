@@ -32,11 +32,16 @@
 
 当前目录已经具备 Figma 建模输入包：变量、token、frame manifest、组件库规格、逐屏文字稿和交接清单。
 
-当前已生成线上 Figma 设计文件：
+当前账户主 Figma 设计文件：
 
-- `LedgerTwo v1.2 Import Rules UI System`
+- `LedgerTwo v1.2 UI System - polar`
+- https://www.figma.com/design/Q4m7LRw75qrkFdw4O5xmU0
+- 当前账户同步与截图验收：`docs/project_analysis/v1.2-task49-figma-sync-2026-07-09/`
+
+原 `zy j` 账户文件保留为历史参考：
+
 - https://www.figma.com/design/wkU5RRZs5R7McjNUlEaFF2
-- 生成与截图验收记录：`docs/project_analysis/v1.2-task49-figma-2026-07-09/`
+- 原始生成记录：`docs/project_analysis/v1.2-task49-figma-2026-07-09/`
 
 仓库本地仍不包含可直接打开的 `.fig` / `.figma` 二进制文件；后续以线上 Figma 文件和本目录结构化规格共同作为设计事实源。
 

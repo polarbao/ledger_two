@@ -184,6 +184,8 @@
 
 ## 8. Task47：CSV 导入预览
 
+状态：已完成；`internal/importer` 已接入 `/api/imports/preview`、`GET /api/imports/{batchID}`、`PATCH /api/imports/{batchID}/rows/{rowID}`，微信/支付宝/通用 CSV fixture、批次持久化、行级调整、owner 权限和前端导入预览工作台已落地。Task47U 移动端验收证据见 `docs/project_analysis/v1.2-task47u-import-workbench-2026-07-08/`。
+
 依赖：
 
 - v1.1 完成。
@@ -216,10 +218,12 @@
 
 ## 9. Task48：导入去重与事务落库
 
+状态：进行中；Task48 已定案采用独立 `transaction_import_refs` 表保存正式账单与导入行的唯一映射，不直接修改 `transactions` 主表。当前阶段先冻结 schema 和契约，再实现 `/api/imports/{batchID}/commit`、提交事务、审计日志和 Task48U 提交确认/结果反馈。
+
 依赖：
 
 - Task47 完成。
-- import_hash 存储方案定案：新增 `transactions.import_hash` 或独立映射表二选一。
+- import_hash 存储方案定案：采用独立 `transaction_import_refs` 映射表，同账本内 `import_hash` 唯一。
 - Task47 的 batch/row service 和预览工作台已冻结。
 
 开发范围：

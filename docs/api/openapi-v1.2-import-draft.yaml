@@ -27,14 +27,14 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [file, metadata]
+              required: [file, source_type]
               properties:
                 file:
                   type: string
                   format: binary
-                metadata:
+                source_type:
                   type: string
-                  description: JSON string of ImportPreviewMetadata.
+                  enum: [wechat, alipay, generic]
       responses:
         "201":
           description: Preview batch created
@@ -86,11 +86,11 @@ paths:
               $ref: "#/components/schemas/ImportRowUpdateRequest"
       responses:
         "200":
-          description: Row updated
+          description: Row updated, latest batch returned
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ImportRowResponse"
+                $ref: "#/components/schemas/ImportBatchResponse"
         "400":
           $ref: "#/components/responses/Error"
         "403":
@@ -511,4 +511,3 @@ components:
           type: integer
         result:
           $ref: "#/components/schemas/ImportSelectedFields"
-

@@ -284,10 +284,6 @@ export default function ImportPage() {
     setRuleForm(createDefaultRuleForm());
   };
 
-  const activeCategories = categories.filter((item) => !item.is_archived);
-  const activeAccounts = accounts.filter((item) => !item.is_archived);
-  const activeTags = tags.filter((item) => !item.is_archived);
-
   return (
     <div className="page-content animate-fade-in text-left import-workbench">
       <div className="glass-card header-banner import-workbench__hero">
@@ -389,9 +385,9 @@ export default function ImportPage() {
         {isOwner && (
           <ImportRuleManager
             rules={importRules}
-            categories={activeCategories}
-            accounts={activeAccounts}
-            tags={activeTags}
+            categories={categories}
+            accounts={accounts}
+            tags={tags}
             form={ruleForm}
             creating={createRuleMutation.isPending}
             updating={updateRuleMutation.isPending}
@@ -464,9 +460,9 @@ export default function ImportPage() {
                 <ImportRowCard
                   key={row.id}
                   row={row}
-                  categories={activeCategories}
-                  accounts={activeAccounts}
-                  tags={activeTags}
+                  categories={categories}
+                  accounts={accounts}
+                  tags={tags}
                   disabled={updateRowMutation.isPending}
                   onSkip={() => updateRowMutation.mutate({ row, rowStatus: 'skipped' })}
                   onRestore={() => updateRowMutation.mutate({ row, rowStatus: 'pending' })}
@@ -571,6 +567,9 @@ function ImportRuleManager({
 }) {
   const activeRules = rules.filter((rule) => rule.status === 'active');
   const visibleRules = rules.filter((rule) => statusFilter === 'all' || rule.status === statusFilter);
+  const activeCategories = categories.filter((item) => !item.is_archived);
+  const activeAccounts = accounts.filter((item) => !item.is_archived);
+  const activeTags = tags.filter((item) => !item.is_archived);
   const busy = creating || updating || archiving || restoring;
   const selectedTagIds = new Set(form.tag_ids);
 
@@ -625,19 +624,19 @@ function ImportRuleManager({
           onChange={(event) => onFormChange({ ...form, category_id: event.target.value })}
         >
           <option value="">不推荐分类</option>
-          {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          {activeCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
         <select
           value={form.account_id}
           onChange={(event) => onFormChange({ ...form, account_id: event.target.value })}
         >
           <option value="">不推荐账户</option>
-          {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          {activeAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
         <div className="import-rule-tag-options" aria-label="推荐标签">
-          {tags.length === 0 ? (
+          {activeTags.length === 0 ? (
             <span>暂无可用标签</span>
-          ) : tags.map((item) => (
+          ) : activeTags.map((item) => (
             <label key={item.id} className={`import-rule-tag-option ${selectedTagIds.has(item.id) ? 'is-selected' : ''}`}>
               <input
                 type="checkbox"
@@ -668,31 +667,35 @@ function ImportRuleManager({
       </form>
 
       <div className="import-rule-list">
-        {visibleRules.map((rule) => (
-          <article key={rule.id} className={`import-rule-card ${rule.status === 'archived' ? 'is-archived' : ''}`}>
-            <div>
-              <strong>{rule.name || rule.pattern}</strong>
-              <span>{matchTypeLabel(rule.match_type)}「{rule.pattern}」 · 优先级 {rule.priority}</span>
-              <small>{describeRuleResult(rule, categories, accounts, tags)}</small>
-            </div>
-            <div className="import-rule-card__actions">
-              <button type="button" className="btn-secondary" disabled={busy} onClick={() => onEdit(rule)}>
-                编辑
-              </button>
-              {rule.status === 'active' ? (
-                <button type="button" className="btn-secondary" disabled={busy} onClick={() => onArchive(rule.id)}>
-                  <Archive size={14} />
-                  归档
+        {visibleRules.map((rule) => {
+          const metadataWarning = describeRuleMetadataWarning(rule, categories, accounts, tags);
+          return (
+            <article key={rule.id} className={`import-rule-card ${rule.status === 'archived' ? 'is-archived' : ''}`}>
+              <div>
+                <strong>{rule.name || rule.pattern}</strong>
+                <span>{matchTypeLabel(rule.match_type)}「{rule.pattern}」 · 优先级 {rule.priority}</span>
+                <small>{describeRuleResult(rule, categories, accounts, tags)}</small>
+                {metadataWarning && <small className="import-rule-warning">{metadataWarning}</small>}
+              </div>
+              <div className="import-rule-card__actions">
+                <button type="button" className="btn-secondary" disabled={busy} onClick={() => onEdit(rule)}>
+                  编辑
                 </button>
-              ) : (
-                <button type="button" className="btn-secondary" disabled={busy} onClick={() => onRestore(rule.id)}>
-                  <RotateCcw size={14} />
-                  恢复
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
+                {rule.status === 'active' ? (
+                  <button type="button" className="btn-secondary" disabled={busy} onClick={() => onArchive(rule.id)}>
+                    <Archive size={14} />
+                    归档
+                  </button>
+                ) : (
+                  <button type="button" className="btn-secondary" disabled={busy} onClick={() => onRestore(rule.id)}>
+                    <RotateCcw size={14} />
+                    恢复
+                  </button>
+                )}
+              </div>
+            </article>
+          );
+        })}
         {visibleRules.length === 0 && (
           <div className="import-rule-empty">
             <Sparkles size={18} />
@@ -841,6 +844,15 @@ function describeRuleResult(rule: ImportRule, categories: MetadataItem[], accoun
   return parts.length > 0 ? parts.join(' · ') : '仅记录命中解释';
 }
 
+function describeRuleMetadataWarning(rule: ImportRule, categories: MetadataItem[], accounts: MetadataItem[], tags: MetadataItem[]) {
+  const issues = [
+    rule.result.category_id ? metadataIssue(categories, rule.result.category_id, '分类') : '',
+    rule.result.account_id ? metadataIssue(accounts, rule.result.account_id, '账户') : '',
+    ...(rule.result.tag_ids || []).map((id) => metadataIssue(tags, id, '标签')),
+  ].filter(Boolean);
+  return issues.length > 0 ? `需处理：${issues.join('、')}` : '';
+}
+
 function describeRowSuggestion(row: ImportPreviewRow, categories: MetadataItem[], accounts: MetadataItem[], tags: MetadataItem[]) {
   const parts = [
     row.suggested_category_id ? `分类 ${metadataName(categories, row.suggested_category_id)}` : '',
@@ -852,6 +864,17 @@ function describeRowSuggestion(row: ImportPreviewRow, categories: MetadataItem[]
 
 function metadataName(items: MetadataItem[], id: string) {
   return items.find((item) => item.id === id)?.name || id.slice(0, 8);
+}
+
+function metadataIssue(items: MetadataItem[], id: string, label: string) {
+  const item = items.find((candidate) => candidate.id === id);
+  if (!item) {
+    return `${label} ${id.slice(0, 8)} 不可用`;
+  }
+  if (item.is_archived) {
+    return `${label} ${item.name} 已归档`;
+  }
+  return '';
 }
 
 function StatusPill({ status }: { status: ImportDuplicateStatus }) {

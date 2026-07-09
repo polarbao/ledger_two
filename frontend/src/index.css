@@ -2844,6 +2844,10 @@ button {
   line-height: 1.45;
 }
 
+.import-rule-card .import-rule-warning {
+  color: #fde68a;
+}
+
 .import-rule-card__actions {
   display: flex;
   flex-direction: column;

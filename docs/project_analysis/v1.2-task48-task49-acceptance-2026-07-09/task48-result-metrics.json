@@ -1,0 +1,8 @@
+{
+  "width": 375,
+  "scrollWidth": 360,
+  "result": "导入完成\n已导入 4 条，跳过 0 条，失败 0 条。",
+  "batchNotice": "当前批次已写入正式账单，可在流水中查看。",
+  "button": "已完成导入",
+  "routerError": false
+}

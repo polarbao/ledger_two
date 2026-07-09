@@ -14,7 +14,9 @@ import (
 )
 
 const (
+	batchStatusReady        = "ready"
 	batchStatusCommitted    = "committed"
+	batchStatusFailed       = "failed"
 	auditActionImportCommit = "import_commit"
 )
 
@@ -268,16 +270,19 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 	recountBatch(batch)
 	_, err = tx.ExecContext(ctx, `
 		UPDATE import_batches
-		SET total_rows = ?,
+		SET status = ?,
+		    total_rows = ?,
 		    new_rows = ?,
 		    duplicate_rows = ?,
 		    suspicious_rows = ?,
 		    invalid_rows = ?,
 		    imported_rows = ?,
 		    skipped_rows = ?,
+		    failed_rows = ?,
 		    updated_at = ?
 		WHERE id = ?
 	`,
+		batchStatusReady,
 		batch.TotalRows,
 		batch.NewRows,
 		batch.DuplicateRows,
@@ -285,6 +290,7 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 		batch.InvalidRows,
 		batch.ImportedRows,
 		batch.SkippedRows,
+		batch.FailedRows,
 		now,
 		batch.ID,
 	)
@@ -296,6 +302,27 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 		return nil, err
 	}
 	return r.GetPreviewBatch(ctx, batch.LedgerID, batch.ID)
+}
+
+func (r *Repository) MarkPreviewBatchFailed(ctx context.Context, ledgerID string, batchID string) error {
+	result, err := r.db.ExecContext(ctx, `
+		UPDATE import_batches
+		SET status = ?,
+		    failed_rows = CASE WHEN failed_rows > 0 THEN failed_rows ELSE 1 END,
+		    updated_at = ?
+		WHERE id = ? AND ledger_id = ? AND status = ?
+	`, batchStatusFailed, time.Now().Format(time.RFC3339), batchID, ledgerID, batchStatusReady)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (r *Repository) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContext, batch *PreviewBatch) (*CommitResult, error) {

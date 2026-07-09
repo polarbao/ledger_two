@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -18,7 +19,6 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { ApiError } from '../api/client';
 import { importsApi } from '../api/imports.api';
 import { metadataApi } from '../api/metadata.api';
 import { queryKeys } from '../api/queryKeys';
@@ -36,6 +36,7 @@ import type {
   ImportSourceType,
 } from '../types/imports';
 import type { MetadataItem } from '../types/metadata';
+import { buildImportCommitSummary, resolveImportErrorMessage } from './importPageState';
 
 const sourceOptions: Array<{ value: ImportSourceType; label: string; description: string }> = [
   { value: 'wechat', label: '微信账单', description: '微信支付导出的 CSV' },
@@ -135,7 +136,7 @@ export default function ImportPage() {
     },
     onError: (err: unknown) => {
       setBatch(null);
-      setErrorMsg(resolveErrorMessage(err, '生成导入预览失败，请检查来源和 CSV 文件格式'));
+      setErrorMsg(resolveImportErrorMessage(err, '生成导入预览失败，请检查来源和 CSV 文件格式'));
     },
   });
 
@@ -147,12 +148,12 @@ export default function ImportPage() {
       setErrorMsg(null);
     },
     onError: (err: unknown) => {
-      setErrorMsg(resolveErrorMessage(err, '更新预览行失败'));
+      setErrorMsg(resolveImportErrorMessage(err, '更新预览行失败'));
     },
   });
 
   const summary = useMemo(() => buildSummary(batch), [batch]);
-  const commitSummary = useMemo(() => buildCommitSummary(batch), [batch]);
+  const commitSummary = useMemo(() => buildImportCommitSummary(batch), [batch]);
   const canOpenCommit = isOwner && !!batch && batch.status === 'ready' && !previewMutation.isPending && !updateRowMutation.isPending;
 
   const commitMutation = useMutation({
@@ -172,7 +173,10 @@ export default function ImportPage() {
     },
     onError: (err: unknown) => {
       setIsConfirmOpen(false);
-      setErrorMsg(resolveErrorMessage(err, '导入提交失败，当前批次未写入正式账单'));
+      setErrorMsg(resolveImportErrorMessage(err, '导入提交失败，当前批次未写入正式账单'));
+      if (batch) {
+        void importsApi.getBatch(batch.id).then(setBatch).catch(() => undefined);
+      }
     },
   });
 
@@ -184,7 +188,7 @@ export default function ImportPage() {
       setErrorMsg(null);
     },
     onError: (err: unknown) => {
-      setErrorMsg(resolveErrorMessage(err, '创建导入规则失败'));
+      setErrorMsg(resolveImportErrorMessage(err, '创建导入规则失败'));
     },
   });
 
@@ -197,7 +201,7 @@ export default function ImportPage() {
       setErrorMsg(null);
     },
     onError: (err: unknown) => {
-      setErrorMsg(resolveErrorMessage(err, '更新导入规则失败'));
+      setErrorMsg(resolveImportErrorMessage(err, '更新导入规则失败'));
     },
   });
 
@@ -207,7 +211,7 @@ export default function ImportPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
     },
     onError: (err: unknown) => {
-      setErrorMsg(resolveErrorMessage(err, '归档导入规则失败'));
+      setErrorMsg(resolveImportErrorMessage(err, '归档导入规则失败'));
     },
   });
 
@@ -217,7 +221,7 @@ export default function ImportPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
     },
     onError: (err: unknown) => {
-      setErrorMsg(resolveErrorMessage(err, '恢复导入规则失败'));
+      setErrorMsg(resolveImportErrorMessage(err, '恢复导入规则失败'));
     },
   });
 
@@ -413,7 +417,13 @@ export default function ImportPage() {
 
           <div className="import-safe-banner">
             <ShieldCheck size={16} />
-            <span>{batch?.status === 'committed' ? '当前批次已写入正式账单，可在流水中查看。' : '当前批次只保存预览数据，提交前不会写入 transactions。'}</span>
+            <span>
+              {batch?.status === 'committed'
+                ? '当前批次已写入正式账单，可在流水中查看。'
+                : batch?.status === 'failed'
+                  ? '本次提交失败，未写入任何正式账单。处理失败行后可重新提交。'
+                  : '当前批次只保存预览数据，提交前不会写入 transactions。'}
+            </span>
           </div>
 
           <div className="import-summary-grid">
@@ -432,7 +442,11 @@ export default function ImportPage() {
                   <Loader2 size={14} className="spin" />
                   正在提交
                 </>
-              ) : batch?.status === 'committed' ? '已完成导入' : '确认导入'}
+              ) : batch?.status === 'committed'
+                ? '已完成导入'
+                : batch?.status === 'failed'
+                  ? '处理失败行后重试'
+                  : '确认导入'}
             </button>
           </div>
 
@@ -474,7 +488,7 @@ export default function ImportPage() {
         </div>
       </section>
 
-      {isConfirmOpen && batch && (
+      {isConfirmOpen && batch && createPortal(
         <div className="modal-overlay" onClick={() => setIsConfirmOpen(false)}>
           <div className="confirm-modal-box animate-fade-in import-commit-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
@@ -520,7 +534,8 @@ export default function ImportPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -890,42 +905,4 @@ function buildSummary(batch: ImportPreviewBatch | null) {
     { label: '错误', value: batch?.invalid_rows ?? 0, tone: 'invalid' },
     { label: '跳过', value: batch?.skipped_rows ?? 0, tone: 'duplicate' },
   ];
-}
-
-function buildCommitSummary(batch: ImportPreviewBatch | null) {
-  if (!batch) {
-    return {
-      importableCount: 0,
-      skippedCount: 0,
-      unconfirmedSuspiciousCount: 0,
-      invalidOpenCount: 0,
-      blockingCount: 0,
-    };
-  }
-
-  const importableCount = batch.rows.filter((row) =>
-    row.row_status !== 'skipped' &&
-    row.row_status !== 'failed' &&
-    row.target_transaction_type !== 'skipped' &&
-    row.duplicate_status !== 'duplicate' &&
-    row.duplicate_status !== 'invalid'
-  ).length;
-  const skippedCount = batch.rows.filter((row) => row.row_status === 'skipped' || row.target_transaction_type === 'skipped').length;
-  const unconfirmedSuspiciousCount = batch.rows.filter((row) => row.duplicate_status === 'suspicious' && row.row_status === 'pending').length;
-  const invalidOpenCount = batch.rows.filter((row) => row.duplicate_status === 'invalid' && row.row_status !== 'skipped').length;
-
-  return {
-    importableCount,
-    skippedCount,
-    unconfirmedSuspiciousCount,
-    invalidOpenCount,
-    blockingCount: unconfirmedSuspiciousCount + invalidOpenCount,
-  };
-}
-
-function resolveErrorMessage(err: unknown, fallback: string) {
-  if (err instanceof ApiError) {
-    return err.message;
-  }
-  return fallback;
 }

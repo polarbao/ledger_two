@@ -1,0 +1,7 @@
+{
+  "width": 390,
+  "scrollWidth": 375,
+  "error": "第 2 行：导入事务回滚，当前批次未写入正式账单",
+  "batchNotice": "当前批次只保存预览数据，提交前不会写入 transactions。",
+  "routerError": false
+}

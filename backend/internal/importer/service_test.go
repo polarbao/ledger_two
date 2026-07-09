@@ -82,6 +82,31 @@ func TestPreviewCSVRequiresOwner(t *testing.T) {
 	}
 }
 
+func TestGetPreviewBatchRequiresOwner(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	_, err = service.GetPreviewBatch(context.Background(), ledger.LedgerContext{
+		UserID:   "editor-user",
+		LedgerID: "ledger-one",
+		Role:     ledger.RoleEditor,
+	}, batch.ID)
+	if err == nil {
+		t.Fatalf("expected editor batch read to be rejected")
+	}
+}
+
 func TestUpdatePreviewRowPersistsUserAdjustment(t *testing.T) {
 	t.Parallel()
 
@@ -249,6 +274,66 @@ func TestCommitPreviewBatchMakesRepeatedFileDuplicate(t *testing.T) {
 	if second.DuplicateRows != 3 || second.SkippedRows != 4 {
 		t.Fatalf("expected 3 duplicate imported rows and 4 skipped rows, got duplicate=%d skipped=%d", second.DuplicateRows, second.SkippedRows)
 	}
+	result, err := service.CommitPreviewBatch(context.Background(), ownerLedgerContext(), second.ID)
+	if err != nil {
+		t.Fatalf("second CommitPreviewBatch returned error: %v", err)
+	}
+	if result.ImportedRows != 0 || result.SkippedRows != 4 {
+		t.Fatalf("expected repeated file to import 0 and skip 4, got %+v", result)
+	}
+	if countRows(t, database, "transactions") != 3 {
+		t.Fatalf("repeated file must not create additional transactions")
+	}
+}
+
+func TestCommitPreviewBatchRequiresSuspiciousRowConfirmation(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "alipay-basic.csv",
+		SourceType:    SourceTypeAlipay,
+		Content:       readImportFixture(t, "alipay-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+	suspiciousRow := findPreviewRowByNumber(t, batch, 2)
+
+	if _, err := service.CommitPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID); err == nil {
+		t.Fatalf("expected unconfirmed suspicious row to block commit")
+	}
+	failed, err := service.GetPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID)
+	if err != nil {
+		t.Fatalf("GetPreviewBatch after blocked commit returned error: %v", err)
+	}
+	if failed.Status != batchStatusFailed {
+		t.Fatalf("expected failed batch after blocked commit, got %s", failed.Status)
+	}
+
+	adjusted := RowStatusAdjusted
+	ready, err := service.UpdatePreviewRow(context.Background(), UpdateRowCommand{
+		LedgerContext: ownerLedgerContext(),
+		BatchID:       batch.ID,
+		RowID:         suspiciousRow.ID,
+		Patch:         UpdateRowRequest{RowStatus: &adjusted},
+	})
+	if err != nil {
+		t.Fatalf("confirm suspicious row returned error: %v", err)
+	}
+	if ready.Status != batchStatusReady {
+		t.Fatalf("expected row adjustment to reopen batch, got %s", ready.Status)
+	}
+
+	result, err := service.CommitPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID)
+	if err != nil {
+		t.Fatalf("CommitPreviewBatch after confirmation returned error: %v", err)
+	}
+	if result.ImportedRows != 4 || result.SkippedRows != 0 {
+		t.Fatalf("unexpected confirmed suspicious commit result: %+v", result)
+	}
 }
 
 func TestCommitPreviewBatchRejectsInvalidRowWithoutPartialWrite(t *testing.T) {
@@ -279,6 +364,35 @@ func TestCommitPreviewBatchRejectsInvalidRowWithoutPartialWrite(t *testing.T) {
 	}
 	if countWhere(t, database, "import_batches", "status = 'committed'") != 0 {
 		t.Fatalf("invalid batch must not be marked committed")
+	}
+	failed, err := service.GetPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID)
+	if err != nil {
+		t.Fatalf("GetPreviewBatch after failed commit returned error: %v", err)
+	}
+	if failed.Status != batchStatusFailed || failed.FailedRows != 1 {
+		t.Fatalf("expected failed batch with one failed row, got status=%s failed=%d", failed.Status, failed.FailedRows)
+	}
+
+	invalidRow := findPreviewRowByNumber(t, failed, 5)
+	skipped := RowStatusSkipped
+	ready, err := service.UpdatePreviewRow(context.Background(), UpdateRowCommand{
+		LedgerContext: ownerLedgerContext(),
+		BatchID:       batch.ID,
+		RowID:         invalidRow.ID,
+		Patch:         UpdateRowRequest{RowStatus: &skipped},
+	})
+	if err != nil {
+		t.Fatalf("skip invalid row returned error: %v", err)
+	}
+	if ready.Status != batchStatusReady || ready.FailedRows != 0 {
+		t.Fatalf("expected corrected batch to return ready, got status=%s failed=%d", ready.Status, ready.FailedRows)
+	}
+	result, err := service.CommitPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID)
+	if err != nil {
+		t.Fatalf("CommitPreviewBatch after skipping invalid row returned error: %v", err)
+	}
+	if result.ImportedRows != 3 || result.SkippedRows != 2 {
+		t.Fatalf("unexpected recovered commit result: %+v", result)
 	}
 }
 

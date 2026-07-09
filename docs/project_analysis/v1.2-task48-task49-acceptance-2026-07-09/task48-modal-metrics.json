@@ -1,0 +1,27 @@
+{
+  "width": 375,
+  "scrollWidth": 360,
+  "modal": "确认导入账单？\n\n系统将把当前预览批次写入正式账单。导入过程在单个事务中完成，失败时不会保留半批数据。\n\n将导入\n4\n将跳过\n0\n疑似未确认\n0\n错误未跳过\n0\n返回预览确认导入",
+  "modalRect": {
+    "x": 20,
+    "y": 100.078125,
+    "width": 320,
+    "height": 643.828125,
+    "top": 100.078125,
+    "right": 340,
+    "bottom": 743.90625,
+    "left": 20
+  },
+  "overlayRect": {
+    "x": 0,
+    "y": 0,
+    "width": 360,
+    "height": 844,
+    "top": 0,
+    "right": 360,
+    "bottom": 844,
+    "left": 0
+  },
+  "overlayPosition": "fixed",
+  "routerError": false
+}

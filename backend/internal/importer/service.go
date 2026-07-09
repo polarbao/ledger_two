@@ -70,6 +70,9 @@ func (s *Service) PreviewCSV(ctx context.Context, req PreviewFileRequest) (*Prev
 }
 
 func (s *Service) GetPreviewBatch(ctx context.Context, lc ledger.LedgerContext, batchID string) (*PreviewBatch, error) {
+	if lc.Role != ledger.RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可查看导入批次")
+	}
 	if batchID == "" {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 不能为空")
 	}
@@ -162,6 +165,7 @@ func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*
 			break
 		}
 	}
+	batch.Status = batchStatusReady
 
 	updatedBatch, err := s.repo.UpdatePreviewRow(ctx, batch, updated, adjustment)
 	if err != nil {
@@ -192,11 +196,17 @@ func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContex
 		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "当前导入批次状态不允许提交")
 	}
 	if err := validateRowsForCommit(batch.Rows); err != nil {
+		if markErr := s.repo.MarkPreviewBatchFailed(ctx, lc.LedgerID, batch.ID); markErr != nil && markErr != sql.ErrNoRows {
+			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "记录导入失败状态失败")
+		}
 		return nil, err
 	}
 
 	result, err := s.repo.CommitPreviewBatch(ctx, lc, batch)
 	if err != nil {
+		if markErr := s.repo.MarkPreviewBatchFailed(ctx, lc.LedgerID, batch.ID); markErr != nil && markErr != sql.ErrNoRows {
+			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "记录导入失败状态失败")
+		}
 		if err == sql.ErrNoRows {
 			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeImportBatchNotFound, "导入批次不存在")
 		}
@@ -241,6 +251,9 @@ func (s *Service) UpdateImportRule(ctx context.Context, lc ledger.LedgerContext,
 }
 
 func (s *Service) ListImportRules(ctx context.Context, lc ledger.LedgerContext, status string) ([]ImportRuleResponse, error) {
+	if lc.Role != ledger.RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可查看导入规则")
+	}
 	if !isValidImportRuleStatusFilter(status) {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则状态过滤无效")
 	}

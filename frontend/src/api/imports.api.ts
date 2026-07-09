@@ -31,6 +31,9 @@ export const importsApi = {
   createRule: (payload: ImportRuleUpsertPayload) =>
     api.post<ImportRule>('/api/import-rules/', payload),
 
+  updateRule: (ruleId: string, payload: ImportRuleUpsertPayload) =>
+    api.patch<ImportRule>(`/api/import-rules/${ruleId}`, payload),
+
   archiveRule: (ruleId: string) =>
     api.post<ImportRule>(`/api/import-rules/${ruleId}/archive`, {}),
 

@@ -90,6 +90,8 @@ export default function ImportPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [commitResult, setCommitResult] = useState<ImportCommitResult | null>(null);
   const [ruleForm, setRuleForm] = useState(defaultRuleForm);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [ruleStatusFilter, setRuleStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
 
   const isOwner = activeRole === 'owner';
 
@@ -176,6 +178,19 @@ export default function ImportPage() {
     },
   });
 
+  const updateRuleMutation = useMutation({
+    mutationFn: ({ ruleId, payload }: { ruleId: string; payload: ImportRuleUpsertPayload }) => importsApi.updateRule(ruleId, payload),
+    onSuccess: () => {
+      setRuleForm(defaultRuleForm);
+      setEditingRuleId(null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
+      setErrorMsg(null);
+    },
+    onError: (err: unknown) => {
+      setErrorMsg(resolveErrorMessage(err, '更新导入规则失败'));
+    },
+  });
+
   const archiveRuleMutation = useMutation({
     mutationFn: (ruleId: string) => importsApi.archiveRule(ruleId),
     onSuccess: () => {
@@ -227,14 +242,36 @@ export default function ImportPage() {
     setIsConfirmOpen(true);
   };
 
-  const handleCreateRule = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmitRule = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const payload = buildRulePayload(ruleForm);
     if (!payload) {
       setErrorMsg('规则需要填写匹配内容，并至少选择分类、账户或标签');
       return;
     }
+    if (editingRuleId) {
+      updateRuleMutation.mutate({ ruleId: editingRuleId, payload });
+      return;
+    }
     createRuleMutation.mutate(payload);
+  };
+
+  const handleEditRule = (rule: ImportRule) => {
+    setEditingRuleId(rule.id);
+    setRuleForm({
+      name: rule.name,
+      match_type: rule.match_type,
+      pattern: rule.pattern,
+      category_id: rule.result.category_id || '',
+      account_id: rule.result.account_id || '',
+      tag_id: rule.result.tag_ids?.[0] || '',
+      priority: String(rule.priority),
+    });
+  };
+
+  const handleCancelRuleEdit = () => {
+    setEditingRuleId(null);
+    setRuleForm(defaultRuleForm);
   };
 
   const activeCategories = categories.filter((item) => !item.is_archived);
@@ -347,10 +384,16 @@ export default function ImportPage() {
             tags={activeTags}
             form={ruleForm}
             creating={createRuleMutation.isPending}
+            updating={updateRuleMutation.isPending}
             archiving={archiveRuleMutation.isPending}
             restoring={restoreRuleMutation.isPending}
+            editingRuleId={editingRuleId}
+            statusFilter={ruleStatusFilter}
             onFormChange={setRuleForm}
-            onCreate={handleCreateRule}
+            onSubmit={handleSubmitRule}
+            onCancelEdit={handleCancelRuleEdit}
+            onEdit={handleEditRule}
+            onStatusFilterChange={setRuleStatusFilter}
             onArchive={(ruleId) => archiveRuleMutation.mutate(ruleId)}
             onRestore={(ruleId) => restoreRuleMutation.mutate(ruleId)}
           />
@@ -481,10 +524,16 @@ function ImportRuleManager({
   tags,
   form,
   creating,
+  updating,
   archiving,
   restoring,
+  editingRuleId,
+  statusFilter,
   onFormChange,
-  onCreate,
+  onSubmit,
+  onCancelEdit,
+  onEdit,
+  onStatusFilterChange,
   onArchive,
   onRestore,
 }: {
@@ -494,16 +543,22 @@ function ImportRuleManager({
   tags: MetadataItem[];
   form: typeof defaultRuleForm;
   creating: boolean;
+  updating: boolean;
   archiving: boolean;
   restoring: boolean;
+  editingRuleId: string | null;
+  statusFilter: 'all' | 'active' | 'archived';
   onFormChange: (form: typeof defaultRuleForm) => void;
-  onCreate: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onCancelEdit: () => void;
+  onEdit: (rule: ImportRule) => void;
+  onStatusFilterChange: (status: 'all' | 'active' | 'archived') => void;
   onArchive: (ruleId: string) => void;
   onRestore: (ruleId: string) => void;
 }) {
   const activeRules = rules.filter((rule) => rule.status === 'active');
-  const archivedRules = rules.filter((rule) => rule.status === 'archived');
-  const busy = creating || archiving || restoring;
+  const visibleRules = rules.filter((rule) => statusFilter === 'all' || rule.status === statusFilter);
+  const busy = creating || updating || archiving || restoring;
 
   return (
     <div className="glass-card import-rule-manager">
@@ -512,7 +567,20 @@ function ImportRuleManager({
         <small>{activeRules.length} 条启用</small>
       </div>
 
-      <form className="import-rule-form" onSubmit={onCreate}>
+      <div className="import-rule-filter" role="tablist" aria-label="导入规则状态">
+        {(['all', 'active', 'archived'] as const).map((status) => (
+          <button
+            key={status}
+            type="button"
+            className={statusFilter === status ? 'is-active' : ''}
+            onClick={() => onStatusFilterChange(status)}
+          >
+            {status === 'all' ? '全部' : status === 'active' ? '启用' : '归档'}
+          </button>
+        ))}
+      </div>
+
+      <form className="import-rule-form" onSubmit={onSubmit}>
         <input
           value={form.name}
           onChange={(event) => onFormChange({ ...form, name: event.target.value })}
@@ -559,34 +627,45 @@ function ImportRuleManager({
           onChange={(event) => onFormChange({ ...form, priority: event.target.value })}
           placeholder="优先级"
         />
-        <button type="submit" className="btn-primary" disabled={creating}>
-          {creating ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
-          创建规则
+        <button type="submit" className="btn-primary" disabled={creating || updating}>
+          {creating || updating ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+          {editingRuleId ? '保存规则' : '创建规则'}
         </button>
+        {editingRuleId && (
+          <button type="button" className="btn-secondary" onClick={onCancelEdit} disabled={busy}>
+            <X size={14} />
+            取消编辑
+          </button>
+        )}
       </form>
 
       <div className="import-rule-list">
-        {[...activeRules, ...archivedRules].map((rule) => (
+        {visibleRules.map((rule) => (
           <article key={rule.id} className={`import-rule-card ${rule.status === 'archived' ? 'is-archived' : ''}`}>
             <div>
               <strong>{rule.name || rule.pattern}</strong>
               <span>{matchTypeLabel(rule.match_type)}「{rule.pattern}」 · 优先级 {rule.priority}</span>
               <small>{describeRuleResult(rule, categories, accounts, tags)}</small>
             </div>
-            {rule.status === 'active' ? (
-              <button type="button" className="btn-secondary" disabled={busy} onClick={() => onArchive(rule.id)}>
-                <Archive size={14} />
-                归档
+            <div className="import-rule-card__actions">
+              <button type="button" className="btn-secondary" disabled={busy} onClick={() => onEdit(rule)}>
+                编辑
               </button>
-            ) : (
-              <button type="button" className="btn-secondary" disabled={busy} onClick={() => onRestore(rule.id)}>
-                <RotateCcw size={14} />
-                恢复
-              </button>
-            )}
+              {rule.status === 'active' ? (
+                <button type="button" className="btn-secondary" disabled={busy} onClick={() => onArchive(rule.id)}>
+                  <Archive size={14} />
+                  归档
+                </button>
+              ) : (
+                <button type="button" className="btn-secondary" disabled={busy} onClick={() => onRestore(rule.id)}>
+                  <RotateCcw size={14} />
+                  恢复
+                </button>
+              )}
+            </div>
           </article>
         ))}
-        {rules.length === 0 && (
+        {visibleRules.length === 0 && (
           <div className="import-rule-empty">
             <Sparkles size={18} />
             <span>还没有导入规则</span>

@@ -100,8 +100,8 @@ COOKIE_SAMESITE=Lax
 ```json
 {
   "status": "ok",
-  "version": "1.0.0",
-  "schema_version": 7,
+  "version": "1.2.0-rc",
+  "schema_version": 18,
   "db": "ok",
   "env": "production",
   "storage": {

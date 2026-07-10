@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task49 已完成，进入 v1.2 发布候选冻结阶段
+适用阶段：Task01-Task49 已完成，进入 v1.2 发布候选冻结与部署准备阶段
 
 ## 1. 目标
 
@@ -23,6 +23,7 @@
 08-product-roadmap-dev-plan.md  产品路线对应的 Task41+ DEV 任务计划
 09-task41-49-detailed-plan.md   Task41-Task49 细化开发任务规格
 10-task33-40-detailed-plan.md   Task33-Task40 细化开发任务规格
+../releases/                    v1.2 发布说明、升级回滚和发布验收清单
 ```
 
 ## 3. AI 开发强制流程

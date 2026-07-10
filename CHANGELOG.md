@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.2.0-rc] - 2026-07-10
+
+This is the v1.2 release candidate for local and NAS acceptance. It is not yet
+marked as the final stable release.
+
+### Added
+
+- CSV import preview for WeChat Pay, Alipay, and generic fixtures without
+  writing preview data into formal transactions.
+- Row-level import adjustment, duplicate detection, suspicious-row
+  confirmation, transactional commit, rollback feedback, and import audit
+  records.
+- Import rule creation, editing, priority, amount range, archive/restore,
+  category/account/tag suggestions, and rule-hit explanations.
+- Ledger-scoped RBAC, protected attachment access, metadata archive/restore,
+  system diagnostics, and stronger production configuration validation.
+- Faster transaction entry, save-and-continue, transaction copy, reusable
+  templates, recurring-bill confirmation, and explainable settlement details.
+
+### Changed
+
+- Import and import-rule operations are Owner-only in v1.2.
+- Archived rules, or rules referring to archived categories, accounts, or
+  tags, no longer provide import suggestions.
+- Manual row selections always take precedence over rule suggestions.
+- Mobile high-frequency paths were tightened for 375px, 390px, and 430px
+  viewports.
+- The runtime database schema is now version `18`.
+
+### Compatibility
+
+- Existing `/api/transactions/import/*` routes and
+  `DELETE /api/import-rules/{ruleID}` remain transitional compatibility
+  entries. New clients should use `/api/imports/*` and archive/restore APIs.
+- OCR, bank synchronization, automatic suspicious-row submission, direct
+  payment notifications, and import-batch undo are not part of v1.2.
+- Upgrade and rollback instructions are documented in
+  `docs/releases/v1.2.0-rc-upgrade-guide.md`.
+
 ## [v1.0.0] - 2026-06-16
 
 ### 🎉 Initial Public Release

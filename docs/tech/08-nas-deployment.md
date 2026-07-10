@@ -88,7 +88,7 @@ GET /api/healthz
 
 健康检查应返回服务状态、数据库连接状态和版本号。
 
-当前 schema version 应为最新 migration 版本。2026-07-06 当前最新版本为 `12`。
+当前 schema version 应为最新 migration 版本。`v1.2.0-rc` 对应 schema version `18`。
 
 Owner 登录后还可以在设置页查看系统诊断，或直接调用：
 
@@ -101,7 +101,7 @@ GET /api/admin/diagnostics
 ## 8. 升级与回滚流程
 
 ### 8.1 升级
-1. **先在页面点击「手动备份」**，确保下载并妥善保管一份最新的 `backup.db`。
+1. **先在页面点击「手动备份」**，确保下载并妥善保管一份最新的 `backup.db`；v1.2 详细检查点见 `docs/releases/v1.2.0-rc-upgrade-guide.md`。
 2. 拉取新镜像：`docker compose pull`。
 3. 停止并移除旧容器：`docker compose down`。
 4. 启动新容器：`docker compose up -d`。

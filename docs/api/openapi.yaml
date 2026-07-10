@@ -1078,7 +1078,7 @@ components:
           enum: [true]
         data:
           type: object
-          required: [status, db, version, schema_version]
+          required: [status, db, version, schema_version, deployment_channel]
           properties:
             status:
               type: string
@@ -1092,6 +1092,9 @@ components:
             schema_version:
               type: integer
               format: int64
+            deployment_channel:
+              type: string
+              enum: [development, staging, production, unknown]
     ErrorResponse:
       type: object
       required: [success, error]
@@ -1114,11 +1117,14 @@ components:
           nullable: true
     SystemDiagnostics:
       type: object
-      required: [env, app_base_url_set, cookie_secure, cookie_samesite, database, storage, audit_action_count, generated_at]
+      required: [env, deployment_channel, app_base_url_set, cookie_secure, cookie_samesite, database, storage, audit_action_count, generated_at]
       properties:
         env:
           type: string
           example: production
+        deployment_channel:
+          type: string
+          enum: [development, staging, production, unknown]
         app_base_url_set:
           type: boolean
         cookie_secure:

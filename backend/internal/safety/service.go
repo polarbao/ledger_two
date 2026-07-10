@@ -40,15 +40,16 @@ type BackupInfo struct {
 }
 
 type Diagnostics struct {
-	Env              string             `json:"env"`
-	AppBaseURLSet    bool               `json:"app_base_url_set"`
-	CookieSecure     string             `json:"cookie_secure"`
-	CookieSameSite   string             `json:"cookie_samesite"`
-	Database         DiagnosticStatus   `json:"database"`
-	Storage          []DiagnosticStatus `json:"storage"`
-	LatestBackup     *BackupInfo        `json:"latest_backup,omitempty"`
-	AuditActionCount map[string]int     `json:"audit_action_count"`
-	GeneratedAt      time.Time          `json:"generated_at"`
+	Env               string             `json:"env"`
+	DeploymentChannel string             `json:"deployment_channel"`
+	AppBaseURLSet     bool               `json:"app_base_url_set"`
+	CookieSecure      string             `json:"cookie_secure"`
+	CookieSameSite    string             `json:"cookie_samesite"`
+	Database          DiagnosticStatus   `json:"database"`
+	Storage           []DiagnosticStatus `json:"storage"`
+	LatestBackup      *BackupInfo        `json:"latest_backup,omitempty"`
+	AuditActionCount  map[string]int     `json:"audit_action_count"`
+	GeneratedAt       time.Time          `json:"generated_at"`
 }
 
 type DiagnosticStatus struct {
@@ -91,15 +92,17 @@ func (s *Service) Diagnostics(ctx context.Context, actorUserID string) (*Diagnos
 	}
 
 	diag := &Diagnostics{
-		Env:              "unknown",
-		CookieSameSite:   "Lax",
-		Database:         s.databaseStatus(ctx),
-		Storage:          make([]DiagnosticStatus, 0, 4),
-		AuditActionCount: make(map[string]int),
-		GeneratedAt:      time.Now(),
+		Env:               "unknown",
+		DeploymentChannel: "unknown",
+		CookieSameSite:    "Lax",
+		Database:          s.databaseStatus(ctx),
+		Storage:           make([]DiagnosticStatus, 0, 4),
+		AuditActionCount:  make(map[string]int),
+		GeneratedAt:       time.Now(),
 	}
 	if s.cfg != nil {
 		diag.Env = emptyAsUnknown(s.cfg.Env)
+		diag.DeploymentChannel = emptyAsUnknown(s.cfg.DeploymentChannel)
 		diag.AppBaseURLSet = strings.TrimSpace(s.cfg.AppBaseURL) != ""
 		diag.CookieSecure = emptyAsUnknown(s.cfg.CookieSecure)
 		diag.CookieSameSite = emptyAsUnknown(s.cfg.CookieSameSite)

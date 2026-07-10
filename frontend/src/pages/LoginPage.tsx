@@ -6,6 +6,7 @@ import { authApi } from '../api/auth.api';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth.store';
 import { KeyRound, User as UserIcon, LogIn, Eye, EyeOff } from 'lucide-react';
+import DeploymentBadge from '../components/layout/DeploymentBadge';
 
 const loginSchema = z.object({
   username: z.string().min(3, '用户名至少 3 位'),
@@ -56,6 +57,7 @@ export default function LoginPage() {
           </div>
           <h1>LedgerTwo 共享记账</h1>
           <p className="subtitle">欢迎回来，请登录您的账本账户</p>
+          <DeploymentBadge />
         </div>
 
         {errorMsg && <div className="error-banner">{errorMsg}</div>}

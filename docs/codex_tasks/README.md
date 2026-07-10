@@ -23,6 +23,7 @@
 08-product-roadmap-dev-plan.md  产品路线对应的 Task41+ DEV 任务计划
 09-task41-49-detailed-plan.md   Task41-Task49 细化开发任务规格
 10-task33-40-detailed-plan.md   Task33-Task40 细化开发任务规格
+11-v1.2-release-hardening-plan.md v1.2 RC 环境隔离、NAS staging 与 production 升级任务
 ../releases/                    v1.2 发布说明、升级回滚和发布验收清单
 ```
 

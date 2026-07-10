@@ -23,6 +23,7 @@ export interface DiagnosticStatus {
 
 export interface SystemDiagnostics {
   env: string;
+  deployment_channel: string;
   app_base_url_set: boolean;
   cookie_secure: string;
   cookie_samesite: string;

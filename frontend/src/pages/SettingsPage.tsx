@@ -33,6 +33,7 @@ import PermissionGate from '../components/ledger/PermissionGate';
 import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
 import { useAuthStore } from '../stores/auth.store';
 import { useLedgerStore } from '../stores/ledger.store';
+import { getDeploymentChannelMeta } from '../components/layout/deploymentChannel';
 
 interface BackupInfo {
   filename: string;
@@ -639,7 +640,9 @@ export default function SettingsPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
                         <span className="dimmed-desc" style={{ fontSize: '11px' }}>运行环境</span>
-                        <strong style={{ display: 'block', fontSize: '13px', marginTop: '3px' }}>{diagnostics.env}</strong>
+                        <strong style={{ display: 'block', fontSize: '13px', marginTop: '3px' }}>
+                          {getDeploymentChannelMeta(diagnostics.deployment_channel).label} · {diagnostics.env}
+                        </strong>
                       </div>
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
                         <span className="dimmed-desc" style={{ fontSize: '11px' }}>Cookie 策略</span>

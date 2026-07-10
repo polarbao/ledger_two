@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"ledger_two/internal/config"
 )
 
 func TestHealthz(t *testing.T) {
@@ -30,10 +32,11 @@ func TestHealthz(t *testing.T) {
 	var resp struct {
 		Success bool `json:"success"`
 		Data    struct {
-			Status        string `json:"status"`
-			DB            string `json:"db"`
-			Version       string `json:"version"`
-			SchemaVersion int64  `json:"schema_version"`
+			Status            string `json:"status"`
+			DB                string `json:"db"`
+			Version           string `json:"version"`
+			SchemaVersion     int64  `json:"schema_version"`
+			DeploymentChannel string `json:"deployment_channel"`
 		} `json:"data"`
 	}
 
@@ -55,5 +58,28 @@ func TestHealthz(t *testing.T) {
 	}
 	if resp.Data.SchemaVersion != 0 {
 		t.Errorf("schema_version = %d, want 0", resp.Data.SchemaVersion)
+	}
+	if resp.Data.DeploymentChannel != "unknown" {
+		t.Errorf("deployment_channel = %q, want unknown", resp.Data.DeploymentChannel)
+	}
+}
+
+func TestHealthzReturnsDeploymentChannel(t *testing.T) {
+	r := New(nil, &config.Config{DeploymentChannel: config.DeploymentChannelStaging})
+	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
+	rr := httptest.NewRecorder()
+
+	r.ServeHTTP(rr, req)
+
+	var resp struct {
+		Data struct {
+			DeploymentChannel string `json:"deployment_channel"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if resp.Data.DeploymentChannel != config.DeploymentChannelStaging {
+		t.Fatalf("deployment_channel = %q, want staging", resp.Data.DeploymentChannel)
 	}
 }

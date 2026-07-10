@@ -35,6 +35,7 @@ docs/tech/19-short-mid-implementation-readiness.md
 docs/tech/20-v1.2-import-implementation-contract.md
 docs/tech/21-v1.2-import-migration-review.md
 docs/tech/22-v1.2-import-task47-implementation-plan.md
+docs/tech/23-v1.2-deployment-environment-isolation.md
 docs/api/API_INVENTORY.md
 docs/api/API_CONVENTIONS.md
 docs/api/openapi.yaml
@@ -47,6 +48,7 @@ docs/codex_tasks/05-foundation-task-plan.md
 docs/codex_tasks/08-product-roadmap-dev-plan.md
 docs/codex_tasks/09-task41-49-detailed-plan.md
 docs/codex_tasks/10-task33-40-detailed-plan.md
+docs/codex_tasks/11-v1.2-release-hardening-plan.md
 ```
 
 ### 1.2 历史 v0.3 结论

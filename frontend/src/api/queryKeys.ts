@@ -6,6 +6,9 @@ export const UNSELECTED_LEDGER_ID = 'no-active-ledger';
 const ledgerScope = (ledgerId: string | null | undefined) => ledgerId || UNSELECTED_LEDGER_ID;
 
 export const queryKeys = {
+  system: {
+    health: ['system', 'health'] as const,
+  },
   ledgers: {
     all: ['ledgers'] as const,
   },

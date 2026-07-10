@@ -22,6 +22,7 @@ import {
 import TransactionFormDrawer from '../transaction/TransactionFormDrawer';
 import DraftListDrawer from '../transaction/DraftListDrawer';
 import { useDraftStore } from '../../stores/draft.store';
+import DeploymentBadge from './DeploymentBadge';
 
 export default function AppShell() {
   const navigate = useNavigate();
@@ -95,7 +96,10 @@ export default function AppShell() {
       <aside className="sidebar glass-card">
         <div className="sidebar-brand">
           <Sparkles className="brand-logo" />
-          <span>LedgerTwo</span>
+          <div className="sidebar-brand__copy">
+            <span>LedgerTwo</span>
+            <DeploymentBadge />
+          </div>
         </div>
 
         <div style={{ padding: '0 1rem', marginBottom: '1rem' }}>
@@ -163,7 +167,10 @@ export default function AppShell() {
         <header className="topbar glass-card">
           <div className="mobile-brand">
             <Sparkles size={20} className="brand-logo" />
-            <h2>LedgerTwo</h2>
+            <div className="mobile-brand__copy">
+              <h2>LedgerTwo</h2>
+              <DeploymentBadge />
+            </div>
           </div>
 
           <div className="month-picker-wrapper">

@@ -9,6 +9,7 @@ import (
 
 func TestLoadDevelopmentDefaults(t *testing.T) {
 	t.Setenv("APP_ENV", "")
+	t.Setenv("DEPLOYMENT_CHANNEL", "")
 	t.Setenv("HTTP_ADDR", "")
 	t.Setenv("PORT", "")
 	t.Setenv("DB_DSN", "")
@@ -21,6 +22,9 @@ func TestLoadDevelopmentDefaults(t *testing.T) {
 	cfg := Load()
 	if cfg.Env != "development" {
 		t.Fatalf("expected development env, got %s", cfg.Env)
+	}
+	if cfg.DeploymentChannel != DeploymentChannelDevelopment {
+		t.Fatalf("expected development deployment channel, got %s", cfg.DeploymentChannel)
 	}
 	if cfg.HTTPAddr != ":8080" {
 		t.Fatalf("expected default HTTPAddr :8080, got %s", cfg.HTTPAddr)
@@ -79,6 +83,7 @@ func TestValidateRuntimeRequiresExplicitCookieSecure(t *testing.T) {
 func TestValidateRuntimeAcceptsProductionConfig(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("APP_ENV", "production")
+	t.Setenv("DEPLOYMENT_CHANNEL", "staging")
 	t.Setenv("HTTP_ADDR", ":8080")
 	t.Setenv("APP_BASE_URL", "http://nas.local:38088")
 	t.Setenv("DB_DSN", filepath.Join(tmp, "data", "ledger.db"))
@@ -92,6 +97,30 @@ func TestValidateRuntimeAcceptsProductionConfig(t *testing.T) {
 	cfg := Load()
 	if err := cfg.ValidateRuntime(); err != nil {
 		t.Fatalf("production validation should pass: %v", err)
+	}
+	if cfg.DeploymentChannel != DeploymentChannelStaging {
+		t.Fatalf("expected staging deployment channel, got %s", cfg.DeploymentChannel)
+	}
+}
+
+func TestLoadDefaultsProductionDeploymentChannel(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("DEPLOYMENT_CHANNEL", "")
+
+	cfg := Load()
+	if cfg.DeploymentChannel != DeploymentChannelProduction {
+		t.Fatalf("expected production deployment channel, got %s", cfg.DeploymentChannel)
+	}
+}
+
+func TestValidateRuntimeRejectsUnknownDeploymentChannel(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("DEPLOYMENT_CHANNEL", "preview")
+
+	cfg := Load()
+	err := cfg.ValidateRuntime()
+	if err == nil || !strings.Contains(err.Error(), "DEPLOYMENT_CHANNEL") {
+		t.Fatalf("expected deployment channel validation error, got %v", err)
 	}
 }
 

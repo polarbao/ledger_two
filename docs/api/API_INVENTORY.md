@@ -52,7 +52,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| GET | `/api/healthz` | no | none | internal | inline | 健康检查，返回服务、数据库和 schema version。 |
+| GET | `/api/healthz` | no | none | internal | inline | 健康检查，返回服务、数据库、应用版本、schema version 和 deployment channel。 |
 | GET | `/api/init/status` | no | none | stable | `init.HandleStatus` | 初始化状态。 |
 | POST | `/api/init/setup` | no | none | stable | `init.HandleSetup` | 初始化系统、用户和初始账本。 |
 
@@ -159,7 +159,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| GET | `/api/admin/diagnostics` | yes | required | stable | `safety.HandleDiagnostics` | Owner-only 脱敏系统诊断，返回环境、数据库、schema、目录可写性、Cookie 策略、最近备份和审计动作计数。 |
+| GET | `/api/admin/diagnostics` | yes | required | stable | `safety.HandleDiagnostics` | Owner-only 脱敏系统诊断，返回运行环境、deployment channel、数据库、schema、目录可写性、Cookie 策略、最近备份和审计动作计数。 |
 | POST | `/api/admin/backup` | yes | optional | transitional | `safety.HandleManualBackup` | 手动备份。v1.1 前需确认角色要求。 |
 | POST | `/api/admin/restore` | yes | optional | transitional | `safety.HandleRestoreBackup` | 恢复备份，高风险。v1.1 前需确认角色要求和二次确认。 |
 | GET | `/api/admin/backups` | yes | optional | transitional | `safety.HandleGetBackups` | 备份列表。 |

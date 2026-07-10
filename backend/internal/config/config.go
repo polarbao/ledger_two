@@ -9,23 +9,38 @@ import (
 
 const DevJWTSecret = "ledger-two-secret-for-dev-only"
 
+const (
+	DeploymentChannelDevelopment = "development"
+	DeploymentChannelStaging     = "staging"
+	DeploymentChannelProduction  = "production"
+)
+
 type Config struct {
-	Env             string
-	Port            string
-	HTTPAddr        string
-	AppBaseURL      string
-	DSN             string
-	JWTSecret       string
-	BackupDir       string
-	UploadDir       string
-	LogDir          string
-	CookieSecure    string
-	CookieSameSite  string
-	cookieSecureSet bool
+	Env               string
+	DeploymentChannel string
+	Port              string
+	HTTPAddr          string
+	AppBaseURL        string
+	DSN               string
+	JWTSecret         string
+	BackupDir         string
+	UploadDir         string
+	LogDir            string
+	CookieSecure      string
+	CookieSameSite    string
+	cookieSecureSet   bool
 }
 
 func Load() *Config {
 	env := getenvDefault("APP_ENV", "development")
+	deploymentChannel := os.Getenv("DEPLOYMENT_CHANNEL")
+	if deploymentChannel == "" {
+		if env == "development" {
+			deploymentChannel = DeploymentChannelDevelopment
+		} else {
+			deploymentChannel = DeploymentChannelProduction
+		}
+	}
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -44,22 +59,26 @@ func Load() *Config {
 	cookieSecure, cookieSecureSet := os.LookupEnv("COOKIE_SECURE")
 
 	return &Config{
-		Env:             env,
-		Port:            port,
-		HTTPAddr:        httpAddr,
-		AppBaseURL:      os.Getenv("APP_BASE_URL"),
-		DSN:             dsn,
-		JWTSecret:       jwtSecret,
-		BackupDir:       getenvDefault("BACKUP_DIR", "data/backups"),
-		UploadDir:       getenvDefault("UPLOAD_DIR", "data/uploads"),
-		LogDir:          getenvDefault("LOG_DIR", "data/logs"),
-		CookieSecure:    cookieSecure,
-		CookieSameSite:  getenvDefault("COOKIE_SAMESITE", "Lax"),
-		cookieSecureSet: cookieSecureSet,
+		Env:               env,
+		DeploymentChannel: deploymentChannel,
+		Port:              port,
+		HTTPAddr:          httpAddr,
+		AppBaseURL:        os.Getenv("APP_BASE_URL"),
+		DSN:               dsn,
+		JWTSecret:         jwtSecret,
+		BackupDir:         getenvDefault("BACKUP_DIR", "data/backups"),
+		UploadDir:         getenvDefault("UPLOAD_DIR", "data/uploads"),
+		LogDir:            getenvDefault("LOG_DIR", "data/logs"),
+		CookieSecure:      cookieSecure,
+		CookieSameSite:    getenvDefault("COOKIE_SAMESITE", "Lax"),
+		cookieSecureSet:   cookieSecureSet,
 	}
 }
 
 func (c *Config) ValidateRuntime() error {
+	if !isValidDeploymentChannel(c.DeploymentChannel) {
+		return fmt.Errorf("DEPLOYMENT_CHANNEL must be development, staging, or production")
+	}
 	if c.Env != "production" {
 		return nil
 	}
@@ -86,6 +105,15 @@ func (c *Config) ValidateRuntime() error {
 		}
 	}
 	return nil
+}
+
+func isValidDeploymentChannel(channel string) bool {
+	switch channel {
+	case DeploymentChannelDevelopment, DeploymentChannelStaging, DeploymentChannelProduction:
+		return true
+	default:
+		return false
+	}
 }
 
 func getenvDefault(key string, fallback string) string {

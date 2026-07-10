@@ -468,14 +468,70 @@ button {
   color: var(--accent-green);
 }
 
-.sidebar-brand span {
+.sidebar-brand__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.sidebar-brand__copy > span:first-child {
   font-family: var(--font-heading);
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
   background: linear-gradient(90deg, #ffffff 0%, #cbd5e1 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.deployment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+  -webkit-text-fill-color: currentColor;
+}
+
+.deployment-badge--development {
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.deployment-badge--staging {
+  color: #fcd34d;
+  background: rgba(217, 119, 6, 0.14);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.deployment-badge--production {
+  color: #6ee7b7;
+  background: rgba(5, 150, 105, 0.14);
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.deployment-badge--unknown {
+  color: #cbd5e1;
+  background: rgba(100, 116, 139, 0.14);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.login-header .deployment-badge,
+.init-header .deployment-badge {
+  margin: 12px auto 0;
 }
 
 .sidebar-nav {
@@ -646,6 +702,14 @@ button {
   gap: 16px;
   font-size: 14px;
   color: var(--text-secondary);
+}
+
+.mobile-brand__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
 }
 
 .text-glow {
@@ -1854,6 +1918,18 @@ button {
 /* 历史卡片 */
 .history-settlement-card {
   padding: 24px;
+}
+
+@media (max-width: 430px) {
+  .mobile-brand .deployment-badge__version {
+    display: none;
+  }
+
+  .mobile-brand .deployment-badge {
+    min-height: 18px;
+    padding: 2px 5px;
+    font-size: 10px;
+  }
 }
 
 .settlement-copy-fallback {

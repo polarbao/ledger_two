@@ -13,6 +13,7 @@
 06-import-export-backup.md     导入、导出、备份恢复
 07-cross-platform-tech.md      跨端技术方案
 08-nas-deployment.md           NAS 部署方案
+23-v1.2-deployment-environment-isolation.md v1.2 staging/production 与数据库物理隔离
 09-test-quality.md             测试与质量保障
 13-foundation-framework-before-v1.1.md Foundation before v1.1 技术方案
 14-configuration-security-deployment.md 配置、安全与部署

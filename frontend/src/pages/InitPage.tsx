@@ -6,6 +6,7 @@ import { initApi } from '../api/init.api';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth.store';
 import { Shield, Sparkles, BookOpen, Users } from 'lucide-react';
+import DeploymentBadge from '../components/layout/DeploymentBadge';
 
 const setupSchema = z.object({
   ledger_name: z.string().min(1, '账本名称不能为空'),
@@ -70,6 +71,7 @@ export default function InitPage() {
           </div>
           <h1>初始化 LedgerTwo 双人共享账本</h1>
           <p className="subtitle">只需几步配置，即可开启专属你们的透明账本空间。</p>
+          <DeploymentBadge />
         </div>
 
         {errorMsg && <div className="error-banner">{errorMsg}</div>}

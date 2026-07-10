@@ -88,6 +88,10 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 		r.Get("/healthz", func(w http.ResponseWriter, req *http.Request) {
 			dbStatus := "ok"
 			var schemaVersion int64 = 0
+			deploymentChannel := "unknown"
+			if cfg != nil && cfg.DeploymentChannel != "" {
+				deploymentChannel = cfg.DeploymentChannel
+			}
 			if dbConn != nil {
 				if err := dbConn.PingContext(req.Context()); err != nil {
 					dbStatus = "error"
@@ -101,10 +105,11 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				dbStatus = "none"
 			}
 			response.JSON(w, http.StatusOK, map[string]interface{}{
-				"status":         "ok",
-				"db":             dbStatus,
-				"version":        appVersion,
-				"schema_version": schemaVersion,
+				"status":             "ok",
+				"db":                 dbStatus,
+				"version":            appVersion,
+				"schema_version":     schemaVersion,
+				"deployment_channel": deploymentChannel,
 			})
 		})
 

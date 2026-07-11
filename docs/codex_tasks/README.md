@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task49 已完成，进入 v1.2 发布候选冻结与部署准备阶段
+适用阶段：Task01-Task49 已完成；v1.2 RC 通过 Task49X 重新打开 XLSX 输入范围
 
 ## 1. 目标
 
@@ -24,6 +24,7 @@
 09-task41-49-detailed-plan.md   Task41-Task49 细化开发任务规格
 10-task33-40-detailed-plan.md   Task33-Task40 细化开发任务规格
 11-v1.2-release-hardening-plan.md v1.2 RC 环境隔离、NAS staging 与 production 升级任务
+12-v1.2-xlsx-import-special-plan.md v1.2 微信/支付宝 XLSX 导入专项任务
 ../releases/                    v1.2 发布说明、升级回滚和发布验收清单
 ```
 
@@ -35,14 +36,15 @@
 4. 短中期业务开发读取 `docs/prd/24-short-mid-module-breakdown.md`、`docs/prd/25-prd-v1.1-module-specs.md`、`docs/prd/26-prd-v1.2-import-module-specs.md`。
 5. 短中期冻结或开发前读取 `docs/prd/27-acceptance-case-matrix.md` 和 `docs/prd/28-transaction-caliber-supplement.md`。
 6. v1.2 Task47-Task49 开发前额外读取 `docs/prd/29-prd-v1.2-module-business-service-breakdown.md` 和 `docs/tech/20-v1.2-import-implementation-contract.md`。
-7. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
-8. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
-9. 读取本目录代码风格文档。
-10. 读取对应任务。
-11. 输出计划和预计修改文件，等待确认。
-12. 只实现当前任务。
-13. 运行测试和构建。
-14. 输出变更摘要、验证命令、风险和下一步建议。
+7. Task49X 开发前必须读取 `docs/prd/30-prd-v1.2-xlsx-import-special.md`、`docs/tech/24-v1.2-xlsx-import-implementation-plan.md` 和 `docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`。
+8. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
+9. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
+10. 读取本目录代码风格文档。
+11. 读取对应任务。
+12. 输出计划和预计修改文件，等待确认。
+13. 只实现当前任务。
+14. 运行测试和构建。
+15. 输出变更摘要、验证命令、风险和下一步建议。
 
 ## 4. 禁止事项
 

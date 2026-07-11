@@ -1,6 +1,6 @@
 # LedgerTwo 发布文档入口
 
-状态：`v1.2.0-rc` 发布候选冻结
+状态：`v1.2.0-rc/schema 18` 基线已部署；Task49X 重新打开 XLSX 输入范围，暂不视为最终冻结
 
 本目录只维护当前发布候选的用户可见变化、升级回滚步骤和验收记录。产品范围与实现细节仍分别以 `docs/prd/`、`docs/tech/` 和 `docs/codex_tasks/` 为事实源。
 
@@ -10,6 +10,7 @@
 2. `v1.2.0-rc-upgrade-guide.md`：从现有 v1.0/v1.1 数据升级到 schema 18 的备份、升级、验证和回滚步骤。
 3. `v1.2.0-rc-checklist.md`：本地质量门禁与 NAS 发布窗口的逐项验收记录。
 4. `../project_analysis/2026-07-12-v1.2-nas-production-upgrade-acceptance.md`：NAS staging/production 升级、数据保留与备份证据。
+5. `../codex_tasks/12-v1.2-xlsx-import-special-plan.md`：冻结恢复前必须完成的 XLSX 专项。
 
 ## 状态规则
 
@@ -18,3 +19,4 @@
 3. 升级后必须确认 `/api/healthz` 返回 `version=1.2.0-rc`、`schema_version=18`、`db=ok`。
 4. 任一阻断级问题出现时停止发布，恢复升级前数据库与旧镜像；不要仅回退镜像后继续使用 schema 18 数据库。
 5. 正式版确认后再把候选文档复制为稳定版本记录并创建对应 Git tag。
+6. Task49X 完成前，当前 schema 18 部署仍只能按 CSV 能力验收；不得依据规划文档直接上传真实 XLSX。

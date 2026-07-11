@@ -27,6 +27,7 @@
 27-acceptance-case-matrix.md            v1.1-v1.2 验收样例矩阵
 28-transaction-caliber-supplement.md    交易与账户口径补充
 29-prd-v1.2-module-business-service-breakdown.md v1.2 导入模块业务与服务细分
+30-prd-v1.2-xlsx-import-special.md    v1.2 微信/支付宝 XLSX 导入专项 PRD
 ```
 
 ## 使用方式
@@ -52,4 +53,5 @@ Task30 后的产品规划建议优先阅读：
 9. `29-prd-v1.2-module-business-service-breakdown.md`
 10. `27-acceptance-case-matrix.md`
 11. `28-transaction-caliber-supplement.md`
+12. `30-prd-v1.2-xlsx-import-special.md`（Task49X 开发前必读）
 

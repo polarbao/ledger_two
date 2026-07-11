@@ -15,7 +15,7 @@
 
 ## 1. 文档目的
 
-本文把 v1.2 的 CSV 导入能力拆成模块、业务对象、服务边界、API 切片、UI 工作台和验收任务，作为 Task47-Task49 进入实现前的中间层规格。
+本文把 v1.2 的账单导入能力拆成模块、业务对象、服务边界、API 切片、UI 工作台和验收任务。Task47-Task49 已完成 CSV 主链路；Task49X 在同一边界内增加微信、支付宝 XLSX reader，专项规格见 `docs/prd/30-prd-v1.2-xlsx-import-special.md`。
 
 v1.2 的核心原则：
 
@@ -23,7 +23,7 @@ v1.2 的核心原则：
 2. 去重和规则只降低人工成本，不替用户做不可逆决策。
 3. 所有正式落库仍复用 transaction service 的金额、权限、分类、账户、标签和可见性校验。
 4. 导入模块是账本内能力，必须强制 `X-Ledger-Id` 和 owner 权限。
-5. 微信、支付宝和通用 CSV 是 v1.2 范围；OCR、银行同步、xlsx、PDF 不进入 v1.2。
+5. 微信、支付宝支持 CSV/XLSX，通用模板支持 CSV；OCR、银行同步、xls/xlsm、PDF 不进入 v1.2。
 
 ## 2. 版本范围
 
@@ -37,7 +37,7 @@ v1.2 的核心原则：
 
 ### 2.2 非目标
 
-1. 不做 OCR、小票图片、PDF 和 xlsx。
+1. 不做 OCR、小票图片、PDF、xls/xlsm 和任意通用 XLSX 映射。
 2. 不做银行同步或自动读取第三方账号。
 3. 不自动提交 suspicious 行。
 4. 不自动把转账、红包、理财、信用卡还款识别成正式账单。
@@ -53,7 +53,7 @@ v1.2 的核心原则：
 | 字段类别 | 字段 | 说明 |
 |---|---|---|
 | 身份 | id、ledger_id、created_by_user_id | 归属账本和创建者 |
-| 来源 | source_type、filename、file_sha256 | 来源类型和文件指纹 |
+| 来源 | source_type、file_format、filename、file_sha256、parser_metadata_json | 来源类型、容器格式、文件指纹和非敏感解析元数据 |
 | 状态 | status、expires_at、committed_at | previewing、ready、committed、failed、expired |
 | 统计 | total_rows、new_rows、duplicate_rows、suspicious_rows、invalid_rows、imported_rows、skipped_rows、failed_rows | 预览和提交统计 |
 | 时间 | created_at、updated_at | 批次生命周期 |
@@ -142,19 +142,19 @@ http handler
 
 职责：
 
-1. 读取 CSV 文件和编码。
+1. 通过 CSV/XLSX tabular reader 读取表格行；XLSX 负责格式安全、工作表选择和表头定位。
 2. 按 source_type 提取原始字段。
 3. 返回带 `row_number` 的 raw row，不处理正式业务落库。
 
 边界：
 
-- Parser 不访问数据库。
+- Reader 和 Parser 都不访问数据库。
 - Parser 不生成正式交易。
 - Parser 不做权限判断。
 
 验收：
 
-- 微信、支付宝、通用 CSV 至少各 1 个 fixture。
+- 微信、支付宝的 CSV/XLSX 和通用 CSV 至少各 1 个 fixture。
 - 编码不支持、表头缺失、行列数不一致时返回可行动错误。
 
 ### 4.2 Normalizer
@@ -337,7 +337,7 @@ POST  /api/import-rules/{id}/restore
 |---|---|---|
 | ImportEntryPage | 设置页进入导入工作区 | owner 可见，非 owner 禁用或隐藏 |
 | SourceStep | 选择微信、支付宝、通用 CSV | source_type |
-| UploadStep | 上传 CSV | 上传中、格式错误、成功 |
+| UploadStep | 上传账单文件 | 上传中、格式错误、来源不匹配、成功 |
 | MappingStep | 字段映射 | 自动识别、手工修正、缺必填字段 |
 | PreviewWorkbench | 预览批次和统计 | new、duplicate、suspicious、invalid |
 | ImportRowCard / RowTable | 行级预览 | 移动端卡片，桌面表格 |
@@ -380,7 +380,8 @@ POST  /api/import-rules/{id}/restore
 | import.rules.enabled | false before Task49 | 控制规则推荐和管理入口 |
 | import.source.wechat.enabled | true | 单独关闭微信 parser |
 | import.source.alipay.enabled | true | 单独关闭支付宝 parser |
-| import.max_rows_per_batch | 1000 | 限制单批行数 |
+| import.max_rows_per_batch | 500 | 限制单批行数，与当前实现一致 |
+| import.format.xlsx.enabled | false before Task49X acceptance | 独立关闭 XLSX，不影响 CSV |
 | import.preview_ttl_days | 7 | 预览批次过期时间 |
 
 降级规则：
@@ -395,7 +396,7 @@ POST  /api/import-rules/{id}/restore
 
 | 测试类型 | 覆盖内容 |
 |---|---|
-| parser fixture test | 微信、支付宝、通用 CSV |
+| parser fixture test | 微信、支付宝 CSV/XLSX、通用 CSV、异常工作簿 |
 | normalizer test | 金额整数分、时间、退款、转账 |
 | batch service test | preview 不写 transactions、状态转换 |
 | row service test | 调整、跳过、suspicious 确认 |

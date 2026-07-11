@@ -1,6 +1,6 @@
 # LedgerTwo 文档索引与 AI 实现阅读顺序
 
-> 当前事实源提示：Task01-Task49 已完成，Foundation、v1.1 和 v1.2 导入业务开发均已收口，当前进入 `1.2.0-rc` 冻结检查。本文保留早期 v0.3 / Demo 文档索引作为历史背景，但后续开发应优先读取 `docs/README.md`、`docs/releases/`、`docs/prd/20-29`、`docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md`、`docs/ui/14-v1.1-v1.2-module-flows.md`、`docs/ui/15-ledgertwo-ux-optimization-program.md`、`docs/ui/figma/README.md`、`docs/project_analysis/2026-07-09-v1.2-freeze-readiness.md` 和 `docs/codex_tasks/`。
+> 当前事实源提示：Task01-Task49 已完成。2026-07-12 因微信、支付宝实际交付 XLSX，v1.2 RC 通过 Task49X 重新打开输入格式范围；完成专项后再恢复冻结。后续优先读取 `docs/prd/30-prd-v1.2-xlsx-import-special.md`、`docs/tech/24-v1.2-xlsx-import-implementation-plan.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md` 和既有 v1.2 导入契约。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -28,6 +28,7 @@ docs/prd/24-short-mid-module-breakdown.md
 docs/prd/25-prd-v1.1-module-specs.md
 docs/prd/26-prd-v1.2-import-module-specs.md
 docs/prd/29-prd-v1.2-module-business-service-breakdown.md
+docs/prd/30-prd-v1.2-xlsx-import-special.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md
@@ -36,6 +37,7 @@ docs/tech/20-v1.2-import-implementation-contract.md
 docs/tech/21-v1.2-import-migration-review.md
 docs/tech/22-v1.2-import-task47-implementation-plan.md
 docs/tech/23-v1.2-deployment-environment-isolation.md
+docs/tech/24-v1.2-xlsx-import-implementation-plan.md
 docs/api/API_INVENTORY.md
 docs/api/API_CONVENTIONS.md
 docs/api/openapi.yaml
@@ -49,6 +51,7 @@ docs/codex_tasks/08-product-roadmap-dev-plan.md
 docs/codex_tasks/09-task41-49-detailed-plan.md
 docs/codex_tasks/10-task33-40-detailed-plan.md
 docs/codex_tasks/11-v1.2-release-hardening-plan.md
+docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md
 ```
 
 ### 1.2 历史 v0.3 结论
@@ -79,6 +82,7 @@ docs/releases/v1.2.0-rc-upgrade-guide.md
 docs/releases/v1.2.0-rc-checklist.md
 docs/project_analysis/2026-07-12-v1.2-nas-production-upgrade-acceptance.md
 docs/project_analysis/2026-07-12-real-wechat-bill-import-readiness.md
+docs/project_analysis/2026-07-12-v1.2-xlsx-special-predevelopment-review.md
 docs/prd/00-product-roadmap.md
 docs/prd/20-product-retrospective-and-positioning.md
 docs/prd/21-roadmap-short-mid-long.md
@@ -88,6 +92,7 @@ docs/prd/24-short-mid-module-breakdown.md
 docs/prd/25-prd-v1.1-module-specs.md
 docs/prd/26-prd-v1.2-import-module-specs.md
 docs/prd/29-prd-v1.2-module-business-service-breakdown.md
+docs/prd/30-prd-v1.2-xlsx-import-special.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md
@@ -95,11 +100,13 @@ docs/tech/19-short-mid-implementation-readiness.md
 docs/tech/20-v1.2-import-implementation-contract.md
 docs/tech/21-v1.2-import-migration-review.md
 docs/tech/22-v1.2-import-task47-implementation-plan.md
+docs/tech/24-v1.2-xlsx-import-implementation-plan.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
 docs/ui/figma/README.md
 docs/fixtures/imports/README.md
 docs/codex_tasks/README.md
+docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md
 ```
 
 如果处理早期 Demo 或 v0.3 任务，再补读：

@@ -26,6 +26,7 @@
 | `component-library.md` | 组件库规格、状态和前端映射 |
 | `v1.1-v1.2-ui-draft-spec.md` | v1.1/v1.2 逐屏 UI 设计稿说明 |
 | `v1.2-task49-import-rule-manager-handoff.md` | Task49 导入规则管理、命中解释、多标签和移动端 frame 补充规格 |
+| `v1.2-task49x-xlsx-import-handoff.md` | Task49X XLSX 文件选择、解析摘要、错误状态和移动端 frame 规格 |
 | `handoff-checklist.md` | 每次 UI 设计输出和开发交接检查清单 |
 
 ## 2.1 当前完整性判断
@@ -45,7 +46,7 @@
 
 仓库本地仍不包含可直接打开的 `.fig` / `.figma` 二进制文件；后续以线上 Figma 文件和本目录结构化规格共同作为设计事实源。
 
-v1.2 Task47-Task49 的导入工作台设计规格已覆盖主流程；Task49 的规则管理、多标签、归档恢复、命中解释已通过 `v1.2-task49-import-rule-manager-handoff.md` 补齐。后续若正式写入 Figma，应把该文件作为 03 v1.2 Import Workbench 页面下的 frame 建模依据。
+v1.2 Task47-Task49 的导入工作台设计规格已覆盖主流程；Task49 的规则管理、多标签、归档恢复、命中解释已通过 `v1.2-task49-import-rule-manager-handoff.md` 补齐。Task49X 新增的 XLSX 上传和结构错误状态以 `v1.2-task49x-xlsx-import-handoff.md` 为建模依据，代码开发前仍需同步到账户主 Figma 文件。
 
 ## 3. 使用顺序
 

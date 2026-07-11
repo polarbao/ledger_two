@@ -29,20 +29,22 @@ docs/
 10. `docs/prd/25-prd-v1.1-module-specs.md`
 11. `docs/prd/26-prd-v1.2-import-module-specs.md`
 12. `docs/prd/29-prd-v1.2-module-business-service-breakdown.md`
-13. `docs/prd/27-acceptance-case-matrix.md`
-14. `docs/prd/28-transaction-caliber-supplement.md`
-15. `docs/tech/18-short-mid-architecture-slices.md`
-16. `docs/api/API_INVENTORY.md`
-17. `docs/api/API_CONVENTIONS.md`
-18. `docs/api/openapi.yaml`
-19. `docs/ui/14-v1.1-v1.2-module-flows.md`
-20. `docs/project_analysis/2026-07-06-short-mid-long-and-nas-readiness.md`
-21. `docs/reviews/2026-06-17-task30-current-progress-vs-docs-review.md`
-22. `docs/codex_tasks/README.md`
-23. `docs/project_analysis/2026-07-09-v1.2-freeze-readiness.md`
-24. 进入具体业务模块文档。
+13. `docs/prd/30-prd-v1.2-xlsx-import-special.md`
+14. `docs/prd/27-acceptance-case-matrix.md`
+15. `docs/prd/28-transaction-caliber-supplement.md`
+16. `docs/tech/18-short-mid-architecture-slices.md`
+17. `docs/tech/24-v1.2-xlsx-import-implementation-plan.md`
+18. `docs/api/API_INVENTORY.md`
+19. `docs/api/API_CONVENTIONS.md`
+20. `docs/api/openapi.yaml`
+21. `docs/ui/14-v1.1-v1.2-module-flows.md`
+22. `docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`
+23. `docs/project_analysis/2026-07-12-real-wechat-bill-import-readiness.md`
+24. `docs/project_analysis/2026-07-12-v1.2-xlsx-special-predevelopment-review.md`
+25. `docs/codex_tasks/README.md`
+26. 进入具体业务模块文档。
 
-当前项目已完成 Task01-Task49，Foundation、v1.1 和 v1.2 导入模块均已收口，当前进入 `1.2.0-rc` 冻结阶段。早期 Demo / v0.3 文档仍保留为历史约束和实现背景，但后续开发任务以 `docs/codex_tasks/`、`docs/prd/24-29`、`docs/tech/18-21` 和最新 `docs/project_analysis/` 冻结记录为主要入口。
+当前项目已完成 Task01-Task49。因微信、支付宝实际交付 XLSX，v1.2 RC 已通过 Task49X 重新打开输入格式范围；专项完成后再恢复冻结。后续开发以 `docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、`docs/prd/30-prd-v1.2-xlsx-import-special.md`、`docs/tech/24-v1.2-xlsx-import-implementation-plan.md` 和最新项目分析为主要入口。
 
 ## AI 开发使用方式
 

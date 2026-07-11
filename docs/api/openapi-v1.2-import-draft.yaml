@@ -3,7 +3,7 @@ info:
   title: LedgerTwo v1.2 Import API
   version: 1.2.0-rc
   description: |
-    v1.2 CSV 导入模块已实现契约，覆盖 Task47-Task49。
+    v1.2 账单导入模块已实现 CSV 契约，Task49X 增加微信、支付宝 XLSX 输入。
     本文件是 openapi.yaml 的 v1.2 导入补充；实际 router 路径记录在 API_INVENTORY.md。
 servers:
   - url: /api
@@ -15,8 +15,11 @@ paths:
   /imports/preview:
     post:
       tags: [imports]
-      summary: Upload CSV and create preview batch
-      description: Owner only. Preview must not create transactions.
+      summary: Upload a supported bill file and create preview batch
+      description: |
+        Owner only. Preview must not create transactions.
+        WeChat and Alipay accept CSV/XLSX; generic accepts CSV only.
+        The backend infers and validates file_format from extension, magic and OOXML structure.
       security:
         - cookieAuth: []
       parameters:
@@ -32,6 +35,7 @@ paths:
                 file:
                   type: string
                   format: binary
+                  description: CSV or supported XLSX bill file. Maximum request size is 2 MiB.
                 source_type:
                   type: string
                   enum: [wechat, alipay, generic]
@@ -346,7 +350,7 @@ components:
           enum: [true]
         data:
           type: object
-          required: [id, source_type, status, total_rows, rows]
+          required: [id, source_type, file_format, status, total_rows, rows]
           properties:
             id:
               type: string
@@ -355,10 +359,15 @@ components:
             source_type:
               type: string
               enum: [wechat, alipay, generic]
+            file_format:
+              type: string
+              enum: [csv, xlsx]
             filename:
               type: string
             file_sha256:
               type: string
+            parser_metadata:
+              $ref: "#/components/schemas/ImportParserMetadata"
             status:
               type: string
               enum: [previewing, ready, committed, failed, expired]
@@ -396,6 +405,26 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/ImportRow"
+    ImportParserMetadata:
+      type: object
+      description: Non-sensitive parser facts. Cell values and absolute paths are never included.
+      properties:
+        parser_version:
+          type: string
+        sheet_name:
+          type: string
+        header_row_number:
+          type: integer
+          minimum: 1
+        parsed_rows:
+          type: integer
+          minimum: 0
+        scanned_sheets:
+          type: integer
+          minimum: 0
+        max_columns:
+          type: integer
+          minimum: 0
     ImportRowResponse:
       type: object
       required: [success, data]

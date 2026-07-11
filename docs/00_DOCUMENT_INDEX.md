@@ -78,6 +78,7 @@ docs/releases/v1.2.0-rc-release-notes.md
 docs/releases/v1.2.0-rc-upgrade-guide.md
 docs/releases/v1.2.0-rc-checklist.md
 docs/project_analysis/2026-07-12-v1.2-nas-production-upgrade-acceptance.md
+docs/project_analysis/2026-07-12-real-wechat-bill-import-readiness.md
 docs/prd/00-product-roadmap.md
 docs/prd/20-product-retrospective-and-positioning.md
 docs/prd/21-roadmap-short-mid-long.md

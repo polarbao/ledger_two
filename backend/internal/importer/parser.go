@@ -1,7 +1,6 @@
 package importer
 
 import (
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
@@ -9,26 +8,33 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"ledger_two/internal/importer/tabular"
 )
 
 var cst = time.FixedZone("CST", 8*60*60)
 
 func ParseCSV(sourceType string, reader io.Reader) (*Preview, error) {
-	records, err := readCSV(reader)
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
-	if len(records) == 0 {
-		return nil, errors.New("csv is empty")
+	doc, err := tabular.Read("import.csv", sourceType, content)
+	if err != nil {
+		return nil, err
 	}
+	return ParseDocument(sourceType, doc)
+}
 
-	header := makeHeaderIndex(records[0])
-	rows := records[1:]
+func ParseDocument(sourceType string, doc *tabular.Document) (*Preview, error) {
+	if doc == nil || len(doc.Header) == 0 {
+		return nil, errors.New("import document is empty")
+	}
+	header := makeHeaderIndex(doc.Header)
 
 	var normalized []PreviewRow
-	for i, row := range rows {
-		rowNumber := i + 1
-		if isEmptyRow(row) {
+	for _, row := range doc.Rows {
+		if isEmptyRow(row.Values) {
 			continue
 		}
 
@@ -36,11 +42,11 @@ func ParseCSV(sourceType string, reader io.Reader) (*Preview, error) {
 		var err error
 		switch sourceType {
 		case SourceTypeWechat:
-			parsed = parseWechatRow(rowNumber, header, row)
+			parsed = parseWechatRow(row.Number, header, row.Values)
 		case SourceTypeAlipay:
-			parsed = parseAlipayRow(rowNumber, header, row)
+			parsed = parseAlipayRow(row.Number, header, row.Values)
 		case SourceTypeGeneric:
-			parsed = parseGenericRow(rowNumber, header, row)
+			parsed = parseGenericRow(row.Number, header, row.Values)
 		default:
 			err = fmt.Errorf("unsupported source type: %s", sourceType)
 		}
@@ -56,14 +62,6 @@ func ParseCSV(sourceType string, reader io.Reader) (*Preview, error) {
 		SourceType: sourceType,
 		Rows:       normalized,
 	}, nil
-}
-
-func readCSV(reader io.Reader) ([][]string, error) {
-	csvReader := csv.NewReader(reader)
-	csvReader.FieldsPerRecord = -1
-	csvReader.LazyQuotes = true
-	csvReader.TrimLeadingSpace = true
-	return csvReader.ReadAll()
 }
 
 func makeHeaderIndex(headers []string) map[string]int {
@@ -124,17 +122,21 @@ func parseWechatRow(rowNumber int, header map[string]int, row []string) PreviewR
 }
 
 func parseAlipayRow(rowNumber int, header map[string]int, row []string) PreviewRow {
-	txType := cell(header, row, "类型")
+	txType := cell(header, row, "类型", "交易分类")
 	direction := normalizeDirection(cell(header, row, "收/支"), txType)
-	amount, amountErr := parseYuanToCents(cell(header, row, "金额(元)", "金额（元）"))
+	amount, amountErr := parseYuanToCents(cell(header, row, "金额(元)", "金额（元）", "金额"))
 
-	result := baseRow(rowNumber, direction, cell(header, row, "商品名称"), cell(header, row, "交易对方"), cell(header, row, "备注"))
+	result := baseRow(rowNumber, direction, cell(header, row, "商品名称", "商品说明"), cell(header, row, "交易对方"), cell(header, row, "备注"))
 	result.AmountCents = amount
-	result.ExternalOrderID = cell(header, row, "交易号")
+	result.ExternalOrderID = strings.TrimSpace(cell(header, row, "交易号", "交易订单号"))
+	result.SourceAccount = cell(header, row, "收/付款方式", "支付方式")
 
 	occurredRaw := cell(header, row, "付款时间")
 	if occurredRaw == "" {
 		occurredRaw = cell(header, row, "交易创建时间")
+	}
+	if occurredRaw == "" {
+		occurredRaw = cell(header, row, "交易时间")
 	}
 	if occurredAt, err := parseLocalTime(occurredRaw); err == nil {
 		result.OccurredAt = occurredAt
@@ -237,11 +239,13 @@ func parseLocalTime(value string) (string, error) {
 		return "", errors.New("time is empty")
 	}
 
-	parsed, err := time.ParseInLocation("2006-01-02 15:04:05", value, cst)
-	if err != nil {
-		return "", err
+	for _, layout := range []string{"2006-01-02 15:04:05", "2006/01/02 15:04:05"} {
+		parsed, err := time.ParseInLocation(layout, value, cst)
+		if err == nil {
+			return parsed.Format(time.RFC3339), nil
+		}
 	}
-	return parsed.Format(time.RFC3339), nil
+	return "", fmt.Errorf("unsupported local time: %s", value)
 }
 
 func parseRFC3339Time(value string) (string, error) {

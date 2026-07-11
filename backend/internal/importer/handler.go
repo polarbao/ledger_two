@@ -54,7 +54,7 @@ func (h *Handler) HandlePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	batch, err := h.service.PreviewCSV(r.Context(), PreviewFileRequest{
+	batch, err := h.service.PreviewFile(r.Context(), PreviewFileRequest{
 		LedgerContext: lc,
 		Filename:      header.Filename,
 		SourceType:    sourceType,

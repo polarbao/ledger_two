@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/pressly/goose/v3"
+	"github.com/xuri/excelize/v2"
 
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
@@ -58,6 +59,33 @@ func TestPreviewCSVCreatesReadyBatchWithoutTransactions(t *testing.T) {
 	}
 	if stored.ID != batch.ID || len(stored.Rows) != 5 {
 		t.Fatalf("stored batch mismatch: id=%s rows=%d", stored.ID, len(stored.Rows))
+	}
+}
+
+func TestPreviewFileStoresXLSXParserMetadataWithoutTransactions(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+	content := buildWechatXLSXFixture(t)
+
+	batch, err := service.PreviewFile(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "wechat.xlsx",
+		SourceType:    SourceTypeWechat,
+		Content:       content,
+	})
+	if err != nil {
+		t.Fatalf("PreviewFile returned error: %v", err)
+	}
+	if batch.FileFormat != "xlsx" || batch.ParserMetadata.SheetName != "Sheet1" || batch.ParserMetadata.HeaderRowNumber != 18 {
+		t.Fatalf("unexpected xlsx metadata: %+v", batch)
+	}
+	if batch.TotalRows != 1 || batch.Rows[0].RowNumber != 19 {
+		t.Fatalf("unexpected xlsx rows: %+v", batch.Rows)
+	}
+	if countRows(t, database, "transactions") != 0 {
+		t.Fatalf("xlsx preview must not write transactions")
 	}
 }
 
@@ -762,6 +790,26 @@ func readImportFixture(t *testing.T, name string) []byte {
 		t.Fatalf("read fixture %s: %v", name, err)
 	}
 	return data
+}
+
+func buildWechatXLSXFixture(t *testing.T) []byte {
+	t.Helper()
+
+	file := excelize.NewFile()
+	t.Cleanup(func() { _ = file.Close() })
+	header := []any{"交易时间", "交易类型", "交易对方", "商品", "收/支", "金额(元)", "支付方式", "当前状态", "交易单号", "商户单号", "备注"}
+	row := []any{"2026-07-01 12:30:00", "商户消费", "示例商户", "午餐", "支出", "35.80", "零钱", "支付成功", "000123", "merchant-1", ""}
+	if err := file.SetSheetRow("Sheet1", "A18", &header); err != nil {
+		t.Fatalf("set xlsx header: %v", err)
+	}
+	if err := file.SetSheetRow("Sheet1", "A19", &row); err != nil {
+		t.Fatalf("set xlsx row: %v", err)
+	}
+	buffer, err := file.WriteToBuffer()
+	if err != nil {
+		t.Fatalf("write xlsx fixture: %v", err)
+	}
+	return bytes.Clone(buffer.Bytes())
 }
 
 func findPreviewRowByNumber(t *testing.T, batch *PreviewBatch, rowNumber int) PreviewRow {

@@ -1,11 +1,11 @@
 package importer
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,10 +14,11 @@ import (
 	"github.com/google/uuid"
 
 	appErrors "ledger_two/internal/errors"
+	"ledger_two/internal/importer/tabular"
 	"ledger_two/internal/ledger"
 )
 
-const MaxPreviewRows = 500
+const MaxPreviewRows = tabular.MaxDataRows
 
 type Service struct {
 	repo *Repository
@@ -35,6 +36,10 @@ type PreviewFileRequest struct {
 }
 
 func (s *Service) PreviewCSV(ctx context.Context, req PreviewFileRequest) (*PreviewBatch, error) {
+	return s.PreviewFile(ctx, req)
+}
+
+func (s *Service) PreviewFile(ctx context.Context, req PreviewFileRequest) (*PreviewBatch, error) {
 	if req.LedgerContext.Role != ledger.RoleOwner {
 		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可导入账单")
 	}
@@ -45,9 +50,13 @@ func (s *Service) PreviewCSV(ctx context.Context, req PreviewFileRequest) (*Prev
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportFileInvalid, "导入文件不能为空")
 	}
 
-	preview, err := ParseCSV(req.SourceType, bytes.NewReader(req.Content))
+	doc, err := tabular.Read(req.Filename, req.SourceType, req.Content)
 	if err != nil {
-		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportFileInvalid, "解析 CSV 失败")
+		return nil, importFileError(err)
+	}
+	preview, err := ParseDocument(req.SourceType, doc)
+	if err != nil {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportFileInvalid, "解析账单内容失败")
 	}
 	if len(preview.Rows) > MaxPreviewRows {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, fmt.Sprintf("单批导入最多支持 %d 行", MaxPreviewRows))
@@ -56,7 +65,7 @@ func (s *Service) PreviewCSV(ctx context.Context, req PreviewFileRequest) (*Prev
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "应用导入规则失败")
 	}
 
-	batch := buildPreviewBatch(req, preview.Rows)
+	batch := buildPreviewBatch(req, preview.Rows, doc)
 	if err := s.applyExistingDuplicates(ctx, batch); err != nil {
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "分析导入重复数据失败")
 	}
@@ -365,7 +374,7 @@ func (s *Service) validateRuleMetadata(ctx context.Context, ledgerID string, res
 	return nil
 }
 
-func buildPreviewBatch(req PreviewFileRequest, rows []PreviewRow) *PreviewBatch {
+func buildPreviewBatch(req PreviewFileRequest, rows []PreviewRow, doc *tabular.Document) *PreviewBatch {
 	now := time.Now().Format(time.RFC3339)
 	fileHash := sha256.Sum256(req.Content)
 	batchID := uuid.NewString()
@@ -381,6 +390,8 @@ func buildPreviewBatch(req PreviewFileRequest, rows []PreviewRow) *PreviewBatch 
 		ID:              batchID,
 		LedgerID:        req.LedgerContext.LedgerID,
 		SourceType:      req.SourceType,
+		FileFormat:      doc.Format,
+		ParserMetadata:  doc.Metadata,
 		Filename:        req.Filename,
 		FileSHA256:      hex.EncodeToString(fileHash[:]),
 		Status:          "ready",
@@ -391,6 +402,25 @@ func buildPreviewBatch(req PreviewFileRequest, rows []PreviewRow) *PreviewBatch 
 	}
 	recountBatch(batch)
 	return batch
+}
+
+func importFileError(err error) *appErrors.AppError {
+	switch {
+	case errors.Is(err, tabular.ErrFormatMismatch):
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportFileFormatMismatch, "文件后缀与实际格式不一致，请重新导出原始账单")
+	case errors.Is(err, tabular.ErrUnsupportedFormat):
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportFileUnsupported, "当前来源不支持该文件格式")
+	case errors.Is(err, tabular.ErrHeaderNotFound):
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportSourceMismatch, "未找到所选来源的完整账单表头")
+	case errors.Is(err, tabular.ErrAmbiguousWorkbook):
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportWorkbookAmbiguous, "检测到多个账单工作表，请只保留一个后重试")
+	case errors.Is(err, tabular.ErrUnsupportedLayout):
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportWorkbookStructure, "账单数据区包含不受支持的 Excel 结构，请重新导出原始账单")
+	case errors.Is(err, tabular.ErrTooManyRows):
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportBatchTooLarge, fmt.Sprintf("单批导入最多支持 %d 行", MaxPreviewRows))
+	default:
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportFileInvalid, "解析账单文件失败")
+	}
 }
 
 func (s *Service) applyExistingDuplicates(ctx context.Context, batch *PreviewBatch) error {

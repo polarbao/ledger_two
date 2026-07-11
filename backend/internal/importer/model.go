@@ -1,6 +1,10 @@
 package importer
 
-import "database/sql"
+import (
+	"database/sql"
+
+	"ledger_two/internal/importer/tabular"
+)
 
 const (
 	SourceTypeWechat  = "wechat"
@@ -38,26 +42,28 @@ type Preview struct {
 }
 
 type PreviewBatch struct {
-	ID              string       `json:"id"`
-	LedgerID        string       `json:"ledger_id"`
-	SourceType      string       `json:"source_type"`
-	Filename        string       `json:"filename"`
-	FileSHA256      string       `json:"file_sha256"`
-	Status          string       `json:"status"`
-	TotalRows       int          `json:"total_rows"`
-	NewRows         int          `json:"new_rows"`
-	DuplicateRows   int          `json:"duplicate_rows"`
-	SuspiciousRows  int          `json:"suspicious_rows"`
-	InvalidRows     int          `json:"invalid_rows"`
-	ImportedRows    int          `json:"imported_rows"`
-	SkippedRows     int          `json:"skipped_rows"`
-	FailedRows      int          `json:"failed_rows"`
-	CreatedByUserID string       `json:"created_by_user_id"`
-	CreatedAt       string       `json:"created_at"`
-	UpdatedAt       string       `json:"updated_at"`
-	CommittedAt     string       `json:"committed_at,omitempty"`
-	ExpiresAt       string       `json:"expires_at,omitempty"`
-	Rows            []PreviewRow `json:"rows"`
+	ID              string           `json:"id"`
+	LedgerID        string           `json:"ledger_id"`
+	SourceType      string           `json:"source_type"`
+	FileFormat      string           `json:"file_format"`
+	ParserMetadata  tabular.Metadata `json:"parser_metadata"`
+	Filename        string           `json:"filename"`
+	FileSHA256      string           `json:"file_sha256"`
+	Status          string           `json:"status"`
+	TotalRows       int              `json:"total_rows"`
+	NewRows         int              `json:"new_rows"`
+	DuplicateRows   int              `json:"duplicate_rows"`
+	SuspiciousRows  int              `json:"suspicious_rows"`
+	InvalidRows     int              `json:"invalid_rows"`
+	ImportedRows    int              `json:"imported_rows"`
+	SkippedRows     int              `json:"skipped_rows"`
+	FailedRows      int              `json:"failed_rows"`
+	CreatedByUserID string           `json:"created_by_user_id"`
+	CreatedAt       string           `json:"created_at"`
+	UpdatedAt       string           `json:"updated_at"`
+	CommittedAt     string           `json:"committed_at,omitempty"`
+	ExpiresAt       string           `json:"expires_at,omitempty"`
+	Rows            []PreviewRow     `json:"rows"`
 }
 
 type PreviewRow struct {

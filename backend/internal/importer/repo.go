@@ -35,16 +35,22 @@ func (r *Repository) CreatePreviewBatch(ctx context.Context, batch *PreviewBatch
 	}
 	defer tx.Rollback()
 
+	parserMetadataJSON, err := json.Marshal(batch.ParserMetadata)
+	if err != nil {
+		return err
+	}
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO import_batches (
 			id, ledger_id, filename, created_by_user_id, status, created_at,
 			source_type, file_sha256, total_rows, new_rows, duplicate_rows,
-			suspicious_rows, invalid_rows, imported_rows, skipped_rows, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			suspicious_rows, invalid_rows, imported_rows, skipped_rows, updated_at,
+			file_format, parser_metadata_json
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		batch.ID, batch.LedgerID, batch.Filename, batch.CreatedByUserID, batch.Status, batch.CreatedAt,
 		batch.SourceType, batch.FileSHA256, batch.TotalRows, batch.NewRows, batch.DuplicateRows,
 		batch.SuspiciousRows, batch.InvalidRows, batch.ImportedRows, batch.SkippedRows, batch.UpdatedAt,
+		batch.FileFormat, string(parserMetadataJSON),
 	)
 	if err != nil {
 		return err
@@ -91,20 +97,25 @@ func (r *Repository) CreatePreviewBatch(ctx context.Context, batch *PreviewBatch
 
 func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batchID string) (*PreviewBatch, error) {
 	var batch PreviewBatch
+	var parserMetadataJSON string
 	err := r.db.QueryRowContext(ctx, `
 		SELECT id, ledger_id, source_type, filename, file_sha256, status,
 		       total_rows, new_rows, duplicate_rows, suspicious_rows, invalid_rows,
 		       imported_rows, skipped_rows, failed_rows, created_by_user_id, created_at,
-		       COALESCE(updated_at, ''), COALESCE(committed_at, ''), COALESCE(expires_at, '')
+		       COALESCE(updated_at, ''), COALESCE(committed_at, ''), COALESCE(expires_at, ''),
+		       file_format, parser_metadata_json
 		FROM import_batches
 		WHERE id = ? AND ledger_id = ?
 	`, batchID, ledgerID).Scan(
 		&batch.ID, &batch.LedgerID, &batch.SourceType, &batch.Filename, &batch.FileSHA256, &batch.Status,
 		&batch.TotalRows, &batch.NewRows, &batch.DuplicateRows, &batch.SuspiciousRows, &batch.InvalidRows,
 		&batch.ImportedRows, &batch.SkippedRows, &batch.FailedRows, &batch.CreatedByUserID, &batch.CreatedAt,
-		&batch.UpdatedAt, &batch.CommittedAt, &batch.ExpiresAt,
+		&batch.UpdatedAt, &batch.CommittedAt, &batch.ExpiresAt, &batch.FileFormat, &parserMetadataJSON,
 	)
 	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal([]byte(parserMetadataJSON), &batch.ParserMetadata); err != nil {
 		return nil, err
 	}
 

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"ledger_two/internal/importer/tabular"
 )
 
 type expectedPreview struct {
@@ -75,6 +77,32 @@ func TestParseCSVFixtures(t *testing.T) {
 				assertPreviewRow(t, got.Rows[i], want.ExpectedRows[i])
 			}
 		})
+	}
+}
+
+func TestParseDocumentSupportsCurrentAlipayExportHeaders(t *testing.T) {
+	doc := &tabular.Document{
+		Format: tabular.FormatCSV,
+		Header: []string{"交易时间", "交易分类", "交易对方", "对方账号", "商品说明", "收/支", "金额", "收/付款方式", "交易状态", "交易订单号", "商家订单号", "备注"},
+		Rows: []tabular.Row{{
+			Number: 1,
+			Values: []string{"2026-07-01 12:30:00", "餐饮美食", "示例商户", "/", "午餐", "支出", "35.80", "余额", "交易成功", "000123", "merchant-1", ""},
+		}},
+	}
+
+	preview, err := ParseDocument(SourceTypeAlipay, doc)
+	if err != nil {
+		t.Fatalf("ParseDocument returned error: %v", err)
+	}
+	if len(preview.Rows) != 1 {
+		t.Fatalf("row count = %d, want 1", len(preview.Rows))
+	}
+	row := preview.Rows[0]
+	if row.RowNumber != 1 || row.OccurredAt != "2026-07-01T12:30:00+08:00" || row.AmountCents != 3580 {
+		t.Fatalf("unexpected normalized row: %+v", row)
+	}
+	if row.Title != "午餐" || row.ExternalOrderID != "000123" || row.SourceAccount != "余额" {
+		t.Fatalf("unexpected source fields: %+v", row)
 	}
 }
 

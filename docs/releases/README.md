@@ -9,6 +9,7 @@
 1. `v1.2.0-rc-release-notes.md`：候选版本能力、范围边界和已知风险。
 2. `v1.2.0-rc-upgrade-guide.md`：从现有 v1.0/v1.1 数据升级到 schema 18 的备份、升级、验证和回滚步骤。
 3. `v1.2.0-rc-checklist.md`：本地质量门禁与 NAS 发布窗口的逐项验收记录。
+4. `../project_analysis/2026-07-12-v1.2-nas-production-upgrade-acceptance.md`：NAS staging/production 升级、数据保留与备份证据。
 
 ## 状态规则
 

@@ -106,10 +106,62 @@ func TestValidateRuntimeAcceptsProductionConfig(t *testing.T) {
 func TestLoadDefaultsProductionDeploymentChannel(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("DEPLOYMENT_CHANNEL", "")
+	unsetEnv(t, "IMPORT_XLSX_ENABLED")
 
 	cfg := Load()
 	if cfg.DeploymentChannel != DeploymentChannelProduction {
 		t.Fatalf("expected production deployment channel, got %s", cfg.DeploymentChannel)
+	}
+	if cfg.ImportXLSXEnabled {
+		t.Fatalf("expected XLSX imports disabled by default in production")
+	}
+}
+
+func TestLoadXLSXImportGateByDeploymentChannel(t *testing.T) {
+	testCases := []struct {
+		name    string
+		channel string
+		enabled bool
+	}{
+		{name: "development", channel: DeploymentChannelDevelopment, enabled: true},
+		{name: "staging", channel: DeploymentChannelStaging, enabled: true},
+		{name: "production", channel: DeploymentChannelProduction, enabled: false},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Setenv("APP_ENV", "production")
+			t.Setenv("DEPLOYMENT_CHANNEL", testCase.channel)
+			unsetEnv(t, "IMPORT_XLSX_ENABLED")
+
+			cfg := Load()
+			if cfg.ImportXLSXEnabled != testCase.enabled {
+				t.Fatalf("expected IMPORT_XLSX_ENABLED=%v for %s, got %v", testCase.enabled, testCase.channel, cfg.ImportXLSXEnabled)
+			}
+		})
+	}
+}
+
+func TestLoadXLSXImportGateAllowsExplicitOverride(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("DEPLOYMENT_CHANNEL", DeploymentChannelProduction)
+	t.Setenv("IMPORT_XLSX_ENABLED", "true")
+
+	cfg := Load()
+	if !cfg.ImportXLSXEnabled {
+		t.Fatalf("expected explicit production XLSX override to be enabled")
+	}
+}
+
+func TestValidateRuntimeRejectsInvalidXLSXImportGate(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("DEPLOYMENT_CHANNEL", DeploymentChannelDevelopment)
+	t.Setenv("IMPORT_XLSX_ENABLED", "sometimes")
+
+	cfg := Load()
+	err := cfg.ValidateRuntime()
+	if err == nil || !strings.Contains(err.Error(), "IMPORT_XLSX_ENABLED") {
+		t.Fatalf("expected IMPORT_XLSX_ENABLED validation error, got %v", err)
 	}
 }
 

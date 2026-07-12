@@ -90,4 +90,10 @@ describe('import page state', () => {
     expect(validateImportFile('generic', 'template.csv')).toBeNull();
     expect(validateImportFile('wechat', 'wechat.xls')).toContain('CSV 或 XLSX');
   });
+
+  it('rejects xlsx when the current runtime gate is disabled', () => {
+    expect(validateImportFile('wechat', 'wechat.xlsx', false)).toContain('暂未开启 XLSX');
+    expect(validateImportFile('alipay', 'alipay.xlsx', false)).toContain('暂未开启 XLSX');
+    expect(validateImportFile('wechat', 'wechat.csv', false)).toBeNull();
+  });
 });

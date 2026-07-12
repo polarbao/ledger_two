@@ -52,7 +52,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| GET | `/api/healthz` | no | none | internal | inline | 健康检查，返回服务、数据库、应用版本、schema version 和 deployment channel。 |
+| GET | `/api/healthz` | no | none | internal | inline | 健康检查，返回服务、数据库、应用版本、schema version、deployment channel 和 XLSX 运行开关。 |
 | GET | `/api/init/status` | no | none | stable | `init.HandleStatus` | 初始化状态。 |
 | POST | `/api/init/setup` | no | none | stable | `init.HandleSetup` | 初始化系统、用户和初始账本。 |
 

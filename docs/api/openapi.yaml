@@ -1078,7 +1078,7 @@ components:
           enum: [true]
         data:
           type: object
-          required: [status, db, version, schema_version, deployment_channel]
+          required: [status, db, version, schema_version, deployment_channel, import_xlsx_enabled]
           properties:
             status:
               type: string
@@ -1095,6 +1095,9 @@ components:
             deployment_channel:
               type: string
               enum: [development, staging, production, unknown]
+            import_xlsx_enabled:
+              type: boolean
+              description: Whether this runtime accepts XLSX files for WeChat and Alipay import previews.
     ErrorResponse:
       type: object
       required: [success, error]

@@ -65,7 +65,10 @@ func TestHealthz(t *testing.T) {
 }
 
 func TestHealthzReturnsDeploymentChannel(t *testing.T) {
-	r := New(nil, &config.Config{DeploymentChannel: config.DeploymentChannelStaging})
+	r := New(nil, &config.Config{
+		DeploymentChannel: config.DeploymentChannelStaging,
+		ImportXLSXEnabled: true,
+	})
 	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
 	rr := httptest.NewRecorder()
 
@@ -74,6 +77,7 @@ func TestHealthzReturnsDeploymentChannel(t *testing.T) {
 	var resp struct {
 		Data struct {
 			DeploymentChannel string `json:"deployment_channel"`
+			ImportXLSXEnabled bool   `json:"import_xlsx_enabled"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
@@ -81,5 +85,8 @@ func TestHealthzReturnsDeploymentChannel(t *testing.T) {
 	}
 	if resp.Data.DeploymentChannel != config.DeploymentChannelStaging {
 		t.Fatalf("deployment_channel = %q, want staging", resp.Data.DeploymentChannel)
+	}
+	if !resp.Data.ImportXLSXEnabled {
+		t.Fatalf("expected import_xlsx_enabled in health response")
 	}
 }

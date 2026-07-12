@@ -28,7 +28,9 @@ type Config struct {
 	LogDir            string
 	CookieSecure      string
 	CookieSameSite    string
+	ImportXLSXEnabled bool
 	cookieSecureSet   bool
+	importXLSXRaw     string
 }
 
 func Load() *Config {
@@ -57,6 +59,8 @@ func Load() *Config {
 		jwtSecret = DevJWTSecret
 	}
 	cookieSecure, cookieSecureSet := os.LookupEnv("COOKIE_SECURE")
+	importXLSXRaw := strings.ToLower(strings.TrimSpace(os.Getenv("IMPORT_XLSX_ENABLED")))
+	importXLSXEnabled := parseImportXLSXEnabled(deploymentChannel, importXLSXRaw)
 
 	return &Config{
 		Env:               env,
@@ -71,13 +75,18 @@ func Load() *Config {
 		LogDir:            getenvDefault("LOG_DIR", "data/logs"),
 		CookieSecure:      cookieSecure,
 		CookieSameSite:    getenvDefault("COOKIE_SAMESITE", "Lax"),
+		ImportXLSXEnabled: importXLSXEnabled,
 		cookieSecureSet:   cookieSecureSet,
+		importXLSXRaw:     importXLSXRaw,
 	}
 }
 
 func (c *Config) ValidateRuntime() error {
 	if !isValidDeploymentChannel(c.DeploymentChannel) {
 		return fmt.Errorf("DEPLOYMENT_CHANNEL must be development, staging, or production")
+	}
+	if c.importXLSXRaw != "" && c.importXLSXRaw != "true" && c.importXLSXRaw != "false" {
+		return fmt.Errorf("IMPORT_XLSX_ENABLED must be true or false")
 	}
 	if c.Env != "production" {
 		return nil
@@ -105,6 +114,17 @@ func (c *Config) ValidateRuntime() error {
 		}
 	}
 	return nil
+}
+
+func parseImportXLSXEnabled(deploymentChannel string, raw string) bool {
+	switch raw {
+	case "":
+		return deploymentChannel != DeploymentChannelProduction
+	case "true":
+		return true
+	default:
+		return false
+	}
 }
 
 func isValidDeploymentChannel(channel string) bool {

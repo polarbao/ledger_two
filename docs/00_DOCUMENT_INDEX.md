@@ -1,6 +1,6 @@
 # LedgerTwo 文档索引与 AI 实现阅读顺序
 
-> 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、本机 schema 19 和真实 CSV/XLSX preview 已完成；支付宝真实 XLSX、Figma/移动端视觉验收和 NAS schema 19 发布仍待收口。后续优先读取 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
+> 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、真实 CSV/XLSX preview 和移动端视觉验收已完成；支付宝真实 XLSX、Figma 主文件写入和 NAS schema 19 发布仍待收口。后续优先读取 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 

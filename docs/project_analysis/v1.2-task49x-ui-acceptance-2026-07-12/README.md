@@ -70,6 +70,8 @@ f624669b-352f-428e-bb4e-4b89cccdf149
 
 ## 6. Figma 与剩余门禁
 
+运行门禁补充：Task49X.6 已实现 `IMPORT_XLSX_ENABLED`。development/staging 默认开启、production 默认关闭，health 返回实际值；关闭时前后端均只开放 CSV，既有 preview/commit 链路不受影响。
+
 账户主文件仍为 `LedgerTwo v1.2 UI System - polar`。本轮连接到的 Figma 账号 handle 为 `zy j`，团队席位为 View；读取主文件时返回“没有 edit access”，因此未对 Figma 文件执行写入，也未伪造 node id 或同步结果。
 
 剩余门禁：

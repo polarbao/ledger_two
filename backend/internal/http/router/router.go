@@ -59,7 +59,11 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	transactionHandler := transaction.NewHandler(transactionSvc, uploadDir)
 
 	importRepo := importer.NewRepository(dbConn)
-	importSvc := importer.NewService(importRepo)
+	importXLSXEnabled := true
+	if cfg != nil {
+		importXLSXEnabled = cfg.ImportXLSXEnabled
+	}
+	importSvc := importer.NewService(importRepo, importer.WithXLSXEnabled(importXLSXEnabled))
 	importHandler := importer.NewHandler(importSvc)
 
 	settlementRepo := settlement.NewRepository(dbConn)
@@ -89,8 +93,12 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 			dbStatus := "ok"
 			var schemaVersion int64 = 0
 			deploymentChannel := "unknown"
-			if cfg != nil && cfg.DeploymentChannel != "" {
-				deploymentChannel = cfg.DeploymentChannel
+			importXLSXEnabled := true
+			if cfg != nil {
+				importXLSXEnabled = cfg.ImportXLSXEnabled
+				if cfg.DeploymentChannel != "" {
+					deploymentChannel = cfg.DeploymentChannel
+				}
 			}
 			if dbConn != nil {
 				if err := dbConn.PingContext(req.Context()); err != nil {
@@ -105,11 +113,12 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				dbStatus = "none"
 			}
 			response.JSON(w, http.StatusOK, map[string]interface{}{
-				"status":             "ok",
-				"db":                 dbStatus,
-				"version":            appVersion,
-				"schema_version":     schemaVersion,
-				"deployment_channel": deploymentChannel,
+				"status":              "ok",
+				"db":                  dbStatus,
+				"version":             appVersion,
+				"schema_version":      schemaVersion,
+				"deployment_channel":  deploymentChannel,
+				"import_xlsx_enabled": importXLSXEnabled,
 			})
 		})
 

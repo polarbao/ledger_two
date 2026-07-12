@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/xuri/excelize/v2"
 
+	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/ledger"
@@ -86,6 +88,36 @@ func TestPreviewFileStoresXLSXParserMetadataWithoutTransactions(t *testing.T) {
 	}
 	if countRows(t, database, "transactions") != 0 {
 		t.Fatalf("xlsx preview must not write transactions")
+	}
+}
+
+func TestPreviewFileRejectsXLSXWhenRuntimeGateIsDisabled(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database), WithXLSXEnabled(false))
+
+	_, err := service.PreviewFile(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "wechat.xlsx",
+		SourceType:    SourceTypeWechat,
+		Content:       buildWechatXLSXFixture(t),
+	})
+	var appErr *appErrors.AppError
+	if !errors.As(err, &appErr) || appErr.Code != appErrors.ErrCodeImportFileUnsupported {
+		t.Fatalf("expected disabled XLSX error, got %v", err)
+	}
+	if countRows(t, database, "import_batches") != 0 {
+		t.Fatalf("disabled XLSX preview must not create an import batch")
+	}
+
+	if _, err := service.PreviewFile(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "wechat-basic.csv",
+		SourceType:    SourceTypeWechat,
+		Content:       readImportFixture(t, "wechat-basic.csv"),
+	}); err != nil {
+		t.Fatalf("CSV preview must remain available when XLSX is disabled: %v", err)
 	}
 }
 

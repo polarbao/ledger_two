@@ -22,6 +22,7 @@ import {
 import { importsApi } from '../api/imports.api';
 import { metadataApi } from '../api/metadata.api';
 import { queryKeys } from '../api/queryKeys';
+import { systemApi } from '../api/system.api';
 import { useLedgerStore } from '../stores/ledger.store';
 import { centsToYuan } from '../utils/money';
 import type {
@@ -105,6 +106,13 @@ export default function ImportPage() {
   const [ruleStatusFilter, setRuleStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
 
   const isOwner = activeRole === 'owner';
+
+  const { data: health } = useQuery({
+    queryKey: queryKeys.system.health,
+    queryFn: systemApi.getHealth,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const xlsxEnabled = health?.import_xlsx_enabled ?? false;
 
   const { data: importRules = [] } = useQuery({
     queryKey: queryKeys.importRules(activeLedgerId),
@@ -226,7 +234,7 @@ export default function ImportPage() {
   });
 
   const handleFile = (file: File) => {
-    const validationError = validateImportFile(sourceType, file.name);
+    const validationError = validateImportFile(sourceType, file.name, xlsxEnabled);
     if (validationError) {
       setErrorMsg(validationError);
       return;
@@ -344,7 +352,7 @@ export default function ImportPage() {
                 disabled={!isOwner || previewMutation.isPending}
               >
                 <strong>{option.label}</strong>
-                <span>{option.description}</span>
+                <span>{option.value !== 'generic' && !xlsxEnabled ? '当前环境仅开放 CSV' : option.description}</span>
               </button>
             ))}
           </div>
@@ -365,7 +373,7 @@ export default function ImportPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept={sourceType === 'generic' ? '.csv' : '.csv,.xlsx'}
+              accept={sourceType === 'generic' || !xlsxEnabled ? '.csv' : '.csv,.xlsx'}
               disabled={!isOwner || previewMutation.isPending}
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -378,7 +386,11 @@ export default function ImportPage() {
               {previewMutation.isPending ? <Loader2 size={26} className="spin" /> : <Upload size={26} />}
             </span>
             <strong>{previewMutation.isPending ? '正在生成预览' : '选择账单文件'}</strong>
-            <small>微信、支付宝支持 CSV/XLSX，通用模板仅 CSV，单批最多 2000 行。</small>
+            <small>
+              {xlsxEnabled
+                ? '微信、支付宝支持 CSV/XLSX，通用模板仅 CSV，单批最多 2000 行。'
+                : '当前环境仅开放 CSV，XLSX 需由管理员开启，单批最多 2000 行。'}
+            </small>
           </label>
 
           <div className="import-entry__actions">

@@ -8,6 +8,7 @@ export interface HealthStatus {
   version: string;
   schema_version: number;
   deployment_channel: DeploymentChannel;
+  import_xlsx_enabled: boolean;
 }
 
 export const systemApi = {

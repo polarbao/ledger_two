@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,11 +22,24 @@ import (
 const MaxPreviewRows = tabular.MaxDataRows
 
 type Service struct {
-	repo *Repository
+	repo        *Repository
+	xlsxEnabled bool
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+type ServiceOption func(*Service)
+
+func WithXLSXEnabled(enabled bool) ServiceOption {
+	return func(service *Service) {
+		service.xlsxEnabled = enabled
+	}
+}
+
+func NewService(repo *Repository, options ...ServiceOption) *Service {
+	service := &Service{repo: repo, xlsxEnabled: true}
+	for _, option := range options {
+		option(service)
+	}
+	return service
 }
 
 type PreviewFileRequest struct {
@@ -48,6 +62,9 @@ func (s *Service) PreviewFile(ctx context.Context, req PreviewFileRequest) (*Pre
 	}
 	if len(req.Content) == 0 {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportFileInvalid, "导入文件不能为空")
+	}
+	if !s.xlsxEnabled && strings.EqualFold(filepath.Ext(strings.TrimSpace(req.Filename)), ".xlsx") {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeImportFileUnsupported, "当前环境暂未开启 XLSX 导入，请改用 CSV 或联系管理员")
 	}
 
 	doc, err := tabular.Read(req.Filename, req.SourceType, req.Content)

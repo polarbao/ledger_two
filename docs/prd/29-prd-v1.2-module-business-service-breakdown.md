@@ -380,7 +380,7 @@ POST  /api/import-rules/{id}/restore
 | import.rules.enabled | false before Task49 | 控制规则推荐和管理入口 |
 | import.source.wechat.enabled | true | 单独关闭微信 parser |
 | import.source.alipay.enabled | true | 单独关闭支付宝 parser |
-| import.max_rows_per_batch | 500 | 限制单批行数，与当前实现一致 |
+| import.max_rows_per_batch | 2000 | 覆盖已验证的 1232 行支付宝官方 CSV，仍受 2 MiB 文件上限约束 |
 | import.format.xlsx.enabled | false before Task49X acceptance | 独立关闭 XLSX，不影响 CSV |
 | import.preview_ttl_days | 7 | 预览批次过期时间 |
 

@@ -4,7 +4,9 @@
 
 ## 1. 结论
 
-本轮不执行账单同步。
+历史结论：本报告记录代码实现前的只读预检。后续本机 preview 已完成，仍未执行正式账单 commit。
+
+实施更新（2026-07-12）：微信 XLSX 已在本机 `Ubuntu-24.04` WSL staging 创建 ready 预览批次，识别 276 行（275 new、1 suspicious、0 invalid），`transactions` 前后均为 40。NAS 未访问。最新证据以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md` 为准。
 
 决策更新（2026-07-12）：产品已批准在 v1.2 插入 Task49X 原生 XLSX 导入专项。当前已部署的 `1.2.0-rc/schema 18` 能力没有因此自动改变；在 Task49X、schema 19 和 staging 验收完成前，本文“不上传、不提交”的运行结论继续有效。
 
@@ -72,4 +74,4 @@ production: 1.2.0-rc / schema 18 / channel production / db ok
 staging:    1.2.0-rc / schema 18 / channel staging / db ok
 ```
 
-环境和数据库隔离已完成；当前阻塞已从“没有方案”转为“Task49X 尚未实现和验收”。
+环境和数据库隔离已完成；本机 Task49X 核心实现与真实 preview 已通过，剩余门禁为抽样对账、Figma 视觉验收、支付宝真实 XLSX 和 NAS schema 19 发布。

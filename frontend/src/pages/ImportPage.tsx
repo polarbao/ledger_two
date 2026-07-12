@@ -36,11 +36,11 @@ import type {
   ImportSourceType,
 } from '../types/imports';
 import type { MetadataItem } from '../types/metadata';
-import { buildImportCommitSummary, resolveImportErrorMessage } from './importPageState';
+import { buildImportCommitSummary, resolveImportErrorMessage, validateImportFile } from './importPageState';
 
 const sourceOptions: Array<{ value: ImportSourceType; label: string; description: string }> = [
-  { value: 'wechat', label: '微信账单', description: '微信支付导出的 CSV' },
-  { value: 'alipay', label: '支付宝账单', description: '支付宝流水明细 CSV' },
+  { value: 'wechat', label: '微信账单', description: '微信支付导出的 CSV 或 XLSX' },
+  { value: 'alipay', label: '支付宝账单', description: '支付宝流水明细 CSV 或 XLSX' },
   { value: 'generic', label: '通用模板', description: 'LedgerTwo 标准 CSV' },
 ];
 
@@ -136,7 +136,7 @@ export default function ImportPage() {
     },
     onError: (err: unknown) => {
       setBatch(null);
-      setErrorMsg(resolveImportErrorMessage(err, '生成导入预览失败，请检查来源和 CSV 文件格式'));
+      setErrorMsg(resolveImportErrorMessage(err, '生成导入预览失败，请检查来源和账单文件格式'));
     },
   });
 
@@ -226,8 +226,9 @@ export default function ImportPage() {
   });
 
   const handleFile = (file: File) => {
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      setErrorMsg('当前仅支持 CSV 文件');
+    const validationError = validateImportFile(sourceType, file.name);
+    if (validationError) {
+      setErrorMsg(validationError);
       return;
     }
     setSelectedFile(file);
@@ -294,7 +295,7 @@ export default function ImportPage() {
         <FileSpreadsheet className="banner-icon" />
         <div>
           <h2>导入预览工作台</h2>
-          <p>CSV 上传后先生成可审阅批次，确认无误后再写入正式账单。</p>
+          <p>账单文件上传后先生成可审阅批次，确认无误后再写入正式账单。</p>
         </div>
       </div>
 
@@ -333,7 +334,12 @@ export default function ImportPage() {
                 className={`import-source-tab ${sourceType === option.value ? 'is-active' : ''}`}
                 onClick={() => {
                   setSourceType(option.value);
+                  setSelectedFile(null);
                   setBatch(null);
+                  setErrorMsg(null);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
                 }}
                 disabled={!isOwner || previewMutation.isPending}
               >
@@ -359,7 +365,7 @@ export default function ImportPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept={sourceType === 'generic' ? '.csv' : '.csv,.xlsx'}
               disabled={!isOwner || previewMutation.isPending}
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -371,8 +377,8 @@ export default function ImportPage() {
             <span className="import-upload-zone__icon">
               {previewMutation.isPending ? <Loader2 size={26} className="spin" /> : <Upload size={26} />}
             </span>
-            <strong>{previewMutation.isPending ? '正在生成预览' : '选择 CSV 文件'}</strong>
-            <small>微信、支付宝或通用模板 CSV，单批最多 500 行。</small>
+            <strong>{previewMutation.isPending ? '正在生成预览' : '选择账单文件'}</strong>
+            <small>微信、支付宝支持 CSV/XLSX，通用模板仅 CSV，单批最多 2000 行。</small>
           </label>
 
           <div className="import-entry__actions">
@@ -414,6 +420,15 @@ export default function ImportPage() {
             <span>预览批次</span>
             <small>{batch ? `Batch ${batch.id.slice(0, 8)}` : '等待上传'}</small>
           </div>
+
+          {batch && (
+            <dl className="import-parser-summary">
+              <div><dt>文件格式</dt><dd>{batch.file_format.toUpperCase()}</dd></div>
+              {batch.parser_metadata.sheet_name && <div><dt>工作表</dt><dd>{batch.parser_metadata.sheet_name}</dd></div>}
+              <div><dt>表头位置</dt><dd>第 {batch.parser_metadata.header_row_number} 行</dd></div>
+              <div><dt>识别流水</dt><dd>{batch.parser_metadata.parsed_rows} 条</dd></div>
+            </dl>
+          )}
 
           <div className="import-safe-banner">
             <ShieldCheck size={16} />

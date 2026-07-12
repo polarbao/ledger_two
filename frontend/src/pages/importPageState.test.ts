@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/client';
 import type { ImportPreviewBatch, ImportPreviewRow } from '../types/imports';
-import { buildImportCommitSummary, resolveImportErrorMessage } from './importPageState';
+import { buildImportCommitSummary, resolveImportErrorMessage, validateImportFile } from './importPageState';
 
 const createRow = (overrides: Partial<ImportPreviewRow> = {}): ImportPreviewRow => ({
   id: 'row-1',
@@ -21,6 +21,13 @@ const createBatch = (rows: ImportPreviewRow[]): ImportPreviewBatch => ({
   id: 'batch-1',
   ledger_id: 'ledger-1',
   source_type: 'generic',
+  file_format: 'csv',
+  parser_metadata: {
+    parser_version: 'tabular-v1',
+    header_row_number: 1,
+    parsed_rows: rows.length,
+    max_columns: 4,
+  },
   filename: 'test.csv',
   file_sha256: 'hash',
   status: 'ready',
@@ -74,5 +81,13 @@ describe('import page state', () => {
     });
 
     expect(resolveImportErrorMessage(error, 'fallback')).toBe('第 5 行：存在未跳过的无效导入行');
+  });
+
+  it('accepts xlsx for WeChat and Alipay but keeps generic CSV-only', () => {
+    expect(validateImportFile('wechat', 'wechat.xlsx')).toBeNull();
+    expect(validateImportFile('alipay', 'alipay.XLSX')).toBeNull();
+    expect(validateImportFile('generic', 'template.xlsx')).toContain('通用模板');
+    expect(validateImportFile('generic', 'template.csv')).toBeNull();
+    expect(validateImportFile('wechat', 'wechat.xls')).toContain('CSV 或 XLSX');
   });
 });

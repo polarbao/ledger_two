@@ -1,5 +1,16 @@
 import { ApiError } from '../api/client';
-import type { ImportPreviewBatch } from '../types/imports';
+import type { ImportPreviewBatch, ImportSourceType } from '../types/imports';
+
+export function validateImportFile(sourceType: ImportSourceType, filename: string) {
+  const lowerName = filename.trim().toLowerCase();
+  if (lowerName.endsWith('.csv')) {
+    return null;
+  }
+  if (lowerName.endsWith('.xlsx')) {
+    return sourceType === 'generic' ? '通用模板当前仅支持 CSV 文件' : null;
+  }
+  return sourceType === 'generic' ? '通用模板当前仅支持 CSV 文件' : '微信和支付宝账单仅支持 CSV 或 XLSX 文件';
+}
 
 export function buildImportCommitSummary(batch: ImportPreviewBatch | null) {
   if (!batch) {

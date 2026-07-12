@@ -1,5 +1,16 @@
 export type ImportSourceType = 'wechat' | 'alipay' | 'generic';
 
+export type ImportFileFormat = 'csv' | 'xlsx';
+
+export interface ImportParserMetadata {
+  parser_version: string;
+  sheet_name?: string;
+  header_row_number: number;
+  parsed_rows: number;
+  scanned_sheets?: number;
+  max_columns: number;
+}
+
 export type ImportDirection = 'expense' | 'income' | 'refund' | 'transfer' | 'unknown';
 
 export type ImportTargetTransactionType = 'expense' | 'income' | 'skipped';
@@ -51,6 +62,8 @@ export interface ImportPreviewBatch {
   id: string;
   ledger_id: string;
   source_type: ImportSourceType;
+  file_format: ImportFileFormat;
+  parser_metadata: ImportParserMetadata;
   filename: string;
   file_sha256: string;
   status: 'previewing' | 'ready' | 'committed' | 'failed' | 'expired';

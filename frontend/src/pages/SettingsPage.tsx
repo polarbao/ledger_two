@@ -427,8 +427,8 @@ export default function SettingsPage() {
         >
           <SettingsActionCard
             icon={<FileSpreadsheet size={18} />}
-            title="CSV 账单导入"
-            description="支持将微信、支付宝等账单 CSV 上传到预览工作区，核对后再提交。"
+            title="账单文件导入"
+            description="支持将微信、支付宝 CSV 或 XLSX 上传到预览工作区，核对后再提交。"
           >
             <PermissionGate
               allow={['owner', 'editor']}
@@ -439,7 +439,7 @@ export default function SettingsPage() {
                 className="btn-secondary"
                 style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
               >
-                <RefreshCw size={14} /> 进入 CSV 导入工作区
+                <RefreshCw size={14} /> 进入账单导入工作区
               </Link>
             </PermissionGate>
           </SettingsActionCard>

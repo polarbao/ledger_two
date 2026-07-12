@@ -82,6 +82,7 @@ docs/releases/v1.2.0-rc-upgrade-guide.md
 docs/releases/v1.2.0-rc-checklist.md
 docs/project_analysis/2026-07-12-v1.2-nas-production-upgrade-acceptance.md
 docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md
+docs/project_analysis/v1.2-task49x-ui-acceptance-2026-07-12/README.md
 docs/project_analysis/2026-07-12-real-wechat-bill-import-readiness.md
 docs/project_analysis/2026-07-12-v1.2-xlsx-special-predevelopment-review.md
 docs/prd/00-product-roadmap.md

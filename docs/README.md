@@ -40,10 +40,11 @@ docs/
 21. `docs/ui/14-v1.1-v1.2-module-flows.md`
 22. `docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`
 23. `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`
-24. `docs/project_analysis/2026-07-12-real-wechat-bill-import-readiness.md`
-25. `docs/project_analysis/2026-07-12-v1.2-xlsx-special-predevelopment-review.md`
-26. `docs/codex_tasks/README.md`
-27. 进入具体业务模块文档。
+24. `docs/project_analysis/v1.2-task49x-ui-acceptance-2026-07-12/README.md`
+25. `docs/project_analysis/2026-07-12-real-wechat-bill-import-readiness.md`
+26. `docs/project_analysis/2026-07-12-v1.2-xlsx-special-predevelopment-review.md`
+27. `docs/codex_tasks/README.md`
+28. 进入具体业务模块文档。
 
 当前项目已完成 Task01-Task49。Task49X 核心实现、本机 schema 19 和真实 CSV/XLSX preview 已完成，但支付宝真实 XLSX、视觉验收和 NAS schema 19 发布尚未关闭。后续开发以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为主要入口。
 

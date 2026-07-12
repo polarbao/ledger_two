@@ -481,7 +481,7 @@ export default function ImportPage() {
             <div className="import-empty-state">
               <FileWarning size={34} />
               <strong>还没有预览批次</strong>
-              <span>上传 CSV 后会在这里看到行级状态和错误原因。</span>
+              <span>上传账单文件后会在这里看到行级状态和错误原因。</span>
             </div>
           ) : (
             <div className="import-row-list" aria-label="导入预览行">

@@ -2410,6 +2410,10 @@ button {
   gap: 16px;
 }
 
+.import-preview-panel {
+  scroll-margin-top: 86px;
+}
+
 .import-section-title {
   display: flex;
   align-items: center;

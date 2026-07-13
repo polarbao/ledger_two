@@ -62,11 +62,11 @@ staging    http://192.168.0.115:38089: schema 18 / staging / db ok
 固定候选提交：
 
 ```text
-commit: 83ced5127bc653fc0454461907b8395dc707eff1
-remote bundle: /volume1/docker/ledger-two-staging/incoming/83ced5127bc6
+commit: af42edf00999565eb1262ad6f2b45c0df3e87c34
+remote bundle: /volume1/docker/ledger-two-staging/incoming/af42edf00999
 ```
 
-候选包中的源码、Compose、环境样例和发布脚本均通过 SHA-256 校验；远端解包后的两个 Shell 脚本通过 `sh -n`。仓库新增 `.gitattributes`，强制 `*.sh` 在 Git 归档中使用 LF，避免 Windows 打包后的 CRLF 在 NAS `/bin/sh` 下解析失败。
+候选包中的源码、Compose、环境样例和发布脚本均通过 SHA-256 校验；远端解包后的两个 Shell 脚本通过 `sh -n`。仓库新增 `.gitattributes`，强制 `*.sh` 在 Git 归档中使用 LF，避免 Windows 打包后的 CRLF 在 NAS `/bin/sh` 下解析失败。候选随后补入 `ENV_FILE`、`COMPOSE_FILE` 旁路能力并以 `af42edf00999` 重新打包，旧包不用于发布。
 
 staging schema 18 一致性备份：
 
@@ -78,14 +78,14 @@ quick_check: ok
 ledger.db SHA-256: 695a41eb37544f64e016f3868ac5e368cc53e17850f041e94f61a5410f9cd01f
 ```
 
-备份已复制到本机仓库外的 `nas_management_docs/ledger_two_backups/`，数据库和附件压缩包 SHA-256 均复核一致。候选文件只写入 `incoming/`，没有替换当前 Compose、`.env`、数据库或运行容器。
+备份已复制到本机仓库外的 `nas_management_docs/ledger_two_backups/`，数据库和附件压缩包 SHA-256 均复核一致。候选源码已准备到 staging 的旁路 `app/`，并生成 `.env.schema19`、`docker-compose.schema19.yml`；当前 `docker-compose.yml`、`.env`、数据库和运行容器均未替换。
 
 ## 6. 下一执行窗口
 
 维护者需要在 NAS 交互式输入 sudo，顺序为：
 
 1. 已创建 staging schema 18 一致性备份并在 NAS 外保存、核对 SHA-256。
-2. 已同步固定提交候选包到 `incoming/`，没有复制本机数据库或覆盖运行目录。
+2. 已同步固定提交候选包并准备旁路 app/Compose/env，没有复制本机数据库或覆盖当前配置。
 3. 维护者交互式 sudo 构建 `ledger-two:1.2.0-rc` 候选镜像。
 4. 更新 staging Compose 和 `.env` 后运行 `promote-staging.sh`，验证 schema 19 health 和 quick_check。
 5. 完成登录、历史数据、CSV/XLSX preview、重启持久化和数量守恒。

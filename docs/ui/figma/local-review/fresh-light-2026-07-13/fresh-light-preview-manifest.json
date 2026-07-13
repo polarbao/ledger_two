@@ -1,0 +1,42 @@
+{
+  "generated_at": "2026-07-13",
+  "branch": "docs/fresh-light-ui-localization-20260713",
+  "privacy": "synthetic-demo-data-only",
+  "frame_count": 29,
+  "artifacts": [
+    "fresh-light-preview.html",
+    "fresh-light-all-frames.svg",
+    "generate_previews.py"
+  ],
+  "frames": [
+    {"page":"00 Foundations","name":"Fresh Light Tokens","size":"1440x900","purpose":"颜色、状态、阴影、主题模式"},
+    {"page":"00 Foundations","name":"Typography Spacing Radius","size":"1440x900","purpose":"字体、间距、圆角、金额数字"},
+    {"page":"00 Foundations","name":"Icon and Status Language","size":"1440x900","purpose":"Lucide 图标、状态与金额语义"},
+    {"page":"01 Components","name":"Buttons Chips Segments","size":"1440x900","purpose":"按钮、Chip、分段控件"},
+    {"page":"01 Components","name":"Transaction Cards and Table Rows","size":"1440x900","purpose":"移动卡片与桌面行"},
+    {"page":"01 Components","name":"Drawers Sheets Confirm Dialogs","size":"1440x900","purpose":"抽屉、Bottom Sheet、高风险确认"},
+    {"page":"01 Components","name":"Loading Empty Error Permission","size":"1440x900","purpose":"加载、空、错误、权限"},
+    {"page":"02 Daily Use","name":"Dashboard Desktop 1440","size":"1440x1024","purpose":"月度摘要、待结算、周期提醒、最近流水"},
+    {"page":"02 Daily Use","name":"Dashboard Mobile 390","size":"390x844","purpose":"5 秒看到总支出、结算和记一笔"},
+    {"page":"02 Daily Use","name":"Transactions Desktop 1440","size":"1440x1024","purpose":"筛选工作台、表格、详情抽屉"},
+    {"page":"02 Daily Use","name":"Transactions Mobile 390","size":"390x844","purpose":"交易卡片、搜索和筛选 Sheet"},
+    {"page":"02 Daily Use","name":"Transaction Drawer Desktop","size":"440x900","purpose":"金额优先、高低频字段分层"},
+    {"page":"02 Daily Use","name":"Transaction Sheet Mobile","size":"390x844","purpose":"移动快速记账与固定操作"},
+    {"page":"02 Daily Use","name":"Settlement Desktop 1440","size":"1440x1024","purpose":"谁给谁、解释、历史与确认"},
+    {"page":"02 Daily Use","name":"Settlement Mobile 390","size":"390x844","purpose":"结论优先、复制与登记结算"},
+    {"page":"02 Daily Use","name":"Analytics Desktop 1440","size":"1440x1024","purpose":"趋势、分类、成员、标签"},
+    {"page":"02 Daily Use","name":"Settings Desktop 1440","size":"1440x1024","purpose":"账号、账本、元数据、数据安全"},
+    {"page":"03 Import","name":"Entry Desktop 1440","size":"1440x900","purpose":"来源、上传、权限和历史批次"},
+    {"page":"03 Import","name":"Preview Desktop 1440","size":"1440x1024","purpose":"摘要、状态表格、提交阻断"},
+    {"page":"03 Import","name":"Preview Mobile 390","size":"390x844","purpose":"导入行卡片与错误原因"},
+    {"page":"03 Import","name":"Row Editor Drawer","size":"390x844","purpose":"分类、账户、标签、可见性"},
+    {"page":"03 Import","name":"Commit Confirm Modal","size":"390x844","purpose":"导入/跳过/疑似/错误数量"},
+    {"page":"03 Import","name":"Rule Manager Desktop","size":"1440x900","purpose":"规则、优先级、命中解释"},
+    {"page":"03 Import","name":"Rule Manager Mobile 390","size":"390x844","purpose":"移动规则编辑和多标签"},
+    {"page":"03 Import","name":"Rule Hit and Metadata Warning","size":"390x844","purpose":"命中解释和归档替换"},
+    {"page":"04 States","name":"Empty Loading Error Offline Permission","size":"1440x900","purpose":"核心页面状态矩阵"},
+    {"page":"04 States","name":"High Risk Confirmations","size":"1440x900","purpose":"删除、结算、导入、恢复确认"},
+    {"page":"05 Code Mapping","name":"React Component Map","size":"1440x900","purpose":"Frame、路由、React、API 映射"},
+    {"page":"06 Future","name":"Calendar and Report Drilldown","size":"1440x900","purpose":"月历和报表钻取探索"}
+  ]
+}

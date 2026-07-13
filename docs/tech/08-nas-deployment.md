@@ -97,7 +97,7 @@ GET /api/healthz
 
 同时检查 `deployment_channel`：正式实例必须为 `production`，验收实例必须为 `staging`。
 
-当前 schema version 应为最新 migration 版本。`v1.2.0-rc` 对应 schema version `18`。
+当前 schema version 应与发布阶段一致：既有 NAS 基线为 schema 18；包含 Task49X 的 `v1.2.0-rc` 候选对应 schema 19。production 在 schema 19 staging 验收前继续保持 schema 18。
 
 Owner 登录后还可以在设置页查看系统诊断，或直接调用：
 

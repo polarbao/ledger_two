@@ -1,6 +1,6 @@
 # LedgerTwo 组件库规格
 
-状态：目标规范，持续维护<br>
+状态：目标规范，UI-FL-01 基础组件已实现，持续维护<br>
 适用范围：Figma 组件库、React 组件重构、v1.2 导入工作台
 
 ## 1. 组件原则
@@ -31,6 +31,7 @@
 1. 移动端主按钮可全宽。
 2. 图标按钮必须有 tooltip 或 title。
 3. 危险按钮不得与主按钮视觉混淆。
+4. Primary/Danger 填充按钮使用 `color/action/*`，白字默认态对比度不低于 5.48:1，不直接把浅色状态色作为按钮底色。
 
 ### 2.2 Segmented Control
 
@@ -182,6 +183,12 @@
 | Figma 组件 | 当前/建议 React 位置 |
 |---|---|
 | AppShell | `frontend/src/components/layout/AppShell.tsx` |
+| Button | `frontend/src/components/ui/Button.tsx` |
+| StatusChip | `frontend/src/components/ui/StatusChip.tsx` |
+| SegmentedControl | `frontend/src/components/ui/SegmentedControl.tsx` |
+| StatePanel | `frontend/src/components/ui/StatePanel.tsx` |
+| ConfirmDialog | `frontend/src/components/ui/ConfirmDialog.tsx` |
+| BottomSheet | `frontend/src/components/ui/BottomSheet.tsx` |
 | TransactionCard | `frontend/src/components/transaction/TransactionCard.tsx` |
 | TransactionDrawer | `frontend/src/components/transaction/TransactionFormDrawer.tsx` |
 | Empty/Error/Loading | `frontend/src/components/ui/*` |
@@ -192,6 +199,21 @@
 | ImportRuleManager | 当前在 `frontend/src/pages/ImportPage.tsx`，v1.2 冻结后建议拆出 |
 | RuleHitExplanation | 当前在 `frontend/src/pages/ImportPage.tsx`，后续可拆为预览行子组件 |
 | TagMultiSelect | 当前在导入规则表单内局部实现，跨模板/周期规则复用后再抽公共组件 |
+
+### 4.1 UI-FL-01 实现状态
+
+| 组件/基础层 | 状态 | 说明 |
+|---|---|---|
+| Fresh Light / Dark Glass Token | 已实现 | `styles/tokens.css` 使用同一组语义名映射双主题，并保留旧变量兼容别名 |
+| Button | 已实现 | primary/secondary/danger/ghost、disabled、loading、图标和全宽状态 |
+| StatusChip | 已实现 | neutral/success/info/warning/danger/accent，始终保留可见文字 |
+| SegmentedControl | 已实现 | active、disabled、count、全宽和 `aria-pressed` |
+| StatePanel | 已实现 | neutral/info/warning/danger，承接空、错和权限不足等状态 |
+| ConfirmDialog | 已实现 | 普通/危险语义、焦点陷阱、Escape、焦点恢复和明确动作文案 |
+| BottomSheet | 已实现 | 移动端底部面板、关闭控件、焦点管理和固定 Footer |
+| 业务组件 | 待后续 UI-FL | 由 UI-FL-02 至 UI-FL-09 按页面契约组合，不在基础任务提前重构 |
+
+组件矩阵和双主题验收证据位于 `docs/project_analysis/ui-fl-01-foundation-2026-07-13/`。本地截图是实现审阅证据，不代表线上 Figma 组件、Variables 或 Auto Layout 已同步。
 
 ## 5. 建模优先级
 

@@ -3,6 +3,7 @@
     "artifact_class": "requirement",
     "status": "target-baseline",
     "updated_at": "2026-07-13",
+    "implementation_status": "ui-fl-01-foundation-implemented",
     "online_sync_evidence": false
   },
   "collection": "LedgerTwo",
@@ -57,6 +58,22 @@
       }
     },
     {
+      "name": "color/action/primary",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#047857",
+        "Dark Glass": "#047857"
+      }
+    },
+    {
+      "name": "color/action/primary-hover",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#065F46",
+        "Dark Glass": "#065F46"
+      }
+    },
+    {
       "name": "color/brand/support",
       "type": "COLOR",
       "values": {
@@ -70,6 +87,22 @@
       "values": {
         "Fresh Light": "#EF4444",
         "Dark Glass": "#F87171"
+      }
+    },
+    {
+      "name": "color/action/danger",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#B91C1C",
+        "Dark Glass": "#B91C1C"
+      }
+    },
+    {
+      "name": "color/action/danger-hover",
+      "type": "COLOR",
+      "values": {
+        "Fresh Light": "#991B1B",
+        "Dark Glass": "#991B1B"
       }
     },
     {
@@ -92,8 +125,8 @@
       "name": "radius/card",
       "type": "FLOAT",
       "values": {
-        "Fresh Light": 12,
-        "Dark Glass": 16
+        "Fresh Light": 8,
+        "Dark Glass": 8
       }
     },
     {
@@ -109,6 +142,7 @@
     "Fresh Light 来自 docs/ui/lynntest(1).html 的浅色财务方向。",
     "Dark Glass 映射当前 frontend/src/index.css，不在 v1.1 冻结前强制迁移。",
     "Fresh Light 是 v1.2 收口后的全应用目标模式；Dark Glass 继续作为已验收历史基线和回滚模式。",
+    "color/action/* 使用至少 5.48:1 的白字对比度；旧页面原始圆角由兼容样式保留，新基础组件统一使用 8px。",
     "本文件是 Figma Variables 建模输入，不是变量已经写入线上 Figma 文件的证据。"
   ]
 }

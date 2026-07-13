@@ -73,3 +73,12 @@ Task49 前必须有：
 3. `git diff --check` 结果。
 4. 若改代码，补前后端测试命令。
 5. 若改 UI，补 375px 或 390px 截图/CDP 指标。
+
+## 6. UI-FL-01 交接记录
+
+- 关联任务：`docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 的 UI-FL-01。
+- 设计规范：`ledger-two-fresh-light-implementation-spec-2026-07-13.md`、`ledger-two.design-tokens.json`、`component-library.md`。
+- 实现范围：双主题语义 Token、基础按钮/Chip/Segment/状态面板/确认框/Bottom Sheet；不影响 API、金额、权限、导入和 migration。
+- 验收证据：`docs/project_analysis/ui-fl-01-foundation-2026-07-13/`。
+- 回退方式：保留 `dark-glass` 默认解析与旧变量兼容映射；页面级 Fresh Light 启用必须由后续 UI-FL 任务独立验收。
+- Figma 状态：规范与本地代码映射已更新，线上组件和 Variables 未在本任务中写入，不得标记为已同步。

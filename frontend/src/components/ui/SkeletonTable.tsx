@@ -4,7 +4,7 @@ interface SkeletonTableProps {
 
 export default function SkeletonTable({ rows = 5 }: SkeletonTableProps) {
   return (
-    <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', background: 'rgba(22, 27, 39, 0.4)' }}>
+    <div className="glass-card skeleton-block" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {Array.from({ length: rows }).map((_, idx) => (
         <div 
           key={idx} 
@@ -13,7 +13,7 @@ export default function SkeletonTable({ rows = 5 }: SkeletonTableProps) {
             justifyContent: 'space-between', 
             alignItems: 'center', 
             paddingBottom: '12px', 
-            borderBottom: idx === rows - 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.05)' 
+            borderBottom: idx === rows - 1 ? 'none' : '1px solid var(--lt-border-subtle)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexGrow: 1 }}>

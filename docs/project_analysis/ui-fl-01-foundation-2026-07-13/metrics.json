@@ -1,0 +1,51 @@
+{
+  "task": "UI-FL-01",
+  "captured_at": "2026-07-13",
+  "browser": "Chrome 150.0.7871.102",
+  "theme_default": "dark-glass",
+  "screenshots": [
+    {
+      "file": "fresh-light-desktop.png",
+      "theme": "fresh-light",
+      "surface": "component-matrix",
+      "width": 1440,
+      "height": 1400
+    },
+    {
+      "file": "dark-glass-desktop.png",
+      "theme": "dark-glass",
+      "surface": "component-matrix",
+      "width": 1440,
+      "height": 1400
+    },
+    {
+      "file": "fresh-light-dialog.png",
+      "theme": "fresh-light",
+      "surface": "danger-confirm-dialog",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "fresh-light-bottom-sheet-mobile.png",
+      "theme": "fresh-light",
+      "surface": "bottom-sheet",
+      "width": 390,
+      "height": 844,
+      "inner_width": 390,
+      "scroll_width": 390,
+      "scroll_height": 1614
+    }
+  ],
+  "checks": {
+    "test_files_passed": 10,
+    "tests_passed": 36,
+    "lint": "passed",
+    "build": "passed",
+    "horizontal_overflow_390": false
+  },
+  "known_limits": [
+    "Fresh Light is not the application default until page-level UI-FL tasks are accepted.",
+    "The screenshots are generated implementation evidence, not proof of online Figma synchronization.",
+    "The production build still reports the pre-existing JavaScript chunk-size warning near 655 kB."
+  ]
+}

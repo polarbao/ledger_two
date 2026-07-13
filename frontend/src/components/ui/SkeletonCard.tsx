@@ -17,7 +17,6 @@ export default function SkeletonCard({ height = '140px', count = 1 }: SkeletonCa
             flexDirection: 'column', 
             gap: '14px', 
             justifyContent: 'space-between',
-            background: 'rgba(22, 27, 39, 0.4)'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

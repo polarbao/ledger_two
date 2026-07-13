@@ -10,17 +10,26 @@ trap 'rm -rf "$tmp_root"' EXIT
 create_fixture() {
   fixture_root="$1"
   mkdir -p "$fixture_root/data" "$fixture_root/backups/predeploy/schema18" "$fixture_root/state"
-  cat > "$fixture_root/.env" <<'EOF'
+  cat > "$fixture_root/.env.schema19" <<'EOF'
 APP_ENV=production
 DEPLOYMENT_CHANNEL=staging
 IMPORT_XLSX_ENABLED=true
 APP_PORT=38089
 EOF
-  cat > "$fixture_root/docker-compose.yml" <<'EOF'
+  cat > "$fixture_root/.env" <<'EOF'
+APP_ENV=production
+DEPLOYMENT_CHANNEL=production
+IMPORT_XLSX_ENABLED=false
+APP_PORT=38088
+EOF
+  cat > "$fixture_root/docker-compose.schema19.yml" <<'EOF'
 services:
   ledger-two:
     environment:
       IMPORT_XLSX_ENABLED: "${IMPORT_XLSX_ENABLED:-}"
+EOF
+  cat > "$fixture_root/docker-compose.yml" <<'EOF'
+services: {}
 EOF
   sqlite3 "$fixture_root/data/ledger.db" <<'EOF'
 CREATE TABLE goose_db_version (id INTEGER PRIMARY KEY, version_id INTEGER NOT NULL, is_applied INTEGER NOT NULL);
@@ -116,6 +125,8 @@ run_promotion() {
   WGET_BIN="$tmp_root/fake-wget" \
   SLEEP_BIN=true \
   MAX_ATTEMPTS=1 \
+  ENV_FILE=.env.schema19 \
+  COMPOSE_FILE=docker-compose.schema19.yml \
   sh "$promotion_script" "$fixture_root" "$fixture_root/backups/predeploy/schema18/ledger.db"
 }
 

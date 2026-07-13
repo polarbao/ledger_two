@@ -53,6 +53,7 @@ staging    http://192.168.0.115:38089: schema 18 / staging / db ok
 4. schema 18 staging health 必须正常，候选镜像和旧容器必须存在。
 5. 候选启动后必须回读 schema 19、staging、XLSX 开关开启和 db ok。
 6. 失败时保存故障数据库，恢复 schema 18 数据库和旧 staging 容器。
+7. 可通过 `ENV_FILE`、`COMPOSE_FILE` 使用旁路候选配置，不在维护窗口前覆盖当前 schema 18 配置。
 
 配套测试覆盖成功升级和 health 失败自动回滚，使用临时数据库与 fake Docker，不接触真实 NAS 数据。
 

@@ -13,6 +13,8 @@ candidate_project="${CANDIDATE_PROJECT:-ledger-two-v12-staging-schema19}"
 candidate_image="${CANDIDATE_IMAGE:-ledger-two:1.2.0-rc}"
 active_container="${ACTIVE_CONTAINER:-ledger-two-staging}"
 health_url="${HEALTH_URL:-http://127.0.0.1:38089/api/healthz}"
+env_file="${ENV_FILE:-.env}"
+compose_file="${COMPOSE_FILE:-docker-compose.yml}"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 rollback_container="ledger-two-staging-schema18-rollback-$timestamp"
 failed_dir="$deployment_root/backups/predeploy/failed-schema19-$timestamp"
@@ -39,30 +41,34 @@ fi
 
 cd "$deployment_root"
 
-if [ ! -f .env ] || [ ! -f docker-compose.yml ] || [ ! -f data/ledger.db ]; then
+if [ ! -f "$env_file" ] || [ ! -f "$compose_file" ] || [ ! -f data/ledger.db ]; then
   echo "staging deployment files are incomplete under $deployment_root" >&2
   exit 1
 fi
 
-if ! grep -q '^DEPLOYMENT_CHANNEL=staging$' .env; then
+if ! grep -q '^DEPLOYMENT_CHANNEL=staging$' "$env_file"; then
   echo "DEPLOYMENT_CHANNEL must be staging" >&2
   exit 1
 fi
 
-if ! grep -q '^IMPORT_XLSX_ENABLED=true$' .env; then
+if ! grep -q '^IMPORT_XLSX_ENABLED=true$' "$env_file"; then
   echo "IMPORT_XLSX_ENABLED must be explicitly true for schema 19 staging" >&2
   exit 1
 fi
 
-if ! grep -q '^APP_PORT=38089$' .env; then
+if ! grep -q '^APP_PORT=38089$' "$env_file"; then
   echo "APP_PORT must remain 38089 for the isolated staging instance" >&2
   exit 1
 fi
 
-if ! grep -q 'IMPORT_XLSX_ENABLED' docker-compose.yml; then
+if ! grep -q 'IMPORT_XLSX_ENABLED' "$compose_file"; then
   echo "docker-compose.yml does not pass IMPORT_XLSX_ENABLED" >&2
   exit 1
 fi
+
+compose() {
+  "$docker_bin" compose --env-file "$env_file" -f "$compose_file" -p "$candidate_project" "$@"
+}
 
 database_check="$($sqlite_bin -readonly data/ledger.db 'PRAGMA quick_check;')"
 rollback_check="$($sqlite_bin -readonly "$rollback_database" 'PRAGMA quick_check;')"
@@ -104,7 +110,7 @@ fi
 
 rollback() {
   echo "schema 19 staging verification failed; restoring schema 18" >&2
-  "$docker_bin" compose -p "$candidate_project" down >/dev/null 2>&1 || true
+  compose down >/dev/null 2>&1 || true
   mkdir -p "$failed_dir"
   if [ -f data/ledger.db ]; then
     cp -p data/ledger.db "$failed_dir/ledger.db.failed"
@@ -126,7 +132,7 @@ rollback() {
 "$docker_bin" stop "$active_container" >/dev/null
 "$docker_bin" rename "$active_container" "$rollback_container"
 
-if ! "$docker_bin" compose -p "$candidate_project" up -d --no-build; then
+if ! compose up -d --no-build; then
   rollback
   exit 1
 fi
@@ -151,7 +157,7 @@ while [ "$attempt" -le "$max_attempts" ]; do
     echo "health=$health"
     echo "rollback_database=$rollback_database"
     echo "rollback_container=$rollback_container"
-    "$docker_bin" compose -p "$candidate_project" ps
+    compose ps
     exit 0
   fi
   "$sleep_bin" 5

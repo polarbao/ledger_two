@@ -28,6 +28,7 @@
 | `v1.2-task49-import-rule-manager-handoff.md` | Task49 导入规则管理、命中解释、多标签和移动端 frame 补充规格 |
 | `v1.2-task49x-xlsx-import-handoff.md` | Task49X XLSX 文件选择、解析摘要、错误状态和移动端 frame 规格 |
 | `handoff-checklist.md` | 每次 UI 设计输出和开发交接检查清单 |
+| `local-review/` | 本地 `.fig`、PNG/PDF/SVG、Variables 和原型文件的受控审阅入口 |
 
 ## 2.1 当前完整性判断
 
@@ -45,6 +46,8 @@
 - 原始生成记录：`docs/project_analysis/v1.2-task49-figma-2026-07-09/`
 
 仓库本地仍不包含可直接打开的 `.fig` / `.figma` 二进制文件；后续以线上 Figma 文件和本目录结构化规格共同作为设计事实源。
+
+若线上 Figma 账号暂时无法统一，可将设计副本和导出稿放入 `local-review/`。Codex 可以直接审阅 PNG、PDF、SVG、JSON、HTML/CSS；`.fig` 可归档和核对，但精确节点、变量与 Auto Layout 评审仍应配套导出图和结构化清单。原始 `.fig` 默认不提交 Git。
 
 v1.2 Task47-Task49 的导入工作台设计规格已覆盖主流程；Task49 的规则管理、多标签、归档恢复、命中解释已通过 `v1.2-task49-import-rule-manager-handoff.md` 补齐。Task49X 新增的 XLSX 上传和结构错误状态已进入前端代码，仍需按 `v1.2-task49x-xlsx-import-handoff.md` 同步到账户主 Figma 文件并完成移动端视觉验收。
 

@@ -1,6 +1,6 @@
 # LedgerTwo 设计系统方向说明
 
-状态：建议采纳，2026-07-13 完成 Fresh Light 方向更新  
+状态：方向规范已冻结，持续维护；2026-07-13 完成 Fresh Light 方向更新<br>
 来源：`docs/prd/22-prd-v1.1-trust-and-daily-use.md`、`docs/prd/29-prd-v1.2-module-business-service-breakdown.md`、`docs/ui/14-v1.1-v1.2-module-flows.md`、`docs/ui/15-ledgertwo-ux-optimization-program.md`、当前 React 前端、`docs/ui/lynntest(1).html`
 
 ## 1. 产品语气

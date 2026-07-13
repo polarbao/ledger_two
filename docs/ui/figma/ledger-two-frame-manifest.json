@@ -1,5 +1,7 @@
 {
   "file_name": "LedgerTwo Product UI System",
+  "artifact_class": "requirement",
+  "status": "target-baseline",
   "version": "2026-07-13-fresh-light",
   "created_at": "2026-07-08",
   "updated_at": "2026-07-13",

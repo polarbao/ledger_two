@@ -1,4 +1,20 @@
 {
+  "artifact_class": "generated-review",
+  "source_kind": "figma-informed-local-review-snapshot",
+  "source_figma": {
+    "name": "Ledger Two｜双人记账 Web UI Redesign",
+    "url": "https://www.figma.com/design/Xsw1qqEkPraqVJCIGkl41Y"
+  },
+  "source_requirements": [
+    "../../ledger-two-fresh-light-implementation-spec-2026-07-13.md",
+    "../../ledger-two-frame-manifest.json"
+  ],
+  "generation_note": "基于当前 Figma 工作版本和仓库规范构建的审阅快照，不是原始 Figma 节点导出或线上同步完成证明。",
+  "page_aliases": {
+    "02 Daily Use": "02 Fresh Light Daily Use",
+    "03 Import": "03 Import Workbench",
+    "06 Future": "06 Future Exploration"
+  },
   "generated_at": "2026-07-13",
   "branch": "docs/fresh-light-ui-localization-20260713",
   "privacy": "synthetic-demo-data-only",

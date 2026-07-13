@@ -1,14 +1,17 @@
 {
   "meta": {
     "name": "LedgerTwo Design Tokens",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "created_at": "2026-07-08",
+    "updated_at": "2026-07-13",
     "source": [
       "docs/ui/lynntest(1).html",
       "frontend/src/index.css",
       "docs/ui/15-ledgertwo-ux-optimization-program.md"
     ],
-    "status": "draft"
+    "artifact_class": "requirement",
+    "status": "target-baseline",
+    "implementation_status": "planned"
   },
   "themes": {
     "fresh_light": {
@@ -136,4 +139,3 @@
     }
   }
 }
-

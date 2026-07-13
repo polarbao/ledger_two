@@ -29,34 +29,61 @@
 
 Figma 或截图不得覆盖已冻结的金额、分摊、结算、权限、导入和备份规则。
 
-## 3. 文件清单
+## 3. 目录分类与文件清单
 
-| 文件 | 用途 |
-|---|---|
-| `ledger-two-design-system-brief.md` | 设计方向、现有差异、阶段迁移策略 |
-| `ledger-two-fresh-light-implementation-spec-2026-07-13.md` | Fresh Light 全应用目标设计、Codex 实施规格和禁区 |
-| `ledger-two.design-tokens.json` | 面向前端和设计系统的 Token |
-| `ledger-two.figma-variables.json` | 面向 Figma Variables 的变量集合 |
-| `ledger-two-frame-manifest.json` | Figma 页面、Frame、状态和代码映射清单 |
-| `component-library.md` | 组件库规格、状态和 React 映射 |
-| `v1.1-v1.2-ui-draft-spec.md` | v1.1/v1.2 逐屏规格与 Fresh Light 目标稿补充 |
-| `v1.2-task49-import-rule-manager-handoff.md` | Task49 规则管理、命中解释、多标签和移动端规格 |
-| `v1.2-task49x-xlsx-import-handoff.md` | Task49X XLSX 选择、解析摘要、错误状态和移动端规格 |
-| `handoff-checklist.md` | UI 设计与开发交接检查清单 |
-| `local-review/` | Markdown 审阅、PNG/PDF/SVG/JSON 导出物和受控本地设计入口 |
+本目录只使用三种文件角色。文件角色决定其是否可以驱动开发，也避免把生成预览误当成需求或实现证据。
 
-本轮一致性审阅：
+### 3.1 要求与规范输入
 
-- `local-review/2026-07-13-fresh-light-design-consistency-review.md`
+以下文件描述“应该设计和实现成什么样”，可用于 Figma 建模、任务拆分和前端验收，但不能单独证明线上 Figma 或代码已经完成。
+
+| 文件 | 角色 | 状态或用途 |
+|---|---|---|
+| `ledger-two-design-system-brief.md` | 方向要求 | 设计语言、阶段边界和迁移策略 |
+| `ledger-two-fresh-light-implementation-spec-2026-07-13.md` | 实施要求 | Fresh Light 全应用目标、路由映射、任务和禁区 |
+| `ledger-two.design-tokens.json` | Token 要求 | 前端与设计系统的语义 Token 基线 |
+| `ledger-two.figma-variables.json` | Figma 建模要求 | Variables 集合和双主题模式输入，不代表已写入线上文件 |
+| `ledger-two-frame-manifest.json` | Figma 建模要求 | Page、Frame、尺寸、状态和代码映射的规范清单 |
+| `component-library.md` | 组件要求 | 组件结构、状态、业务字段和 React 映射 |
+| `v1.1-v1.2-ui-draft-spec.md` | 逐屏要求 | v1.1/v1.2 历史边界和 Fresh Light 目标逐屏规格 |
+| `v1.2-task49-import-rule-manager-handoff.md` | 冻结专项要求 | Task49 规则管理交接规格 |
+| `v1.2-task49x-xlsx-import-handoff.md` | 冻结专项要求 | Task49X XLSX 导入交接规格与验收状态 |
+| `handoff-checklist.md` | 流程要求 | 每次设计、实现和验收必须满足的交接门槛 |
+
+### 3.2 审阅记录与生成预览
+
+以下文件描述“当前看到或生成了什么”。它们用于设计审阅和差异比对，证据等级低于 PRD、技术契约和上述规范输入。
+
+| 文件 | 角色 | 说明 |
+|---|---|---|
+| `local-review/2026-07-13-fresh-light-design-consistency-review.md` | 人工审阅记录 | 记录文档、Figma 方向和前端实现之间的一致性判断 |
+| `local-review/fresh-light-2026-07-13/README.md` | 审阅包说明 | 记录来源、生成方式、内容边界和隐私约束 |
+| `local-review/fresh-light-2026-07-13/fresh-light-preview.html` | 生成审阅文件 | 基于当前 Fresh Light Figma 版本和仓库规范构建的浏览器预览入口 |
+| `local-review/fresh-light-2026-07-13/fresh-light-all-frames.svg` | 生成审阅文件 | 29 个 Frame 的本地汇总画板，不是原始 Figma 导出 |
+| `local-review/fresh-light-2026-07-13/fresh-light-preview-manifest.json` | 生成审阅元数据 | 记录审阅包来源、Frame、尺寸和用途 |
+
+### 3.3 目录治理与审阅工具
+
+| 文件 | 角色 | 说明 |
+|---|---|---|
+| `README.md` | 目录治理 | 本目录分类、事实源优先级和使用顺序 |
+| `local-review/README.md` | 审阅治理 | 本地设计资料的接收、命名、检查和输出规则 |
+| `local-review/.gitignore` | 安全治理 | 排除原始 Figma、压缩包和临时文件 |
+| `local-review/fresh-light-2026-07-13/generate_previews.py` | 审阅工具 | 将已有 HTML/SVG 审阅稿渲染为 PNG/PDF 并生成校验和 |
+
+判定规则：规范文件可以约束生成文件；生成文件只能提出差异和修改建议，不能反向覆盖金额、权限、分摊、结算、导入、备份或已冻结版本范围。
 
 ## 4. 当前一致性判断
 
-当前目录与新版 Fresh Light 思路总体一致，但原有文件主要把浅色方向定位为“v1.2 导入试点 / v1.3+ 探索”。2026-07-13 起调整为：
+当前目录结构无需搬迁：根目录保存要求与规范输入，`local-review/` 保存审阅记录、生成预览和审阅工具。需要统一的是状态和来源标识，而不是把两类文件混放或相互覆盖。
+
+当前目录与新版 Fresh Light 思路总体一致，但仍需保留以下阶段边界：
 
 - Fresh Light 是全应用目标设计基线。
 - 代码迁移仍按 Token、基础组件和页面逐步实施，不一次性重写。
 - Dark Glass 保留为已经验收的历史基线和可回滚模式。
 - v1.2 导入专项文档继续保持冻结，不因全局视觉方向重写业务规则。
+- `fresh-light-2026-07-13/` 是基于当前 Figma 版本构建的审阅快照，不是线上 Figma 节点、Variables 或 Auto Layout 已同步的证明。
 
 详细矩阵见 `local-review/2026-07-13-fresh-light-design-consistency-review.md`。
 

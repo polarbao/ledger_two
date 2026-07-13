@@ -1,4 +1,10 @@
 {
+  "meta": {
+    "artifact_class": "requirement",
+    "status": "target-baseline",
+    "updated_at": "2026-07-13",
+    "online_sync_evidence": false
+  },
   "collection": "LedgerTwo",
   "modes": ["Fresh Light", "Dark Glass"],
   "variables": [
@@ -102,7 +108,7 @@
   "notes": [
     "Fresh Light 来自 docs/ui/lynntest(1).html 的浅色财务方向。",
     "Dark Glass 映射当前 frontend/src/index.css，不在 v1.1 冻结前强制迁移。",
-    "Figma 中建议将 Fresh Light 作为 v1.2 导入工作台默认设计模式。"
+    "Fresh Light 是 v1.2 收口后的全应用目标模式；Dark Glass 继续作为已验收历史基线和回滚模式。",
+    "本文件是 Figma Variables 建模输入，不是变量已经写入线上 Figma 文件的证据。"
   ]
 }
-

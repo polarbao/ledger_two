@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task49 已完成；v1.2 RC 通过 Task49X 重新打开 XLSX 输入范围
+适用阶段：Task01-Task49 已完成；v1.2 RC 通过 Task49X 重新打开 XLSX 输入范围；Fresh Light UI-FL 计划已冻结、代码迁移未开始
 
 ## 1. 目标
 
@@ -25,6 +25,7 @@
 10-task33-40-detailed-plan.md   Task33-Task40 细化开发任务规格
 11-v1.2-release-hardening-plan.md v1.2 RC 环境隔离、NAS staging 与 production 升级任务
 12-v1.2-xlsx-import-special-plan.md v1.2 微信/支付宝 XLSX 导入专项任务
+13-fresh-light-ui-interaction-plan.md v1.2 收口后的 Fresh Light UI/UX 协同开发计划
 ../releases/                    v1.2 发布说明、升级回滚和发布验收清单
 ```
 
@@ -38,13 +39,14 @@
 6. v1.2 Task47-Task49 开发前额外读取 `docs/prd/29-prd-v1.2-module-business-service-breakdown.md` 和 `docs/tech/20-v1.2-import-implementation-contract.md`。
 7. Task49X 开发前必须读取 `docs/prd/30-prd-v1.2-xlsx-import-special.md`、`docs/tech/24-v1.2-xlsx-import-implementation-plan.md` 和 `docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`。
 8. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
-9. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
-10. 读取本目录代码风格文档。
-11. 读取对应任务。
-12. 输出计划和预计修改文件，等待确认。
-13. 只实现当前任务。
-14. 运行测试和构建。
-15. 输出变更摘要、验证命令、风险和下一步建议。
+9. Fresh Light 或后续业务 Task 涉及 UI 时，读取 `docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md` 和 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`，登记共享组件归属和并行冲突。
+10. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
+11. 读取本目录代码风格文档。
+12. 读取对应任务。
+13. 输出计划和预计修改文件，等待确认。
+14. 只实现当前任务。
+15. 运行测试和构建。
+16. 输出变更摘要、验证命令、风险和下一步建议。
 
 ## 4. 禁止事项
 

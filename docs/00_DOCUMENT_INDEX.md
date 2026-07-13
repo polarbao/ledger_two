@@ -1,6 +1,8 @@
 # LedgerTwo 文档索引与 AI 实现阅读顺序
 
 > 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、真实 CSV/XLSX preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝真实 XLSX、Figma 主文件写入和 NAS schema 19 实际发布仍待收口。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
+>
+> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成，代码迁移尚未开始。UI 专项以 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 为执行入口，并与后续业务 Task 双向登记；本地预览不代表线上 Figma 已完整同步。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -15,6 +17,7 @@
 3. 在部署窗口同步本机验收版本到 NAS。
 4. 处理阻断级缺陷和非阻断性能债务。
 5. v1.3 开工前重新冻结多账本、多成员和多人分摊范围。
+6. v1.2 发布收口后按 UI-FL-01 至 UI-FL-10 分阶段迁移 Fresh Light，不覆盖既有业务验收事实。
 
 当前产品与开发规划入口：
 
@@ -46,12 +49,14 @@ docs/fixtures/imports/README.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
 docs/ui/figma/README.md
+docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md
 docs/codex_tasks/05-foundation-task-plan.md
 docs/codex_tasks/08-product-roadmap-dev-plan.md
 docs/codex_tasks/09-task41-49-detailed-plan.md
 docs/codex_tasks/10-task33-40-detailed-plan.md
 docs/codex_tasks/11-v1.2-release-hardening-plan.md
 docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md
+docs/codex_tasks/13-fresh-light-ui-interaction-plan.md
 ```
 
 ### 1.2 历史 v0.3 结论
@@ -107,9 +112,11 @@ docs/tech/24-v1.2-xlsx-import-implementation-plan.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
 docs/ui/figma/README.md
+docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md
 docs/fixtures/imports/README.md
 docs/codex_tasks/README.md
 docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md
+docs/codex_tasks/13-fresh-light-ui-interaction-plan.md
 ```
 
 如果处理早期 Demo 或 v0.3 任务，再补读：

@@ -1,9 +1,9 @@
 # Product Roadmap DEV Task Plan
 
-状态：建议任务入口  
+状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-12）：Task41-Task49 已完成。因微信、支付宝实际交付 XLSX，v1.2 RC 通过 Task49X 重新打开输入格式范围；Task49X 完成后再恢复冻结，v1.3 任务仍需重新评审。
+> 执行更新（2026-07-13）：Task41-Task49 已完成。因微信、支付宝实际交付 XLSX，v1.2 RC 通过 Task49X 重新打开输入格式范围；Task49X 完成后再恢复冻结。Fresh Light UI-FL-01 至 UI-FL-10 已形成协同计划但尚未进入代码迁移，v1.3 业务任务仍需重新评审。
 
 ## 1. 使用说明
 
@@ -21,7 +21,9 @@
 - `docs/tech/18-short-mid-architecture-slices.md`。
 - `docs/tech/20-v1.2-import-implementation-contract.md`。
 - `docs/ui/14-v1.1-v1.2-module-flows.md`。
+- `docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md`（涉及 Fresh Light 或后续 UI 变更时）。
 - `docs/codex_tasks/09-task41-49-detailed-plan.md`。
+- `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`（涉及 UI-FL 或业务 Task UI 协同时）。
 
 ## 2. v1.1 DEV 任务
 
@@ -156,7 +158,28 @@
 
 详细计划：`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`。
 
-## 4. v1.3+ DEV 任务
+## 4. v1.2 收口后 Fresh Light UI/UX 专项
+
+状态：计划已冻结，代码实现未开始。
+
+执行入口：`docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`。
+
+任务：
+
+1. UI-FL-01/02：Token、基础组件、AppShell 和全局导航。
+2. UI-FL-03/04/05：Dashboard、记账抽屉和流水高频路径。
+3. UI-FL-06/07：结算、设置与元数据可信交互。
+4. UI-FL-08/09：导入工作台和分析钻取。
+5. UI-FL-10：375/390/430/1440、可访问性和真实业务回归。
+
+协调规则：
+
+- `Task47U/48U/49U/49XU` 保留为 v1.2 导入业务与历史验收事实，UI-FL-08 复用而不覆盖它们。
+- 后续业务 Task 触及 UI 时，必须反向登记 UI-FL 编号、共享组件归属、API 不变声明和截图范围。
+- 共享组件契约未冻结或存在同文件所有权冲突时不得并行；优先完成归属任务，再推进页面任务。
+- UI 专项不新增 API、migration 或业务状态；确需变更时另开 PRD/DEV 评审。
+
+## 5. v1.3+ DEV 任务
 
 ### Task50：多账本正式化
 
@@ -188,10 +211,11 @@
 - 用户真实反馈明确。
 - 有低成本原型或复制文案数据验证。
 
-## 5. 执行规则
+## 6. 执行规则
 
 1. 每个任务单独分支、单独提交。
 2. 每个任务必须先读对应 PRD/Tech/UI。
 3. 不允许把 v1.2/v1.3 功能混入 v1.1。
 4. 不允许绕过金额整数分和后端结算可信源。
 5. 完成后必须说明验证命令和未验证原因。
+6. UI 任务必须遵守 Task13 的双向登记、共享组件归属和四个同步点，不得把设计稿直接当作业务契约。

@@ -1,6 +1,6 @@
 # Task41-Task49 Detailed DEV Plan
 
-状态：建议任务规格  
+状态：Task41-Task49 历史任务基线；后续 Fresh Light UI 迁移由 Task13 承接<br>
 适用阶段：Foundation before v1.1 完成后
 
 ## 1. 使用方式
@@ -253,6 +253,8 @@
 ## 10. v1.2 UI/UX 并行切片
 
 v1.2 的 UI/UX 不作为“最后美化”处理，而是随 Task47-Task49 并行交付。编号采用 `Task47U/48U/49U`，避免打乱既有后端导入任务编号。
+
+协同更新（2026-07-13）：`Task47U/48U/49U` 保留为 v1.2 导入业务和历史验收事实。v1.2 收口后的 Fresh Light 迁移由 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 的 `UI-FL-08` 承接，只更新表现层和响应式结构，不重开 parser、去重、规则、commit 或权限范围；发现业务缺陷时回到对应 Task 修复并独立验收。
 
 ### 10.1 Task47U：导入入口与预览工作台
 

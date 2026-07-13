@@ -1,51 +1,58 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { UserStatItem } from '../types/dashboard';
-import { useAuthStore } from '../stores/auth.store';
-import { useUIStore } from '../stores/ui.store';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import { dashboardApi } from '../api/dashboard.api';
-import { transactionsApi } from '../api/transactions.api';
 import { queryKeys } from '../api/queryKeys';
-import { useLedgerStore } from '../stores/ledger.store';
-import { centsToYuan } from '../utils/money';
-import { formatDate } from '../utils/date';
-import SkeletonTable from '../components/ui/SkeletonTable';
-import ErrorState from '../components/ui/ErrorState';
-import EmptyState from '../components/ui/EmptyState';
+import { transactionsApi } from '../api/transactions.api';
+import CategorySummary from '../components/dashboard/CategorySummary';
+import MemberContributionSummary from '../components/dashboard/MemberContributionSummary';
+import MonthlySummary from '../components/dashboard/MonthlySummary';
+import RecentTransactionList from '../components/dashboard/RecentTransactionList';
+import RecurringReminderList from '../components/dashboard/RecurringReminderList';
+import SettlementActionCard from '../components/dashboard/SettlementActionCard';
+import {
+  getDashboardSummaryMetrics,
+  getSettlementAction,
+} from '../components/dashboard/dashboardModel';
 import PermissionGate from '../components/ledger/PermissionGate';
 import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
-import {
-  TrendingUp,
-  TrendingDown,
-  Sparkles,
-  DollarSign,
-  PlusCircle,
-  Clock,
-  PieChart,
-  UserCheck,
-} from 'lucide-react';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/ui/EmptyState';
+import ErrorState from '../components/ui/ErrorState';
+import { useAuthStore } from '../stores/auth.store';
+import { useLedgerStore } from '../stores/ledger.store';
+import { useUIStore } from '../stores/ui.store';
+import './DashboardPage.css';
+
+function getMonthLabel(month: string) {
+  const [year, monthNumber] = month.split('-');
+  return year && monthNumber ? `${year} 年 ${Number(monthNumber)} 月` : month;
+}
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const { currentMonth, setAddDrawerOpen } = useUIStore();
+  const currentMonth = useUIStore((state) => state.currentMonth);
+  const setAddDrawerOpen = useUIStore((state) => state.setAddDrawerOpen);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const canWriteLedger = useHasLedgerRole(['owner', 'editor']);
 
-  // 1. 请求数据并绑定依赖 currentMonth 自动重载
-  const { data: dashboardData, isLoading, error, refetch } = useQuery({
+  const {
+    data: dashboardData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
     queryFn: () => dashboardApi.getDashboard(currentMonth),
     enabled: !!currentUser,
   });
 
-  // 1.5. 获取到期账单提醒列表
-  const { data: reminders } = useQuery({
+  const { data: reminders = [] } = useQuery({
     queryKey: queryKeys.recurringReminders(activeLedgerId),
     queryFn: () => transactionsApi.listRecurringReminders(),
     enabled: !!currentUser,
   });
 
-  // 确认提醒的 Mutation
   const confirmReminderMutation = useMutation({
     mutationFn: (id: string) => transactionsApi.confirmReminder(id),
     onSuccess: () => {
@@ -55,13 +62,16 @@ export default function DashboardPage() {
     },
   });
 
-  // 跳过本期提醒的 Mutation
   const skipReminderMutation = useMutation({
     mutationFn: (id: string) => transactionsApi.skipReminder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(activeLedgerId) });
     },
   });
+
+  const handleQuickAdd = () => {
+    setAddDrawerOpen(true);
+  };
 
   const handleConfirmReminder = (id: string) => {
     confirmReminderMutation.mutate(id);
@@ -71,365 +81,106 @@ export default function DashboardPage() {
     skipReminderMutation.mutate(id);
   };
 
-  const handleQuickAdd = () => {
-    setAddDrawerOpen(true);
-  };
-
-  const getPayerName = (payerId: string, userStats: UserStatItem[] | undefined) => {
-    if (payerId === currentUser?.id) return '我';
-    const partner = userStats?.find((u) => u.user_id !== currentUser?.id);
-    if (partner && payerId === partner.user_id) return partner.display_name;
-    return '伙伴';
-  };
-
-  // 判定当月账期是否彻底为空，以便显示空状态引导
-  const isMonthEmpty = dashboardData 
-    ? (dashboardData.total_expense_cents === 0 && 
-       dashboardData.total_income_cents === 0 && 
-       (!dashboardData.recent_transactions || dashboardData.recent_transactions.length === 0))
+  const summaryMetrics = dashboardData
+    ? getDashboardSummaryMetrics(dashboardData, currentUser?.id)
+    : [];
+  const settlementAction = dashboardData
+    ? getSettlementAction(dashboardData, currentUser?.id)
+    : null;
+  const isMonthEmpty = dashboardData
+    ? dashboardData.total_expense_cents === 0
+      && dashboardData.total_income_cents === 0
+      && dashboardData.recent_transactions.length === 0
     : false;
+  const reminderMutationPending = confirmReminderMutation.isPending || skipReminderMutation.isPending;
 
   return (
-    <div className="page-content animate-fade-in text-left">
-      {/* 顶部迎宾栏与快捷按钮 */}
-      <div className="glass-card header-banner dashboard-header-banner">
-        <div className="banner-title-area">
-          <Sparkles className="banner-icon" />
-          <div>
-            <h2>欢迎回来，{currentUser?.display_name}</h2>
-            <p className="dimmed">这是你们在 {currentMonth} 账期的共享记账空间。</p>
-          </div>
+    <div className="lt-dashboard animate-fade-in">
+      <header className="lt-dashboard__header">
+        <div className="lt-dashboard__title-copy">
+          <span className="lt-dashboard__month">{getMonthLabel(currentMonth)}</span>
+          <h1>本月概览</h1>
+          <p>{currentUser?.display_name ? `${currentUser.display_name}，` : ''}你们的共享账目在这里汇总。</p>
         </div>
         <PermissionGate allow={['owner', 'editor']}>
-          <button
-            className="btn-primary quick-add-btn"
+          <Button
+            className="lt-dashboard__record-button"
+            variant="primary"
+            startIcon={<Plus size={18} />}
             onClick={handleQuickAdd}
           >
-            <PlusCircle size={18} />
-            <span>记一笔</span>
-          </button>
+            记一笔
+          </Button>
         </PermissionGate>
-      </div>
+      </header>
 
-      {/* 异常错误态渲染 */}
-      {error && (
-        <ErrorState 
-          title="系统账务大屏获取失败" 
-          message={error instanceof Error ? error.message : '请检查网络或重新登录后重试'} 
-          onRetry={refetch} 
+      {error ? (
+        <ErrorState
+          title="本月概览加载失败"
+          message={error instanceof Error ? error.message : '请检查网络后重试。'}
+          onRetry={refetch}
         />
-      )}
-
-      {!error && (
+      ) : (
         <>
-          {/* 周期账单待确认提醒横幅 */}
-          {reminders && reminders.length > 0 && (
-            <div className="glass-card settlement-glow-card animate-fade-in" style={{ padding: '16px 20px', margin: '0 0 16px 0', border: '1px solid var(--accent-purple)', background: 'rgba(168, 85, 247, 0.04)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Clock className="animate-pulse text-purple-400" style={{ color: 'var(--accent-purple)' }} size={20} />
-                  <strong style={{ fontSize: '15px', color: 'var(--text-primary)' }}>您有 {reminders.length} 笔周期账单待确认</strong>
-                </div>
-                <span className="dimmed-desc" style={{ fontSize: '11px' }}>确认后生成真实账单；跳过只影响本期提醒</span>
-              </div>
+          <MonthlySummary metrics={summaryMetrics} isLoading={isLoading} />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
-                {reminders.map((rem) => (
-                  <div key={rem.id} className="dashboard-reminder-card">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{rem.rule_name}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        到期日: {rem.due_date} · 频次: {rem.frequency === 'weekly' ? '每周' : rem.frequency === 'monthly' ? '每月' : '每年'} · {rem.type === 'expense' ? '个人支出' : rem.type === 'income' ? '个人收入' : '共同支出'}
-                      </span>
-                    </div>
-                    
-                    <div className="dashboard-reminder-actions">
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent-green)' }}>
-                        {rem.amount_cents != null ? `¥${centsToYuan(rem.amount_cents)}` : '未设定金额'}
-                      </span>
-                      <div className="dashboard-reminder-buttons">
-                        <button 
-                          onClick={() => handleSkipReminder(rem.id)}
-                          className="btn-secondary mobile-full"
-                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px' }}
-                          disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
-                        >
-                          跳过本期
-                        </button>
-                        <button 
-                          onClick={() => handleConfirmReminder(rem.id)}
-                          className="btn-primary mobile-full"
-                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: 'var(--accent-purple)', border: 'none', color: '#fff' }}
-                          disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
-                        >
-                          {confirmReminderMutation.isPending && confirmReminderMutation.variables === rem.id ? '记账中...' : '确认记账'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {isLoading || !settlementAction ? (
+            <section className="lt-dashboard-settlement lt-dashboard-settlement--loading" aria-busy="true">
+              <span className="skeleton-item lt-dashboard-settlement__icon-skeleton" />
+              <div className="lt-dashboard-settlement__loading-copy">
+                <span className="skeleton-item" />
+                <span className="skeleton-item" />
               </div>
-            </div>
+            </section>
+          ) : (
+            <SettlementActionCard action={settlementAction} />
           )}
 
-          {/* 本月收支大卡片 */}
-          <div className="stats-grid">
-            <div className="glass-card stat-card total-expense">
-              <div className="card-header">
-                <span className="card-title">本月总支出</span>
-                <TrendingDown className="card-icon text-expense" />
-              </div>
-              <div className="card-value">
-                {isLoading ? (
-                  <div className="skeleton-item" style={{ height: '36px', width: '120px' }}></div>
-                ) : (
-                  `¥${centsToYuan(dashboardData?.total_expense_cents || 0)}`
-                )}
-              </div>
-              <div className="card-desc">
-                {isLoading ? (
-                  <div className="skeleton-item" style={{ height: '14px', width: '160px', marginTop: '8px' }}></div>
-                ) : (
-                  '包含个人及共同分摊消费'
-                )}
-              </div>
-            </div>
+          {reminders.length > 0 ? (
+            <RecurringReminderList
+              reminders={reminders}
+              isMutating={reminderMutationPending}
+              confirmingId={confirmReminderMutation.isPending ? confirmReminderMutation.variables : undefined}
+              onConfirm={handleConfirmReminder}
+              onSkip={handleSkipReminder}
+            />
+          ) : null}
 
-            <div className="glass-card stat-card total-income">
-              <div className="card-header">
-                <span className="card-title">本月总收入</span>
-                <TrendingUp className="card-icon text-income" />
-              </div>
-              <div className="card-value">
-                {isLoading ? (
-                  <div className="skeleton-item" style={{ height: '36px', width: '120px' }}></div>
-                ) : (
-                  `¥${centsToYuan(dashboardData?.total_income_cents || 0)}`
-                )}
-              </div>
-              <div className="card-desc">
-                {isLoading ? (
-                  <div className="skeleton-item" style={{ height: '14px', width: '160px', marginTop: '8px' }}></div>
-                ) : (
-                  '个人独立录入的资金进账'
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 当月空状态处理 */}
           {isMonthEmpty && !isLoading ? (
-            <EmptyState 
-              title="本月账期暂无账单数据"
+            <EmptyState
+              title="这个月还没有账单"
               description={canWriteLedger
-                ? '你们在这个月份还没有记录过任何消费或收入流水。点击右上角「记一笔」，记录这笔账单吧！'
-                : '你们在这个月份还没有记录过任何消费或收入流水。您当前是观察者权限，可以查看账本但不能新增账单。'}
-              actionText={canWriteLedger ? '开始记账' : undefined}
+                ? '记录第一笔支出或收入后，这里会出现分类、成员承担和最近流水。'
+                : '当前账本还没有本月账单；你可以查看，但不能新增记录。'}
+              actionText={canWriteLedger ? '记第一笔' : undefined}
               onAction={canWriteLedger ? handleQuickAdd : undefined}
             />
           ) : (
-            <>
-              {/* 两端垫付及结算卡片 */}
-              <div className="dashboard-grid-2">
-                {/* 双端垫付统计 */}
-                <div className="glass-card dashboard-subcard">
-                  <div className="subcard-header">
-                    <UserCheck size={20} className="subcard-icon text-a" />
-                    <h3>当月垫付与实际承担</h3>
-                  </div>
-                  {isLoading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '8px 0' }}>
-                      <div className="skeleton-item" style={{ height: '40px', width: '100%', borderRadius: '8px' }}></div>
-                      <div className="skeleton-item" style={{ height: '40px', width: '100%', borderRadius: '8px' }}></div>
-                    </div>
-                  ) : (
-                    <div className="stat-split-list">
-                      <div className="stat-split-item">
-                        <span className="user-name">我 ({currentUser?.display_name})</span>
-                        <div className="amounts-line">
-                          <span className="paid-val">垫付 ¥{centsToYuan(dashboardData?.my_paid_cents || 0)}</span>
-                          <span className="divider">/</span>
-                          <span className="share-val">
-                            承担 ¥{centsToYuan(dashboardData?.user_stats?.find(u => u.user_id === currentUser?.id)?.share_cents || 0)}
-                          </span>
-                        </div>
-                      </div>
-                      {dashboardData?.user_stats?.find(u => u.user_id !== currentUser?.id) && (
-                        <div className="stat-split-item">
-                          <span className="user-name">
-                            伙伴 ({dashboardData.user_stats.find(u => u.user_id !== currentUser?.id)?.display_name})
-                          </span>
-                          <div className="amounts-line">
-                            <span className="paid-val">垫付 ¥{centsToYuan(dashboardData.partner_paid_cents)}</span>
-                            <span className="divider">/</span>
-                            <span className="share-val">
-                              承担 ¥{centsToYuan(dashboardData.user_stats.find(u => u.user_id !== currentUser?.id)?.share_cents || 0)}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* 全局未结清结算提醒 */}
-                <div className="glass-card dashboard-subcard settlement-glow-card">
-                  <div className="subcard-header">
-                    <DollarSign size={20} className="subcard-icon text-b" />
-                    <h3>全局未结余额 (跨月)</h3>
-                  </div>
-                  {isLoading ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
-                      <div className="skeleton-item" style={{ height: '60px', width: '80%', borderRadius: '12px' }}></div>
-                    </div>
-                  ) : (
-                    <div className="settlement-alert-body">
-                      {dashboardData?.shared_balance && (dashboardData.shared_balance.amount_cents ?? 0) > 0 ? (
-                        <div className="debt-indicator">
-                          <div className="debt-status-text">
-                            {dashboardData.shared_balance.from_user_id === currentUser?.id ? (
-                              <>
-                                <p className="debt-callout">
-                                  你需要向 <strong className="partner-highlight">
-                                    {dashboardData.user_stats?.find(u => u.user_id === dashboardData.shared_balance.to_user_id)?.display_name || '对方'}
-                                  </strong> 结清
-                                </p>
-                                <div className="debt-amount-big">¥{centsToYuan(dashboardData.shared_balance.amount_cents ?? 0)}</div>
-                              </>
-                            ) : (
-                              <>
-                                <p className="debt-callout">
-                                  <strong className="partner-highlight">
-                                    {dashboardData.user_stats?.find(u => u.user_id === dashboardData.shared_balance.from_user_id)?.display_name || '对方'}
-                                  </strong> 需要向你支付
-                                </p>
-                                <div className="debt-amount-big text-green">¥{centsToYuan(dashboardData.shared_balance.amount_cents ?? 0)}</div>
-                              </>
-                            )}
-                          </div>
-                          <p className="debt-sub-info">结账可抵扣净额，在结算中心生成记录即可。</p>
-                        </div>
-                      ) : (
-                        <div className="debt-settled-state">
-                          <div className="settled-shield">✓</div>
-                          <p className="settled-text">账目已结清，本月暂无未结账单！</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+            <div className="lt-dashboard-content-grid">
+              <div className="lt-dashboard-content-stack">
+                <CategorySummary
+                  items={dashboardData?.category_summary ?? []}
+                  isLoading={isLoading}
+                />
+                {dashboardData ? (
+                  <MemberContributionSummary
+                    data={dashboardData}
+                    currentUserId={currentUser?.id}
+                  />
+                ) : (
+                  <section className="lt-dashboard-section lt-dashboard-section--loading" aria-busy="true">
+                    <span className="skeleton-item" />
+                    <span className="skeleton-item" />
+                    <span className="skeleton-item" />
+                  </section>
+                )}
               </div>
-
-              {/* 排行榜与最近流水 */}
-              <div className="dashboard-grid-2">
-                {/* 消费分类占比 Top N */}
-                <div className="glass-card dashboard-subcard">
-                  <div className="subcard-header">
-                    <PieChart size={20} className="subcard-icon" />
-                    <h3>分类消费排行 (Top N)</h3>
-                  </div>
-                  {isLoading ? (
-                    <SkeletonTable rows={3} />
-                  ) : (
-                    <div className="ranking-list">
-                      {dashboardData?.category_summary && dashboardData.category_summary.length > 0 ? (
-                        dashboardData.category_summary.map((item) => (
-                          <div className="category-ranking-row" key={item.id}>
-                            <div className="category-ranking-info">
-                              <span className="ranking-name">{item.name}</span>
-                              <span className="ranking-amount">
-                                ¥{centsToYuan(item.amount_cents)}
-                                <span className="percent-text">({item.percent.toFixed(1)}%)</span>
-                              </span>
-                            </div>
-                            <div className="progress-bar-bg">
-                              <div
-                                className="progress-bar-fill"
-                                style={{ width: `${Math.min(100, Math.max(0, item.percent))}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="list-empty-state">
-                          <p>本月暂无分类消费数据</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* 最近流水 */}
-                <div className="glass-card dashboard-subcard">
-                  <div className="subcard-header">
-                    <Clock size={20} className="subcard-icon" />
-                    <h3>最近流水时间线 (Max 10)</h3>
-                  </div>
-                  {isLoading ? (
-                    <SkeletonTable rows={4} />
-                  ) : (
-                    <div className="timeline-list">
-                      {dashboardData?.recent_transactions && dashboardData.recent_transactions.length > 0 ? (
-                        dashboardData.recent_transactions.map((tx) => {
-                          let badgeClass = '';
-                          let badgeLabel = '';
-                          let amountSign = '';
-                          let amountClass = '';
-
-                          switch (tx.type) {
-                            case 'expense':
-                              badgeClass = 'badge-expense';
-                              badgeLabel = '个人';
-                              amountSign = '-';
-                              amountClass = 'val-expense';
-                              break;
-                            case 'income':
-                              badgeClass = 'badge-income';
-                              badgeLabel = '收入';
-                              amountSign = '+';
-                              amountClass = 'val-income';
-                              break;
-                            case 'shared_expense':
-                              badgeClass = 'badge-shared';
-                              badgeLabel = '共享';
-                              amountSign = '-';
-                              amountClass = 'val-expense';
-                              break;
-                            case 'settlement':
-                              badgeClass = 'badge-settle';
-                              badgeLabel = '结算';
-                              amountSign = '';
-                              amountClass = 'val-settle';
-                              break;
-                          }
-
-                          return (
-                            <div className="timeline-item" key={tx.id}>
-                              <div className="item-left">
-                                <span className={`type-badge ${badgeClass}`}>{badgeLabel}</span>
-                                <div className="tx-details">
-                                  <span className="tx-title">{tx.title}</span>
-                                  <span className="tx-meta">
-                                    {formatDate(tx.occurred_at).substring(5, 16)} · {getPayerName(tx.payer_user_id, dashboardData.user_stats)}付
-                                  </span>
-                                </div>
-                              </div>
-                              <div className={`tx-amount ${amountClass}`}>
-                                {amountSign}¥{centsToYuan(tx.amount_cents)}
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="list-empty-state">
-                          <p>本月暂无交易明细流水</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
+              <RecentTransactionList
+                data={dashboardData}
+                currentUserId={currentUser?.id}
+                isLoading={isLoading}
+              />
+            </div>
           )}
         </>
       )}

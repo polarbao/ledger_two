@@ -160,7 +160,7 @@
 
 ## 4. v1.2 收口后 Fresh Light UI/UX 专项
 
-状态：计划已冻结；波次 A（UI-FL-01/02）已完成，UI-FL-03 待启动。
+状态：计划已冻结；波次 A（UI-FL-01/02）与 UI-FL-03 已完成，UI-FL-04 待启动。
 
 执行入口：`docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`。
 

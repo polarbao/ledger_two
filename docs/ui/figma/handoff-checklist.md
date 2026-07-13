@@ -82,3 +82,13 @@ Task49 前必须有：
 - 验收证据：`docs/project_analysis/ui-fl-01-foundation-2026-07-13/`。
 - 回退方式：保留 `dark-glass` 默认解析与旧变量兼容映射；页面级 Fresh Light 启用必须由后续 UI-FL 任务独立验收。
 - Figma 状态：规范与本地代码映射已更新，线上组件和 Variables 未在本任务中写入，不得标记为已同步。
+
+## 7. UI-FL-02 交接记录
+
+- 关联任务：`docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 的 UI-FL-02。
+- 路由与组件：`frontend/src/components/layout/AppShell.tsx`、`AppShell.css`、`appShellModel.ts`；一级路由、导入和周期规则路径不变。
+- 行为边界：保留 active ledger、query 失效、离线监听、草稿箱、全局记账抽屉和 owner/editor/viewer 写权限。
+- 响应式：248px 桌面侧栏；1024px 以下切换移动布局；375/390 无横向滚动，FAB 使用独立动作区且不覆盖页面内容或五项底栏。
+- 验收证据：`docs/project_analysis/ui-fl-02-app-shell-2026-07-13/`。
+- 回退方式：AppShell 使用 UI-FL-01 双主题 Token；默认仍为 `dark-glass`，可回退 UI-FL-02 原子提交而不影响页面业务代码。
+- Figma 状态：组件映射和本地实现证据已更新，线上 AppShell Frame/组件未在本任务中写入。

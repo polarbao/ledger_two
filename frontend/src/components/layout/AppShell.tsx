@@ -1,28 +1,110 @@
-import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useEffect, useState, type ChangeEvent } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../../stores/auth.store';
-import { useUIStore } from '../../stores/ui.store';
-import { useLedgerStore } from '../../stores/ledger.store';
-import { ledgerApi } from '../../api/ledger.api';
-import { authApi } from '../../api/auth.api';
-import { useEffect, useState } from 'react';
-import { queryKeys } from '../../api/queryKeys';
 import {
-  LayoutDashboard,
-  ReceiptText,
-  DollarSign,
   BarChart3,
-  Settings,
-  LogOut,
-  Sparkles,
   Calendar,
-  WifiOff,
+  ChevronDown,
   CloudOff,
+  DollarSign,
+  FileUp,
+  LayoutDashboard,
+  LogOut,
+  Plus,
+  ReceiptText,
+  Repeat2,
+  Settings,
+  Sparkles,
+  Wifi,
+  WifiOff,
+  type LucideIcon,
 } from 'lucide-react';
-import TransactionFormDrawer from '../transaction/TransactionFormDrawer';
-import DraftListDrawer from '../transaction/DraftListDrawer';
+import { authApi } from '../../api/auth.api';
+import { ledgerApi, type LedgerWithRole } from '../../api/ledger.api';
+import { queryKeys } from '../../api/queryKeys';
+import { useAuthStore } from '../../stores/auth.store';
 import { useDraftStore } from '../../stores/draft.store';
+import { useLedgerStore } from '../../stores/ledger.store';
+import { useUIStore } from '../../stores/ui.store';
+import Button from '../ui/Button';
+import StatusChip, { type StatusChipTone } from '../ui/StatusChip';
+import DraftListDrawer from '../transaction/DraftListDrawer';
+import TransactionFormDrawer from '../transaction/TransactionFormDrawer';
 import DeploymentBadge from './DeploymentBadge';
+import {
+  APP_PRIMARY_NAV_ITEMS,
+  APP_TOOL_NAV_ITEMS,
+  canCreateTransaction,
+  getLedgerRoleLabel,
+  isAppRouteActive,
+  type AppPrimaryNavigationId,
+  type AppToolNavigationId,
+} from './appShellModel';
+import './AppShell.css';
+
+const PRIMARY_NAV_ICONS: Record<AppPrimaryNavigationId, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  transactions: ReceiptText,
+  analytics: BarChart3,
+  settlement: DollarSign,
+  settings: Settings,
+};
+
+const TOOL_NAV_ICONS: Record<AppToolNavigationId, LucideIcon> = {
+  import: FileUp,
+  recurring: Repeat2,
+};
+
+interface LedgerSelectorProps {
+  ledgers: LedgerWithRole[];
+  activeLedgerId: string | null;
+  onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
+}
+
+function LedgerSelector({ ledgers, activeLedgerId, onChange }: LedgerSelectorProps) {
+  return (
+    <label className="lt-shell__ledger-selector">
+      <span className="lt-shell__field-label">当前账本</span>
+      <span className="lt-shell__select-wrap">
+        <select
+          className="lt-shell__ledger-select"
+          value={activeLedgerId ?? ''}
+          onChange={onChange}
+          aria-label="当前账本"
+          disabled={ledgers.length === 0}
+        >
+          {ledgers.length === 0 ? <option value="">暂无可用账本</option> : null}
+          {ledgers.map((ledger) => (
+            <option key={ledger.id} value={ledger.id}>
+              {ledger.name} · {getLedgerRoleLabel(ledger.role)}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="lt-shell__select-icon" size={16} aria-hidden="true" />
+      </span>
+    </label>
+  );
+}
+
+interface MonthControlProps {
+  value: string;
+  onChange: (month: string) => void;
+}
+
+function MonthControl({ value, onChange }: MonthControlProps) {
+  return (
+    <label className="lt-shell__month-control">
+      <Calendar className="lt-shell__month-icon" size={17} aria-hidden="true" />
+      <input
+        type="month"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="lt-shell__month-input"
+        aria-label="当前月份"
+      />
+    </label>
+  );
+}
 
 export default function AppShell() {
   const navigate = useNavigate();
@@ -30,16 +112,27 @@ export default function AppShell() {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clear);
-  const { currentMonth, setCurrentMonth } = useUIStore();
-  const { activeLedgerId, setActiveLedger } = useLedgerStore();
-  const { isOffline, setIsOffline } = useUIStore();
-  const { drafts } = useDraftStore();
+  const currentMonth = useUIStore((state) => state.currentMonth);
+  const setCurrentMonth = useUIStore((state) => state.setCurrentMonth);
+  const setAddDrawerOpen = useUIStore((state) => state.setAddDrawerOpen);
+  const isOffline = useUIStore((state) => state.isOffline);
+  const setIsOffline = useUIStore((state) => state.setIsOffline);
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
+  const activeRole = useLedgerStore((state) => state.activeRole);
+  const setActiveLedger = useLedgerStore((state) => state.setActiveLedger);
+  const drafts = useDraftStore((state) => state.drafts);
   const [isDraftListOpen, setIsDraftListOpen] = useState(false);
   const { data: ledgers = [] } = useQuery({
     queryKey: queryKeys.ledgers.all,
     queryFn: ledgerApi.listUserLedgers,
     enabled: !!user,
   });
+
+  const activeLedger = ledgers.find((ledger) => ledger.id === activeLedgerId);
+  const canWriteLedger = canCreateTransaction(activeRole);
+  const recordActionTitle = canWriteLedger ? '记一笔' : '当前账本为只读，无法记账';
+  const networkTone: StatusChipTone = isOffline ? 'danger' : drafts.length > 0 ? 'info' : 'success';
+  const networkLabel = isOffline ? '网络离线' : drafts.length > 0 ? `${drafts.length} 条草稿` : '网络在线';
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -55,174 +148,228 @@ export default function AppShell() {
 
   useEffect(() => {
     if (ledgers.length === 0) return;
-    const activeLedger = ledgers.find((item) => item.id === activeLedgerId);
     if (!activeLedger) {
       const firstLedger = ledgers[0];
       setActiveLedger(firstLedger.id, firstLedger.role);
+      return;
     }
-  }, [activeLedgerId, ledgers, setActiveLedger]);
+    if (activeLedger.role !== activeRole) {
+      setActiveLedger(activeLedger.id, activeLedger.role);
+    }
+  }, [activeLedger, activeRole, ledgers, setActiveLedger]);
 
-  const handleLedgerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const lId = e.target.value;
-    const l = ledgers.find((item) => item.id === lId);
-    if (l && l.id !== activeLedgerId) {
-      setActiveLedger(l.id, l.role);
+  const handleLedgerChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextLedger = ledgers.find((ledger) => ledger.id === event.target.value);
+    if (nextLedger && nextLedger.id !== activeLedgerId) {
+      setActiveLedger(nextLedger.id, nextLedger.role);
       queryClient.invalidateQueries();
     }
+  };
+
+  const openTransactionForm = () => {
+    if (canWriteLedger) setAddDrawerOpen(true);
   };
 
   const handleLogout = async () => {
     try {
       await authApi.logout();
     } catch {
-      // Ignore network errors
+      // Local sign-out must remain available when the network is unavailable.
     } finally {
       clearAuth();
       navigate('/login');
     }
   };
 
-  const navItems = [
-    { label: '仪表盘', path: '/', icon: LayoutDashboard },
-    { label: '账单明细', path: '/transactions', icon: ReceiptText },
-    { label: '结算中心', path: '/settlement', icon: DollarSign },
-    { label: '分析统计', path: '/analytics', icon: BarChart3 },
-    { label: '系统设置', path: '/settings', icon: Settings },
-  ];
-
   return (
-    <div className="app-shell">
-      {/* 桌面端 Sidebar 侧边栏 */}
-      <aside className="sidebar glass-card">
-        <div className="sidebar-brand">
-          <Sparkles className="brand-logo" />
-          <div className="sidebar-brand__copy">
-            <span>LedgerTwo</span>
+    <div className="lt-shell">
+      <aside className="lt-shell__sidebar" aria-label="应用侧栏">
+        <div className="lt-shell__brand">
+          <span className="lt-shell__brand-mark"><Sparkles size={20} aria-hidden="true" /></span>
+          <div className="lt-shell__brand-copy">
+            <span className="lt-shell__brand-name">LedgerTwo</span>
             <DeploymentBadge />
           </div>
         </div>
 
-        <div style={{ padding: '0 1rem', marginBottom: '1rem' }}>
-          <select 
-            value={activeLedgerId || ''} 
-            onChange={handleLedgerChange}
-            style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', background: 'var(--surface-color)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-          >
-            {ledgers.map(l => (
-              <option key={l.id} value={l.id}>{l.name} ({l.role})</option>
-            ))}
-          </select>
-        </div>
+        <LedgerSelector ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={handleLedgerChange} />
 
-        <nav className="sidebar-nav">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+        <Button
+          className="lt-shell__record-button"
+          variant="primary"
+          startIcon={<Plus size={18} />}
+          disabled={!canWriteLedger}
+          title={recordActionTitle}
+          aria-label="记一笔"
+          onClick={openTransactionForm}
+        >
+          记一笔
+        </Button>
+
+        <nav className="lt-shell__nav" aria-label="主导航">
+          {APP_PRIMARY_NAV_ITEMS.map((item) => {
+            const Icon = PRIMARY_NAV_ICONS[item.id];
+            const isActive = isAppRouteActive(location.pathname, item.path);
             return (
               <Link
-                key={item.path}
+                key={item.id}
                 to={item.path}
-                className={`nav-item ${isActive ? 'active' : ''}`}
+                className="lt-shell__nav-link"
+                aria-current={isActive ? 'page' : undefined}
               >
-                <Icon size={20} />
+                <Icon size={19} aria-hidden="true" />
                 <span>{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="avatar">{user?.display_name?.charAt(0) || 'U'}</div>
-            <div className="info">
-              <span className="name">{user?.display_name}</span>
-              <span className="role">@{user?.username}</span>
+        <nav className="lt-shell__tools" aria-label="账本工具">
+          <span className="lt-shell__tools-label">工具</span>
+          {APP_TOOL_NAV_ITEMS.map((item) => {
+            const Icon = TOOL_NAV_ICONS[item.id];
+            const isActive = isAppRouteActive(location.pathname, item.path);
+            return (
+              <Link
+                key={item.id}
+                to={item.path}
+                className="lt-shell__nav-link"
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <Icon size={19} aria-hidden="true" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="lt-shell__footer">
+          <div className="lt-shell__user">
+            <span className="lt-shell__avatar" aria-hidden="true">
+              {user?.display_name?.charAt(0) || 'U'}
+            </span>
+            <div className="lt-shell__user-copy">
+              <span className="lt-shell__user-name">{user?.display_name || '当前用户'}</span>
+              <span className="lt-shell__user-handle">@{user?.username || 'unknown'}</span>
             </div>
           </div>
-          <button className="btn-logout" onClick={handleLogout}>
-            <LogOut size={18} />
+          <button type="button" className="lt-shell__logout" onClick={handleLogout}>
+            <LogOut size={18} aria-hidden="true" />
             <span>退出登录</span>
           </button>
         </div>
       </aside>
 
-      {/* 主界面区域 */}
-      <main className="main-content">
-        {isOffline && (
-          <div className="offline-banner" style={{ background: '#ef4444', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', zIndex: 1000, position: 'relative' }}>
-            <WifiOff size={16} />
-            <span style={{ fontSize: '14px', fontWeight: 500 }}>当前网络已离线，数据可能无法保存，部分功能受限。</span>
-            <button className="btn-text" style={{ color: 'white', textDecoration: 'underline', padding: '0', marginLeft: '8px' }} onClick={() => setIsDraftListOpen(true)}>
-              查看草稿箱
+      <main className="lt-shell__main">
+        {isOffline ? (
+          <div className="lt-shell__notice lt-shell__notice--offline" role="status" aria-live="polite">
+            <WifiOff size={17} aria-hidden="true" />
+            <span>当前网络已离线，未提交内容会保存在本机草稿中。</span>
+            {drafts.length > 0 ? (
+              <button type="button" className="lt-shell__notice-action" onClick={() => setIsDraftListOpen(true)}>
+                查看 {drafts.length} 条草稿
+              </button>
+            ) : null}
+          </div>
+        ) : drafts.length > 0 ? (
+          <div className="lt-shell__notice lt-shell__notice--drafts" role="status" aria-live="polite">
+            <CloudOff size={17} aria-hidden="true" />
+            <span>有 {drafts.length} 条离线草稿待处理。</span>
+            <button type="button" className="lt-shell__notice-action" onClick={() => setIsDraftListOpen(true)}>
+              打开草稿箱
             </button>
           </div>
-        )}
-        {!isOffline && drafts.length > 0 && (
-          <div className="draft-banner" style={{ background: 'var(--accent-primary)', color: 'white', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', zIndex: 1000, position: 'relative', cursor: 'pointer' }} onClick={() => setIsDraftListOpen(true)}>
-            <CloudOff size={16} />
-            <span style={{ fontSize: '14px', fontWeight: 500 }}>您有 {drafts.length} 条离线草稿待提交。点击查看。</span>
-          </div>
-        )}
-        {/* 顶部 TopBar */}
-        <header className="topbar glass-card">
-          <div className="mobile-brand">
-            <Sparkles size={20} className="brand-logo" />
-            <div className="mobile-brand__copy">
-              <h2>LedgerTwo</h2>
-              <DeploymentBadge />
+        ) : null}
+
+        <header className="lt-shell__topbar">
+          <div className="lt-shell__desktop-context">
+            <div className="lt-shell__ledger-summary">
+              <span className="lt-shell__context-label">当前账本</span>
+              <div className="lt-shell__ledger-summary-row">
+                <strong className="lt-shell__ledger-name">{activeLedger?.name || '正在加载账本'}</strong>
+                <StatusChip tone="neutral">{getLedgerRoleLabel(activeRole)}</StatusChip>
+              </div>
             </div>
+            <MonthControl value={currentMonth} onChange={setCurrentMonth} />
           </div>
 
-          <div className="month-picker-wrapper">
-            <Calendar size={18} className="picker-icon" />
-            <input
-              type="month"
-              value={currentMonth}
-              onChange={(e) => setCurrentMonth(e.target.value)}
-              className="month-picker"
-            />
+          <div className="lt-shell__topbar-actions">
+            <StatusChip tone={networkTone} icon={isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}>
+              {networkLabel}
+            </StatusChip>
+            {drafts.length > 0 ? (
+              <Button
+                variant="ghost"
+                iconOnly
+                aria-label={`打开草稿箱，共 ${drafts.length} 条`}
+                title={`草稿箱，共 ${drafts.length} 条`}
+                onClick={() => setIsDraftListOpen(true)}
+              >
+                <span className="lt-shell__draft-button-wrap">
+                  <CloudOff size={20} aria-hidden="true" />
+                  <span className="lt-shell__draft-count">{drafts.length}</span>
+                </span>
+              </Button>
+            ) : null}
+            <span className="lt-shell__welcome">你好，<strong>{user?.display_name || '用户'}</strong></span>
           </div>
 
-          <div className="desktop-user-info">
-            {drafts.length > 0 && (
-              <button className="btn-icon" onClick={() => setIsDraftListOpen(true)} title="草稿箱" style={{ position: 'relative' }}>
-                <CloudOff size={20} />
-                <span style={{ position: 'absolute', top: -4, right: -4, background: 'var(--accent-primary)', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{drafts.length}</span>
-              </button>
-            )}
-            <span className="welcome-text">
-              你好, <strong className="text-glow">{user?.display_name}</strong>
-            </span>
+          <div className="lt-shell__mobile-context">
+            <div className="lt-shell__mobile-summary">
+              <div className="lt-shell__mobile-brand">
+                <span className="lt-shell__brand-mark"><Sparkles size={18} aria-hidden="true" /></span>
+                <div className="lt-shell__mobile-brand-copy">
+                  <span className="lt-shell__brand-name">LedgerTwo</span>
+                  <DeploymentBadge />
+                </div>
+              </div>
+              <StatusChip tone={networkTone} icon={isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}>
+                {networkLabel}
+              </StatusChip>
+            </div>
+            <div className="lt-shell__mobile-controls">
+              <LedgerSelector ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={handleLedgerChange} />
+              <MonthControl value={currentMonth} onChange={setCurrentMonth} />
+            </div>
           </div>
         </header>
 
-        {/* 页面内容注入点 */}
-        <div className="page-outlet">
+        <div className="lt-shell__page">
           <Outlet />
         </div>
       </main>
 
-      {/* 移动端 BottomTabBar 底部栏 */}
-      <nav className="mobile-tabbar glass-card">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+      <Button
+        className="lt-shell__fab"
+        variant="primary"
+        startIcon={<Plus size={19} />}
+        disabled={!canWriteLedger}
+        title={recordActionTitle}
+        aria-label="记一笔"
+        onClick={openTransactionForm}
+      >
+        记一笔
+      </Button>
+
+      <nav className="lt-shell__bottom-nav" aria-label="主导航">
+        {APP_PRIMARY_NAV_ITEMS.map((item) => {
+          const Icon = PRIMARY_NAV_ICONS[item.id];
+          const isActive = isAppRouteActive(location.pathname, item.path);
           return (
             <Link
-              key={item.path}
+              key={item.id}
               to={item.path}
-              className={`tab-item ${isActive ? 'active' : ''}`}
+              className="lt-shell__bottom-link"
+              aria-current={isActive ? 'page' : undefined}
             >
-              <Icon size={22} />
-              <span className="tab-label">{item.label}</span>
+              <Icon size={21} aria-hidden="true" />
+              <span className="lt-shell__bottom-label">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* 记账表单滑出层 */}
       <TransactionFormDrawer />
-      {/* 草稿列表滑出层 */}
       <DraftListDrawer open={isDraftListOpen} onClose={() => setIsDraftListOpen(false)} />
     </div>
   );

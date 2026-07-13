@@ -211,9 +211,10 @@
 | StatePanel | 已实现 | neutral/info/warning/danger，承接空、错和权限不足等状态 |
 | ConfirmDialog | 已实现 | 普通/危险语义、焦点陷阱、Escape、焦点恢复和明确动作文案 |
 | BottomSheet | 已实现 | 移动端底部面板、关闭控件、焦点管理和固定 Footer |
-| 业务组件 | 待后续 UI-FL | 由 UI-FL-02 至 UI-FL-09 按页面契约组合，不在基础任务提前重构 |
+| AppShell | 已实现 | 248px 桌面侧栏、移动顶部上下文、五项底栏、记账 FAB、账本/角色与网络/草稿状态 |
+| 业务组件 | 待后续 UI-FL | 由 UI-FL-03 至 UI-FL-09 按页面契约组合，不在 AppShell 任务提前重构 |
 
-组件矩阵和双主题验收证据位于 `docs/project_analysis/ui-fl-01-foundation-2026-07-13/`。本地截图是实现审阅证据，不代表线上 Figma 组件、Variables 或 Auto Layout 已同步。
+基础组件矩阵位于 `docs/project_analysis/ui-fl-01-foundation-2026-07-13/`，AppShell 双主题与响应式证据位于 `docs/project_analysis/ui-fl-02-app-shell-2026-07-13/`。本地截图是实现审阅证据，不代表线上 Figma 组件、Variables 或 Auto Layout 已同步。
 
 ## 5. 建模优先级
 

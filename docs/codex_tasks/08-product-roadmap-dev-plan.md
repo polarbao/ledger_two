@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-13）：Task41-Task49 已完成。因微信、支付宝实际交付 XLSX，v1.2 RC 通过 Task49X 重新打开输入格式范围；Task49X 完成后再恢复冻结。Fresh Light UI-FL-01 至 UI-FL-10 已形成协同计划但尚未进入代码迁移，v1.3 业务任务仍需重新评审。
+> 执行更新（2026-07-13）：Task41-Task49 已完成。因微信、支付宝实际交付 XLSX，v1.2 RC 通过 Task49X 重新打开输入格式范围；Task49X 完成后再恢复冻结。Fresh Light 波次 A（UI-FL-01/02）已完成，UI-FL-03 Dashboard 待启动；v1.3 业务任务仍需重新评审。
 
 ## 1. 使用说明
 
@@ -160,7 +160,7 @@
 
 ## 4. v1.2 收口后 Fresh Light UI/UX 专项
 
-状态：计划已冻结，代码实现未开始。
+状态：计划已冻结；波次 A（UI-FL-01/02）已完成，UI-FL-03 待启动。
 
 执行入口：`docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`。
 

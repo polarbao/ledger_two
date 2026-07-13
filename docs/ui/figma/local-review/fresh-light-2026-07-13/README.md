@@ -1,27 +1,37 @@
-# LedgerTwo Fresh Light 本地预览包
+# LedgerTwo Fresh Light 全套本地预览
 
 生成日期：2026-07-13  
-来源：`docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md` 和 `ledger-two-frame-manifest.json`  
-用途：PR 审阅、Codex 对照、Figma Frame 补齐和前端实现验收。
+分支：`docs/fresh-light-ui-localization-20260713`  
+来源：`../../ledger-two-fresh-light-implementation-spec-2026-07-13.md` 与 `../../ledger-two-frame-manifest.json`
 
-## 内容
+## 文件
 
-- 28 个 HTML 原型。
-- 28 个 PNG 静态预览。
-- `fresh-light-preview-book.pdf`：全部 Frame 的多页预览册。
-- `preview-index.html`：本地索引。
-- `preview.css`：共享预览样式。
-- `frame-export-manifest.json`：尺寸、文件和 SHA-256。
-- `sha256sums.txt`：完整校验值。
+- `fresh-light-preview.html`：浏览器入口和 29 个 Frame 清单。
+- `fresh-light-all-frames.svg`：可直接在 GitHub 或浏览器查看的全套预览画板。
+- `fresh-light-preview-manifest.json`：Frame、尺寸、用途和隐私声明。
+- `generate_previews.py`：在本地生成 PNG、PDF 和 SHA-256 清单。
 
-## 审阅方式
+## 生成二进制预览
 
-1. 浏览器打开 `preview-index.html`。
-2. 逐个对照 PNG、HTML 和实施规格。
-3. PDF 用于整体浏览，不作为精确像素或 Figma Auto Layout 证据。
-4. HTML/PNG 是本地可审阅目标稿，不代表前端代码已经实现。
-5. Figma 完成真实 Frame 写入后，应补充节点 ID、截图和差异记录。
+在仓库根目录运行：
 
-## 隐私
+```bash
+python docs/ui/figma/local-review/fresh-light-2026-07-13/generate_previews.py
+```
 
-全部金额、名称、商户和时间均为脱敏示例；不包含真实账单、订单号、邮箱、账号或财务隐私。
+需要 Chromium 或 Chrome。输出：
+
+```text
+fresh-light-all-frames.png
+fresh-light-preview.pdf
+sha256sums.txt
+```
+
+这些输出默认可用于本地审阅；是否提交 PNG/PDF 应由维护者根据仓库体积策略决定。
+
+## 审阅边界
+
+- 全部成员、金额、商户和时间均为脱敏示例数据。
+- 预览是设计目标和信息架构说明，不代表 React 前端已经实现。
+- 预览不是 Figma 节点、Variables 或 Auto Layout 已同步的证据。
+- 金额、分摊、结算、权限、导入和备份规则仍以 PRD、技术契约和代码为准。

@@ -79,3 +79,27 @@ SHA-256: b6d74d436d1fe90abc946f126f3d60187c7c89f53fdeb38f3776264f2afab640
 3. 获得真实支付宝 XLSX 后补齐 Task49X.4 冻结验收。
 4. 375px/390px 本机视觉验收已完成；Figma 写入因账号只有 View 权限待处理，再决定 NAS staging schema 19 发布窗口。
 5. production commit 必须重新上传、重新预览，并由用户明确确认各状态数量。
+
+## 7. 2026-07-13 本机复验
+
+在 Git 历史同步完成后，使用 `E:\__Project_Data` 中同一组本地文件重新执行了本机 WSL staging preview。文件 SHA-256 与本报告第 2 节一致，说明本次复验输入没有发生变化。
+
+复验环境：
+
+```text
+URL:                 http://localhost:38088
+version:             1.2.0-rc
+schema_version:      19
+deployment_channel: staging
+import_xlsx_enabled: true
+database:            ok
+```
+
+复验结果：
+
+| 来源 | 新 batch_id | 格式/表格 | total | new | suspicious | invalid | skipped | imported | 状态 |
+|---|---|---|---:|---:|---:|---:|---:|---:|---|
+| 支付宝 | `99fc1199-ed4a-4424-9954-74235c56ced8` | CSV，表头记录 22 | 1232 | 1226 | 6 | 0 | 89 | 0 | ready |
+| 微信 | `60798923-a133-40ce-9895-ec0c8666953f` | XLSX，Sheet1，表头 18 | 276 | 275 | 1 | 0 | 56 | 0 | ready |
+
+preview 前后正式账单均为 40 条，没有调用任何 batch commit API。复验再次确认微信真实 XLSX 与支付宝真实 CSV 的当前解析路径稳定，但仍不能替代支付宝真实 XLSX 样本冻结，也不代表 NAS staging 或 production 已支持 schema 19/XLSX。

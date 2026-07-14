@@ -106,6 +106,32 @@ func TestParseDocumentSupportsCurrentAlipayExportHeaders(t *testing.T) {
 	}
 }
 
+func TestParseDocumentSurfacesNonPositiveAlipayAmountBeforeCommit(t *testing.T) {
+	doc := &tabular.Document{
+		Format: tabular.FormatCSV,
+		Header: []string{"交易时间", "交易分类", "交易对方", "商品说明", "收/支", "金额", "交易订单号"},
+		Rows: []tabular.Row{
+			{Number: 167, Values: []string{"2026-06-19 21:25:25", "日用百货", "示例商户", "零元权益流水", "支出", "0.00", "zero-167"}},
+			{Number: 168, Values: []string{"2026-06-19 21:30:00", "转账", "示例商户", "无需落库流水", "/", "0.00", "skip-168"}},
+		},
+	}
+
+	preview, err := ParseDocument(SourceTypeAlipay, doc)
+	if err != nil {
+		t.Fatalf("ParseDocument returned error: %v", err)
+	}
+	invalid := preview.Rows[0]
+	if invalid.DuplicateStatus != DuplicateStatusInvalid || invalid.RowStatus != RowStatusFailed {
+		t.Fatalf("zero expense must be visible as invalid before commit: %+v", invalid)
+	}
+	if invalid.Error == nil || invalid.Error.Code != ErrorCodeAmountInvalid || !strings.Contains(invalid.Error.Message, "大于 0") {
+		t.Fatalf("zero expense error is not actionable: %+v", invalid.Error)
+	}
+	if preview.Rows[1].DuplicateStatus != DuplicateStatusNew || preview.Rows[1].RowStatus != RowStatusSkipped {
+		t.Fatalf("non-importable zero row should remain a business skip: %+v", preview.Rows[1])
+	}
+}
+
 func readExpectedPreview(t *testing.T, path string) expectedPreview {
 	t.Helper()
 

@@ -39,9 +39,13 @@ import type {
 import type { MetadataItem } from '../types/metadata';
 import {
   buildImportCommitSummary,
+  defaultImportRowFilter,
+  filterImportRows,
   getImportFileAccept,
   getImportSourceDescription,
+  IMPORT_ROW_FILTER_LABELS,
   resolveImportErrorMessage,
+  type ImportRowFilter,
   validateImportFile,
 } from './importPageState';
 
@@ -101,6 +105,7 @@ export default function ImportPage() {
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const rowListRef = useRef<HTMLDivElement | null>(null);
   const [sourceType, setSourceType] = useState<ImportSourceType>('wechat');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [batch, setBatch] = useState<ImportPreviewBatch | null>(null);
@@ -110,6 +115,7 @@ export default function ImportPage() {
   const [ruleForm, setRuleForm] = useState<ImportRuleForm>(() => createDefaultRuleForm());
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleStatusFilter, setRuleStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
+  const [rowFilter, setRowFilter] = useState<ImportRowFilter>('all');
 
   const isOwner = activeRole === 'owner';
 
@@ -145,6 +151,7 @@ export default function ImportPage() {
     mutationFn: (file: File) => importsApi.preview({ file, sourceType }),
     onSuccess: (data) => {
       setBatch(data);
+      setRowFilter(defaultImportRowFilter(data.rows));
       setCommitResult(null);
       setErrorMsg(null);
     },
@@ -168,6 +175,7 @@ export default function ImportPage() {
 
   const summary = useMemo(() => buildSummary(batch), [batch]);
   const commitSummary = useMemo(() => buildImportCommitSummary(batch), [batch]);
+  const visibleRows = useMemo(() => filterImportRows(batch?.rows || [], rowFilter), [batch?.rows, rowFilter]);
   const canOpenCommit = isOwner && !!batch && batch.status === 'ready' && !previewMutation.isPending && !updateRowMutation.isPending;
 
   const commitMutation = useMutation({
@@ -247,6 +255,7 @@ export default function ImportPage() {
     }
     setSelectedFile(file);
     setBatch(null);
+    setRowFilter('all');
     previewMutation.mutate(file);
   };
 
@@ -266,6 +275,8 @@ export default function ImportPage() {
     }
     if (commitSummary.blockingCount > 0) {
       setErrorMsg('仍有错误或未确认的疑似重复行，请先跳过或确认后再提交');
+      setRowFilter('needs_attention');
+      window.requestAnimationFrame(() => rowListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
       return;
     }
     setIsConfirmOpen(true);
@@ -350,6 +361,7 @@ export default function ImportPage() {
                   setSourceType(option.value);
                   setSelectedFile(null);
                   setBatch(null);
+                  setRowFilter('all');
                   setErrorMsg(null);
                   if (fileInputRef.current) {
                     fileInputRef.current.value = '';
@@ -448,23 +460,31 @@ export default function ImportPage() {
             </dl>
           )}
 
-          <div className="import-safe-banner">
+          <div className={`import-safe-banner ${batch?.status === 'failed' ? 'is-danger' : ''}`}>
             <ShieldCheck size={16} />
             <span>
               {batch?.status === 'committed'
                 ? '当前批次已写入正式账单，可在流水中查看。'
                 : batch?.status === 'failed'
-                  ? '本次提交失败，未写入任何正式账单。处理失败行后可重新提交。'
+                  ? '本次提交失败，未写入任何正式账单。若下方没有行级错误，请重新上传生成新预览后再处理。'
                   : '当前批次只保存预览数据，提交前不会写入 transactions。'}
             </span>
           </div>
 
           <div className="import-summary-grid">
             {summary.map((item) => (
-              <div key={item.label} className={`import-summary-card ${item.tone}`}>
+              <button
+                key={item.label}
+                type="button"
+                className={`import-summary-card import-summary-card--filter ${item.tone} ${rowFilter === item.filter ? 'is-active' : ''}`}
+                disabled={!batch}
+                aria-pressed={rowFilter === item.filter}
+                aria-label={`${item.label} ${item.value} 条，筛选对应流水`}
+                onClick={() => setRowFilter(item.filter)}
+              >
                 <span>{item.label}</span>
                 <strong>{item.value}</strong>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -502,20 +522,40 @@ export default function ImportPage() {
               <span>上传账单文件后会在这里看到行级状态和错误原因。</span>
             </div>
           ) : (
-            <div className="import-row-list" aria-label="导入预览行">
-              {batch.rows.map((row) => (
-                <ImportRowCard
-                  key={row.id}
-                  row={row}
-                  categories={categories}
-                  accounts={accounts}
-                  tags={tags}
-                  disabled={updateRowMutation.isPending}
-                  onSkip={() => updateRowMutation.mutate({ row, rowStatus: 'skipped' })}
-                  onRestore={() => updateRowMutation.mutate({ row, rowStatus: 'pending' })}
-                  onConfirmImport={() => updateRowMutation.mutate({ row, rowStatus: 'adjusted' })}
-                />
-              ))}
+            <div ref={rowListRef} className="import-row-results" aria-live="polite">
+              <div className="import-row-results__header">
+                <div>
+                  <strong>{IMPORT_ROW_FILTER_LABELS[rowFilter]}</strong>
+                  <span>显示 {visibleRows.length} / {batch.rows.length} 条</span>
+                </div>
+                {rowFilter !== 'all' ? (
+                  <button type="button" className="btn-secondary" onClick={() => setRowFilter('all')}>
+                    显示全部
+                  </button>
+                ) : null}
+              </div>
+              {visibleRows.length === 0 ? (
+                <div className="import-filter-empty">
+                  <CheckCircle2 size={20} />
+                  <span>当前筛选下没有流水</span>
+                </div>
+              ) : (
+                <div className="import-row-list" aria-label="导入预览行">
+                  {visibleRows.map((row) => (
+                    <ImportRowCard
+                      key={row.id}
+                      row={row}
+                      categories={categories}
+                      accounts={accounts}
+                      tags={tags}
+                      disabled={updateRowMutation.isPending}
+                      onSkip={() => updateRowMutation.mutate({ row, rowStatus: 'skipped' })}
+                      onRestore={() => updateRowMutation.mutate({ row, rowStatus: 'pending' })}
+                      onConfirmImport={() => updateRowMutation.mutate({ row, rowStatus: 'adjusted' })}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -778,7 +818,7 @@ function ImportRowCard({
   const isSkipped = row.row_status === 'skipped';
   const isConfirmedSuspicious = row.duplicate_status === 'suspicious' && row.row_status === 'adjusted';
   const canRestore = isSkipped && row.duplicate_status !== 'invalid' && row.duplicate_status !== 'duplicate';
-  const canSkip = !isSkipped && row.row_status !== 'failed';
+  const canSkip = !isSkipped && row.row_status !== 'imported';
   const canConfirmImport = row.duplicate_status === 'suspicious' && row.row_status === 'pending';
   const suggestionDetail = describeRowSuggestion(row, categories, accounts, tags);
 
@@ -838,7 +878,7 @@ function ImportRowCard({
         {canSkip && (
           <button type="button" className="btn-secondary" onClick={onSkip} disabled={disabled}>
             <Ban size={14} />
-            跳过
+            {row.duplicate_status === 'invalid' ? '跳过此错误行' : '跳过'}
           </button>
         )}
         {canRestore && (
@@ -932,10 +972,10 @@ function StatusPill({ status }: { status: ImportDuplicateStatus }) {
 
 function buildSummary(batch: ImportPreviewBatch | null) {
   return [
-    { label: '总行数', value: batch?.total_rows ?? 0, tone: 'neutral' },
-    { label: '新增', value: batch?.new_rows ?? 0, tone: 'new' },
-    { label: '疑似', value: batch?.suspicious_rows ?? 0, tone: 'suspicious' },
-    { label: '错误', value: batch?.invalid_rows ?? 0, tone: 'invalid' },
-    { label: '跳过', value: batch?.skipped_rows ?? 0, tone: 'duplicate' },
+    { label: '总行数', value: batch?.total_rows ?? 0, tone: 'neutral', filter: 'all' as const },
+    { label: '新增', value: batch?.new_rows ?? 0, tone: 'new', filter: 'new' as const },
+    { label: '疑似', value: batch?.suspicious_rows ?? 0, tone: 'suspicious', filter: 'suspicious' as const },
+    { label: '无效行', value: batch?.invalid_rows ?? 0, tone: 'invalid', filter: 'invalid' as const },
+    { label: '跳过', value: batch?.skipped_rows ?? 0, tone: 'duplicate', filter: 'skipped' as const },
   ];
 }

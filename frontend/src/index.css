@@ -2554,6 +2554,12 @@ button {
   font-size: 12px;
 }
 
+.import-safe-banner.is-danger {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
+}
+
 .import-parser-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2598,6 +2604,28 @@ button {
   justify-content: center;
   gap: 4px;
   padding: 12px;
+}
+
+.import-summary-card--filter {
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.import-summary-card--filter:hover:not(:disabled),
+.import-summary-card--filter.is-active {
+  border-color: var(--accent-primary);
+  background: var(--lt-bg-control);
+}
+
+.import-summary-card--filter:focus-visible {
+  outline: none;
+  box-shadow: var(--lt-focus-ring);
+}
+
+.import-summary-card--filter:disabled {
+  cursor: default;
 }
 
 .import-summary-card span {
@@ -2650,6 +2678,48 @@ button {
   max-height: 620px;
   overflow-y: auto;
   padding-right: 2px;
+}
+
+.import-row-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-margin-top: 88px;
+}
+
+.import-row-results__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+}
+
+.import-row-results__header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.import-row-results__header strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.import-row-results__header span,
+.import-filter-empty {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.import-filter-empty {
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
 }
 
 .import-row-card {
@@ -3059,6 +3129,14 @@ button {
   }
   .import-row-card__top {
     grid-template-columns: 1fr;
+  }
+  .import-row-results__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .import-row-results__header > button {
+    width: 100%;
+    justify-content: center;
   }
   .import-row-amount {
     white-space: normal;

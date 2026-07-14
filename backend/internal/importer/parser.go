@@ -116,6 +116,11 @@ func parseWechatRow(rowNumber int, header map[string]int, row []string) PreviewR
 	}
 	if amountErr != nil {
 		markInvalid(&result, ErrorCodeAmountInvalid, "金额不能为空或格式不正确")
+	} else if amount <= 0 && result.TargetTransactionType != TargetTransactionSkipped {
+		markInvalid(&result, ErrorCodeAmountInvalid, "金额必须大于 0")
+	}
+	if strings.TrimSpace(result.Title) == "" && result.TargetTransactionType != TargetTransactionSkipped {
+		markInvalid(&result, ErrorCodeTitleInvalid, "账单标题不能为空")
 	}
 
 	return result
@@ -145,6 +150,11 @@ func parseAlipayRow(rowNumber int, header map[string]int, row []string) PreviewR
 	}
 	if amountErr != nil {
 		markInvalid(&result, ErrorCodeAmountInvalid, "金额不能为空或格式不正确")
+	} else if amount <= 0 && result.TargetTransactionType != TargetTransactionSkipped {
+		markInvalid(&result, ErrorCodeAmountInvalid, "金额必须大于 0")
+	}
+	if strings.TrimSpace(result.Title) == "" && result.TargetTransactionType != TargetTransactionSkipped {
+		markInvalid(&result, ErrorCodeTitleInvalid, "账单标题不能为空")
 	}
 
 	return result
@@ -166,6 +176,11 @@ func parseGenericRow(rowNumber int, header map[string]int, row []string) Preview
 	}
 	if amountErr != nil {
 		markInvalid(&result, ErrorCodeAmountInvalid, "金额不能为空或格式不正确")
+	} else if amount <= 0 && result.TargetTransactionType != TargetTransactionSkipped {
+		markInvalid(&result, ErrorCodeAmountInvalid, "金额必须大于 0")
+	}
+	if strings.TrimSpace(result.Title) == "" && result.TargetTransactionType != TargetTransactionSkipped {
+		markInvalid(&result, ErrorCodeTitleInvalid, "账单标题不能为空")
 	}
 
 	return result

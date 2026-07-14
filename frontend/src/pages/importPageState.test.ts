@@ -3,6 +3,8 @@ import { ApiError } from '../api/client';
 import type { ImportPreviewBatch, ImportPreviewRow } from '../types/imports';
 import {
   buildImportCommitSummary,
+  defaultImportRowFilter,
+  filterImportRows,
   getImportFileAccept,
   getImportSourceDescription,
   resolveImportErrorMessage,
@@ -78,6 +80,20 @@ describe('import page state', () => {
     expect(summary.importableCount).toBe(1);
     expect(summary.skippedCount).toBe(1);
     expect(summary.blockingCount).toBe(0);
+  });
+
+  it('filters and prioritizes rows that need user action', () => {
+    const rows = [
+      createRow(),
+      createRow({ id: 'row-2', row_number: 2, duplicate_status: 'suspicious' }),
+      createRow({ id: 'row-3', row_number: 3, duplicate_status: 'invalid', row_status: 'failed' }),
+      createRow({ id: 'row-4', row_number: 4, duplicate_status: 'invalid', row_status: 'skipped', target_transaction_type: 'skipped' }),
+    ];
+
+    expect(defaultImportRowFilter(rows)).toBe('needs_attention');
+    expect(filterImportRows(rows, 'needs_attention').map((row) => row.row_number)).toEqual([2, 3]);
+    expect(filterImportRows(rows, 'invalid').map((row) => row.row_number)).toEqual([3, 4]);
+    expect(filterImportRows(rows, 'skipped').map((row) => row.row_number)).toEqual([4]);
   });
 
   it('includes the failing row number in import errors', () => {

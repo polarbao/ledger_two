@@ -1,5 +1,16 @@
 import { ApiError } from '../api/client';
-import type { ImportPreviewBatch, ImportSourceType } from '../types/imports';
+import type { ImportPreviewBatch, ImportPreviewRow, ImportSourceType } from '../types/imports';
+
+export type ImportRowFilter = 'all' | 'new' | 'needs_attention' | 'invalid' | 'suspicious' | 'skipped';
+
+export const IMPORT_ROW_FILTER_LABELS: Record<ImportRowFilter, string> = {
+  all: '全部流水',
+  new: '新增流水',
+  needs_attention: '需要处理',
+  invalid: '无效行',
+  suspicious: '疑似重复',
+  skipped: '已跳过',
+};
 
 export function validateImportFile(sourceType: ImportSourceType, filename: string, xlsxEnabled = true) {
   const lowerName = filename.trim().toLowerCase();
@@ -68,6 +79,38 @@ export function buildImportCommitSummary(batch: ImportPreviewBatch | null) {
     invalidOpenCount,
     blockingCount: unconfirmedSuspiciousCount + invalidOpenCount,
   };
+}
+
+export function importRowMatchesFilter(row: ImportPreviewRow, filter: ImportRowFilter) {
+  switch (filter) {
+    case 'new':
+      return row.duplicate_status === 'new' && row.row_status !== 'skipped';
+    case 'needs_attention':
+      return (
+        row.duplicate_status === 'invalid' && row.row_status !== 'skipped'
+      ) || (
+        row.duplicate_status === 'suspicious' && row.row_status === 'pending'
+      );
+    case 'invalid':
+      return row.duplicate_status === 'invalid';
+    case 'suspicious':
+      return row.duplicate_status === 'suspicious';
+    case 'skipped':
+      return row.row_status === 'skipped' || row.target_transaction_type === 'skipped';
+    default:
+      return true;
+  }
+}
+
+export function filterImportRows(rows: ImportPreviewRow[], filter: ImportRowFilter) {
+  return rows.filter((row) => importRowMatchesFilter(row, filter));
+}
+
+export function defaultImportRowFilter(rows: ImportPreviewRow[]): ImportRowFilter {
+  if (rows.some((row) => importRowMatchesFilter(row, 'needs_attention'))) {
+    return 'needs_attention';
+  }
+  return 'all';
 }
 
 export function resolveImportErrorMessage(err: unknown, fallback: string) {

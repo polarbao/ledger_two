@@ -34,6 +34,7 @@ const (
 
 	ErrorCodeAmountInvalid = "IMPORT_ROW_AMOUNT_INVALID"
 	ErrorCodeTimeInvalid   = "IMPORT_ROW_TIME_INVALID"
+	ErrorCodeTitleInvalid  = "IMPORT_ROW_TITLE_INVALID"
 )
 
 type Preview struct {

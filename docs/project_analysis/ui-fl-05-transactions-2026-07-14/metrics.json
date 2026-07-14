@@ -1,0 +1,45 @@
+{
+  "mobile": {
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "pageWidth": 342,
+    "toolbarWidth": 342,
+    "cardWidths": [
+      {
+        "client": 340,
+        "scroll": 340
+      },
+      {
+        "client": 340,
+        "scroll": 340
+      },
+      {
+        "client": 340,
+        "scroll": 340
+      }
+    ],
+    "tableVisible": false
+  },
+  "filterSheet": {
+    "open": true,
+    "sheetClientWidth": 388,
+    "sheetScrollWidth": 388,
+    "documentScrollWidth": 390
+  },
+  "detailDrawer": {
+    "open": true,
+    "drawerClientWidth": 390,
+    "drawerScrollWidth": 390,
+    "documentScrollWidth": 390
+  },
+  "desktop": {
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "pageWidth": 1392,
+    "tableClientWidth": 1390,
+    "tableScrollWidth": 1390,
+    "mobileVisible": false
+  }
+}

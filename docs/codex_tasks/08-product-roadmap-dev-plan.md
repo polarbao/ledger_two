@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-14）：Task41-Task49 已完成。Task49X 已按真实格式冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；核心开发与本机验收完成，剩余 NAS/production 发布门禁。Fresh Light 波次 A（UI-FL-01/02）与 UI-FL-03/04 已完成，UI-FL-05 流水工作台为下一项；v1.3 业务任务仍需重新评审。
+> 执行更新（2026-07-14）：Task41-Task49 已完成。Task49X 已按真实格式冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；核心开发与本机验收完成，剩余 NAS/production 发布门禁。Fresh Light UI-FL-01 至 UI-FL-04 已完成，UI-FL-05 核心工作台已交付并继续收口编辑契约与真实账号回归；v1.3 业务任务仍需重新评审。
 
 ## 1. 使用说明
 
@@ -160,7 +160,7 @@
 
 ## 4. v1.2 收口后 Fresh Light UI/UX 专项
 
-状态：计划已冻结；波次 A（UI-FL-01/02）与 UI-FL-03/04 已完成，UI-FL-05 为下一项。
+状态：计划已冻结；UI-FL-01 至 UI-FL-04 已完成，UI-FL-05 核心工作台已交付并继续收口编辑契约与真实账号回归。
 
 执行入口：`docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`。
 

@@ -1,92 +1,149 @@
 .transaction-card {
   width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  gap: 16px;
-  margin-bottom: 12px;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.transaction-card:active {
-  transform: scale(0.98);
-}
-
-.tc-icon-wrapper {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--bg-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-}
-
-.tc-content {
   min-width: 0;
-  flex: 1;
+  border: 1px solid var(--lt-border-subtle);
+  border-radius: var(--lt-radius-card);
+  display: flex;
+  align-items: stretch;
+  background: var(--lt-bg-surface);
+  box-shadow: var(--lt-shadow-sm);
+  overflow: hidden;
+  transition: border-color var(--lt-motion-fast), box-shadow var(--lt-motion-fast);
+}
+
+.transaction-card:hover,
+.transaction-card--selected {
+  border-color: var(--lt-border-strong);
+  box-shadow: var(--lt-shadow-md);
+}
+
+.transaction-card__select {
+  width: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--lt-border-subtle);
+  background: var(--lt-bg-control);
+}
+
+.transaction-card__select input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--lt-brand);
+}
+
+.transaction-card__main {
+  min-width: 0;
+  width: 100%;
+  padding: var(--lt-space-4);
+  border: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lt-space-3);
+  background: transparent;
+  color: var(--lt-text-primary);
+  text-align: left;
+}
+
+.transaction-card__main:focus-visible {
+  outline: none;
+  box-shadow: inset var(--lt-focus-ring);
+}
+
+.transaction-card__icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border: 1px solid var(--lt-border-subtle);
+  border-radius: var(--lt-radius-control);
+  display: grid;
+  place-items: center;
+  background: var(--lt-bg-surface-muted);
+  color: var(--lt-brand-strong);
+}
+
+.transaction-card__content {
+  min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--lt-space-2);
 }
 
-.tc-header {
+.transaction-card__topline {
   min-width: 0;
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  gap: var(--lt-space-3);
 }
 
-.tc-title {
+.transaction-card__title {
+  min-width: 0;
   flex: 1 1 auto;
-  min-width: 0;
-  font-weight: 600;
-  font-size: 16px;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--lt-text-primary);
+  font-size: var(--lt-font-size-body-lg);
+  font-weight: 650;
+  line-height: var(--lt-line-height-tight);
+  overflow-wrap: anywhere;
 }
 
-.tc-amount {
+.transaction-card__amount {
   flex: 0 0 auto;
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--text-primary);
-}
-
-.tc-amount.amount-payer {
-  color: var(--accent-green);
-}
-
-.tc-footer {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  min-width: 0;
-}
-
-.tc-category {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--lt-text-primary);
+  font-size: var(--lt-font-size-body-lg);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.tc-split-type {
+.transaction-card__amount--expense {
+  color: var(--lt-danger-strong);
+}
+
+.transaction-card__amount--income {
+  color: var(--lt-brand-strong);
+}
+
+.transaction-card__meta,
+.transaction-card__scope {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-  font-size: 11px;
+  gap: var(--lt-space-2);
+  flex-wrap: wrap;
+  color: var(--lt-text-secondary);
+  font-size: var(--lt-font-size-caption);
+  line-height: var(--lt-line-height-normal);
+}
+
+.transaction-card__scope {
+  color: var(--lt-text-muted);
+}
+
+.transaction-card__meta > span:not(.ui-status-chip)::before,
+.transaction-card__scope > span + span::before {
+  content: '·';
+  margin-right: var(--lt-space-2);
+  color: var(--lt-border-strong);
+}
+
+@media (max-width: 390px) {
+  .transaction-card__main {
+    padding: var(--lt-space-3);
+  }
+
+  .transaction-card__icon {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+
+  .transaction-card__topline {
+    align-items: flex-start;
+  }
+
+  .transaction-card__title,
+  .transaction-card__amount {
+    font-size: var(--lt-font-size-body);
+  }
 }

@@ -121,4 +121,23 @@ describe('UI-FL-01 base components', () => {
     expect(markup).toContain('aria-label="关闭筛选流水"');
     expect(markup).toContain('筛选条件');
   });
+
+  it('exposes separate desktop and mobile data-list regions', async () => {
+    const listModule = await import('./ResponsiveDataList').catch(() => null);
+
+    expect(listModule).not.toBeNull();
+    if (!listModule) return;
+
+    const markup = renderToStaticMarkup(createElement(listModule.default, {
+      desktopLabel: '桌面流水表格',
+      mobileLabel: '移动端流水卡片',
+      desktop: createElement('table', null),
+      mobile: createElement('article', null, '流水卡片'),
+    }));
+
+    expect(markup).toContain('ui-responsive-data-list__desktop');
+    expect(markup).toContain('aria-label="桌面流水表格"');
+    expect(markup).toContain('ui-responsive-data-list__mobile');
+    expect(markup).toContain('aria-label="移动端流水卡片"');
+  });
 });

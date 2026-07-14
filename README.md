@@ -71,8 +71,14 @@ AI Workflow: VSCode + Codex
 
 后端：
 
-```bash
+```powershell
 cd backend
+$env:APP_ENV='development'
+$env:DEPLOYMENT_CHANNEL='development'
+$env:DB_DSN='data/development/ledger.db'
+$env:BACKUP_DIR='data/development/backups'
+$env:UPLOAD_DIR='data/development/uploads'
+$env:LOG_DIR='data/development/logs'
 go run ./cmd/server
 ```
 
@@ -89,6 +95,8 @@ Docker：
 ```bash
 docker compose up -d --build
 ```
+
+原生 Go/Vite 用于 development 热更新；`http://localhost:38088` 的 WSL Docker 实例是独立 staging 验收环境。两者不得共享 SQLite、上传或备份目录，详细约束见 `docs/tech/23-v1.2-deployment-environment-isolation.md`。
 
 NAS 部署请优先阅读：
 

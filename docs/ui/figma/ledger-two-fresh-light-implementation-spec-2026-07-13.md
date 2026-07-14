@@ -199,6 +199,8 @@ Figma：`https://www.figma.com/design/Xsw1qqEkPraqVJCIGkl41Y`
 
 行操作：查看、编辑、复制一笔、存为模板、软删除确认。
 
+实施边界（2026-07-14）：查看、复制一笔、存为模板和软删除确认已在 UI-FL-05 核心工作台落地。编辑动作不得复用“复制一笔”伪装；在 `TransactionFormDrawer` 的编辑态、共同支出、附件、草稿和审计错误契约冻结前，入口保持不展示，归入 UI-FL-05E。
+
 显示规则：
 
 - 不显示 UUID。

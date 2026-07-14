@@ -128,6 +128,7 @@ Figma：`https://www.figma.com/design/Xsw1qqEkPraqVJCIGkl41Y`
 
 1. 先用 token 映射现有全局语义变量，减少 JSX 变更。
 2. 保留 Dark Glass 作为可回滚模式，不立即删除。
+   过渡期在登录、初始化和 AppShell 提供显式主题按钮并持久化用户选择；只有 UI-FL-10 完成全局验收后才评审默认值翻转。
 3. 新组件禁止硬编码紫绿渐变或大面积半透明玻璃色。
 4. 紫色降级为辅助强调。
 5. 金额使用等宽数字或 `font-variant-numeric: tabular-nums`。

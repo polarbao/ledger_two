@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth.store';
 import { Shield, Sparkles, BookOpen, Users } from 'lucide-react';
 import DeploymentBadge from '../components/layout/DeploymentBadge';
+import ThemeToggle from '../components/theme/ThemeToggle';
 
 const setupSchema = z.object({
   ledger_name: z.string().min(1, '账本名称不能为空'),
@@ -64,6 +65,7 @@ export default function InitPage() {
 
   return (
     <div className="init-page-container">
+      <ThemeToggle className="auth-theme-toggle" />
       <div className="glass-card init-card">
         <div className="init-header">
           <div className="logo-glow">

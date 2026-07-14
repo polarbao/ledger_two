@@ -373,6 +373,17 @@
   display: inline-flex;
 }
 
+.lt-shell__theme-toggle {
+  flex: 0 0 var(--lt-control-height);
+}
+
+.lt-shell__mobile-status-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .lt-shell__draft-count {
   min-width: 17px;
   height: 17px;
@@ -458,6 +469,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  .lt-shell__mobile-status-actions .ui-status-chip {
+    max-width: 132px;
   }
 
   .lt-shell__mobile-brand .lt-shell__brand-mark {

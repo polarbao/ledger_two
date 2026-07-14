@@ -1,0 +1,28 @@
+.ui-theme-toggle {
+  width: var(--lt-control-height);
+  height: var(--lt-control-height);
+  flex: 0 0 var(--lt-control-height);
+  border: 1px solid var(--lt-border-subtle);
+  background: var(--lt-bg-control);
+  color: var(--lt-text-secondary);
+}
+
+.ui-theme-toggle:hover {
+  border-color: var(--lt-border-strong);
+  color: var(--lt-brand-strong);
+}
+
+.auth-theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+  box-shadow: var(--lt-shadow-sm);
+}
+
+@media (max-width: 430px) {
+  .auth-theme-toggle {
+    top: 12px;
+    right: 12px;
+  }
+}

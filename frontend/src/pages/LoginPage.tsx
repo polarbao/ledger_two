@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth.store';
 import { KeyRound, User as UserIcon, LogIn, Eye, EyeOff } from 'lucide-react';
 import DeploymentBadge from '../components/layout/DeploymentBadge';
+import ThemeToggle from '../components/theme/ThemeToggle';
 
 const loginSchema = z.object({
   username: z.string().min(3, '用户名至少 3 位'),
@@ -50,6 +51,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page-container">
+      <ThemeToggle className="auth-theme-toggle" />
       <div className="glass-card login-card animate-fade-in">
         <div className="login-header">
           <div className="logo-glow">

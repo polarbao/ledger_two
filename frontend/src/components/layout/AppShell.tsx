@@ -28,6 +28,7 @@ import { useLedgerStore } from '../../stores/ledger.store';
 import { useUIStore } from '../../stores/ui.store';
 import Button from '../ui/Button';
 import StatusChip, { type StatusChipTone } from '../ui/StatusChip';
+import ThemeToggle from '../theme/ThemeToggle';
 import DraftListDrawer from '../transaction/DraftListDrawer';
 import TransactionFormDrawer from '../transaction/TransactionFormDrawer';
 import DeploymentBadge from './DeploymentBadge';
@@ -318,6 +319,7 @@ export default function AppShell() {
                 </span>
               </Button>
             ) : null}
+            <ThemeToggle className="lt-shell__theme-toggle" />
             <span className="lt-shell__welcome">你好，<strong>{user?.display_name || '用户'}</strong></span>
           </div>
 
@@ -330,9 +332,12 @@ export default function AppShell() {
                   <DeploymentBadge />
                 </div>
               </div>
-              <StatusChip tone={networkTone} icon={isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}>
-                {networkLabel}
-              </StatusChip>
+              <div className="lt-shell__mobile-status-actions">
+                <StatusChip tone={networkTone} icon={isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}>
+                  {networkLabel}
+                </StatusChip>
+                <ThemeToggle className="lt-shell__theme-toggle" />
+              </div>
             </div>
             <div className="lt-shell__mobile-controls">
               <LedgerSelector ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={handleLedgerChange} />

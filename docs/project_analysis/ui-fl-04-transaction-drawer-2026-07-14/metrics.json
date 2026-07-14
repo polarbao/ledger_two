@@ -1,0 +1,66 @@
+{
+  "task": "UI-FL-04",
+  "captured_at": "2026-07-14",
+  "browser": "Chrome 150.0.7871.102",
+  "preview_subject": "frontend/src/components/transaction/TransactionFormDrawer.tsx",
+  "screenshots": [
+    {
+      "file": "fresh-light-entry-1440.png",
+      "state": "shared-expense-desktop",
+      "width": 1440,
+      "height": 1000,
+      "inner_width": 1440,
+      "scroll_width": 1440,
+      "drawer_client_width": 439,
+      "drawer_scroll_width": 439
+    },
+    {
+      "file": "fresh-light-entry-shared-390.png",
+      "state": "shared-expense-mobile",
+      "width": 390,
+      "height": 844,
+      "inner_width": 390,
+      "scroll_width": 390,
+      "drawer_client_width": 388,
+      "drawer_scroll_width": 388
+    },
+    {
+      "file": "fresh-light-entry-advanced-430.png",
+      "state": "advanced-fields-mobile",
+      "width": 430,
+      "height": 900,
+      "inner_width": 430,
+      "scroll_width": 430,
+      "drawer_client_width": 428,
+      "drawer_scroll_width": 428
+    },
+    {
+      "file": "fresh-light-entry-discard-375.png",
+      "state": "dirty-discard-confirm-mobile",
+      "width": 375,
+      "height": 812,
+      "inner_width": 375,
+      "scroll_width": 375,
+      "drawer_client_width": 373,
+      "drawer_scroll_width": 373
+    }
+  ],
+  "checks": {
+    "test_files_passed": 16,
+    "tests_passed": 59,
+    "lint": "passed",
+    "build": "passed",
+    "shared_preview_present": true,
+    "dirty_close_confirmation_present": true,
+    "horizontal_overflow_375": false,
+    "horizontal_overflow_390": false,
+    "horizontal_overflow_430": false,
+    "horizontal_overflow_1440": false
+  },
+  "known_limits": [
+    "The screenshots use the real drawer and shared UI components with deterministic query responses and local store state; they are not live-backend write E2E runs.",
+    "The temporary preview entry and CDP capture helper were removed before the production build and commit.",
+    "Online Figma nodes and components were not modified by this task.",
+    "The production build still reports the JavaScript chunk-size warning near 664 kB."
+  ]
+}

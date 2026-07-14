@@ -1,6 +1,6 @@
 # UI/UX：LedgerTwo 长期体验优化专项
 
-状态：长期专项已启用；v1.1/v1.2 历史验收保留，Fresh Light 波次 A 与 UI-FL-03 已完成、UI-FL-04 待启动<br>
+状态：长期专项已启用；v1.1/v1.2 历史验收保留，Fresh Light 波次 A 与 UI-FL-03/04 已完成、UI-FL-05 为下一项<br>
 适用阶段：v1.1/v1.2 历史收口、v1.2 发布后的 Fresh Light 专项、后续业务 Task 持续协同<br>
 目标受众：产品经理、设计实现者、前端开发、AI 编码模型
 

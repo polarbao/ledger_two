@@ -1,9 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useForm, Controller, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Loader2, Sparkles, Check, Trash2, Pencil } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ImagePlus,
+  Info,
+  Loader2,
+  Pencil,
+  ReceiptText,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { transactionsApi } from '../../api/transactions.api';
@@ -14,7 +25,19 @@ import type { TransactionTemplateResponse, CreateTemplatePayload } from '../../t
 import { useDraftStore } from '../../stores/draft.store';
 import { useLedgerStore } from '../../stores/ledger.store';
 import { useHasLedgerRole } from '../ledger/useLedgerPermission';
-import { buildContinueTransactionFormValues } from './transactionFormState';
+import Button from '../ui/Button';
+import ConfirmDialog from '../ui/ConfirmDialog';
+import SegmentedControl from '../ui/SegmentedControl';
+import useModalSurface from '../ui/useModalSurface';
+import SharedExpensePreview from './SharedExpensePreview';
+import TransactionFormFooter from './TransactionFormFooter';
+import type { TransactionFormMode } from './TransactionFormFooter';
+import {
+  buildContinueTransactionFormValues,
+  buildSharedExpensePreview,
+  shouldOpenAdvancedFields,
+} from './transactionFormState';
+import './TransactionFormDrawer.css';
 
 /**
  * @brief 表单校验 Schema 结构定义
@@ -82,14 +105,17 @@ export default function TransactionFormDrawer() {
 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [submitAction, setSubmitAction] = useState<'close' | 'continue'>('close');
-  const submitActionRef = useRef<'close' | 'continue'>('close');
   const [isSaveTmplOpen, setIsSaveTmplOpen] = useState(false);
   const [tmplName, setTmplName] = useState<string | null>(null);
   const [isManageTmplOpen, setIsManageTmplOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateEditState | null>(null);
   const [templateEditError, setTemplateEditError] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const amountInputRef = useRef<HTMLInputElement | null>(null);
-
+  const drawerSurfaceRef = useRef<HTMLElement | null>(null);
+  const drawerTriggerRef = useRef<HTMLElement | null>(null);
+  const drawerWasOpenRef = useRef(false);
 
   const LAST_TYPE_KEY = 'ledger_two_last_type';
   const LAST_CATEGORY_KEY = 'ledger_two_last_category_id';
@@ -188,15 +214,30 @@ export default function TransactionFormDrawer() {
   const applyTemplate = (tmpl: TransactionTemplateResponse) => {
     const amountYuan = tmpl.amount_cents != null ? (tmpl.amount_cents / 100).toFixed(2) : '';
     const tagsStr = tmpl.tag_names ? tmpl.tag_names.join(', ') : '';
-    setValue('type', tmpl.type);
-    setValue('amount', amountYuan);
-    setValue('title', tmpl.title || '');
-    setValue('category_id', tmpl.category_id || '');
-    setValue('account_id', tmpl.account_id || '');
-    setValue('tag_names', tagsStr);
-    setValue('payer_user_id', tmpl.payer_user_id || currentUser?.id || '');
-    setValue('split_method', tmpl.split_method === 'payer_only' ? 'payer_only' : 'equal');
-    setValue('note', tmpl.note || '');
+    const dirtyOptions = { shouldDirty: true } as const;
+    setValue('type', tmpl.type, dirtyOptions);
+    setValue('amount', amountYuan, dirtyOptions);
+    setValue('title', tmpl.title || '', dirtyOptions);
+    setValue('category_id', tmpl.category_id || '', dirtyOptions);
+    setValue('account_id', tmpl.account_id || '', dirtyOptions);
+    setValue('tag_names', tagsStr, dirtyOptions);
+    setValue('payer_user_id', tmpl.payer_user_id || currentUser?.id || '', dirtyOptions);
+    setValue('split_method', tmpl.split_method === 'payer_only' ? 'payer_only' : 'equal', dirtyOptions);
+    setValue('note', tmpl.note || '', dirtyOptions);
+    setAdvancedOpen(shouldOpenAdvancedFields({
+      type: tmpl.type,
+      amount: amountYuan,
+      title: tmpl.title || '',
+      category_id: tmpl.category_id || '',
+      account_id: tmpl.account_id || '',
+      tag_names: tagsStr,
+      payer_user_id: tmpl.payer_user_id || currentUser?.id || '',
+      split_method: tmpl.split_method === 'payer_only' ? 'payer_only' : 'equal',
+      occurred_at: getTodayString(),
+      note: tmpl.note || '',
+      visibility: watch('visibility'),
+      attachment_paths: watch('attachment_paths'),
+    }));
   };
 
   const handleSaveAsTemplate = () => {
@@ -305,13 +346,13 @@ export default function TransactionFormDrawer() {
 
   // 3. 表单初始化与 Zod Resolver 挂载
 
-  const getTodayString = () => {
+  function getTodayString() {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  };
+  }
 
   const {
     register,
@@ -320,7 +361,7 @@ export default function TransactionFormDrawer() {
     watch,
     setValue,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -342,25 +383,75 @@ export default function TransactionFormDrawer() {
 
   // 监听关键表单字段以实现动态联动
   const watchType = watch('type');
+  const watchAmount = watch('amount');
   const watchPayer = watch('payer_user_id');
   const watchSplitMethod = watch('split_method');
   const watchAttachmentPaths = watch('attachment_paths');
 
   const [uploadingCount, setUploadingCount] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const closeGuardRef = useRef({ isDirty: false, uploadingCount: 0 });
 
   useEffect(() => {
-    if (!addDrawerOpen || !canWriteLedger) {
-      return undefined;
+    closeGuardRef.current = { isDirty, uploadingCount };
+  }, [isDirty, uploadingCount]);
+
+  const closeDrawer = useCallback(() => {
+    setShowDiscardConfirm(false);
+    setIsSaveTmplOpen(false);
+    setIsManageTmplOpen(false);
+    setEditingTemplate(null);
+    setAddDrawerOpen(false);
+    setCopySourceTransaction(null);
+    setOpenTemplateSaveOnDrawerOpen(false);
+    setEditingDraftId(null);
+  }, [
+    setAddDrawerOpen,
+    setCopySourceTransaction,
+    setEditingDraftId,
+    setOpenTemplateSaveOnDrawerOpen,
+  ]);
+
+  const requestClose = useCallback(() => {
+    if (closeGuardRef.current.isDirty || closeGuardRef.current.uploadingCount > 0) {
+      setShowDiscardConfirm(true);
+      return;
     }
-    const timer = window.setTimeout(() => {
-      amountInputRef.current?.focus({ preventScroll: true });
-    }, 80);
-    return () => window.clearTimeout(timer);
-  }, [addDrawerOpen, canWriteLedger]);
+    closeDrawer();
+  }, [closeDrawer]);
+
+  const nestedDialogOpen = showDiscardConfirm
+    || isSaveTmplOpen
+    || openTemplateSaveOnDrawerOpen
+    || isManageTmplOpen
+    || editingTemplate !== null;
+
+  useEffect(() => {
+    const wasOpen = drawerWasOpenRef.current;
+    if (addDrawerOpen && !wasOpen && typeof document !== 'undefined') {
+      drawerTriggerRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    }
+    if (!addDrawerOpen && wasOpen) {
+      const frame = window.requestAnimationFrame(() => drawerTriggerRef.current?.focus());
+      drawerWasOpenRef.current = addDrawerOpen;
+      return () => window.cancelAnimationFrame(frame);
+    }
+    drawerWasOpenRef.current = addDrawerOpen;
+    return undefined;
+  }, [addDrawerOpen]);
+
+  useModalSurface({
+    open: addDrawerOpen && !nestedDialogOpen,
+    onClose: requestClose,
+    surfaceRef: drawerSurfaceRef,
+    initialFocusRef: amountInputRef,
+  });
 
   // 打开抽屉时注入最近记账默认值 (仅在非复制且非草稿编辑时)
   useEffect(() => {
+    let advancedFrame: number | undefined;
     if (addDrawerOpen && !copySourceTransaction && !editingDraftId) {
       const localType = (localStorage.getItem(LAST_TYPE_KEY) as FormValues['type']) || 'expense';
       const localCategory = localStorage.getItem(LAST_CATEGORY_KEY) || '';
@@ -370,7 +461,7 @@ export default function TransactionFormDrawer() {
       const localVisibility = (localStorage.getItem(LAST_VISIBILITY_KEY) as FormValues['visibility']) || 'partner_readable';
       const defaults = transactionDefaults;
 
-      reset({
+      const nextValues: FormValues = {
         type: defaults?.type || localType,
         amount: '',
         title: '',
@@ -383,27 +474,42 @@ export default function TransactionFormDrawer() {
         note: '',
         visibility: defaults?.visibility || localVisibility,
         attachment_paths: [],
+      };
+      reset(nextValues);
+      advancedFrame = window.requestAnimationFrame(() => {
+        setAdvancedOpen(shouldOpenAdvancedFields(nextValues));
       });
     }
+    return () => {
+      if (advancedFrame !== undefined) window.cancelAnimationFrame(advancedFrame);
+    };
   }, [addDrawerOpen, copySourceTransaction, editingDraftId, currentUser, reset, transactionDefaults, isDefaultsFetched]);
 
   // 处理“草稿编辑”回填逻辑
   useEffect(() => {
+    let advancedFrame: number | undefined;
     if (addDrawerOpen && editingDraftId) {
       const draft = drafts.find(d => d.id === editingDraftId);
       if (draft) {
         reset(draft.formValues);
+        advancedFrame = window.requestAnimationFrame(() => {
+          setAdvancedOpen(shouldOpenAdvancedFields(draft.formValues));
+        });
       }
     }
+    return () => {
+      if (advancedFrame !== undefined) window.cancelAnimationFrame(advancedFrame);
+    };
   }, [addDrawerOpen, editingDraftId, drafts, reset]);
 
   // 处理“复制一笔”回填逻辑
   useEffect(() => {
+    let advancedFrame: number | undefined;
     if (addDrawerOpen && copySourceTransaction) {
       const amountYuan = (copySourceTransaction.amount_cents / 100).toFixed(2);
       const tagsStr = copySourceTransaction.tags ? copySourceTransaction.tags.join(', ') : '';
 
-      reset({
+      const nextValues: FormValues = {
         type: copySourceTransaction.type === 'settlement' ? 'expense' : copySourceTransaction.type,
         amount: amountYuan,
         title: copySourceTransaction.title || '',
@@ -416,13 +522,20 @@ export default function TransactionFormDrawer() {
         note: copySourceTransaction.note || '',
         visibility: copySourceTransaction.visibility === 'shared' ? 'partner_readable' : copySourceTransaction.visibility,
         attachment_paths: copySourceTransaction.attachment_paths || [],
+      };
+      reset(nextValues);
+      advancedFrame = window.requestAnimationFrame(() => {
+        setAdvancedOpen(shouldOpenAdvancedFields(nextValues));
       });
     }
+    return () => {
+      if (advancedFrame !== undefined) window.cancelAnimationFrame(advancedFrame);
+    };
   }, [addDrawerOpen, copySourceTransaction, reset, currentUser]);
 
   // 4. 定义创建账单的 Mutation
   const createTxMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: async ({ values }: { values: FormValues; action: 'close' | 'continue' }) => {
       const cents = yuanToCents(values.amount);
       const tags = values.tag_names
         ? values.tag_names.split(/[，, ；;]/).map((t) => t.trim()).filter(Boolean)
@@ -460,7 +573,7 @@ export default function TransactionFormDrawer() {
         });
       }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (_, { values: variables, action }) => {
       if (editingDraftId) {
         removeDraft(editingDraftId);
         setEditingDraftId(null);
@@ -504,14 +617,16 @@ export default function TransactionFormDrawer() {
         localStorage.removeItem(LAST_TAGS_KEY);
       }
 
-      if (submitActionRef.current === 'continue') {
+      if (action === 'continue') {
         setShowSuccessBanner(true);
         setTimeout(() => setShowSuccessBanner(false), 3000);
 
-        reset(buildContinueTransactionFormValues(variables, getTodayString()));
+        const nextValues = buildContinueTransactionFormValues(variables, getTodayString());
+        reset(nextValues);
+        setAdvancedOpen(shouldOpenAdvancedFields(nextValues));
+        window.requestAnimationFrame(() => amountInputRef.current?.focus({ preventScroll: true }));
       } else {
-        setAddDrawerOpen(false);
-        setCopySourceTransaction(null);
+        closeDrawer();
         reset({
           type: 'expense',
           amount: '',
@@ -530,7 +645,7 @@ export default function TransactionFormDrawer() {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = (values: FormValues, action: 'close' | 'continue') => {
     if (isOffline) {
       if (editingDraftId) {
         updateDraft(editingDraftId, {
@@ -545,22 +660,18 @@ export default function TransactionFormDrawer() {
           createdAt: new Date().toISOString(),
         });
       }
-      handleClose();
+      closeDrawer();
       return;
     }
-    createTxMutation.mutate(values);
+    createTxMutation.mutate({ values, action });
+  };
+
+  const handleInvalidSubmit = (invalidFields: FieldErrors<FormValues>) => {
+    if (invalidFields.title || invalidFields.note) setAdvancedOpen(true);
   };
 
   const setCurrentSubmitAction = (action: 'close' | 'continue') => {
-    submitActionRef.current = action;
     setSubmitAction(action);
-  };
-
-  const handleClose = () => {
-    setAddDrawerOpen(false);
-    setCopySourceTransaction(null);
-    setOpenTemplateSaveOnDrawerOpen(false);
-    setEditingDraftId(null);
   };
 
   const copyTemplateDefaultName = copySourceTransaction?.title
@@ -574,760 +685,508 @@ export default function TransactionFormDrawer() {
     setTmplName(null);
   };
 
+  const sharedPreview = buildSharedExpensePreview(
+    watchAmount,
+    users,
+    watchPayer,
+    watchSplitMethod,
+  );
+  const formMode: TransactionFormMode = isOffline
+    ? 'offline'
+    : editingDraftId
+      ? 'draft'
+      : copySourceTransaction
+        ? 'copy'
+        : 'default';
+  const isFormPending = isSubmitting || createTxMutation.isPending || uploadingCount > 0;
+
   if (!addDrawerOpen) return null;
 
   if (!canWriteLedger) {
     return (
-      <div className="drawer-overlay glass-blur show" onClick={handleClose}>
-        <div className="drawer-container glass-card" onClick={(e) => e.stopPropagation()}>
-          <div className="drawer-header">
-            <div className="header-title">
-              <Sparkles className="title-icon text-glow" />
-              <h3>无记账权限</h3>
+      <div
+        className="lt-entry-overlay"
+        onMouseDown={(event) => event.target === event.currentTarget && requestClose()}
+      >
+        <section
+          ref={drawerSurfaceRef}
+          className="lt-entry-drawer lt-entry-drawer--permission"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lt-entry-permission-title"
+          tabIndex={-1}
+        >
+          <header className="lt-entry-header">
+            <div className="lt-entry-header__title">
+              <ReceiptText size={20} aria-hidden="true" />
+              <h2 id="lt-entry-permission-title">无记账权限</h2>
             </div>
-            <button className="btn-close-drawer" onClick={handleClose}>
+            <Button iconOnly variant="ghost" aria-label="关闭记账抽屉" onClick={requestClose}>
               <X size={20} />
-            </button>
-          </div>
-          <div className="drawer-body" style={{ padding: '24px 28px', textAlign: 'left' }}>
-            <div className="error-banner">
-              <p>您当前是观察者权限，无法在此账本新增、复制或提交账单。</p>
+            </Button>
+          </header>
+          <div className="lt-entry-body">
+            <div className="lt-entry-banner lt-entry-banner--danger">
+              当前是观察者权限，无法在此账本新增、复制或提交账单。
             </div>
           </div>
-        </div>
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="drawer-overlay glass-blur show" onClick={handleClose}>
-      <div className="drawer-container glass-card" onClick={(e) => e.stopPropagation()}>
-        {/* 头部区 */}
-        <div className="drawer-header">
-          <div className="header-title">
-            <Sparkles className="title-icon text-glow" />
-            <h3>{copySourceTransaction ? '复制一笔账单' : '记一笔账单'}</h3>
-          </div>
-          <button className="btn-close-drawer" onClick={handleClose}>
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* 表单体 */}
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="drawer-form-wrapper"
-          style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }}
+    <>
+      <div
+        className="lt-entry-overlay"
+        onMouseDown={(event) => event.target === event.currentTarget && requestClose()}
+      >
+        <section
+          ref={drawerSurfaceRef}
+          className="lt-entry-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lt-entry-title"
+          tabIndex={-1}
         >
-          <div
-            className="drawer-body"
-            style={{
-              flexGrow: 1,
-              overflowY: 'auto',
-              padding: '24px 28px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-              textAlign: 'left',
-            }}
-          >
+          <header className="lt-entry-header">
+            <div className="lt-entry-header__title">
+              <ReceiptText size={20} aria-hidden="true" />
+              <div>
+                <span className="lt-entry-section__eyebrow">
+                  {isOffline ? '离线草稿' : copySourceTransaction ? '复制账单' : '新增账单'}
+                </span>
+                <h2 id="lt-entry-title">
+                  {copySourceTransaction ? '保存一笔新账单' : '记一笔账单'}
+                </h2>
+              </div>
+            </div>
+            <Button iconOnly variant="ghost" aria-label="关闭记账抽屉" onClick={requestClose}>
+              <X size={20} />
+            </Button>
+          </header>
+
+        <form
+          onSubmit={handleSubmit(
+            (values) => {
+              setCurrentSubmitAction('close');
+              onSubmit(values, 'close');
+            },
+            handleInvalidSubmit,
+          )}
+          className="lt-entry-form"
+        >
+          <div className="lt-entry-body">
             {isOffline && (
-              <div className="error-banner" style={{ background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.2)', color: '#ca8a04' }}>
-                <p>当前处于离线状态。您可以继续记账并保存为“离线草稿”，等网络恢复后手动提交。</p>
+              <div className="lt-entry-banner lt-entry-banner--warning">
+                当前处于离线状态，本次内容会保存为离线草稿。
               </div>
             )}
             {showSuccessBanner && !isOffline && (
-            <div className="success-banner animate-fade-in" style={{
-              background: 'rgba(53, 196, 137, 0.12)',
-              border: '1px solid rgba(53, 196, 137, 0.25)',
-              color: 'var(--accent-green)',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              marginBottom: '16px',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              backdropFilter: 'blur(8px)'
-            }}>
-              <Check size={16} />
-              <span>账单已成功保存！您可以继续录入下一笔。</span>
-            </div>
-          )}
-          {copySourceTransaction && (
-            <div className="success-banner animate-fade-in" style={{
-              background: 'rgba(168, 85, 247, 0.12)',
-              border: '1px solid rgba(168, 85, 247, 0.24)',
-              color: 'var(--text-primary)',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              marginBottom: '16px',
-              fontSize: '13px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-              backdropFilter: 'blur(8px)',
-              lineHeight: 1.5
-            }}>
-              <strong style={{ color: 'var(--accent-purple)' }}>
-                复制来源：{copySourceTransaction.title || '未命名账单'} · ¥{(copySourceTransaction.amount_cents / 100).toFixed(2)}
-              </strong>
-              <span style={{ color: 'var(--text-secondary)' }}>
-                保存后会生成一笔新账单，原账单保持不变；发生日期已重置为今天。
-              </span>
-            </div>
-          )}
-          {createTxMutation.isError && (
-            <div className="error-banner">
-              <p>
+              <div className="lt-entry-banner lt-entry-banner--success" role="status">
+                <Check size={16} aria-hidden="true" />
+                账单已保存，可以继续录入下一笔。
+              </div>
+            )}
+            {copySourceTransaction && (
+              <div className="lt-entry-banner lt-entry-banner--info">
+                <strong>
+                  复制来源：{copySourceTransaction.title || '未命名账单'} · ¥{(copySourceTransaction.amount_cents / 100).toFixed(2)}
+                </strong>
+                <span>保存后生成新账单，原账单保持不变，日期已重置为今天。</span>
+              </div>
+            )}
+            {createTxMutation.isError && (
+              <div className="lt-entry-banner lt-entry-banner--danger" role="alert">
                 {createTxMutation.error instanceof Error
                   ? createTxMutation.error.message
                   : '提交失败，请检查填写内容'}
-              </p>
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* 模板快速填充 */}
-          <div className="form-group template-select-group">
-            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>使用模板快速填入</span>
-              {templates && templates.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setIsManageTmplOpen(true)}
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--accent-purple)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0
+            <section className="lt-entry-amount">
+              <label htmlFor="lt-entry-amount-input">金额</label>
+              <div className="lt-entry-amount__control">
+                <span aria-hidden="true">¥</span>
+                <input
+                  id="lt-entry-amount-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
+                  enterKeyHint="done"
+                  autoComplete="off"
+                  placeholder="0.00"
+                  aria-invalid={Boolean(errors.amount)}
+                  {...amountField}
+                  ref={(element) => {
+                    amountField.ref(element);
+                    amountInputRef.current = element;
                   }}
-                >
-                  管理模板
-                </button>
-              )}
-            </label>
-            <div style={{ display: 'flex', gap: '8px', width: '100%', flexDirection: 'column' }}>
-              <select
-                className="form-select"
-                onChange={(e) => {
-                  const selectedId = e.target.value;
-                  if (selectedId) {
-                    const found = templates?.find((t) => t.id === selectedId);
-                    if (found) {
-                      applyTemplate(found);
-                    }
-                    e.target.value = ''; // 重置选择框
-                  }
-                }}
-                defaultValue=""
-              >
-                <option value="">-- 选择模板一键回填表单 --</option>
-                {activeTemplates.map((tmpl) => (
-                  <option key={tmpl.id} value={tmpl.id}>
-                    {tmpl.name} ({tmpl.type === 'expense' ? '支出' : tmpl.type === 'income' ? '收入' : '共同支出'})
-                  </option>
-                ))}
-              </select>
-
-              {/* 快捷模板气泡滚动 */}
-              {activeTemplates.length > 0 && (
-                <div className="template-badge-scroll">
-                  {activeTemplates.slice(0, 5).map((tmpl) => (
-                    <button
-                      key={tmpl.id}
-                      type="button"
-                      className="template-badge-btn"
-                      onClick={() => applyTemplate(tmpl)}
-                    >
-                      ⚡ {tmpl.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 类型分段选择器 */}
-          <div className="form-group">
-            <label className="form-label">账单类型</label>
-            <Controller
-              name="type"
-              control={control}
-              render={({ field }) => (
-                <div className="segmented-control">
-                  <button
-                    type="button"
-                    className={`segment-btn ${field.value === 'expense' ? 'active' : ''}`}
-                    onClick={() => field.onChange('expense')}
-                  >
-                    个人支出
-                  </button>
-                  <button
-                    type="button"
-                    className={`segment-btn ${field.value === 'income' ? 'active' : ''}`}
-                    onClick={() => field.onChange('income')}
-                  >
-                    个人收入
-                  </button>
-                  <button
-                    type="button"
-                    className={`segment-btn ${field.value === 'shared_expense' ? 'active' : ''}`}
-                    onClick={() => field.onChange('shared_expense')}
-                  >
-                    共同支出
-                  </button>
-                </div>
-              )}
-            />
-          </div>
-
-          {/* 金额大输入框 */}
-          <div className="form-group amount-group">
-            <label className="form-label">交易金额 (元)</label>
-            <div className="amount-input-wrapper" style={{ position: 'relative' }}>
-              <span className="currency-symbol">¥</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                inputMode="decimal"
-                enterKeyHint="done"
-                autoComplete="off"
-                pattern="[0-9]*\.?[0-9]*"
-                placeholder="0.00"
-                className={`amount-input ${errors.amount ? 'input-error' : ''}`}
-                style={{ paddingRight: '40px' }}
-                {...amountField}
-                ref={(el) => {
-                  amountField.ref(el);
-                  amountInputRef.current = el;
-                }}
-              />
-              {watch('amount') && (
-                <button
-                  type="button"
-                  onClick={() => setValue('amount', '')}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '22px',
-                    height: '22px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)',
-                    transition: 'background 0.2s',
-                    padding: 0
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-            {errors.amount && <span className="field-error">{errors.amount.message}</span>}
-          </div>
-
-          {/* 标题 */}
-          <div className="form-group">
-            <label className="form-label">账单标题</label>
-            <input
-              type="text"
-              placeholder={
-                watchType === 'shared_expense' ? '例如: 晚餐平摊、超市采购' : '例如: 购买水果、发工资'
-              }
-              className="form-input"
-              {...register('title')}
-            />
-            {errors.title && <span className="field-error">{errors.title.message}</span>}
-          </div>
-
-          {/* 交易分类 */}
-          <div className="form-group">
-            <label className="form-label">所属分类</label>
-            {isCategoriesLoading ? (
-              <div className="select-loading">
-                <Loader2 size={16} className="spinner" />
-                <span>加载分类中...</span>
-              </div>
-            ) : (
-              <>
-                <select className="form-select" {...register('category_id')}>
-                  <option value="">-- 请选择分类 (选填) --</option>
-                  {categories?.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-                {/* 快捷分类气泡 */}
-                {recentCategories.length > 0 && (
-                  <div className="recent-helpers" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                    <span className="dimmed-desc" style={{ fontSize: '12px', alignSelf: 'center', color: 'var(--text-muted)' }}>最近使用:</span>
-                    {recentCategories.map((catId) => {
-                      const catName = catMap[catId];
-                      if (!catName) return null;
-                      return (
-                        <button
-                          key={catId}
-                          type="button"
-                          className="badge-shared"
-                          style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', cursor: 'pointer' }}
-                          onClick={() => setValue('category_id', catId)}
-                        >
-                          {catName}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* 支付账户 */}
-          {watchType !== 'shared_expense' && (
-            <div className="form-group">
-              <label className="form-label">支付账户</label>
-              {isAccountsLoading ? (
-                <div className="select-loading">
-                  <Loader2 size={16} className="spinner" />
-                  <span>加载账户中...</span>
-                </div>
-              ) : (
-                <select className="form-select" {...register('account_id')}>
-                  <option value="">-- 请选择账户 (选填) --</option>
-                  {accounts?.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-
-          {/* 日期选择 */}
-          <div className="form-group">
-            <label className="form-label">发生日期</label>
-            <input type="date" className="form-input" {...register('occurred_at')} />
-            {errors.occurred_at && (
-              <span className="field-error">{errors.occurred_at.message}</span>
-            )}
-          </div>
-
-          {/* 标签列表 */}
-          <div className="form-group">
-            <label className="form-label">账单标签</label>
-            <input
-              type="text"
-              placeholder="多个标签请用逗号或空格分隔"
-              className="form-input"
-              {...register('tag_names')}
-            />
-            {/* 快捷标签气泡 */}
-            {recentTags.length > 0 && (
-              <div className="recent-helpers" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                <span className="dimmed-desc" style={{ fontSize: '12px', alignSelf: 'center', color: 'var(--text-muted)' }}>最近标签:</span>
-                {recentTags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className="badge-shared"
-                    style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', cursor: 'pointer' }}
-                    onClick={() => {
-                      const currentVal = watch('tag_names') || '';
-                      const trimmed = currentVal.trim();
-                      if (!trimmed) {
-                        setValue('tag_names', tag);
-                      } else {
-                        const tagsList = trimmed.split(/[，, ；;]/).map((t) => t.trim()).filter(Boolean);
-                        if (!tagsList.includes(tag)) {
-                          setValue('tag_names', `${trimmed}, ${tag}`);
-                        }
-                      }
-                    }}
-                  >
-                    #{tag}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 共同支出特定字段 */}
-          {watchType === 'shared_expense' && (
-            <>
-              {/* 付款人 */}
-              <div className="form-group">
-                <label className="form-label">付款人</label>
-                <select className="form-select" {...register('payer_user_id')}>
-                  <option value="">-- 请选择付款人 --</option>
-                  {users.map((u) => (
-                    <option key={u.user_id} value={u.user_id}>
-                      {u.display_name} {u.user_id === currentUser?.id ? '(我)' : ''}
-                    </option>
-                  ))}
-                </select>
-                {errors.payer_user_id && (
-                  <span className="field-error">{errors.payer_user_id.message}</span>
-                )}
-              </div>
-
-              {/* 分摊方式 */}
-              <div className="form-group">
-                <label className="form-label">分摊方式</label>
-                <Controller
-                  name="split_method"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="segmented-control">
-                      <button
-                        type="button"
-                        className={`segment-btn ${field.value === 'equal' ? 'active' : ''}`}
-                        onClick={() => field.onChange('equal')}
-                      >
-                        均等平分 (Equal)
-                      </button>
-                      <button
-                        type="button"
-                        className={`segment-btn ${field.value === 'payer_only' ? 'active' : ''}`}
-                        onClick={() => field.onChange('payer_only')}
-                      >
-                        付款人全额承担
-                      </button>
-                    </div>
-                  )}
                 />
+                {watchAmount ? (
+                  <Button
+                    iconOnly
+                    variant="ghost"
+                    aria-label="清空金额"
+                    onClick={() => setValue('amount', '', { shouldDirty: true })}
+                  >
+                    <X size={16} />
+                  </Button>
+                ) : null}
               </div>
+              {errors.amount ? <span className="lt-entry-field__error">{errors.amount.message}</span> : null}
+            </section>
 
-              {/* 参与人展示（不可变选项以提供防错保障） */}
-              <div className="form-group">
-                <label className="form-label">账单参与人</label>
-                <div className="participants-box">
-                  {users.map((u) => {
-                    // 默认当 equal 时两人都是参与人；当 payer_only 时只有付款人是参与人
-                    const isParticipating =
-                      watchSplitMethod === 'equal' || u.user_id === watchPayer;
-                    return (
-                      <div
-                        key={u.user_id}
-                        className={`participant-item ${isParticipating ? 'checked' : 'disabled'}`}
-                      >
-                        <div className="checkbox-icon">
-                          {isParticipating && <Check size={14} />}
-                        </div>
-                        <span className="participant-name">
-                          {u.display_name} {u.user_id === currentUser?.id ? '(我)' : ''}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="dimmed-desc">
-                  {watchSplitMethod === 'equal'
-                    ? '均等平分模式下，全员均自动勾选参与。'
-                    : '单方承担模式下，仅付款人被视为唯一消费人。'}
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* 个人账单特定字段 - 可见性 */}
-          {watchType !== 'shared_expense' && (
-            <div className="form-group">
-              <label className="form-label">账单可见性</label>
+            <div className="lt-entry-type">
+              <span className="lt-entry-field__label">账单类型</span>
               <Controller
-                name="visibility"
+                name="type"
                 control={control}
                 render={({ field }) => (
-                  <div className="segmented-control">
-                    <button
-                      type="button"
-                      className={`segment-btn ${field.value === 'partner_readable' ? 'active' : ''}`}
-                      onClick={() => field.onChange('partner_readable')}
-                    >
-                      对方可见 (只读)
-                    </button>
-                    <button
-                      type="button"
-                      className={`segment-btn ${field.value === 'private' ? 'active' : ''}`}
-                      onClick={() => field.onChange('private')}
-                    >
-                      仅自己可见 (Private)
-                    </button>
-                  </div>
+                  <SegmentedControl
+                    ariaLabel="账单类型"
+                    value={field.value}
+                    options={[
+                      { value: 'expense', label: '支出' },
+                      { value: 'income', label: '收入' },
+                      { value: 'shared_expense', label: '共同' },
+                    ]}
+                    onChange={field.onChange}
+                    fullWidth
+                  />
                 )}
               />
             </div>
-          )}
 
-          {/* 备注 */}
-          <div className="form-group">
-            <label className="form-label">交易备注</label>
-            <textarea
-              placeholder="记录账目的详细备注信息..."
-              className="form-input textarea"
-              rows={3}
-              {...register('note')}
-            />
-            {errors.note && <span className="field-error">{errors.note.message}</span>}
-          </div>
+            <div className="lt-entry-core-grid">
+              <div className="lt-entry-field">
+                <label htmlFor="lt-entry-category">分类</label>
+                {isCategoriesLoading ? (
+                  <div className="lt-entry-field__loading">
+                    <Loader2 size={16} className="spinner" /> 加载中
+                  </div>
+                ) : (
+                  <select id="lt-entry-category" {...register('category_id')}>
+                    <option value="">未分类</option>
+                    {categories?.map((category) => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
+                )}
+                {recentCategories.length > 0 ? (
+                  <div className="lt-entry-chips" aria-label="最近使用的分类">
+                    {recentCategories.map((categoryId) => {
+                      const categoryName = catMap[categoryId];
+                      return categoryName ? (
+                        <button
+                          key={categoryId}
+                          type="button"
+                          onClick={() => setValue('category_id', categoryId, { shouldDirty: true })}
+                        >
+                          {categoryName}
+                        </button>
+                      ) : null;
+                    })}
+                  </div>
+                ) : null}
+              </div>
 
-          {/* 图片附件 (仅对普通收支展示) */}
-          {watchType !== 'shared_expense' && (
-            <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>图片附件与小票 ({watchAttachmentPaths?.length || 0}/5)</span>
-                {uploadError && <span className="field-error" style={{ margin: 0 }}>{uploadError}</span>}
-              </label>
-              <Controller
-                name="attachment_paths"
-                control={control}
-                render={({ field }) => {
-                  const paths = field.value || [];
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {/* 已上传图片缩略图 */}
-                        {paths.map((p, idx) => (
-                          <div
-                            key={p}
-                            style={{
-                              position: 'relative',
-                              width: '72px',
-                              height: '72px',
-                              borderRadius: '8px',
-                              overflow: 'hidden',
-                              border: '1px solid rgba(255, 255, 255, 0.12)',
-                              background: 'rgba(255, 255, 255, 0.05)',
-                            }}
-                          >
-                            <img
-                              src={p}
-                              alt={`attachment-${idx}`}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                field.onChange(paths.filter((item) => item !== p));
-                              }}
-                              style={{
-                                position: 'absolute',
-                                top: '2px',
-                                right: '2px',
-                                background: 'rgba(0, 0, 0, 0.6)',
-                                border: 'none',
-                                borderRadius: '50%',
-                                width: '18px',
-                                height: '18px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#fff',
-                                cursor: 'pointer',
-                                padding: 0,
-                              }}
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-
-                        {/* 上传中的骨架屏 */}
-                        {Array.from({ length: uploadingCount }).map((_, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              width: '72px',
-                              height: '72px',
-                              borderRadius: '8px',
-                              border: '1px dashed rgba(255, 255, 255, 0.2)',
-                              background: 'rgba(255, 255, 255, 0.02)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                            className="animate-pulse"
-                          >
-                            <Loader2 size={16} className="spinner" style={{ color: 'var(--accent-purple)' }} />
-                          </div>
-                        ))}
-
-                        {/* 上传按钮 */}
-                        {paths.length + uploadingCount < 5 && (
-                          <label
-                            style={{
-                              width: '72px',
-                              height: '72px',
-                              borderRadius: '8px',
-                              border: '1px dashed rgba(255, 255, 255, 0.2)',
-                              background: 'rgba(255, 255, 255, 0.05)',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = 'var(--accent-purple)';
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                            }}
-                          >
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              style={{ color: 'var(--text-secondary)' }}
-                            >
-                              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                              <circle cx="9" cy="9" r="2" />
-                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                            </svg>
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>添加图片</span>
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/jpg,image/png,image/webp"
-                              style={{ display: 'none' }}
-                              onChange={async (e) => {
-                                const files = e.target.files;
-                                if (!files || files.length === 0) return;
-                                const file = files[0];
-
-                                if (file.size > 10 * 1024 * 1024) {
-                                  setUploadError('文件大小不能超过 10MB');
-                                  return;
-                                }
-
-                                setUploadError(null);
-                                setUploadingCount((prev) => prev + 1);
-                                try {
-                                  const res = await transactionsApi.uploadAttachment(file);
-                                  if (res.path) {
-                                    field.onChange([...paths, res.path]);
-                                  }
-                                } catch (err) {
-                                  console.error(err);
-                                  setUploadError(err instanceof Error ? err.message : '上传文件失败，请重试');
-                                } finally {
-                                  setUploadingCount((prev) => prev - 1);
-                                }
-                                e.target.value = '';
-                              }}
-                            />
-                          </label>
-                        )}
-                      </div>
+              {watchType !== 'shared_expense' ? (
+                <div className="lt-entry-field">
+                  <label htmlFor="lt-entry-account">账户</label>
+                  {isAccountsLoading ? (
+                    <div className="lt-entry-field__loading">
+                      <Loader2 size={16} className="spinner" /> 加载中
                     </div>
-                  );
-                }}
-              />
+                  ) : (
+                    <select id="lt-entry-account" {...register('account_id')}>
+                      <option value="">未指定</option>
+                      {accounts?.map((account) => (
+                        <option key={account.id} value={account.id}>{account.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              ) : null}
+
+              <div className="lt-entry-field">
+                <label htmlFor="lt-entry-date">日期</label>
+                <input id="lt-entry-date" type="date" {...register('occurred_at')} />
+                {errors.occurred_at ? (
+                  <span className="lt-entry-field__error">{errors.occurred_at.message}</span>
+                ) : null}
+              </div>
             </div>
-          )}
+
+            {watchType === 'shared_expense' ? (
+              <section className="lt-entry-shared">
+                <header className="lt-entry-section__header">
+                  <div>
+                    <span className="lt-entry-section__eyebrow">共同账单</span>
+                    <h3>付款与分摊</h3>
+                  </div>
+                </header>
+                <div className="lt-entry-shared__controls">
+                  <div className="lt-entry-field">
+                    <label htmlFor="lt-entry-payer">付款人</label>
+                    <select id="lt-entry-payer" {...register('payer_user_id')}>
+                      <option value="">请选择</option>
+                      {users.map((user) => (
+                        <option key={user.user_id} value={user.user_id}>
+                          {user.display_name}{user.user_id === currentUser?.id ? '（我）' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.payer_user_id ? (
+                      <span className="lt-entry-field__error">{errors.payer_user_id.message}</span>
+                    ) : null}
+                  </div>
+                  <div className="lt-entry-field">
+                    <span className="lt-entry-field__label">分摊方式</span>
+                    <Controller
+                      name="split_method"
+                      control={control}
+                      render={({ field }) => (
+                        <SegmentedControl
+                          ariaLabel="分摊方式"
+                          value={field.value}
+                          options={[
+                            { value: 'equal', label: '均等平分' },
+                            { value: 'payer_only', label: '付款人承担' },
+                          ]}
+                          onChange={field.onChange}
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+                <SharedExpensePreview items={sharedPreview} currentUserId={currentUser?.id} />
+              </section>
+            ) : null}
+
+            <details
+              className="lt-entry-advanced"
+              open={advancedOpen}
+              onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+            >
+              <summary>
+                <span>
+                  <span className="lt-entry-section__eyebrow">低频字段</span>
+                  <strong>更多选项</strong>
+                </span>
+                <ChevronDown size={18} aria-hidden="true" />
+              </summary>
+              <div className="lt-entry-advanced__body">
+                <div className="lt-entry-template">
+                  <div className="lt-entry-field">
+                    <div className="lt-entry-field__heading">
+                      <label htmlFor="lt-entry-template">账单模板</label>
+                      {templates?.length ? (
+                        <button type="button" onClick={() => setIsManageTmplOpen(true)}>管理模板</button>
+                      ) : null}
+                    </div>
+                    <select
+                      id="lt-entry-template"
+                      defaultValue=""
+                      onChange={(event) => {
+                        const template = templates?.find((item) => item.id === event.target.value);
+                        if (template) applyTemplate(template);
+                        event.target.value = '';
+                      }}
+                    >
+                      <option value="">选择模板</option>
+                      {activeTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>{template.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {activeTemplates.length > 0 ? (
+                    <div className="lt-entry-chips" aria-label="快捷模板">
+                      {activeTemplates.slice(0, 5).map((template) => (
+                        <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
+                          <Sparkles size={13} aria-hidden="true" /> {template.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <Button
+                    className="lt-entry-template__save"
+                    variant="ghost"
+                    startIcon={<Sparkles size={16} />}
+                    onClick={() => setIsSaveTmplOpen(true)}
+                    disabled={isOffline}
+                  >
+                    存为模板
+                  </Button>
+                </div>
+
+                <div className="lt-entry-field">
+                  <label htmlFor="lt-entry-title-input">标题</label>
+                  <input
+                    id="lt-entry-title-input"
+                    type="text"
+                    placeholder={watchType === 'shared_expense' ? '例如：晚餐平摊' : '例如：周末采购'}
+                    {...register('title')}
+                  />
+                  {errors.title ? <span className="lt-entry-field__error">{errors.title.message}</span> : null}
+                </div>
+
+                <div className="lt-entry-field">
+                  <label htmlFor="lt-entry-tags">标签</label>
+                  <input id="lt-entry-tags" type="text" placeholder="通勤，周末" {...register('tag_names')} />
+                  {recentTags.length > 0 ? (
+                    <div className="lt-entry-chips" aria-label="最近使用的标签">
+                      {recentTags.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            const currentValue = watch('tag_names')?.trim() || '';
+                            const tags = currentValue.split(/[，, ；;]/).map((item) => item.trim()).filter(Boolean);
+                            if (!tags.includes(tag)) {
+                              setValue('tag_names', currentValue ? `${currentValue}, ${tag}` : tag, { shouldDirty: true });
+                            }
+                          }}
+                        >
+                          #{tag}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {watchType !== 'shared_expense' ? (
+                  <div className="lt-entry-field">
+                    <span className="lt-entry-field__label">可见性</span>
+                    <Controller
+                      name="visibility"
+                      control={control}
+                      render={({ field }) => (
+                        <SegmentedControl
+                          ariaLabel="账单可见性"
+                          value={field.value}
+                          options={[
+                            { value: 'partner_readable', label: '对方可见' },
+                            { value: 'private', label: '仅自己' },
+                          ]}
+                          onChange={field.onChange}
+                          fullWidth
+                        />
+                      )}
+                    />
+                  </div>
+                ) : null}
+
+                <div className="lt-entry-field">
+                  <label htmlFor="lt-entry-note">备注</label>
+                  <textarea id="lt-entry-note" rows={3} placeholder="补充账单信息" {...register('note')} />
+                  {errors.note ? <span className="lt-entry-field__error">{errors.note.message}</span> : null}
+                </div>
+
+                {watchType !== 'shared_expense' ? (
+                  <div className="lt-entry-field">
+                    <div className="lt-entry-field__heading">
+                      <span className="lt-entry-field__label">图片与小票</span>
+                      <span>{watchAttachmentPaths?.length || 0}/5</span>
+                    </div>
+                    {uploadError ? <span className="lt-entry-field__error">{uploadError}</span> : null}
+                    <Controller
+                      name="attachment_paths"
+                      control={control}
+                      render={({ field }) => {
+                        const paths = field.value || [];
+                        return (
+                          <div className="lt-entry-attachments">
+                            {paths.map((path, index) => (
+                              <div className="lt-entry-attachment" key={path}>
+                                <img src={path} alt={`账单附件 ${index + 1}`} />
+                                <button
+                                  type="button"
+                                  aria-label={`移除附件 ${index + 1}`}
+                                  onClick={() => field.onChange(paths.filter((item) => item !== path))}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))}
+                            {Array.from({ length: uploadingCount }).map((_, index) => (
+                              <div className="lt-entry-attachment lt-entry-attachment--loading" key={`upload-${index}`}>
+                                <Loader2 size={18} className="spinner" />
+                              </div>
+                            ))}
+                            {paths.length + uploadingCount < 5 ? (
+                              <label className="lt-entry-attachment lt-entry-attachment--add">
+                                <ImagePlus size={20} aria-hidden="true" />
+                                <span>添加图片</span>
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                                  onChange={async (event) => {
+                                    const file = event.target.files?.[0];
+                                    if (!file) return;
+                                    if (file.size > 10 * 1024 * 1024) {
+                                      setUploadError('文件大小不能超过 10MB');
+                                      event.target.value = '';
+                                      return;
+                                    }
+                                    setUploadError(null);
+                                    setUploadingCount((count) => count + 1);
+                                    try {
+                                      const response = await transactionsApi.uploadAttachment(file);
+                                      if (response.path) field.onChange([...paths, response.path]);
+                                    } catch (error) {
+                                      setUploadError(error instanceof Error ? error.message : '上传文件失败，请重试');
+                                    } finally {
+                                      setUploadingCount((count) => count - 1);
+                                      event.target.value = '';
+                                    }
+                                  }}
+                                />
+                              </label>
+                            ) : null}
+                          </div>
+                        );
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </details>
           </div>
 
-          {/* 底部操作区 (固定底部，带高保真玻璃拟物样式) */}
-          <div
-            className="drawer-footer"
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              flexWrap: 'wrap',
-              padding: '20px 28px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-              background: 'rgba(15, 20, 32, 0.95)',
-              backdropFilter: 'blur(10px)',
-              position: 'sticky',
-              bottom: 0,
-              zIndex: 10,
+          <TransactionFormFooter
+            mode={formMode}
+            isPending={isFormPending}
+            activeAction={submitAction}
+            onCancel={requestClose}
+            onContinue={() => {
+              setCurrentSubmitAction('continue');
+              handleSubmit(
+                (values) => onSubmit(values, 'continue'),
+                handleInvalidSubmit,
+              )();
             }}
-          >
-            <button
-              type="button"
-              className="btn-secondary mobile-full"
-              style={{ marginRight: 'auto', borderColor: 'rgba(255, 255, 255, 0.12)' }}
-              onClick={() => setIsSaveTmplOpen(true)}
-              disabled={isOffline}
-            >
-              存为模板
-            </button>
-            <button type="button" className="btn-secondary mobile-full" onClick={handleClose}>
-              取消
-            </button>
-            <button
-              type="button"
-              className="btn-secondary mobile-full"
-              style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
-              disabled={isSubmitting || createTxMutation.isPending || isOffline}
-              onClick={() => {
-                setCurrentSubmitAction('continue');
-                handleSubmit(onSubmit)();
-              }}
-            >
-              保存并继续
-            </button>
-            <button
-              type="submit"
-              className="btn-primary btn-submit mobile-full"
-              style={{
-                padding: '10px 24px',
-                background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
-                border: 'none',
-                boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)',
-                color: '#fff',
-                fontWeight: 600,
-                transition: 'all 0.2s',
-              }}
-              disabled={isSubmitting || createTxMutation.isPending}
-              onClick={() => setCurrentSubmitAction('close')}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(168, 85, 247, 0.5)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(168, 85, 247, 0.3)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              {(isSubmitting || createTxMutation.isPending) && submitAction === 'close' ? (
-                <>
-                  <Loader2 size={16} className="spinner" />
-                  <span>保存中...</span>
-                </>
-              ) : isOffline ? (
-                <span>保存为离线草稿</span>
-              ) : editingDraftId ? (
-                <span>提交正式账单</span>
-              ) : copySourceTransaction ? (
-                <span>保存为新账单</span>
-              ) : (
-                <span>确认记账</span>
-              )}
-            </button>
-          </div>
+            onPrimary={() => setCurrentSubmitAction('close')}
+          />
         </form>
+        </section>
       </div>
+
+      <ConfirmDialog
+        open={showDiscardConfirm}
+        title="放弃本次修改？"
+        description={uploadingCount > 0
+          ? '仍有图片正在上传，离开后本次填写内容和上传进度都会丢失。'
+          : '离开后，本次尚未保存的填写内容会丢失。'}
+        confirmLabel="放弃修改"
+        cancelLabel="继续编辑"
+        tone="danger"
+        icon={<Info size={20} />}
+        onConfirm={closeDrawer}
+        onClose={() => setShowDiscardConfirm(false)}
+      />
 
       {/* 另存为模板对话框 */}
       {templateSaveOpen && (
@@ -1635,7 +1494,7 @@ export default function TransactionFormDrawer() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

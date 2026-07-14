@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildContinueTransactionFormValues } from './transactionFormState';
+import {
+  buildContinueTransactionFormValues,
+  buildSharedExpensePreview,
+  shouldOpenAdvancedFields,
+} from './transactionFormState';
 
 describe('buildContinueTransactionFormValues', () => {
   it('keeps daily-entry defaults while clearing one-time fields', () => {
@@ -89,5 +93,83 @@ describe('buildContinueTransactionFormValues', () => {
 
     expect(nextValues.occurred_at).toBe('2026-07-07');
     expect(nextValues.visibility).toBe('private');
+  });
+
+  it('matches the backend equal-split remainder rule in the shared preview', () => {
+    const preview = buildSharedExpensePreview(
+      '100.01',
+      [
+        { user_id: 'user-a', display_name: '林然' },
+        { user_id: 'user-b', display_name: '北北' },
+      ],
+      'user-a',
+      'equal',
+    );
+
+    expect(preview).toEqual([
+      {
+        userId: 'user-a',
+        displayName: '林然',
+        shareAmountCents: 5001,
+        isPayer: true,
+        isParticipating: true,
+      },
+      {
+        userId: 'user-b',
+        displayName: '北北',
+        shareAmountCents: 5000,
+        isPayer: false,
+        isParticipating: true,
+      },
+    ]);
+  });
+
+  it('assigns payer-only preview to the payer and tolerates incomplete amounts', () => {
+    const members = [
+      { user_id: 'user-a', display_name: '林然' },
+      { user_id: 'user-b', display_name: '北北' },
+    ];
+
+    expect(buildSharedExpensePreview('88', members, 'user-b', 'payer_only'))
+      .toEqual([
+        {
+          userId: 'user-a',
+          displayName: '林然',
+          shareAmountCents: 0,
+          isPayer: false,
+          isParticipating: false,
+        },
+        {
+          userId: 'user-b',
+          displayName: '北北',
+          shareAmountCents: 8800,
+          isPayer: true,
+          isParticipating: true,
+        },
+      ]);
+    expect(buildSharedExpensePreview('', members, 'user-a', 'equal')
+      .every((item) => item.shareAmountCents === 0)).toBe(true);
+  });
+
+  it('opens low-frequency fields only when they carry meaningful data', () => {
+    const base = {
+      type: 'expense' as const,
+      amount: '',
+      title: '',
+      category_id: '',
+      account_id: '',
+      tag_names: '',
+      payer_user_id: 'user-a',
+      split_method: 'equal' as const,
+      occurred_at: '2026-07-14',
+      note: '',
+      visibility: 'partner_readable' as const,
+      attachment_paths: [],
+    };
+
+    expect(shouldOpenAdvancedFields(base)).toBe(false);
+    expect(shouldOpenAdvancedFields({ ...base, title: '午餐' })).toBe(true);
+    expect(shouldOpenAdvancedFields({ ...base, visibility: 'private' })).toBe(true);
+    expect(shouldOpenAdvancedFields({ ...base, attachment_paths: ['/receipt.jpg'] })).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task49 已完成；v1.2 RC 通过 Task49X 重新打开 XLSX 输入范围；Fresh Light 波次 A（UI-FL-01/02）与 UI-FL-03 已完成，UI-FL-04 待启动
+适用阶段：Task01-Task49 已完成；v1.2 RC 通过 Task49X 重新打开 XLSX 输入范围；Fresh Light 波次 A（UI-FL-01/02）与 UI-FL-03/04 已完成，UI-FL-05 为下一项
 
 ## 1. 目标
 

@@ -1,4 +1,4 @@
-import { BookmarkPlus, Copy, Eye, Trash2 } from 'lucide-react';
+import { BookmarkPlus, Copy, Eye, Pencil, Trash2 } from 'lucide-react';
 import type { TransactionResponse } from '../../types/transaction';
 import { formatDate } from '../../utils/date';
 import { centsToYuan } from '../../utils/money';
@@ -18,7 +18,9 @@ interface TransactionTableProps {
   onSelect: (id: string) => void;
   onView: (transaction: TransactionResponse) => void;
   onCopy: (transaction: TransactionResponse, saveAsTemplate: boolean) => void;
+  onEdit: (transaction: TransactionResponse) => void;
   onDelete: (transaction: TransactionResponse) => void;
+  editBlockReason: (transaction: TransactionResponse) => string | null;
 }
 
 export default function TransactionTable({
@@ -33,7 +35,9 @@ export default function TransactionTable({
   onSelect,
   onView,
   onCopy,
+  onEdit,
   onDelete,
+  editBlockReason,
 }: TransactionTableProps) {
   const selectable = transactions.filter((tx) => tx.created_by_user_id === currentUserId);
   const allSelected = selectable.length > 0 && selectable.every((tx) => selectedIds.includes(tx.id));
@@ -70,6 +74,7 @@ export default function TransactionTable({
             const presentation = getTransactionPresentation(tx);
             const isCreator = tx.created_by_user_id === currentUserId;
             const canMutate = canWrite && isCreator && tx.type !== 'settlement';
+            const editReason = canMutate ? editBlockReason(tx) : null;
             return (
               <tr key={tx.id}>
                 {batchMode ? (
@@ -124,9 +129,22 @@ export default function TransactionTable({
                       </>
                     ) : null}
                     {canMutate ? (
-                      <Button variant="ghost" iconOnly aria-label={`删除${tx.title || '账单'}`} title="删除账单" onClick={() => onDelete(tx)}>
-                        <Trash2 size={17} />
-                      </Button>
+                      <>
+                        <span title={editReason || '编辑账单'}>
+                          <Button
+                            variant="ghost"
+                            iconOnly
+                            aria-label={editReason ? `无法编辑${tx.title || '账单'}：${editReason}` : `编辑${tx.title || '账单'}`}
+                            disabled={Boolean(editReason)}
+                            onClick={() => onEdit(tx)}
+                          >
+                            <Pencil size={17} />
+                          </Button>
+                        </span>
+                        <Button variant="ghost" iconOnly aria-label={`删除${tx.title || '账单'}`} title="删除账单" onClick={() => onDelete(tx)}>
+                          <Trash2 size={17} />
+                        </Button>
+                      </>
                     ) : null}
                   </div>
                 </td>

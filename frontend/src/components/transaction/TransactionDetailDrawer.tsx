@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { BookmarkPlus, Copy, Image, ReceiptText, Trash2, X } from 'lucide-react';
+import { BookmarkPlus, Copy, Image, Pencil, ReceiptText, Trash2, X } from 'lucide-react';
 import type { TransactionResponse } from '../../types/transaction';
 import { formatDate } from '../../utils/date';
 import { centsToYuan } from '../../utils/money';
@@ -19,7 +19,9 @@ interface TransactionDetailDrawerProps {
   userName: (userId: string) => string;
   onClose: () => void;
   onCopy: (transaction: TransactionResponse, saveAsTemplate: boolean) => void;
+  onEdit: (transaction: TransactionResponse) => void;
   onDelete: (transaction: TransactionResponse) => void;
+  editBlockReason: string | null;
 }
 
 export default function TransactionDetailDrawer({
@@ -32,7 +34,9 @@ export default function TransactionDetailDrawer({
   userName,
   onClose,
   onCopy,
+  onEdit,
   onDelete,
+  editBlockReason,
 }: TransactionDetailDrawerProps) {
   const titleId = useId();
   const surfaceRef = useRef<HTMLElement>(null);
@@ -161,6 +165,18 @@ export default function TransactionDetailDrawer({
               </Button>
             ) : null}
             <div>
+              {canDelete ? (
+                <span title={editBlockReason || '编辑账单'}>
+                  <Button
+                    variant="secondary"
+                    startIcon={<Pencil size={17} />}
+                    disabled={Boolean(editBlockReason)}
+                    onClick={() => onEdit(tx)}
+                  >
+                    {editBlockReason ? '暂不可编辑' : '编辑账单'}
+                  </Button>
+                </span>
+              ) : null}
               {canCopy ? (
                 <>
                   <Button variant="secondary" startIcon={<BookmarkPlus size={17} />} onClick={() => onCopy(tx, true)}>

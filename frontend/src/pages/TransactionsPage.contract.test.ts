@@ -20,6 +20,8 @@ describe('UI-FL-05 transactions page contract', () => {
     expect(source).toContain("import TransactionDetailDrawer from '../components/transaction/TransactionDetailDrawer'");
     expect(source).toContain('transactionsApi.deleteTransaction(id)');
     expect(source).toContain('transactionsApi.batchTag(payload)');
+    expect(source).toContain('getTransactionEditBlockReason(');
+    expect(source).toContain('setEditSourceTransaction(tx)');
     expect(source).toContain('queryKeys.transactions.root(activeLedgerId)');
     expect(source).toContain('queryKeys.dashboard.root(activeLedgerId)');
     expect(source).toContain('queryKeys.reports.root(activeLedgerId)');

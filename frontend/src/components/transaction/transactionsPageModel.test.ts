@@ -38,13 +38,18 @@ describe('transactions page model', () => {
     }))).toMatchObject({
       typeLabel: '共同支出',
       scopeLabel: '共同账本可见',
-      splitLabel: '双方均摊',
+      splitLabel: '成员均摊',
     });
     expect(getTransactionPresentation(transaction({ type: 'settlement', visibility: 'shared' }))).toMatchObject({
       typeLabel: '结算记录',
       splitLabel: '独立结算记录',
       amountPrefix: '',
     });
+    expect(getTransactionPresentation(transaction({
+      type: 'shared_expense',
+      visibility: 'shared',
+      split_method: 'ratio',
+    }))).toMatchObject({ splitLabel: '自定义分摊' });
   });
 
   it('builds removable filter labels without exposing ids', () => {

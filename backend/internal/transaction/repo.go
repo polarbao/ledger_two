@@ -201,8 +201,9 @@ func (r *Repository) FindByAttachmentPath(ctx context.Context, ledgerID string, 
 // @param tx *sql.Tx 事务句柄，可为 nil
 // @param transaction *Transaction 待更新的交易实体
 // @param tags []string 新的标签名称列表
+// @param replaceTags bool 是否显式重构标签关系
 // @return error 错误信息
-func (r *Repository) UpdateWithTx(ctx context.Context, tx *sql.Tx, transaction *Transaction, tags []string) error {
+func (r *Repository) UpdateWithTx(ctx context.Context, tx *sql.Tx, transaction *Transaction, tags []string, replaceTags bool) error {
 	executor := r.getExecutor(tx)
 	now := time.Now().Format(time.RFC3339)
 
@@ -221,7 +222,11 @@ func (r *Repository) UpdateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 		return err
 	}
 
-	// 重构标签关系：删除旧的，插入新的
+	if !replaceTags {
+		return nil
+	}
+
+	// 仅在请求显式修改标签时重构关系，避免普通字段编辑恢复已归档标签。
 	_, err = executor.ExecContext(ctx, "DELETE FROM transaction_tags WHERE transaction_id = ?", transaction.ID)
 	if err != nil {
 		return err

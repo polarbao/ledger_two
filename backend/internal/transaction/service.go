@@ -231,6 +231,12 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 	}
 
 	isShared := tx.Type == "shared_expense"
+	if isShared && req.AccountID != nil {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "共同支出不支持支付账户字段")
+	}
+	if !isShared && (req.SplitMethod != nil || req.Splits != nil) {
+		return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "普通账单不支持分摊字段")
+	}
 	var oldSplits []SplitResponse
 	if isShared {
 		oldSplits, _ = s.repo.GetSplitsByTxID(ctx, id)
@@ -261,28 +267,48 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 		tx.OccurredAt = occurredAt
 	}
 	if req.PayerUserID != nil {
-		if *req.PayerUserID == "" {
-			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "付款人用户 ID 不能为空")
+		payerUserID := strings.TrimSpace(*req.PayerUserID)
+		if err := s.validateLedgerMember(ctx, tx.LedgerID, payerUserID, "付款人用户不在当前账本成员中"); err != nil {
+			return nil, err
 		}
-		tx.PayerUserID = *req.PayerUserID
+		tx.PayerUserID = payerUserID
 	}
 	if req.AccountID != nil {
 		if *req.AccountID == nil {
 			tx.AccountID = sql.NullString{Valid: false}
 		} else {
-			tx.AccountID = sql.NullString{String: **req.AccountID, Valid: true}
+			accountID := strings.TrimSpace(**req.AccountID)
+			if accountID == "" {
+				tx.AccountID = sql.NullString{Valid: false}
+			} else {
+				if err := s.validateActiveAccountReference(ctx, tx.LedgerID, &accountID); err != nil {
+					return nil, err
+				}
+				tx.AccountID = sql.NullString{String: accountID, Valid: true}
+			}
 		}
 	}
 	if req.CategoryID != nil {
 		if *req.CategoryID == nil {
 			tx.CategoryID = sql.NullString{Valid: false}
 		} else {
-			tx.CategoryID = sql.NullString{String: **req.CategoryID, Valid: true}
+			categoryID := strings.TrimSpace(**req.CategoryID)
+			if categoryID == "" {
+				tx.CategoryID = sql.NullString{Valid: false}
+			} else {
+				if err := s.validateActiveCategoryReference(ctx, tx.LedgerID, &categoryID); err != nil {
+					return nil, err
+				}
+				tx.CategoryID = sql.NullString{String: categoryID, Valid: true}
+			}
 		}
 	}
 	if req.Visibility != nil {
 		val := *req.Visibility
-		if val != "private" && val != "partner_readable" && val != "shared" {
+		if isShared && val != "shared" {
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "共同支出可见性固定为 shared")
+		}
+		if !isShared && val != "private" && val != "partner_readable" {
 			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的可见性属性值")
 		}
 		tx.Visibility = val
@@ -319,6 +345,7 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 
 	var newSplits []TransactionSplit
 	var splitMethodVal string
+	recalculateSplits := isShared && (req.AmountCents != nil || req.PayerUserID != nil || req.SplitMethod != nil || req.Splits != nil)
 	if isShared {
 		if req.SplitMethod != nil {
 			splitMethodVal = *req.SplitMethod
@@ -330,41 +357,42 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 			splitMethodVal = tx.SplitMethod.String
 		}
 
-		// 重新计算分摊金额
-		users, err := s.getLedgerUsers(ctx, tx.LedgerID)
-		if err != nil {
-			return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
-		}
-
-		payerID := tx.PayerUserID
-		foundPayer := false
-		for _, u := range users {
-			if u == payerID {
-				foundPayer = true
-				break
+		if recalculateSplits {
+			users, err := s.getLedgerUsers(ctx, tx.LedgerID)
+			if err != nil {
+				return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
 			}
-		}
-		if !foundPayer {
-			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的付款人")
-		}
 
-		var reqSplits []SplitInput
-		if req.Splits != nil {
-			reqSplits = *req.Splits
-		}
+			payerID := tx.PayerUserID
+			foundPayer := false
+			for _, u := range users {
+				if u == payerID {
+					foundPayer = true
+					break
+				}
+			}
+			if !foundPayer {
+				return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的付款人")
+			}
 
-		splits, err := s.calculateSplits(tx.Amount, splitMethodVal, payerID, users, reqSplits)
-		if err != nil {
-			return nil, err
-		}
+			var reqSplits []SplitInput
+			if req.Splits != nil {
+				reqSplits = *req.Splits
+			}
 
-		for _, s := range splits {
-			newSplits = append(newSplits, TransactionSplit{
-				ID:            uuid.NewString(),
-				TransactionID: tx.ID,
-				UserID:        s.UserID,
-				ShareAmount:   s.ShareAmountCents,
-			})
+			splits, err := s.calculateSplits(tx.Amount, splitMethodVal, payerID, users, reqSplits)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, split := range splits {
+				newSplits = append(newSplits, TransactionSplit{
+					ID:            uuid.NewString(),
+					TransactionID: tx.ID,
+					UserID:        split.UserID,
+					ShareAmount:   split.ShareAmountCents,
+				})
+			}
 		}
 	}
 
@@ -376,12 +404,12 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 	}
 	defer dbTx.Rollback()
 
-	err = s.repo.UpdateWithTx(ctx, dbTx, tx, tags)
+	err = s.repo.UpdateWithTx(ctx, dbTx, tx, tags, req.TagNames != nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if isShared {
+	if recalculateSplits {
 		// 删除旧分摊
 		_, err = dbTx.ExecContext(ctx, "DELETE FROM transaction_splits WHERE transaction_id = ?", tx.ID)
 		if err != nil {
@@ -398,11 +426,15 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 	var newSplitsDTO []SplitResponse
 	if isShared {
 		afterDTO.SplitMethod = &splitMethodVal
-		for _, ns := range newSplits {
-			newSplitsDTO = append(newSplitsDTO, SplitResponse{
-				UserID:           ns.UserID,
-				ShareAmountCents: ns.ShareAmount,
-			})
+		if recalculateSplits {
+			for _, ns := range newSplits {
+				newSplitsDTO = append(newSplitsDTO, SplitResponse{
+					UserID:           ns.UserID,
+					ShareAmountCents: ns.ShareAmount,
+				})
+			}
+		} else {
+			newSplitsDTO = oldSplits
 		}
 		afterDTO.Participants = newSplitsDTO
 	}

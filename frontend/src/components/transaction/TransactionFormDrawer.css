@@ -277,6 +277,13 @@
   line-height: var(--lt-line-height-normal);
 }
 
+.lt-entry-field__help {
+  color: var(--lt-text-muted);
+  font-size: var(--lt-font-size-caption);
+  line-height: var(--lt-line-height-normal);
+  overflow-wrap: anywhere;
+}
+
 .lt-entry-chips {
   min-width: 0;
   display: flex;

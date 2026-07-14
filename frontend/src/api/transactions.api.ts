@@ -17,6 +17,7 @@ import type {
   ImportRuleResponse,
   CreateImportRulePayload,
   TransactionDefaultResponse,
+  UpdateTransactionPayload,
 } from '../types/transaction';
 
 export interface TransactionListFilter {
@@ -71,6 +72,14 @@ export const transactionsApi = {
 
   createSharedExpense: (payload: CreateSharedExpensePayload) =>
     api.post<TransactionResponse>('/api/shared-expenses', payload),
+
+  updateTransaction: (transaction: TransactionResponse, payload: UpdateTransactionPayload) =>
+    api.patch<TransactionResponse>(
+      transaction.type === 'shared_expense'
+        ? `/api/shared-expenses/${transaction.id}`
+        : `/api/transactions/${transaction.id}`,
+      payload,
+    ),
 
   deleteTransaction: (id: string) =>
     api.delete<void>(`/api/transactions/${id}`),

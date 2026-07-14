@@ -7,6 +7,7 @@ interface UIStore {
   detailDrawerTransactionId: string | null;
   filterOpen: boolean;
   copySourceTransaction: TransactionResponse | null;
+  editSourceTransaction: TransactionResponse | null;
   openTemplateSaveOnDrawerOpen: boolean;
   editingDraftId: string | null;
   isOffline: boolean;
@@ -15,6 +16,7 @@ interface UIStore {
   setDetailDrawerTransactionId: (id: string | null) => void;
   setFilterOpen: (open: boolean) => void;
   setCopySourceTransaction: (tx: TransactionResponse | null) => void;
+  setEditSourceTransaction: (tx: TransactionResponse | null) => void;
   setOpenTemplateSaveOnDrawerOpen: (open: boolean) => void;
   setEditingDraftId: (id: string | null) => void;
   setIsOffline: (offline: boolean) => void;
@@ -33,6 +35,7 @@ export const useUIStore = create<UIStore>((set) => ({
   detailDrawerTransactionId: null,
   filterOpen: false,
   copySourceTransaction: null,
+  editSourceTransaction: null,
   openTemplateSaveOnDrawerOpen: false,
   editingDraftId: null,
   isOffline: !navigator.onLine,
@@ -41,6 +44,7 @@ export const useUIStore = create<UIStore>((set) => ({
   setDetailDrawerTransactionId: (detailDrawerTransactionId) => set({ detailDrawerTransactionId }),
   setFilterOpen: (filterOpen) => set({ filterOpen }),
   setCopySourceTransaction: (copySourceTransaction) => set({ copySourceTransaction }),
+  setEditSourceTransaction: (editSourceTransaction) => set({ editSourceTransaction }),
   setOpenTemplateSaveOnDrawerOpen: (openTemplateSaveOnDrawerOpen) => set({ openTemplateSaveOnDrawerOpen }),
   setEditingDraftId: (editingDraftId) => set({ editingDraftId }),
   setIsOffline: (isOffline) => set({ isOffline }),

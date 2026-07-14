@@ -25,6 +25,9 @@ describe('UI-FL-04 TransactionFormDrawer contract', () => {
     expect(source).toContain('shouldOpenAdvancedFields(');
     expect(source).toContain('transactionsApi.createSharedExpense');
     expect(source).toContain('transactionsApi.createTransaction');
+    expect(source).toContain('transactionsApi.updateTransaction');
+    expect(source).toContain('buildTransactionUpdatePayload');
+    expect(source).toContain('transactionToFormValues');
   });
 
   it('defines an explicit high-frequency, shared and low-frequency hierarchy', () => {
@@ -37,6 +40,8 @@ describe('UI-FL-04 TransactionFormDrawer contract', () => {
     expect(source).toContain('更多选项');
     expect(source).toContain('放弃本次修改？');
     expect(source).toContain('放弃修改');
+    expect(source).toContain('编辑时不能改变账单类型');
+    expect(source).toContain('只提交发生变化的字段');
   });
 
   it('keeps stable desktop and mobile geometry without visual gradients', () => {

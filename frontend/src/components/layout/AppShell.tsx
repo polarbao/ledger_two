@@ -115,6 +115,9 @@ export default function AppShell() {
   const currentMonth = useUIStore((state) => state.currentMonth);
   const setCurrentMonth = useUIStore((state) => state.setCurrentMonth);
   const setAddDrawerOpen = useUIStore((state) => state.setAddDrawerOpen);
+  const setCopySourceTransaction = useUIStore((state) => state.setCopySourceTransaction);
+  const setEditSourceTransaction = useUIStore((state) => state.setEditSourceTransaction);
+  const setEditingDraftId = useUIStore((state) => state.setEditingDraftId);
   const isOffline = useUIStore((state) => state.isOffline);
   const setIsOffline = useUIStore((state) => state.setIsOffline);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
@@ -167,7 +170,11 @@ export default function AppShell() {
   };
 
   const openTransactionForm = () => {
-    if (canWriteLedger) setAddDrawerOpen(true);
+    if (!canWriteLedger) return;
+    setCopySourceTransaction(null);
+    setEditSourceTransaction(null);
+    setEditingDraftId(null);
+    setAddDrawerOpen(true);
   };
 
   const handleLogout = async () => {

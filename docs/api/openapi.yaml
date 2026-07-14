@@ -426,6 +426,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
         "403":
           $ref: "#/components/responses/Forbidden"
     delete:
@@ -704,9 +706,19 @@ paths:
       summary: Update shared expense
       security:
         - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSharedExpenseRequest"
       responses:
         "200":
           $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /settlements/balance:
     get:
@@ -1297,6 +1309,7 @@ components:
           format: date-time
     UpdateTransactionRequest:
       type: object
+      description: Partial update for an ordinary expense or income. Transaction type is immutable.
       properties:
         title:
           type: string
@@ -1307,9 +1320,44 @@ components:
         occurred_at:
           type: string
           format: date-time
+        payer_user_id:
+          type: string
         account_id:
           type: string
           nullable: true
+        category_id:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+          enum: [private, partner_readable]
+        tag_names:
+          type: array
+          items:
+            type: string
+        attachment_paths:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+    UpdateSharedExpenseRequest:
+      type: object
+      description: Partial update for a shared expense. Transaction type and shared visibility are immutable.
+      properties:
+        title:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        payer_user_id:
+          type: string
         category_id:
           type: string
           nullable: true
@@ -1320,6 +1368,13 @@ components:
           type: array
           items:
             type: string
+        split_method:
+          type: string
+          enum: [equal, payer_only, amount, ratio, shares]
+        splits:
+          type: array
+          items:
+            $ref: "#/components/schemas/SplitInput"
     CreateSharedExpenseRequest:
       type: object
       required: [title, amount_cents, occurred_at, payer_user_id, split_method, splits]
@@ -1337,21 +1392,18 @@ components:
           type: string
         split_method:
           type: string
-          enum: [equal, amount, ratio]
+          enum: [equal, payer_only, amount, ratio, shares]
         splits:
           type: array
           items:
             $ref: "#/components/schemas/SplitInput"
     SplitInput:
       type: object
-      required: [user_id]
+      required: [user_id, value]
       properties:
         user_id:
           type: string
-        share_amount_cents:
-          type: integer
-          format: int64
-        ratio:
+        value:
           type: number
           format: double
     CreateSettlementRequest:

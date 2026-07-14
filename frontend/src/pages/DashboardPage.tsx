@@ -33,6 +33,9 @@ export default function DashboardPage() {
   const currentUser = useAuthStore((state) => state.user);
   const currentMonth = useUIStore((state) => state.currentMonth);
   const setAddDrawerOpen = useUIStore((state) => state.setAddDrawerOpen);
+  const setCopySourceTransaction = useUIStore((state) => state.setCopySourceTransaction);
+  const setEditSourceTransaction = useUIStore((state) => state.setEditSourceTransaction);
+  const setEditingDraftId = useUIStore((state) => state.setEditingDraftId);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const canWriteLedger = useHasLedgerRole(['owner', 'editor']);
 
@@ -70,6 +73,9 @@ export default function DashboardPage() {
   });
 
   const handleQuickAdd = () => {
+    setCopySourceTransaction(null);
+    setEditSourceTransaction(null);
+    setEditingDraftId(null);
     setAddDrawerOpen(true);
   };
 

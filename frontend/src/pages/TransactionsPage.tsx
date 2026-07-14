@@ -16,6 +16,7 @@ import {
   type TransactionQuickType,
   yuanFilterToCents,
 } from '../components/transaction/transactionsPageModel';
+import { getTransactionEditBlockReason } from '../components/transaction/transactionFormState';
 import ActiveFilterChips from '../components/ui/ActiveFilterChips';
 import BottomSheet from '../components/ui/BottomSheet';
 import Button from '../components/ui/Button';
@@ -67,8 +68,11 @@ export default function TransactionsPage() {
   const [pageMessage, setPageMessage] = useState<string | null>(null);
 
   const setCopySourceTransaction = useUIStore((state) => state.setCopySourceTransaction);
+  const setEditSourceTransaction = useUIStore((state) => state.setEditSourceTransaction);
   const setOpenTemplateSaveOnDrawerOpen = useUIStore((state) => state.setOpenTemplateSaveOnDrawerOpen);
   const setAddDrawerOpen = useUIStore((state) => state.setAddDrawerOpen);
+  const setEditingDraftId = useUIStore((state) => state.setEditingDraftId);
+  const isOffline = useUIStore((state) => state.isOffline);
 
   const updateFilter = (changes: Record<string, string | number | undefined>) => {
     const next = new URLSearchParams(searchParams);
@@ -94,6 +98,7 @@ export default function TransactionsPage() {
     queryFn: () => dashboardApi.getDashboard(month),
   });
   const users = dashboardData?.user_stats || [];
+  const ledgerUserIds = users.map((user) => user.user_id);
   const payerNames = users.reduce<Record<string, string>>((names, user) => {
     names[user.user_id] = user.user_id === currentUser?.id ? `${user.display_name}（我）` : user.display_name;
     return names;
@@ -209,8 +214,26 @@ export default function TransactionsPage() {
     updateFilter({ [paramsByKey[key]]: undefined });
   };
   const handleCopy = (tx: TransactionResponse, saveAsTemplate: boolean) => {
+    setEditSourceTransaction(null);
+    setEditingDraftId(null);
     setCopySourceTransaction(tx);
     setOpenTemplateSaveOnDrawerOpen(saveAsTemplate);
+    setAddDrawerOpen(true);
+    setSelectedTransaction(null);
+  };
+  const editBlockReason = (tx: TransactionResponse) => getTransactionEditBlockReason(
+    tx,
+    currentUser?.id || '',
+    canWrite,
+    ledgerUserIds,
+    isOffline,
+  );
+  const handleEdit = (tx: TransactionResponse) => {
+    if (editBlockReason(tx)) return;
+    setCopySourceTransaction(null);
+    setEditingDraftId(null);
+    setOpenTemplateSaveOnDrawerOpen(false);
+    setEditSourceTransaction(tx);
     setAddDrawerOpen(true);
     setSelectedTransaction(null);
   };
@@ -339,7 +362,9 @@ export default function TransactionsPage() {
                 onSelect={handleSelect}
                 onView={setSelectedTransaction}
                 onCopy={handleCopy}
+                onEdit={handleEdit}
                 onDelete={(tx) => setTransactionToDelete(tx)}
+                editBlockReason={editBlockReason}
               />
             )}
             mobile={(
@@ -394,10 +419,12 @@ export default function TransactionsPage() {
         userName={getUserName}
         onClose={() => setSelectedTransaction(null)}
         onCopy={handleCopy}
+        onEdit={handleEdit}
         onDelete={(tx) => {
           setSelectedTransaction(null);
           setTransactionToDelete(tx);
         }}
+        editBlockReason={selectedTransaction ? editBlockReason(selectedTransaction) : null}
       />
 
       <BottomSheet

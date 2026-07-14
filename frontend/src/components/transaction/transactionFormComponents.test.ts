@@ -60,11 +60,22 @@ describe('UI-FL-04 transaction form components', () => {
       onContinue: () => undefined,
       onPrimary: () => undefined,
     }));
+    const editMarkup = renderToStaticMarkup(createElement(component.default, {
+      mode: 'edit',
+      isPending: false,
+      activeAction: 'close',
+      onCancel: () => undefined,
+      onContinue: () => undefined,
+      onPrimary: () => undefined,
+    }));
 
     expect(onlineMarkup).toContain('取消');
     expect(onlineMarkup).toContain('保存并继续');
     expect(onlineMarkup).toContain('保存为新账单');
     expect(offlineMarkup).toContain('保存为离线草稿');
     expect(offlineMarkup).toContain('disabled=""');
+    expect(editMarkup).toContain('保存修改');
+    expect(editMarkup).toContain('保存并继续');
+    expect(editMarkup).toContain('disabled=""');
   });
 });

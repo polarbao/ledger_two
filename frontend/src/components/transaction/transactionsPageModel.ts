@@ -40,13 +40,18 @@ export function getTransactionPresentation(tx: TransactionResponse): Transaction
     };
   }
   if (tx.type === 'shared_expense') {
+    const splitLabel = tx.split_method === 'payer_only'
+      ? '付款人承担'
+      : tx.split_method === 'equal'
+        ? '成员均摊'
+        : '自定义分摊';
     return {
       typeLabel: '共同支出',
       typeTone: 'accent',
       amountPrefix: '-',
       amountTone: 'expense',
       scopeLabel: '共同账本可见',
-      splitLabel: tx.split_method === 'payer_only' ? '付款人承担' : '双方均摊',
+      splitLabel,
     };
   }
   if (tx.type === 'settlement') {

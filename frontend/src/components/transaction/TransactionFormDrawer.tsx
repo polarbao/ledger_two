@@ -35,7 +35,9 @@ import type { TransactionFormMode } from './TransactionFormFooter';
 import {
   buildContinueTransactionFormValues,
   buildSharedExpensePreview,
+  buildTransactionUpdatePayload,
   shouldOpenAdvancedFields,
+  transactionToFormValues,
 } from './transactionFormState';
 import './TransactionFormDrawer.css';
 
@@ -95,6 +97,8 @@ export default function TransactionFormDrawer() {
     currentMonth,
     copySourceTransaction,
     setCopySourceTransaction,
+    editSourceTransaction,
+    setEditSourceTransaction,
     openTemplateSaveOnDrawerOpen,
     setOpenTemplateSaveOnDrawerOpen,
     isOffline,
@@ -132,26 +136,25 @@ export default function TransactionFormDrawer() {
 
   // 1. 获取全量分类列表
   const { data: categories, isLoading: isCategoriesLoading } = useQuery({
-    queryKey: queryKeys.categories(activeLedgerId),
-    queryFn: () => transactionsApi.getCategories(),
+    queryKey: queryKeys.categories(activeLedgerId, Boolean(editSourceTransaction)),
+    queryFn: () => transactionsApi.getCategories({ includeArchived: Boolean(editSourceTransaction) }),
     enabled: addDrawerOpen && canWriteLedger,
   });
-
-  const catMap = categories?.reduce((acc, cat) => {
-    acc[cat.id] = cat.name;
-    return acc;
-  }, {} as Record<string, string>) || {};
 
   const { data: accounts, isLoading: isAccountsLoading } = useQuery({
     queryKey: queryKeys.accounts(activeLedgerId),
     queryFn: () => transactionsApi.listAccounts(),
     enabled: addDrawerOpen && canWriteLedger,
   });
+  const editAccountUnavailable = Boolean(
+    editSourceTransaction?.account_id
+    && !accounts?.some((account) => account.id === editSourceTransaction.account_id),
+  );
 
   const { data: transactionDefaults, isFetched: isDefaultsFetched } = useQuery({
     queryKey: queryKeys.transactionDefaults(activeLedgerId),
     queryFn: () => transactionsApi.getTransactionDefaults(),
-    enabled: addDrawerOpen && canWriteLedger && !copySourceTransaction && !editingDraftId,
+    enabled: addDrawerOpen && canWriteLedger && !copySourceTransaction && !editSourceTransaction && !editingDraftId,
   });
 
   // 2. 获取成员用户列表（复用 Dashboard 返回的 user_stats）
@@ -167,7 +170,7 @@ export default function TransactionFormDrawer() {
   const { data: templates } = useQuery({
     queryKey: queryKeys.templates(activeLedgerId),
     queryFn: () => transactionsApi.listTemplates({ includeArchived: true }),
-    enabled: addDrawerOpen && canWriteLedger,
+    enabled: addDrawerOpen && canWriteLedger && !editSourceTransaction,
   });
   const activeTemplates = templates?.filter((tmpl) => !tmpl.is_archived) || [];
 
@@ -403,11 +406,13 @@ export default function TransactionFormDrawer() {
     setEditingTemplate(null);
     setAddDrawerOpen(false);
     setCopySourceTransaction(null);
+    setEditSourceTransaction(null);
     setOpenTemplateSaveOnDrawerOpen(false);
     setEditingDraftId(null);
   }, [
     setAddDrawerOpen,
     setCopySourceTransaction,
+    setEditSourceTransaction,
     setEditingDraftId,
     setOpenTemplateSaveOnDrawerOpen,
   ]);
@@ -452,7 +457,7 @@ export default function TransactionFormDrawer() {
   // 打开抽屉时注入最近记账默认值 (仅在非复制且非草稿编辑时)
   useEffect(() => {
     let advancedFrame: number | undefined;
-    if (addDrawerOpen && !copySourceTransaction && !editingDraftId) {
+    if (addDrawerOpen && !copySourceTransaction && !editSourceTransaction && !editingDraftId) {
       const localType = (localStorage.getItem(LAST_TYPE_KEY) as FormValues['type']) || 'expense';
       const localCategory = localStorage.getItem(LAST_CATEGORY_KEY) || '';
       const localAccount = localStorage.getItem(LAST_ACCOUNT_KEY) || '';
@@ -483,12 +488,12 @@ export default function TransactionFormDrawer() {
     return () => {
       if (advancedFrame !== undefined) window.cancelAnimationFrame(advancedFrame);
     };
-  }, [addDrawerOpen, copySourceTransaction, editingDraftId, currentUser, reset, transactionDefaults, isDefaultsFetched]);
+  }, [addDrawerOpen, copySourceTransaction, editSourceTransaction, editingDraftId, currentUser, reset, transactionDefaults, isDefaultsFetched]);
 
   // 处理“草稿编辑”回填逻辑
   useEffect(() => {
     let advancedFrame: number | undefined;
-    if (addDrawerOpen && editingDraftId) {
+    if (addDrawerOpen && editingDraftId && !editSourceTransaction) {
       const draft = drafts.find(d => d.id === editingDraftId);
       if (draft) {
         reset(draft.formValues);
@@ -500,12 +505,12 @@ export default function TransactionFormDrawer() {
     return () => {
       if (advancedFrame !== undefined) window.cancelAnimationFrame(advancedFrame);
     };
-  }, [addDrawerOpen, editingDraftId, drafts, reset]);
+  }, [addDrawerOpen, editSourceTransaction, editingDraftId, drafts, reset]);
 
   // 处理“复制一笔”回填逻辑
   useEffect(() => {
     let advancedFrame: number | undefined;
-    if (addDrawerOpen && copySourceTransaction) {
+    if (addDrawerOpen && copySourceTransaction && !editSourceTransaction) {
       const amountYuan = (copySourceTransaction.amount_cents / 100).toFixed(2);
       const tagsStr = copySourceTransaction.tags ? copySourceTransaction.tags.join(', ') : '';
 
@@ -517,7 +522,7 @@ export default function TransactionFormDrawer() {
         account_id: copySourceTransaction.account_id || '',
         tag_names: tagsStr,
         payer_user_id: copySourceTransaction.payer_user_id || currentUser?.id || '',
-        split_method: copySourceTransaction.split_method || 'equal',
+        split_method: copySourceTransaction.split_method === 'payer_only' ? 'payer_only' : 'equal',
         occurred_at: getTodayString(),
         note: copySourceTransaction.note || '',
         visibility: copySourceTransaction.visibility === 'shared' ? 'partner_readable' : copySourceTransaction.visibility,
@@ -531,11 +536,31 @@ export default function TransactionFormDrawer() {
     return () => {
       if (advancedFrame !== undefined) window.cancelAnimationFrame(advancedFrame);
     };
-  }, [addDrawerOpen, copySourceTransaction, reset, currentUser]);
+  }, [addDrawerOpen, copySourceTransaction, editSourceTransaction, reset, currentUser]);
 
-  // 4. 定义创建账单的 Mutation
-  const createTxMutation = useMutation({
+  useEffect(() => {
+    let advancedFrame: number | undefined;
+    if (addDrawerOpen && editSourceTransaction) {
+      const nextValues = transactionToFormValues(editSourceTransaction);
+      reset(nextValues);
+      advancedFrame = window.requestAnimationFrame(() => {
+        setAdvancedOpen(shouldOpenAdvancedFields(nextValues));
+      });
+    }
+    return () => {
+      if (advancedFrame !== undefined) window.cancelAnimationFrame(advancedFrame);
+    };
+  }, [addDrawerOpen, editSourceTransaction, reset]);
+
+  // 4. 统一编排新增、复制、草稿提交和原账单编辑。
+  const saveTxMutation = useMutation({
     mutationFn: async ({ values }: { values: FormValues; action: 'close' | 'continue' }) => {
+      if (editSourceTransaction) {
+        const payload = buildTransactionUpdatePayload(editSourceTransaction, values);
+        if (Object.keys(payload).length === 0) return editSourceTransaction;
+        return transactionsApi.updateTransaction(editSourceTransaction, payload);
+      }
+
       const cents = yuanToCents(values.amount);
       const tags = values.tag_names
         ? values.tag_names.split(/[，, ；;]/).map((t) => t.trim()).filter(Boolean)
@@ -574,6 +599,18 @@ export default function TransactionFormDrawer() {
       }
     },
     onSuccess: (_, { values: variables, action }) => {
+      if (editSourceTransaction) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports.root(activeLedgerId) });
+        if (editSourceTransaction.type === 'shared_expense') {
+          queryClient.invalidateQueries({ queryKey: queryKeys.settlements.root(activeLedgerId) });
+          queryClient.invalidateQueries({ queryKey: queryKeys.settlements.balance(activeLedgerId) });
+        }
+        closeDrawer();
+        return;
+      }
+
       if (editingDraftId) {
         removeDraft(editingDraftId);
         setEditingDraftId(null);
@@ -646,6 +683,7 @@ export default function TransactionFormDrawer() {
   });
 
   const onSubmit = (values: FormValues, action: 'close' | 'continue') => {
+    if (editSourceTransaction && isOffline) return;
     if (isOffline) {
       if (editingDraftId) {
         updateDraft(editingDraftId, {
@@ -663,7 +701,7 @@ export default function TransactionFormDrawer() {
       closeDrawer();
       return;
     }
-    createTxMutation.mutate({ values, action });
+    saveTxMutation.mutate({ values, action });
   };
 
   const handleInvalidSubmit = (invalidFields: FieldErrors<FormValues>) => {
@@ -691,14 +729,16 @@ export default function TransactionFormDrawer() {
     watchPayer,
     watchSplitMethod,
   );
-  const formMode: TransactionFormMode = isOffline
-    ? 'offline'
-    : editingDraftId
+  const formMode: TransactionFormMode = editSourceTransaction
+    ? 'edit'
+    : isOffline
+      ? 'offline'
+      : editingDraftId
       ? 'draft'
       : copySourceTransaction
         ? 'copy'
         : 'default';
-  const isFormPending = isSubmitting || createTxMutation.isPending || uploadingCount > 0;
+  const isFormPending = isSubmitting || saveTxMutation.isPending || uploadingCount > 0;
 
   if (!addDrawerOpen) return null;
 
@@ -754,10 +794,10 @@ export default function TransactionFormDrawer() {
               <ReceiptText size={20} aria-hidden="true" />
               <div>
                 <span className="lt-entry-section__eyebrow">
-                  {isOffline ? '离线草稿' : copySourceTransaction ? '复制账单' : '新增账单'}
+                  {editSourceTransaction ? '编辑账单' : isOffline ? '离线草稿' : copySourceTransaction ? '复制账单' : '新增账单'}
                 </span>
                 <h2 id="lt-entry-title">
-                  {copySourceTransaction ? '保存一笔新账单' : '记一笔账单'}
+                  {editSourceTransaction ? '修改原账单' : copySourceTransaction ? '保存一笔新账单' : '记一笔账单'}
                 </h2>
               </div>
             </div>
@@ -777,11 +817,16 @@ export default function TransactionFormDrawer() {
           className="lt-entry-form"
         >
           <div className="lt-entry-body">
-            {isOffline && (
+            {isOffline && !editSourceTransaction && (
               <div className="lt-entry-banner lt-entry-banner--warning">
                 当前处于离线状态，本次内容会保存为离线草稿。
               </div>
             )}
+            {isOffline && editSourceTransaction ? (
+              <div className="lt-entry-banner lt-entry-banner--warning" role="status">
+                当前处于离线状态，已保存账单不能转成离线草稿。恢复网络后才能提交修改。
+              </div>
+            ) : null}
             {showSuccessBanner && !isOffline && (
               <div className="lt-entry-banner lt-entry-banner--success" role="status">
                 <Check size={16} aria-hidden="true" />
@@ -794,12 +839,23 @@ export default function TransactionFormDrawer() {
                   复制来源：{copySourceTransaction.title || '未命名账单'} · ¥{(copySourceTransaction.amount_cents / 100).toFixed(2)}
                 </strong>
                 <span>保存后生成新账单，原账单保持不变，日期已重置为今天。</span>
+                {copySourceTransaction.type === 'shared_expense'
+                  && copySourceTransaction.split_method !== 'equal'
+                  && copySourceTransaction.split_method !== 'payer_only' ? (
+                    <span>原账单使用自定义分摊，快捷表单会按成员均摊创建新账单，请在保存前核对承担金额。</span>
+                  ) : null}
               </div>
             )}
-            {createTxMutation.isError && (
+            {editSourceTransaction ? (
+              <div className="lt-entry-banner lt-entry-banner--info">
+                <strong>正在修改：{editSourceTransaction.title || '未命名账单'}</strong>
+                <span>只提交发生变化的字段；保存后会写入审计记录，不会生成一笔新账单。</span>
+              </div>
+            ) : null}
+            {saveTxMutation.isError && (
               <div className="lt-entry-banner lt-entry-banner--danger" role="alert">
-                {createTxMutation.error instanceof Error
-                  ? createTxMutation.error.message
+                {saveTxMutation.error instanceof Error
+                  ? saveTxMutation.error.message
                   : '提交失败，请检查填写内容'}
               </div>
             )}
@@ -848,15 +904,18 @@ export default function TransactionFormDrawer() {
                     ariaLabel="账单类型"
                     value={field.value}
                     options={[
-                      { value: 'expense', label: '支出' },
-                      { value: 'income', label: '收入' },
-                      { value: 'shared_expense', label: '共同' },
+                      { value: 'expense', label: '支出', disabled: Boolean(editSourceTransaction) },
+                      { value: 'income', label: '收入', disabled: Boolean(editSourceTransaction) },
+                      { value: 'shared_expense', label: '共同', disabled: Boolean(editSourceTransaction) },
                     ]}
                     onChange={field.onChange}
                     fullWidth
                   />
                 )}
               />
+              {editSourceTransaction ? (
+                <span className="lt-entry-field__help">编辑时不能改变账单类型；需要调整口径时请新建账单。</span>
+              ) : null}
             </div>
 
             <div className="lt-entry-core-grid">
@@ -870,21 +929,23 @@ export default function TransactionFormDrawer() {
                   <select id="lt-entry-category" {...register('category_id')}>
                     <option value="">未分类</option>
                     {categories?.map((category) => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
+                      <option key={category.id} value={category.id} disabled={category.is_archived}>
+                        {category.name}{category.is_archived ? '（已归档，仅保留）' : ''}
+                      </option>
                     ))}
                   </select>
                 )}
                 {recentCategories.length > 0 ? (
                   <div className="lt-entry-chips" aria-label="最近使用的分类">
                     {recentCategories.map((categoryId) => {
-                      const categoryName = catMap[categoryId];
-                      return categoryName ? (
+                      const category = categories?.find((item) => item.id === categoryId && !item.is_archived);
+                      return category ? (
                         <button
                           key={categoryId}
                           type="button"
                           onClick={() => setValue('category_id', categoryId, { shouldDirty: true })}
                         >
-                          {categoryName}
+                          {category.name}
                         </button>
                       ) : null;
                     })}
@@ -902,6 +963,11 @@ export default function TransactionFormDrawer() {
                   ) : (
                     <select id="lt-entry-account" {...register('account_id')}>
                       <option value="">未指定</option>
+                      {editAccountUnavailable && editSourceTransaction?.account_id ? (
+                        <option value={editSourceTransaction.account_id} disabled>
+                          历史账户（已归档，仅保留）
+                        </option>
+                      ) : null}
                       {accounts?.map((account) => (
                         <option key={account.id} value={account.id}>{account.name}</option>
                       ))}
@@ -962,6 +1028,9 @@ export default function TransactionFormDrawer() {
                     />
                   </div>
                 </div>
+                {editSourceTransaction ? (
+                  <span className="lt-entry-field__help">修改金额、付款人或分摊方式会由服务端重新计算当前成员承担金额。</span>
+                ) : null}
                 <SharedExpensePreview items={sharedPreview} currentUserId={currentUser?.id} />
               </section>
             ) : null}
@@ -979,7 +1048,7 @@ export default function TransactionFormDrawer() {
                 <ChevronDown size={18} aria-hidden="true" />
               </summary>
               <div className="lt-entry-advanced__body">
-                <div className="lt-entry-template">
+                {!editSourceTransaction ? <div className="lt-entry-template">
                   <div className="lt-entry-field">
                     <div className="lt-entry-field__heading">
                       <label htmlFor="lt-entry-template">账单模板</label>
@@ -1020,7 +1089,7 @@ export default function TransactionFormDrawer() {
                   >
                     存为模板
                   </Button>
-                </div>
+                </div> : null}
 
                 <div className="lt-entry-field">
                   <label htmlFor="lt-entry-title-input">标题</label>
@@ -1159,6 +1228,7 @@ export default function TransactionFormDrawer() {
           <TransactionFormFooter
             mode={formMode}
             isPending={isFormPending}
+            submitDisabled={Boolean(editSourceTransaction && isOffline)}
             activeAction={submitAction}
             onCancel={requestClose}
             onContinue={() => {

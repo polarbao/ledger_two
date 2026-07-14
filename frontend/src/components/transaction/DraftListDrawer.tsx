@@ -9,11 +9,19 @@ interface Props {
 
 export default function DraftListDrawer({ open, onClose }: Props) {
   const { drafts, removeDraft, clearDrafts } = useDraftStore();
-  const { setEditingDraftId, setAddDrawerOpen, isOffline } = useUIStore();
+  const {
+    setEditingDraftId,
+    setAddDrawerOpen,
+    setCopySourceTransaction,
+    setEditSourceTransaction,
+    isOffline,
+  } = useUIStore();
 
   if (!open) return null;
 
   const handleEditDraft = (id: string) => {
+    setCopySourceTransaction(null);
+    setEditSourceTransaction(null);
     setEditingDraftId(id);
     setAddDrawerOpen(true);
     onClose();

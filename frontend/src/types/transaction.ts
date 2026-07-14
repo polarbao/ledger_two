@@ -25,7 +25,7 @@ export interface TransactionResponse {
   category_name?: string | null;
   category_is_archived?: boolean | null;
   visibility: 'private' | 'partner_readable' | 'shared';
-  split_method?: 'equal' | 'payer_only';
+  split_method?: 'equal' | 'payer_only' | 'amount' | 'ratio' | 'shares';
   note?: string;
   status: 'active' | 'deleted';
   tags?: string[];
@@ -39,6 +39,20 @@ export interface Category {
   id: string;
   name: string;
   is_archived?: boolean;
+}
+
+export interface UpdateTransactionPayload {
+  title?: string;
+  amount_cents?: number;
+  occurred_at?: string;
+  payer_user_id?: string;
+  account_id?: string | null;
+  category_id?: string | null;
+  visibility?: 'private' | 'partner_readable';
+  split_method?: 'equal' | 'payer_only';
+  tag_names?: string[];
+  note?: string;
+  attachment_paths?: string[];
 }
 
 export interface CreateTransactionPayload {

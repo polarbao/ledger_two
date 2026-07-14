@@ -1097,7 +1097,7 @@ components:
               enum: [development, staging, production, unknown]
             import_xlsx_enabled:
               type: boolean
-              description: Whether this runtime accepts XLSX files for WeChat and Alipay import previews.
+              description: Whether this runtime accepts XLSX files for WeChat import previews. Alipay and generic remain CSV-only.
     ErrorResponse:
       type: object
       required: [success, error]

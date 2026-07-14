@@ -39,7 +39,7 @@ TZ=Asia/Shanghai
 |---|---|---|---|
 | APP_ENV | 是 | development | production 时启用严格校验 |
 | DEPLOYMENT_CHANNEL | 是 | 跟随 APP_ENV | 数据用途，只允许 development/staging/production |
-| IMPORT_XLSX_ENABLED | 否 | development/staging=true，production=false | 微信/支付宝 XLSX preview 运行门禁，只接受 true/false |
+| IMPORT_XLSX_ENABLED | 否 | development/staging=true，production=false | 微信 XLSX preview 运行门禁，只接受 true/false；不改变支付宝 CSV-only 边界 |
 | HTTP_ADDR | 是 | :8080 | 后端监听地址 |
 | APP_PORT | Docker 部署需要 | 38088 | 宿主机暴露端口，仅供 Docker Compose 端口映射使用 |
 | APP_BASE_URL | 建议 | 空 | 用于生成链接、诊断和未来通知 |

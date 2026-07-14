@@ -87,5 +87,5 @@ corepack pnpm build
 ## 8. 剩余外部事项
 
 - 在线 Figma 主文件仍未通过本任务写入；本地 29 Frame 审阅包和实施规格足以支撑代码，不构成阻塞。
-- Task49X 的支付宝真实 XLSX、NAS staging schema 19 和生产发布门禁继续独立处理，不阻塞 UI-FL-04，但会继续阻塞 UI-FL-08 的最终收口。
+- Task49X 的 NAS staging schema 19 和 production 发布门禁继续独立处理，不阻塞 UI-FL-04；支付宝当前保持 CSV-only，不再等待 XLSX。
 - 主 JavaScript chunk 超过 500 kB 的告警仍在；UI-FL-04 不引入新依赖，并在拆分时评估是否具备自然的懒加载边界，不为消除告警改变业务结构。

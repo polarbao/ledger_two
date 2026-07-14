@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/client';
 import type { ImportPreviewBatch, ImportPreviewRow } from '../types/imports';
-import { buildImportCommitSummary, resolveImportErrorMessage, validateImportFile } from './importPageState';
+import {
+  buildImportCommitSummary,
+  getImportFileAccept,
+  getImportSourceDescription,
+  resolveImportErrorMessage,
+  validateImportFile,
+} from './importPageState';
 
 const createRow = (overrides: Partial<ImportPreviewRow> = {}): ImportPreviewRow => ({
   id: 'row-1',
@@ -83,9 +89,10 @@ describe('import page state', () => {
     expect(resolveImportErrorMessage(error, 'fallback')).toBe('第 5 行：存在未跳过的无效导入行');
   });
 
-  it('accepts xlsx for WeChat and Alipay but keeps generic CSV-only', () => {
+  it('accepts xlsx only for WeChat and keeps Alipay and generic CSV-only', () => {
     expect(validateImportFile('wechat', 'wechat.xlsx')).toBeNull();
-    expect(validateImportFile('alipay', 'alipay.XLSX')).toBeNull();
+    expect(validateImportFile('alipay', 'alipay.XLSX')).toContain('支付宝');
+    expect(validateImportFile('alipay', 'alipay.XLSX')).toContain('CSV');
     expect(validateImportFile('generic', 'template.xlsx')).toContain('通用模板');
     expect(validateImportFile('generic', 'template.csv')).toBeNull();
     expect(validateImportFile('wechat', 'wechat.xls')).toContain('CSV 或 XLSX');
@@ -93,7 +100,16 @@ describe('import page state', () => {
 
   it('rejects xlsx when the current runtime gate is disabled', () => {
     expect(validateImportFile('wechat', 'wechat.xlsx', false)).toContain('暂未开启 XLSX');
-    expect(validateImportFile('alipay', 'alipay.xlsx', false)).toContain('暂未开启 XLSX');
+    expect(validateImportFile('alipay', 'alipay.xlsx', false)).toContain('仅支持 CSV');
     expect(validateImportFile('wechat', 'wechat.csv', false)).toBeNull();
+  });
+
+  it('keeps the file picker and source copy aligned with the support matrix', () => {
+    expect(getImportFileAccept('wechat', true)).toBe('.csv,.xlsx');
+    expect(getImportFileAccept('wechat', false)).toBe('.csv');
+    expect(getImportFileAccept('alipay', true)).toBe('.csv');
+    expect(getImportFileAccept('generic', true)).toBe('.csv');
+    expect(getImportSourceDescription('alipay', true)).toContain('支付宝当前导出的 CSV');
+    expect(getImportSourceDescription('wechat', false)).toContain('仅开放 CSV');
   });
 });

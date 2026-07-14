@@ -24,7 +24,7 @@
 09-task41-49-detailed-plan.md   Task41-Task49 细化开发任务规格
 10-task33-40-detailed-plan.md   Task33-Task40 细化开发任务规格
 11-v1.2-release-hardening-plan.md v1.2 RC 环境隔离、NAS staging 与 production 升级任务
-12-v1.2-xlsx-import-special-plan.md v1.2 微信/支付宝 XLSX 导入专项任务
+12-v1.2-xlsx-import-special-plan.md v1.2 微信 XLSX/支付宝 CSV 导入专项任务
 13-fresh-light-ui-interaction-plan.md v1.2 收口后的 Fresh Light UI/UX 协同开发计划
 ../releases/                    v1.2 发布说明、升级回滚和发布验收清单
 ```

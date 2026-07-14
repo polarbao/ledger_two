@@ -121,6 +121,27 @@ func TestPreviewFileRejectsXLSXWhenRuntimeGateIsDisabled(t *testing.T) {
 	}
 }
 
+func TestPreviewFileRejectsAlipayXLSXWithoutCreatingBatch(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database), WithXLSXEnabled(true))
+
+	_, err := service.PreviewFile(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "alipay.xlsx",
+		SourceType:    SourceTypeAlipay,
+		Content:       buildWechatXLSXFixture(t),
+	})
+	var appErr *appErrors.AppError
+	if !errors.As(err, &appErr) || appErr.Code != appErrors.ErrCodeImportFileUnsupported {
+		t.Fatalf("expected unsupported Alipay XLSX error, got %v", err)
+	}
+	if countRows(t, database, "import_batches") != 0 {
+		t.Fatalf("unsupported Alipay XLSX must not create an import batch")
+	}
+}
+
 func TestPreviewCSVRequiresOwner(t *testing.T) {
 	t.Parallel()
 

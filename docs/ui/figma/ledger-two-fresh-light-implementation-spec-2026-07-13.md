@@ -271,7 +271,7 @@ settlement 不进入消费统计。图表必须有可读数据和空状态。
 
 对应：`frontend/src/pages/ImportPage.tsx` 和 `features/imports`。
 
-入口明确来源和格式：微信/支付宝支持 CSV/XLSX，通用模板仅 CSV；明确 preview 不写正式账单。
+入口明确来源和格式：微信支持 CSV/XLSX，支付宝和通用模板仅 CSV；明确 preview 不写正式账单。
 
 桌面 Preview：批次摘要、状态分段、表格、行编辑抽屉、固定提交栏。  
 移动 Preview：卡片列表，展示商户、金额、时间、状态、推荐分类和完整错误原因。

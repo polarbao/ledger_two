@@ -15,7 +15,7 @@
 
 ## 1. 文档目的
 
-本文把 v1.2 的账单导入能力拆成模块、业务对象、服务边界、API 切片、UI 工作台和验收任务。Task47-Task49 已完成 CSV 主链路；Task49X 在同一边界内增加微信、支付宝 XLSX reader，专项规格见 `docs/prd/30-prd-v1.2-xlsx-import-special.md`。
+本文把 v1.2 的账单导入能力拆成模块、业务对象、服务边界、API 切片、UI 工作台和验收任务。Task47-Task49 已完成 CSV 主链路；Task49X 在同一边界内增加微信 XLSX reader，并冻结支付宝官方 CSV 字段，专项规格见 `docs/prd/30-prd-v1.2-xlsx-import-special.md`。
 
 v1.2 的核心原则：
 
@@ -23,7 +23,7 @@ v1.2 的核心原则：
 2. 去重和规则只降低人工成本，不替用户做不可逆决策。
 3. 所有正式落库仍复用 transaction service 的金额、权限、分类、账户、标签和可见性校验。
 4. 导入模块是账本内能力，必须强制 `X-Ledger-Id` 和 owner 权限。
-5. 微信、支付宝支持 CSV/XLSX，通用模板支持 CSV；OCR、银行同步、xls/xlsm、PDF 不进入 v1.2。
+5. 微信支持 CSV/XLSX，支付宝和通用模板支持 CSV；支付宝 XLSX、OCR、银行同步、xls/xlsm、PDF 不进入 v1.2。
 
 ## 2. 版本范围
 
@@ -154,7 +154,7 @@ http handler
 
 验收：
 
-- 微信、支付宝的 CSV/XLSX 和通用 CSV 至少各 1 个 fixture。
+- 微信 CSV/XLSX、支付宝 CSV 和通用 CSV 至少各 1 个 fixture；支付宝 XLSX 使用拒绝用例覆盖。
 - 编码不支持、表头缺失、行列数不一致时返回可行动错误。
 
 ### 4.2 Normalizer
@@ -396,7 +396,7 @@ POST  /api/import-rules/{id}/restore
 
 | 测试类型 | 覆盖内容 |
 |---|---|
-| parser fixture test | 微信、支付宝 CSV/XLSX、通用 CSV、异常工作簿 |
+| parser fixture test | 微信 CSV/XLSX、支付宝 CSV、通用 CSV、支付宝 XLSX 拒绝和异常工作簿 |
 | normalizer test | 金额整数分、时间、退款、转账 |
 | batch service test | preview 不写 transactions、状态转换 |
 | row service test | 调整、跳过、suspicious 确认 |

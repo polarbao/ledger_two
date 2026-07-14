@@ -70,7 +70,7 @@ func Read(filename, sourceType string, content []byte) (*Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	if format == FormatXLSX && sourceType == SourceGeneric {
+	if format == FormatXLSX && sourceType != SourceWechat {
 		return nil, ErrUnsupportedFormat
 	}
 

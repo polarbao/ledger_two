@@ -1,6 +1,6 @@
 # LedgerTwo 文档索引与 AI 实现阅读顺序
 
-> 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、真实 CSV/XLSX preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝真实 XLSX、Figma 主文件写入和 NAS schema 19 实际发布仍待收口。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
+> 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝当前仍只导出 CSV，不再等待支付宝 XLSX。剩余发布门禁为 NAS schema 19 staging、production 一致性备份与逐批导入确认。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 >
 > Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；波次 A（UI-FL-01/02）及 UI-FL-03/04 已实现双主题基础、共享组件、AppShell、全局导航、Dashboard 与记账抽屉，UI-FL-05 为下一项。UI 专项以 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 为执行入口，并与后续业务 Task 双向登记；本地预览不代表线上 Figma 已完整同步。
 

@@ -7,12 +7,29 @@ export function validateImportFile(sourceType: ImportSourceType, filename: strin
     return null;
   }
   if (lowerName.endsWith('.xlsx')) {
+    if (sourceType === 'alipay') {
+      return '支付宝当前导出的账单仅支持 CSV 文件';
+    }
     if (sourceType === 'generic') {
       return '通用模板当前仅支持 CSV 文件';
     }
     return xlsxEnabled ? null : '当前环境暂未开启 XLSX 导入，请改用 CSV 文件';
   }
-  return sourceType === 'generic' ? '通用模板当前仅支持 CSV 文件' : '微信和支付宝账单仅支持 CSV 或 XLSX 文件';
+  if (sourceType === 'alipay') return '支付宝当前导出的账单仅支持 CSV 文件';
+  if (sourceType === 'generic') return '通用模板当前仅支持 CSV 文件';
+  return '微信账单仅支持 CSV 或 XLSX 文件';
+}
+
+export function getImportFileAccept(sourceType: ImportSourceType, xlsxEnabled: boolean) {
+  return sourceType === 'wechat' && xlsxEnabled ? '.csv,.xlsx' : '.csv';
+}
+
+export function getImportSourceDescription(sourceType: ImportSourceType, xlsxEnabled: boolean) {
+  if (sourceType === 'wechat') {
+    return xlsxEnabled ? '微信支付导出的 CSV 或 XLSX' : '当前环境微信账单仅开放 CSV';
+  }
+  if (sourceType === 'alipay') return '支付宝当前导出的 CSV';
+  return 'LedgerTwo 标准 CSV';
 }
 
 export function buildImportCommitSummary(batch: ImportPreviewBatch | null) {

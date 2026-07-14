@@ -57,4 +57,4 @@ Chrome 150 CDP 指标显示 375/390/430/1440 四个视口的 `innerWidth` 均等
 
 ## 6. 后续关系
 
-UI-FL-05 可复用已稳定的抽屉入口继续迁移流水工作台。Task49X 仍只剩支付宝真实 XLSX、线上 Figma 主文件和 NAS staging schema 19 等外部门禁；UI-FL-08 最终收口继续受该边界约束，本次未访问 NAS 或提交真实导入批次。
+UI-FL-05 可复用已稳定的抽屉入口继续迁移流水工作台。Task49X 开发范围已按微信 CSV/XLSX、支付宝 CSV、通用 CSV 闭环，剩余 NAS staging schema 19 与 production 发布门禁继续独立处理；本次未访问 NAS 或提交真实导入批次。

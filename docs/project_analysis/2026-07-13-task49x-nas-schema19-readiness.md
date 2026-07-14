@@ -7,7 +7,7 @@
 
 Task49X 核心代码和本机 schema 19 仍可工作；NAS staging/production 均保持 schema 18。本轮补齐了 staging schema 19 自动回滚脚本，但 NAS Docker daemon 需要维护者交互式 sudo，因此没有绕过权限启动、停止或替换任何远程容器。
 
-支付宝真实 XLSX 样本仍未提供，Task49X.4 继续保持部分完成。Figma 改走 `docs/ui/figma/local-review/` 接收本地设计文件，不影响本轮 NAS 技术门禁判断。
+2026-07-14 纠偏：支付宝当前仍只导出 CSV，Task49X.4 已按真实 CSV 完成，不再等待支付宝 XLSX。Figma 改走 `docs/ui/figma/local-review/` 接收本地设计文件，不影响本轮 NAS 技术门禁判断。
 
 ## 2. 本机基线
 

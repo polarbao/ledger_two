@@ -3,7 +3,7 @@ info:
   title: LedgerTwo v1.2 Import API
   version: 1.2.0-rc
   description: |
-    v1.2 账单导入模块已实现 CSV 契约，Task49X 增加微信、支付宝 XLSX 输入。
+    v1.2 账单导入模块已实现 CSV 契约，Task49X 仅增加微信 XLSX 输入；支付宝当前保持 CSV。
     本文件是 openapi.yaml 的 v1.2 导入补充；实际 router 路径记录在 API_INVENTORY.md。
 servers:
   - url: /api
@@ -18,7 +18,7 @@ paths:
       summary: Upload a supported bill file and create preview batch
       description: |
         Owner only. Preview must not create transactions.
-        WeChat and Alipay accept CSV/XLSX; generic accepts CSV only.
+        WeChat accepts CSV/XLSX; Alipay and generic accept CSV only.
         The backend infers and validates file_format from extension, magic and OOXML structure.
       security:
         - cookieAuth: []
@@ -35,7 +35,7 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: CSV or supported XLSX bill file. Maximum request size is 2 MiB.
+                  description: WeChat CSV/XLSX or Alipay/generic CSV bill file. Maximum request size is 2 MiB.
                 source_type:
                   type: string
                   enum: [wechat, alipay, generic]

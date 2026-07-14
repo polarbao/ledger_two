@@ -65,7 +65,7 @@ func TestReadWechatXLSXFindsHeaderOnRow18(t *testing.T) {
 	}
 }
 
-func TestReadRejectsFormatMismatchAndGenericXLSX(t *testing.T) {
+func TestReadRejectsFormatMismatchAndNonWechatXLSX(t *testing.T) {
 	xlsx := buildWorkbook(t, map[string][][]any{"Sheet1": {{1, "title"}}})
 
 	if _, err := Read("renamed.csv", SourceWechat, xlsx); !errors.Is(err, ErrFormatMismatch) {
@@ -73,6 +73,9 @@ func TestReadRejectsFormatMismatchAndGenericXLSX(t *testing.T) {
 	}
 	if _, err := Read("generic.xlsx", SourceGeneric, xlsx); !errors.Is(err, ErrUnsupportedFormat) {
 		t.Fatalf("expected ErrUnsupportedFormat, got %v", err)
+	}
+	if _, err := Read("alipay.xlsx", SourceAlipay, xlsx); !errors.Is(err, ErrUnsupportedFormat) {
+		t.Fatalf("expected Alipay XLSX to return ErrUnsupportedFormat, got %v", err)
 	}
 }
 

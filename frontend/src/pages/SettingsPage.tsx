@@ -428,7 +428,7 @@ export default function SettingsPage() {
           <SettingsActionCard
             icon={<FileSpreadsheet size={18} />}
             title="账单文件导入"
-            description="支持将微信、支付宝 CSV 或 XLSX 上传到预览工作区，核对后再提交。"
+            description="支持将微信 CSV/XLSX 或支付宝 CSV 上传到预览工作区，核对后再提交。"
           >
             <PermissionGate
               allow={['owner', 'editor']}

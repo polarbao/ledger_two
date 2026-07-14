@@ -37,12 +37,18 @@ import type {
   ImportSourceType,
 } from '../types/imports';
 import type { MetadataItem } from '../types/metadata';
-import { buildImportCommitSummary, resolveImportErrorMessage, validateImportFile } from './importPageState';
+import {
+  buildImportCommitSummary,
+  getImportFileAccept,
+  getImportSourceDescription,
+  resolveImportErrorMessage,
+  validateImportFile,
+} from './importPageState';
 
-const sourceOptions: Array<{ value: ImportSourceType; label: string; description: string }> = [
-  { value: 'wechat', label: '微信账单', description: '微信支付导出的 CSV 或 XLSX' },
-  { value: 'alipay', label: '支付宝账单', description: '支付宝流水明细 CSV 或 XLSX' },
-  { value: 'generic', label: '通用模板', description: 'LedgerTwo 标准 CSV' },
+const sourceOptions: Array<{ value: ImportSourceType; label: string }> = [
+  { value: 'wechat', label: '微信账单' },
+  { value: 'alipay', label: '支付宝账单' },
+  { value: 'generic', label: '通用模板' },
 ];
 
 const duplicateStatusCopy: Record<
@@ -352,7 +358,7 @@ export default function ImportPage() {
                 disabled={!isOwner || previewMutation.isPending}
               >
                 <strong>{option.label}</strong>
-                <span>{option.value !== 'generic' && !xlsxEnabled ? '当前环境仅开放 CSV' : option.description}</span>
+                <span>{getImportSourceDescription(option.value, xlsxEnabled)}</span>
               </button>
             ))}
           </div>
@@ -373,7 +379,7 @@ export default function ImportPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept={sourceType === 'generic' || !xlsxEnabled ? '.csv' : '.csv,.xlsx'}
+              accept={getImportFileAccept(sourceType, xlsxEnabled)}
               disabled={!isOwner || previewMutation.isPending}
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -388,8 +394,8 @@ export default function ImportPage() {
             <strong>{previewMutation.isPending ? '正在生成预览' : '选择账单文件'}</strong>
             <small>
               {xlsxEnabled
-                ? '微信、支付宝支持 CSV/XLSX，通用模板仅 CSV，单批最多 2000 行。'
-                : '当前环境仅开放 CSV，XLSX 需由管理员开启，单批最多 2000 行。'}
+                ? '微信支持 CSV/XLSX，支付宝和通用模板仅支持 CSV，单批最多 2000 行。'
+                : '微信、支付宝和通用模板当前仅支持 CSV，单批最多 2000 行。'}
             </small>
           </label>
 

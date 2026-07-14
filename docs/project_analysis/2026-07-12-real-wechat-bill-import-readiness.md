@@ -2,6 +2,8 @@
 
 日期：2026-07-12
 
+> 2026-07-14 纠偏：本文保留 Task49X 实施前的历史判断。当前代码已支持微信 CSV/XLSX；支付宝与通用模板保持 CSV-only，且 `alipay + xlsx` 会在解析前拒绝。
+
 ## 1. 结论
 
 历史结论：本报告记录代码实现前的只读预检。后续本机 preview 已完成，仍未执行正式账单 commit。
@@ -74,4 +76,4 @@ production: 1.2.0-rc / schema 18 / channel production / db ok
 staging:    1.2.0-rc / schema 18 / channel staging / db ok
 ```
 
-环境和数据库隔离已完成；本机 Task49X 核心实现与真实 preview 已通过，剩余门禁为抽样对账、Figma 视觉验收、支付宝真实 XLSX 和 NAS schema 19 发布。
+环境和数据库隔离已完成；本机 Task49X 核心实现与真实 preview 已通过，剩余发布门禁为 NAS schema 19 staging、production 一致性备份和逐批导入确认。

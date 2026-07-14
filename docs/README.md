@@ -46,7 +46,7 @@ docs/
 27. `docs/codex_tasks/README.md`
 28. 进入具体业务模块文档。
 
-当前项目已完成 Task01-Task49。Task49X 核心实现、运行开关、本机 schema 19、真实 CSV/XLSX preview 和移动端视觉验收已完成，但支付宝真实 XLSX、Figma 主文件写入和 NAS schema 19 发布尚未关闭。后续开发以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为主要入口。
+当前项目已完成 Task01-Task49。Task49X 核心实现、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview 和移动端视觉验收已完成；支付宝当前仍只导出 CSV。后续发布收口聚焦 NAS schema 19 staging、production 一致性备份与逐批导入确认，开发入口以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为准。
 
 ## AI 开发使用方式
 

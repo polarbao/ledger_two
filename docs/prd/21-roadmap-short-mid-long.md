@@ -3,7 +3,7 @@
 状态：当前路线基线，持续维护<br>
 适用阶段：Task30 后
 
-> 执行更新（2026-07-13）：Foundation、v1.1、Task41-Task49 已完成实现与验收；v1.2 RC 因真实微信/支付宝 XLSX 通过 Task49X 重新打开输入格式范围并处于发布收口。Fresh Light 波次 A 已完成 Token、基础组件、AppShell 和全局导航，UI-FL-03 Dashboard 待启动；v1.3 业务范围仍需在开工前重新评审。
+> 执行更新（2026-07-14）：Foundation、v1.1、Task41-Task49 已完成实现与验收；v1.2 RC 的 Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV并进入发布收口。Fresh Light 已完成 UI-FL-01 至 UI-FL-04，UI-FL-05 流水工作台待启动；v1.3 业务范围仍需在开工前重新评审。
 
 ## 1. 路线图总原则
 
@@ -98,7 +98,7 @@ LedgerTwo 后续规划分三层：
 
 范围：
 
-- 微信/支付宝 CSV/XLSX 基础解析；通用模板保持 CSV。
+- 微信 CSV/XLSX、支付宝 CSV 和通用 CSV 基础解析。
 - XLSX 在现有 preview/commit 管线前安全读取，支持非首行表头、工作表选择和订单号精度保护。
 - 上传后预览，不直接写库。
 - 字段映射。

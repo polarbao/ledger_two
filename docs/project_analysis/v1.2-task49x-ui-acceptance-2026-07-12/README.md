@@ -77,6 +77,6 @@ f624669b-352f-428e-bb4e-4b89cccdf149
 剩余门禁：
 
 1. 将当前 Figma 账号升级为可编辑席位，或由文件 Owner 对该账号授予编辑权限。
-2. 获得真实支付宝 XLSX 样本并完成 Task49X.4 正式冻结。
+2. Task49X.4 已按支付宝真实 CSV 完成冻结，支付宝 XLSX 明确拒绝。
 3. 在明确的 NAS staging 维护窗口执行 schema 19 备份、迁移和重启验收。
 4. 任何 production commit 前重新预览，并由用户逐批确认状态数量。

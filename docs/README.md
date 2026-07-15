@@ -84,7 +84,7 @@ docs/
 
 当前项目已完成 Task01-Task49。Task49X 核心实现、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview 和移动端视觉验收已完成；支付宝当前仍只导出 CSV。后续发布收口聚焦 NAS schema 19 staging、production 一致性备份与逐批导入确认，开发入口以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为准。
 
-2026-07-15 更新：Fresh Light UI-FL-01 至 UI-FL-06 已完成，下一实现任务为 UI-FL-07；结算收口证据见 `docs/project_analysis/ui-fl-06-runtime-2026-07-15/`。Task50 多账本正式化只开启开发前文档准备，入口为 `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md`，当前资料不足以直接编码。
+2026-07-15 更新：Fresh Light UI-FL-01 至 UI-FL-07 已完成，下一实现任务为 UI-FL-08；设置与元数据收口证据见 `docs/project_analysis/ui-fl-07-settings-metadata-2026-07-15/`。Task50 多账本正式化只开展开发前文档准备，入口为 `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md`，尚未进入编码。
 
 ## AI 开发使用方式
 

@@ -75,7 +75,7 @@ describe('UI-FL-04 transaction form components', () => {
     expect(offlineMarkup).toContain('保存为离线草稿');
     expect(offlineMarkup).toContain('disabled=""');
     expect(editMarkup).toContain('保存修改');
-    expect(editMarkup).toContain('保存并继续');
-    expect(editMarkup).toContain('disabled=""');
+    expect(editMarkup).not.toContain('保存并继续');
+    expect(editMarkup).toContain('lt-entry-footer--edit');
   });
 });

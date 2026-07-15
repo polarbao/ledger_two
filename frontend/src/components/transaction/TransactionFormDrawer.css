@@ -563,6 +563,10 @@
   background: var(--lt-bg-surface);
 }
 
+.lt-entry-footer--edit {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
 .lt-entry-footer .ui-button {
   width: 100%;
   padding-inline: 12px;
@@ -637,6 +641,14 @@
 
   .lt-entry-footer__primary {
     grid-column: 1 / -1;
+  }
+
+  .lt-entry-footer--edit {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+
+  .lt-entry-footer--edit .lt-entry-footer__primary {
+    grid-column: auto;
   }
 
   .lt-entry-attachments {

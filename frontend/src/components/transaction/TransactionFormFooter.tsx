@@ -30,8 +30,10 @@ export default function TransactionFormFooter({
   onContinue,
   onPrimary,
 }: TransactionFormFooterProps) {
+  const isEditMode = mode === 'edit';
+
   return (
-    <footer className="lt-entry-footer">
+    <footer className={`lt-entry-footer${isEditMode ? ' lt-entry-footer--edit' : ''}`}>
       <Button
         className="lt-entry-footer__cancel"
         variant="ghost"
@@ -40,16 +42,18 @@ export default function TransactionFormFooter({
       >
         取消
       </Button>
-      <Button
-        className="lt-entry-footer__continue"
-        variant="secondary"
-        startIcon={<RotateCw size={17} />}
-        onClick={onContinue}
-        isLoading={isPending && activeAction === 'continue'}
-        disabled={mode === 'offline' || mode === 'edit' || isPending}
-      >
-        保存并继续
-      </Button>
+      {!isEditMode ? (
+        <Button
+          className="lt-entry-footer__continue"
+          variant="secondary"
+          startIcon={<RotateCw size={17} />}
+          onClick={onContinue}
+          isLoading={isPending && activeAction === 'continue'}
+          disabled={mode === 'offline' || isPending}
+        >
+          保存并继续
+        </Button>
+      ) : null}
       <Button
         className="lt-entry-footer__primary"
         type="submit"

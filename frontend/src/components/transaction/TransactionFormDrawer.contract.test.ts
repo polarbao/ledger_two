@@ -48,6 +48,7 @@ describe('UI-FL-04 TransactionFormDrawer contract', () => {
     const css = readComponentFile('./TransactionFormDrawer.css');
 
     expect(css).toContain('width: min(440px, 100vw);');
+    expect(css).toContain('z-index: 1150;');
     expect(css).toContain('@media (max-width: 1024px)');
     expect(css).toContain('height: min(92dvh, 900px);');
     expect(css).toContain('@media (max-width: 430px)');

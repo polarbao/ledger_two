@@ -21,7 +21,7 @@
 
 ## 当前产品阶段
 
-截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + Fresh Light 体验质量专项 + v1.3 开工前评审准备`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-07 已完成，下一任务为 UI-FL-08；Task50P.1 现状盘点和 Task50P.2 产品范围冻结已完成，但 Tech/OpenAPI/UI/Migration 与开发准入尚未完成。
+截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + Fresh Light 体验质量专项 + v1.3 开工前评审准备`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-08 已完成，下一任务为 UI-FL-09；Task50P.1 现状盘点和 Task50P.2 产品范围冻结已完成，但 Tech/OpenAPI/UI/Migration 与开发准入尚未完成。
 
 当前产品重点：
 

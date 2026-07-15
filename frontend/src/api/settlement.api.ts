@@ -13,8 +13,10 @@ export const settlementApi = {
    * @brief 获取当前两端未结清轧差数据
    * @return Promise<BalanceResponse> 轧差统计响应体
    */
-  getBalance: () =>
-    api.get<BalanceResponse>('/api/settlements/balance'),
+  getBalance: (month?: string) => {
+    const query = month ? `?month=${encodeURIComponent(month)}` : '';
+    return api.get<BalanceResponse>(`/api/settlements/balance${query}`);
+  },
 
   /**
    * @brief 获取结算明细历史列表

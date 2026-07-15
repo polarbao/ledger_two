@@ -83,6 +83,14 @@ func TestSettlementFlow(t *testing.T) {
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
 	cookieB := getLoginCookie(t, r, "userB", "pass456")
 
+	reqInvalidMonth, _ := http.NewRequest("GET", "/api/settlements/balance?month=2026-13", nil)
+	reqInvalidMonth.AddCookie(cookieA)
+	rrInvalidMonth := httptest.NewRecorder()
+	r.ServeHTTP(rrInvalidMonth, reqInvalidMonth)
+	if rrInvalidMonth.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid balance month to return 400, got %d", rrInvalidMonth.Code)
+	}
+
 	// 查出用户 A 和 B 的实际 UUID 标识
 	var userAID, userBID string
 	err := db.QueryRow("SELECT id FROM users WHERE username = 'userA'").Scan(&userAID)

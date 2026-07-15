@@ -185,4 +185,61 @@ func TestSettlementServiceUnit(t *testing.T) {
 			}
 		}
 	}
+
+	// ----------------------------------------------------
+	// 场景 4: 月份范围只统计该月的共同支出和结算记录。
+	// ----------------------------------------------------
+	previousMonthAt := time.Now().AddDate(0, -1, 0).Format(time.RFC3339)
+	currentMonthAt := time.Now().Format(time.RFC3339)
+	_, err = db.Exec(`
+		INSERT INTO transactions (id, ledger_id, type, title, amount, occurred_at, owner_user_id, created_by_user_id, payer_user_id, category_id, visibility, split_method, status, created_at, updated_at)
+		VALUES
+			('tx-old-month', ?, 'shared_expense', '上月共同支出', 10000, ?, ?, ?, ?, ?, 'shared', 'equal', 'normal', ?, ?),
+			('tx-current-month', ?, 'shared_expense', '本月共同支出', 6000, ?, ?, ?, ?, ?, 'shared', 'equal', 'normal', ?, ?)
+	`, ledgerID, previousMonthAt, userAID, userAID, userAID, categoryID, previousMonthAt, previousMonthAt,
+		ledgerID, currentMonthAt, userBID, userBID, userBID, categoryID, currentMonthAt, currentMonthAt)
+	if err != nil {
+		t.Fatalf("insert scoped transactions failed: %v", err)
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO transaction_splits (id, transaction_id, user_id, share_amount, created_at, updated_at)
+		VALUES
+			('s-old-a', 'tx-old-month', ?, 5000, ?, ?),
+			('s-old-b', 'tx-old-month', ?, 5000, ?, ?),
+			('s-current-a', 'tx-current-month', ?, 3000, ?, ?),
+			('s-current-b', 'tx-current-month', ?, 3000, ?, ?)
+	`, userAID, previousMonthAt, previousMonthAt, userBID, previousMonthAt, previousMonthAt,
+		userAID, currentMonthAt, currentMonthAt, userBID, currentMonthAt, currentMonthAt)
+	if err != nil {
+		t.Fatalf("insert scoped transaction splits failed: %v", err)
+	}
+
+	allBalance, err := svc.GetBalance(context.Background(), userAID)
+	if err != nil {
+		t.Fatalf("get all-time balance failed: %v", err)
+	}
+	if allBalance.AmountCents != 2000 || allBalance.FromUserID != userBID || allBalance.ToUserID != userAID {
+		t.Errorf("unexpected all-time balance: %+v", allBalance)
+	}
+
+	monthBalance, err := svc.GetBalanceForMonth(context.Background(), userAID, time.Now().Format("2006-01"))
+	if err != nil {
+		t.Fatalf("get current-month balance failed: %v", err)
+	}
+	if monthBalance.AmountCents != 3000 || monthBalance.FromUserID != userAID || monthBalance.ToUserID != userBID {
+		t.Errorf("unexpected current-month balance: %+v", monthBalance)
+	}
+	for _, ub := range monthBalance.UserBalances {
+		if ub.UserID == userAID && (ub.PaidCents != 20000 || ub.ShareCents != 17000 || ub.SettlementNetCents != -6000 || ub.FinalNetCents != -3000) {
+			t.Errorf("unexpected scoped A fields: %+v", ub)
+		}
+		if ub.UserID == userBID && (ub.PaidCents != 14000 || ub.ShareCents != 17000 || ub.SettlementNetCents != 6000 || ub.FinalNetCents != 3000) {
+			t.Errorf("unexpected scoped B fields: %+v", ub)
+		}
+	}
+
+	if _, err := svc.GetBalanceForMonth(context.Background(), userAID, "2026-13"); err == nil {
+		t.Error("expected invalid month to be rejected")
+	}
 }

@@ -123,24 +123,27 @@ func (r *Repository) List(ctx context.Context, ledgerID string, month string) ([
 // @brief 运行参数化 SQL 进行聚合统计
 // @param ctx context.Context 上下文
 // @param ledgerID string 账本 ID
+// @param month string 可选月份过滤，格式 YYYY-MM；空字符串表示全部账期
 // @return map[string]int64 各自支付共同支出的总和 Map [user_id] -> cents
 // @return map[string]int64 各自应分摊共同支出的总和 Map [user_id] -> cents
 // @return map[string]int64 各自已付出的结算补款总和 Map [user_id] -> cents
 // @return map[string]int64 各自收到的结算补款总和 Map [user_id] -> cents
 // @return error 错误信息
-func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID string) (map[string]int64, map[string]int64, map[string]int64, map[string]int64, error) {
+func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID, month string) (map[string]int64, map[string]int64, map[string]int64, map[string]int64, error) {
 	paidMap := make(map[string]int64)
 	shareMap := make(map[string]int64)
 	settledOutMap := make(map[string]int64)
 	settledInMap := make(map[string]int64)
+	monthPattern := month + "%"
 
 	// 1. 汇总统计各自实际支付的共同支出（排除软删除）
 	paidRows, err := r.db.QueryContext(ctx, `
 		SELECT payer_user_id, SUM(amount)
 		FROM transactions
 		WHERE ledger_id = ? AND type = 'shared_expense' AND status != 'deleted'
+		  AND (? = '' OR occurred_at LIKE ?)
 		GROUP BY payer_user_id
-	`, ledgerID)
+	`, ledgerID, month, monthPattern)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -160,8 +163,9 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID str
 		FROM transaction_splits ts
 		JOIN transactions t ON ts.transaction_id = t.id
 		WHERE t.ledger_id = ? AND t.status != 'deleted'
+		  AND (? = '' OR t.occurred_at LIKE ?)
 		GROUP BY ts.user_id
-	`, ledgerID)
+	`, ledgerID, month, monthPattern)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -179,9 +183,9 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID str
 	settleOutRows, err := r.db.QueryContext(ctx, `
 		SELECT from_user_id, SUM(amount)
 		FROM settlements
-		WHERE ledger_id = ?
+		WHERE ledger_id = ? AND (? = '' OR occurred_at LIKE ?)
 		GROUP BY from_user_id
-	`, ledgerID)
+	`, ledgerID, month, monthPattern)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -199,9 +203,9 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID str
 	settleInRows, err := r.db.QueryContext(ctx, `
 		SELECT to_user_id, SUM(amount)
 		FROM settlements
-		WHERE ledger_id = ?
+		WHERE ledger_id = ? AND (? = '' OR occurred_at LIKE ?)
 		GROUP BY to_user_id
-	`, ledgerID)
+	`, ledgerID, month, monthPattern)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}

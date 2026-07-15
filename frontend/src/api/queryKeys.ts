@@ -46,7 +46,9 @@ export const queryKeys = {
   },
   settlements: {
     root: (ledgerId?: string | null) => ['settlements', ledgerScope(ledgerId)] as const,
-    balance: (ledgerId?: string | null) => ['settlement-balance', ledgerScope(ledgerId)] as const,
+    balanceRoot: (ledgerId?: string | null) => ['settlement-balance', ledgerScope(ledgerId)] as const,
+    balance: (ledgerId: string | null | undefined, month?: string) =>
+      ['settlement-balance', ledgerScope(ledgerId), month || 'all'] as const,
     list: (ledgerId: string | null | undefined, month: string) =>
       ['settlements', ledgerScope(ledgerId), month] as const,
   },

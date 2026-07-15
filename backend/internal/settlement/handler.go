@@ -34,7 +34,7 @@ func (h *Handler) HandleGetBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.service.GetBalance(r.Context(), currentUserID)
+	res, err := h.service.GetBalanceForMonth(r.Context(), currentUserID, r.URL.Query().Get("month"))
 	if err != nil {
 		response.WriteError(w, err)
 		return

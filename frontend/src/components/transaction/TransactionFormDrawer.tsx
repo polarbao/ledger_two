@@ -605,7 +605,7 @@ export default function TransactionFormDrawer() {
         queryClient.invalidateQueries({ queryKey: queryKeys.reports.root(activeLedgerId) });
         if (editSourceTransaction.type === 'shared_expense') {
           queryClient.invalidateQueries({ queryKey: queryKeys.settlements.root(activeLedgerId) });
-          queryClient.invalidateQueries({ queryKey: queryKeys.settlements.balance(activeLedgerId) });
+          queryClient.invalidateQueries({ queryKey: queryKeys.settlements.balanceRoot(activeLedgerId) });
         }
         closeDrawer();
         return;

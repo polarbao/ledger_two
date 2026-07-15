@@ -15,6 +15,9 @@ describe('queryKeys', () => {
     expect(queryKeys.metadata.list('ledger-a', 'categories')).not.toEqual(
       queryKeys.metadata.list('ledger-b', 'categories')
     );
+    expect(queryKeys.settlements.balance('ledger-a', '2026-07')).not.toEqual(
+      queryKeys.settlements.balance('ledger-a')
+    );
   });
 
   it('uses an explicit placeholder when no ledger is selected', () => {

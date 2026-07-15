@@ -728,6 +728,7 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
           $ref: "#/components/responses/Success"

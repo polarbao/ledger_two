@@ -34,6 +34,21 @@ func NewService(repo *Repository) *Service {
 // @return *BalanceResponse 结算净额报表 DTO
 // @return error 错误信息
 func (s *Service) GetBalance(ctx context.Context, currentUserID string) (*BalanceResponse, error) {
+	return s.getBalance(ctx, currentUserID, "")
+}
+
+// GetBalanceForMonth 按可选月份计算各方余额；空月份等同全部账期。
+func (s *Service) GetBalanceForMonth(ctx context.Context, currentUserID, month string) (*BalanceResponse, error) {
+	if month != "" {
+		if _, err := time.Parse("2006-01", month); err != nil {
+			return nil, appErrors.NewAppError(400, "VALIDATION_ERROR", "查询月份格式错误，应为 YYYY-MM")
+		}
+	}
+
+	return s.getBalance(ctx, currentUserID, month)
+}
+
+func (s *Service) getBalance(ctx context.Context, currentUserID, month string) (*BalanceResponse, error) {
 	// 1. 获取全局唯一 LedgerID
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
@@ -47,7 +62,7 @@ func (s *Service) GetBalance(ctx context.Context, currentUserID string) (*Balanc
 	}
 
 	// 3. 拉取底层汇总数据
-	paidMap, shareMap, settledOutMap, settledInMap, err := s.repo.GetSharedExpensesNetStats(ctx, ledgerID)
+	paidMap, shareMap, settledOutMap, settledInMap, err := s.repo.GetSharedExpensesNetStats(ctx, ledgerID, month)
 	if err != nil {
 		return nil, err
 	}

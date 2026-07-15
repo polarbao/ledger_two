@@ -2,12 +2,14 @@
 
 版本：v1.0-frozen
 
-状态：产品范围已冻结，待 Tech/OpenAPI/UI/Migration 评审
+状态：产品范围与 Tech/Migration 已冻结，待 OpenAPI/UI/开发准入评审
 
 冻结日期：2026-07-15
 
 对应任务：Task50P.2；后续实现 Task50.1-Task50.6
 上游事实：`docs/project_analysis/2026-07-15-task50-current-state-gap-matrix.md`
+
+下游技术事实：`docs/tech/25-v1.3-multi-ledger-implementation-contract.md`
 
 ## 1. 背景
 

@@ -17,6 +17,7 @@
 | 导入实施契约 | `20-v1.2-import-implementation-contract.md` | v1.2 导入 API、状态机、DTO、权限、数据模型和回滚策略 |
 | 部署隔离总览 | `23-v1.2-deployment-environment-isolation.md` | development/staging/production 物理隔离、发布顺序和运行开关 |
 | XLSX 专项方案 | `24-v1.2-xlsx-import-implementation-plan.md` | Task49X reader、migration 019、安全、测试和回滚 |
+| Task50 技术契约 | `25-v1.3-multi-ledger-implementation-contract.md` | 多账本 lifecycle、LedgerContext、实例管理员、migration 020/021 和回滚 |
 
 后续技术规划应优先更新这些总览和契约。只有当 v1.3 新能力完成 PRD 范围冻结，且现有总览无法承载新的架构边界时，才新增独立技术总览或 ADR。
 
@@ -29,7 +30,7 @@
 3. v1.2 RC 的关键技术门禁是 schema 19 staging、XLSX 开关、备份链、health 校验和回滚脚本。
 4. Fresh Light 属于前端体验专项，不应改变后端金额、权限、导入、结算或 migration 契约。
 5. v1.3 前应重新评审多账本、多成员、多人分摊的数据模型、权限矩阵和 migration 策略。
-6. Task50 当前只进入 PRD/Tech/UI/OpenAPI/migration 准备；现有 LedgerContext 和成员 API 是盘点基线，不等于多账本生命周期已经冻结。
+6. Task50P.3 技术与 Migration 契约已冻结，但 OpenAPI/Fixture、UI/UX 和开发准入未完成；现有 LedgerContext 和成员 API 仍只是实现基线。
 
 当前已知技术债：
 
@@ -62,6 +63,7 @@
 21-v1.2-import-migration-review.md v1.2 导入模块 Migration 评审
 22-v1.2-import-task47-implementation-plan.md v1.2 Task47 导入预览实施计划
 24-v1.2-xlsx-import-implementation-plan.md v1.2 Task49X XLSX 导入专项实施方案
+25-v1.3-multi-ledger-implementation-contract.md v1.3 Task50 多账本技术与 Migration 冻结契约
 ```
 
 ## 技术原则
@@ -99,3 +101,4 @@ Task30 后的技术规划建议优先阅读：
 7. `22-v1.2-import-task47-implementation-plan.md`（Task47 开工时用于确认 parser、repository、service、handler 和前端切片）
 8. `../prd/29-prd-v1.2-module-business-service-breakdown.md`（进入 Task47-Task49 前用于确认业务对象、服务边界和 UI 工作台）
 9. `24-v1.2-xlsx-import-implementation-plan.md`（Task49X 开发前用于确认依赖、reader、migration 019、安全和测试边界）
+10. `25-v1.3-multi-ledger-implementation-contract.md`（Task50 开发前用于确认 lifecycle、实例管理员、migration 020/021 和回滚）

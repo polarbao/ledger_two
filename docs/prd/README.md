@@ -21,14 +21,14 @@
 
 ## 当前产品阶段
 
-截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + Fresh Light 体验质量专项 + v1.3 开工前评审准备`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-09 已完成，下一任务为 UI-FL-10；Task50P.1-P.5 已完成，产品、Tech、Migration、OpenAPI、Fixture、验收矩阵与 UI 已冻结，仅 P.6 开发准入尚未完成。
+截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + v1.3 Task50 独立开发准入`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-10 已完成并关闭专项；Task50P.1-P.6 已完成，产品、Tech、Migration、OpenAPI、Fixture、验收矩阵、UI 与开发准入均已冻结，下一实现任务为 Task50.1。
 
 当前产品重点：
 
 1. 保持 v1.2 业务范围冻结。
 2. 完成 NAS staging schema 19 和 production 发布门禁。
-3. 收口 Fresh Light 全应用体验，不改变已冻结金额、权限、导入和结算规则。
-4. v1.3 前重新评审多账本、多成员和多人分摊。
+3. 保持已关闭 Fresh Light 组件、主题、响应式和可访问性基线，不改变已冻结金额、权限、导入和结算规则。
+4. 在独立 development 环境按 Task50.1-Task50.6 实现多账本正式化；第三成员和多人分摊继续延后。
 
 当前不进入开发：
 

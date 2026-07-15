@@ -23,14 +23,15 @@
 
 ## 当前技术阶段
 
-截至 2026-07-14，当前架构判断如下：
+截至 2026-07-15，当前架构判断如下：
 
 1. Go + SQLite + REST JSON + React/Vite 的总体选型继续成立，不需要整体推倒重写。
 2. `development`、`staging`、`production` 应继续通过部署实例、物理目录、端口、密钥、数据库文件隔离；不能为了“统一部署”共享数据目录。
 3. v1.2 RC 的关键技术门禁是 schema 19 staging、XLSX 开关、备份链、health 校验和回滚脚本。
 4. Fresh Light 属于前端体验专项，不应改变后端金额、权限、导入、结算或 migration 契约。
 5. v1.3 前应重新评审多账本、多成员、多人分摊的数据模型、权限矩阵和 migration 策略。
-6. Task50P.1-P.5 已冻结产品、技术、Migration、OpenAPI、Fixture、验收矩阵与 UI/UX；UI-FL-10 和 P.6 开发准入未完成，现有 LedgerContext 和成员 API 仍只是实现基线。
+6. UI-FL-10 与 Task50P.1-P.6 已完成；Task50 仅获准在独立本地 development 环境从 Task50.1 开始，现有 LedgerContext 和成员 API 仍只是实现基线。
+7. WSL staging 继续固定 schema 19；migration 020/021 在 Task50.1 只能进入 development 新库、自动化临时库或明确脱敏副本。
 
 当前已知技术债：
 

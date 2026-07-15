@@ -80,11 +80,13 @@ docs/
 28. `docs/codex_tasks/README.md`
 29. `docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`
 30. `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`
-31. 进入具体业务模块文档。
+31. `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md`
+32. `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`
+33. 进入具体业务模块文档。
 
 当前项目已完成 Task01-Task49。Task49X 核心实现、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview 和移动端视觉验收已完成；支付宝当前仍只导出 CSV。后续发布收口聚焦 NAS schema 19 staging、production 一致性备份与逐批导入确认，开发入口以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为准。
 
-2026-07-15 更新：Fresh Light UI-FL-01 至 UI-FL-07 已完成，下一实现任务为 UI-FL-08；设置与元数据收口证据见 `docs/project_analysis/ui-fl-07-settings-metadata-2026-07-15/`。Task50 多账本正式化只开展开发前文档准备，入口为 `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md`，尚未进入编码。
+2026-07-15 更新：Fresh Light UI-FL-01 至 UI-FL-10 已完成，Fresh Light 为无偏好新会话默认体验，Dark Glass 保留显式回退；全局证据见 `docs/project_analysis/ui-fl-10-global-2026-07-15/`。Task50P.1-P.6 已完成，入口为 `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md` 与 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`；下一实现任务为只在独立 development 环境执行的 Task50.1，WSL staging 与 NAS 不迁移至 schema 21。
 
 ## AI 开发使用方式
 

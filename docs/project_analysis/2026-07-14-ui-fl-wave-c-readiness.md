@@ -1,17 +1,17 @@
-# Fresh Light 波次 C 准备度评审
+# Fresh Light 波次 C 准备度与 UI-FL-06 收口评审
 
-状态：准入已满足，可进入 UI-FL-06 实现<br>
-日期：2026-07-14
+状态：UI-FL-06 已完成，UI-FL-07 准入已满足<br>
+日期：2026-07-14；2026-07-15 收口复核
 
 ## 1. 结论
 
-UI-FL-06（结算）与 UI-FL-07（设置和元数据）的产品、业务和设计边界已经存在，不需要新增 API、migration 或第三方依赖即可开始页面迁移。UI-FL-05E 已于 2026-07-15 完成固定镜像、真实账号和隔离数据库副本写路径回归，因此推荐直接执行 UI-FL-06，再将 UI-FL-07 分片推进，避免结算可信路径与大体量设置页同时占用共享确认组件。
+UI-FL-06（结算）已完成源码、自动化、本机固定镜像、真实账号只读路径和隔离数据库写路径验收。实施中确认既有文档声明的 `balance?month=YYYY-MM` 尚未落到后端，因此用向后兼容的可选查询参数补齐真实范围切换；没有新增 migration 或第三方依赖。UI-FL-07（设置和元数据）的产品、业务和设计边界继续有效，可按既定切片推进，Task50 只并行准备文档，不抢占设置页文件。
 
 Fresh Light 目前仍是逐页迁移状态，默认主题继续为 Dark Glass。全局默认切换只能在 UI-FL-10 完成全部页面、Dark Glass 回退和真实业务验收后执行。
 
 ## 2. UI-FL-06 准备项
 
-关联事实源：Task43/45、结算 PRD、`SettlementPage`、`SettlementConfirmModal` 和现有 balance/settlement API。
+关联事实源：Task43/45、结算 PRD、`SettlementPage`、共享 `ConfirmDialog` 和 balance/settlement API。
 
 实施切片：
 
@@ -19,7 +19,7 @@ Fresh Light 目前仍是逐页迁移状态，默认主题继续为 Dark Glass。
 2. 06B：迁移范围切换、转账行动、复制文案和登记确认，不修改结算计算。
 3. 06C：回归“登记生成 settlement、不改历史共同支出”、复制失败兜底和 375/390/430/1440 响应式。
 
-准入门禁：复用现有 ConfirmDialog/Button/BottomSheet；禁止前端自行计算最终余额；登记前说明影响，登记后刷新 balance、settlements、dashboard 和 reports。
+收口结果：复用现有 ConfirmDialog/Button/SegmentedControl；最终余额直接消费后端 DTO；登记前说明影响，登记后刷新 balance、settlements、dashboard、transactions 和 reports。复制失败兜底、375/1440px 和隔离数据库真实登记均通过，证据见 `docs/project_analysis/ui-fl-06-runtime-2026-07-15/`。
 
 ## 3. UI-FL-07 准备项
 
@@ -47,4 +47,4 @@ Fresh Light 目前仍是逐页迁移状态，默认主题继续为 Dark Glass。
 3. 分别为 06、07 建立目标文件清单、测试矩阵和截图目录。
 4. 保留 Dark Glass 回退，页面迁移不等于全局默认主题切换。
 
-2026-07-15 准入复核：以上条件均已满足。运行证据见 `docs/project_analysis/ui-fl-05e-runtime-2026-07-15/`；Task50 只并行开展文档准备，不在 UI-FL-07 前修改设置页代码。
+2026-07-15 准入复核：以上条件均已满足。UI-FL-05E 证据见 `docs/project_analysis/ui-fl-05e-runtime-2026-07-15/`，UI-FL-06 已据此完成。下一步执行 UI-FL-07；Task50 只并行开展 P.1/P.2 文档准备，不修改设置页代码。

@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task49 已完成；Task49X 开发与本机验收完成并继续关闭 NAS 发布门禁；Fresh Light UI-FL-01 至 UI-FL-05 已完成，下一任务为 UI-FL-06；Task50 开发前文档准备已开启但尚未达到编码准入
+适用阶段：Task01-Task49 已完成；Task49X 开发与本机验收完成并继续关闭 NAS 发布门禁；Fresh Light UI-FL-01 至 UI-FL-06 已完成，下一任务为 UI-FL-07；Task50 开发前文档准备已开启但尚未达到编码准入
 
 ## 1. 目标
 

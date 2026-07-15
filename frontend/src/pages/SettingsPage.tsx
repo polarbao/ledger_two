@@ -1,49 +1,45 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Settings,
-  Download,
-  Database,
-  FileSpreadsheet,
-  FileJson,
-  RefreshCw,
-  Clock,
-  HardDrive,
-  AlertTriangle,
-  X,
-  RotateCcw,
-  User,
-  Users,
-  Tags,
-  CreditCard,
-  ShieldCheck,
   Activity,
-  Lock,
-  ChevronRight,
+  AlertTriangle,
   CheckCircle2,
+  Clock,
+  CreditCard,
+  Database,
+  Download,
+  FileJson,
+  FileSpreadsheet,
+  HardDrive,
+  Lock,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  Tags,
+  User,
 } from 'lucide-react';
-import { api, ApiError } from '../api/client';
+import { ApiError } from '../api/client';
 import { queryKeys } from '../api/queryKeys';
-import { safetyApi, type DiagnosticStatus } from '../api/safety.api';
-import EmptyState from '../components/ui/EmptyState';
+import { safetyApi, type BackupInfo, type DiagnosticStatus } from '../api/safety.api';
 import LedgerSettings from '../components/ledger/LedgerSettings';
-import RestoreBackupModal from '../components/ui/RestoreBackupModal';
 import PermissionGate from '../components/ledger/PermissionGate';
 import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
+import Button from '../components/ui/Button';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import EmptyState from '../components/ui/EmptyState';
+import RestoreBackupModal from '../components/ui/RestoreBackupModal';
+import StatusChip, { type StatusChipTone } from '../components/ui/StatusChip';
+import { getDeploymentChannelMeta } from '../components/layout/deploymentChannel';
 import { useAuthStore } from '../stores/auth.store';
 import { useLedgerStore } from '../stores/ledger.store';
-import { getDeploymentChannelMeta } from '../components/layout/deploymentChannel';
-
-interface BackupInfo {
-  filename: string;
-  size_bytes: number;
-  created_at: string;
-}
+import './SettingsPage.css';
 
 type ModalType = 'backup' | 'csv' | 'json' | null;
 
 interface SettingsSectionProps {
+  id: string;
+  eyebrow: string;
   title: string;
   description: string;
   children: ReactNode;
@@ -53,53 +49,61 @@ interface SettingsActionCardProps {
   icon: ReactNode;
   title: string;
   description: string;
-  badge?: string;
+  badge?: ReactNode;
   children?: ReactNode;
-  danger?: boolean;
+  tone?: 'default' | 'danger';
+  wide?: boolean;
 }
 
-function SettingsSection({ title, description, children }: SettingsSectionProps) {
+const roleLabels: Record<string, string> = {
+  owner: 'Owner 管理员',
+  editor: 'Editor 编辑者',
+  viewer: 'Viewer 观察者',
+};
+
+function SettingsSection({ id, eyebrow, title, description, children }: SettingsSectionProps) {
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>{title}</h3>
-        <p className="dimmed-desc" style={{ margin: 0, fontSize: '12px' }}>{description}</p>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
-        {children}
-      </div>
+    <section id={id} className="settings-section" aria-labelledby={`${id}-title`}>
+      <header className="settings-section__header">
+        <span>{eyebrow}</span>
+        <h2 id={`${id}-title`}>{title}</h2>
+        <p>{description}</p>
+      </header>
+      <div className="settings-section__content">{children}</div>
     </section>
   );
 }
 
-function SettingsActionCard({ icon, title, description, badge, children, danger = false }: SettingsActionCardProps) {
+function SettingsActionCard({
+  icon,
+  title,
+  description,
+  badge,
+  children,
+  tone = 'default',
+  wide = false,
+}: SettingsActionCardProps) {
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-          <span style={{ color: danger ? '#f87171' : 'var(--accent-purple)', display: 'inline-flex', flexShrink: 0 }}>
-            {icon}
-          </span>
-          <strong style={{ fontSize: '14px', lineHeight: 1.35 }}>{title}</strong>
-        </div>
-        {badge && (
-          <span style={{ fontSize: '11px', color: danger ? '#fca5a5' : '#c084fc', border: `1px solid ${danger ? 'rgba(239,68,68,0.18)' : 'rgba(168,85,247,0.18)'}`, borderRadius: '999px', padding: '2px 8px', whiteSpace: 'nowrap' }}>
+    <article className={`settings-card settings-card--${tone}${wide ? ' settings-card--wide' : ''}`}>
+      <header className="settings-card__header">
+        <span className="settings-card__icon" aria-hidden="true">{icon}</span>
+        <div className="settings-card__copy">
+          <div className="settings-card__title-row">
+            <h3>{title}</h3>
             {badge}
-          </span>
-        )}
-      </div>
-      <p className="dimmed-desc" style={{ fontSize: '12px', margin: 0, lineHeight: 1.6 }}>
-        {description}
-      </p>
-      {children}
-    </div>
+          </div>
+          <p>{description}</p>
+        </div>
+      </header>
+      {children ? <div className="settings-card__body">{children}</div> : null}
+    </article>
   );
 }
 
 function NoPermissionHint({ text }: { text: string }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <Lock size={14} />
+    <div className="settings-permission-hint">
+      <Lock size={16} aria-hidden="true" />
       <span>{text}</span>
     </div>
   );
@@ -112,34 +116,74 @@ function statusText(status: string) {
   return status;
 }
 
-function statusColor(status: string) {
-  if (status === 'ok') return '#34d399';
-  if (status === 'warning') return '#fbbf24';
-  return '#f87171';
+function statusTone(status: string): StatusChipTone {
+  if (status === 'ok') return 'success';
+  if (status === 'warning') return 'warning';
+  if (status === 'error') return 'danger';
+  return 'neutral';
 }
 
 function DiagnosticLine({ item }: { item: DiagnosticStatus }) {
-  const color = statusColor(item.status);
+  const detail = item.version
+    ? `schema v${item.version}`
+    : item.message || (item.configured ? '已配置' : '未配置');
+  const writable = typeof item.writable === 'boolean'
+    ? ` · ${item.writable ? '可写' : '不可写'}`
+    : '';
+
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ minWidth: 0 }}>
-        <strong style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)' }}>{item.label}</strong>
-        <span className="dimmed-desc" style={{ fontSize: '11px' }}>
-          {item.version ? `schema v${item.version}` : item.message || (item.configured ? '已配置' : '未配置')}
-          {typeof item.writable === 'boolean' ? ` · ${item.writable ? '可写' : '不可写'}` : ''}
-        </span>
+    <div className="settings-diagnostic-line">
+      <div>
+        <strong>{item.label}</strong>
+        <span>{detail}{writable}</span>
       </div>
-      <span style={{ flexShrink: 0, color, border: `1px solid ${color}33`, background: `${color}14`, borderRadius: '999px', padding: '3px 9px', fontSize: '11px' }}>
-        {statusText(item.status)}
-      </span>
+      <StatusChip tone={statusTone(item.status)}>{statusText(item.status)}</StatusChip>
     </div>
   );
+}
+
+function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 Bytes';
+  const unit = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(unit)), sizes.length - 1);
+  return `${parseFloat((bytes / Math.pow(unit, index)).toFixed(2))} ${sizes[index]}`;
+}
+
+function formatDate(dateStr: string) {
+  const date = new Date(dateStr);
+  return Number.isNaN(date.getTime())
+    ? dateStr
+    : date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function confirmationFor(type: Exclude<ModalType, null>, month: string) {
+  if (type === 'backup') {
+    return {
+      title: '创建当前数据库的安全备份？',
+      description: '系统会生成一份 SQLite 物理备份并写入审计日志，不会修改当前账单。备份文件包含完整财务数据。',
+      confirmLabel: '创建安全备份',
+    };
+  }
+  if (type === 'csv') {
+    return {
+      title: '导出交易流水 CSV？',
+      description: `将下载${month ? `${month} 月` : '当前账本全量'}明文交易流水。导出不会改变账单状态，但文件需要按敏感财务数据保管。`,
+      confirmLabel: '确认导出 CSV',
+    };
+  }
+  return {
+    title: '导出全量 JSON 数据包？',
+    description: '将下载当前账本的脱敏成员信息、元数据、交易分摊和结算记录。导出不会改变业务数据。',
+    confirmLabel: '确认导出 JSON',
+  };
 }
 
 export default function SettingsPage() {
   const currentUser = useAuthStore((state) => state.user);
   const activeRole = useLedgerStore((state) => state.activeRole);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
+  const canImportData = useHasLedgerRole(['owner', 'editor']);
   const canExportData = useHasLedgerRole(['owner', 'editor']);
   const canManageSafety = useHasLedgerRole(['owner']);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
@@ -147,26 +191,19 @@ export default function SettingsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedBackup, setSelectedBackup] = useState<BackupInfo | null>(null);
-
-  // 确认弹窗状态
   const [modalType, setModalType] = useState<ModalType>(null);
 
-  // 加载备份列表
   const fetchBackups = useCallback(async () => {
     if (!canManageSafety) return;
     setLoadingBackups(true);
     setErrorMsg(null);
     try {
-      const data = await api.get<BackupInfo[]>('/api/admin/backups');
+      const data = await safetyApi.getBackups();
       setBackups(Array.isArray(data) ? data : []);
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setErrorMsg(`加载备份列表失败: ${err.message}`);
-      } else {
-        setErrorMsg('加载备份列表失败');
-      }
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof ApiError ? `加载备份列表失败：${error.message}` : '加载备份列表失败');
     } finally {
       setLoadingBackups(false);
     }
@@ -174,96 +211,56 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (canManageSafety) {
-      Promise.resolve().then(() => {
-        fetchBackups();
-      });
+      Promise.resolve().then(() => fetchBackups());
     }
   }, [canManageSafety, fetchBackups]);
 
-  // 执行手动备份
   const handleBackupSubmit = async () => {
     setModalType(null);
     setActionLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      const res = await api.post<{ filename: string }>('/api/admin/backup');
-      setSuccessMsg(`备份创建成功: ${res.filename}`);
-      fetchBackups();
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setErrorMsg(`备份失败: ${err.message}`);
-      } else {
-        setErrorMsg('备份失败，请检查备份目录写权限');
-      }
+      const response = await safetyApi.createBackup();
+      setSuccessMsg(`备份创建成功：${response.filename}`);
+      await fetchBackups();
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof ApiError ? `备份失败：${error.message}` : '备份失败，请检查备份目录写权限');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // 带 Credentials & 错误拦截的物理流下载
   const triggerDownload = async (url: string, defaultFilename: string) => {
     setActionLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      const res = await fetch(url, { credentials: 'include' });
-      if (!res.ok) {
-        let errMsg = '下载失败';
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) {
+        let message = '下载失败';
         try {
-          const errBody = await res.json();
-          if (errBody?.error?.message) {
-            errMsg = errBody.error.message;
-          }
+          const body = await response.json();
+          if (body?.error?.message) message = body.error.message;
         } catch {
-          // Ignore
+          // Keep the stable fallback when the server did not return JSON.
         }
-        throw new Error(errMsg);
+        throw new Error(message);
       }
-
-      const blob = await res.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = defaultFilename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const blobUrl = window.URL.createObjectURL(await response.blob());
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = defaultFilename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
       window.URL.revokeObjectURL(blobUrl);
-      setSuccessMsg('文件下载成功！');
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMsg(err.message);
-      } else {
-        setErrorMsg('文件下载失败，请重试');
-      }
+      setSuccessMsg('文件下载成功');
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : '文件下载失败，请重试');
     } finally {
       setActionLoading(false);
     }
-  };
-
-  // 格式化文件大小
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // 格式化时间
-  const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleString('zh-CN', { hour12: false });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  // 点击导出按钮，打开对应的二次确认弹窗
-  const openConfirmModal = (type: ModalType) => {
-    setModalType(type);
   };
 
   const {
@@ -279,409 +276,332 @@ export default function SettingsPage() {
     enabled: canManageSafety,
   });
 
+  const executeConfirmedAction = () => {
+    if (modalType === 'backup') {
+      void handleBackupSubmit();
+      return;
+    }
+    if (modalType === 'csv') {
+      setModalType(null);
+      const query = selectedMonth ? `?month=${encodeURIComponent(selectedMonth)}` : '';
+      void triggerDownload(`/api/export/transactions.csv${query}`, `transactions${selectedMonth ? `-${selectedMonth}` : ''}.csv`);
+      return;
+    }
+    if (modalType === 'json') {
+      setModalType(null);
+      void triggerDownload('/api/export/full.json', 'ledger-two-full.json');
+    }
+  };
+
+  const confirmation = modalType ? confirmationFor(modalType, selectedMonth) : null;
   const diagnosticsErrorText = diagnosticsError instanceof ApiError
     ? diagnosticsError.message
     : '诊断信息加载失败';
 
   return (
-    <div className="page-content animate-fade-in text-left">
-      {/* 头部 Banner */}
-      <div className="glass-card header-banner">
-        <Settings className="banner-icon" />
+    <main className="settings-page">
+      <header className="settings-page__header">
         <div>
-          <h2>系统设置</h2>
-          <p>按账号、账本、元数据、导入导出、备份恢复和诊断能力分区管理。</p>
+          <span className="settings-page__eyebrow">账号、账本与数据安全</span>
+          <h1>设置</h1>
+          <p>按职责管理成员、元数据、自动化和数据安全。业务规则与服务端权限保持一致。</p>
         </div>
+        <StatusChip tone={activeRole === 'owner' ? 'success' : 'neutral'} icon={<ShieldCheck size={14} />}>
+          {activeRole ? roleLabels[activeRole] || activeRole : '未选择账本'}
+        </StatusChip>
+      </header>
+
+      <div className="settings-identity" aria-label="当前账号信息">
+        <User size={18} aria-hidden="true" />
+        <div>
+          <strong>{currentUser?.display_name || '未命名用户'}</strong>
+          <span>@{currentUser?.username || '-'}</span>
+        </div>
+        <p>登录态由浏览器安全 Cookie 维护，服务端仍是最终权限边界。</p>
       </div>
 
-      {/* 当前身份摘要 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '18px' }}>
-        <SettingsActionCard
-          icon={<User size={18} />}
-          title="账号与登录"
-          description="当前登录账号和显示名称。登录态由浏览器 Cookie 维护。"
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
-            <span>显示名：<strong>{currentUser?.display_name || '-'}</strong></span>
-            <span className="dimmed-desc">用户名：@{currentUser?.username || '-'}</span>
+      <nav className="settings-page__nav" aria-label="设置分区">
+        <a href="#ledger">账本与成员</a>
+        <a href="#metadata">分类与账户</a>
+        <a href="#automation">规则与模板</a>
+        <a href="#transfer">导入与导出</a>
+        <a href="#safety">数据安全</a>
+        <a href="#diagnostics">系统诊断</a>
+      </nav>
+
+      <div className="settings-page__messages" aria-live="polite">
+        {errorMsg ? (
+          <div className="settings-message settings-message--error">
+            <AlertTriangle size={18} aria-hidden="true" />
+            <span>{errorMsg}</span>
           </div>
-        </SettingsActionCard>
-        <SettingsActionCard
-          icon={<ShieldCheck size={18} />}
-          title="当前账本角色"
-          description="前端会按角色隐藏高风险操作，后端仍是最终权限边界。"
-          badge={activeRole || '未选择'}
-        >
-          {!canExportData && (
-            <NoPermissionHint text="当前角色可以查看数据，但不能新增、导入、导出、备份或恢复。" />
-          )}
-        </SettingsActionCard>
+        ) : null}
+        {successMsg ? (
+          <div className="settings-message settings-message--success">
+            <CheckCircle2 size={18} aria-hidden="true" />
+            <span>{successMsg}</span>
+          </div>
+        ) : null}
       </div>
 
-      {/* 消息通知区 */}
-      {errorMsg && (
-        <div className="error-banner animate-fade-in" style={{ margin: '0 0 16px 0', borderRadius: '12px' }}>
-          <AlertTriangle size={18} style={{ marginRight: '8px', flexShrink: 0 }} />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-      {successMsg && (
-        <div className="glass-card text-green animate-fade-in" style={{ padding: '12px 20px', margin: '0 0 16px 0', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '26px' }}>
-        <SettingsSection
-          title="账本与成员"
-          description="管理当前账本、已有成员和成员角色。当前是直接添加已有用户，不是公开邀请机制。"
-        >
-          <SettingsActionCard
-            icon={<Users size={18} />}
-            title="成员与权限"
-            description="Owner 可以创建账本、添加已有用户、调整成员角色或移除成员。Editor 和 Viewer 只展示权限说明。"
-            badge="owner 管理"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '12px' }}>
-              <ChevronRight size={14} />
-              <span>下方成员管理区保留现有能力</span>
-            </div>
-          </SettingsActionCard>
-        </SettingsSection>
-
+      <SettingsSection
+        id="ledger"
+        eyebrow="01"
+        title="账本与成员"
+        description="查看当前账本成员。只有 Owner 可以创建账本、直接添加已有用户、调整角色或移除成员。"
+      >
         <LedgerSettings />
+      </SettingsSection>
 
-        <SettingsSection
-          title="分类、标签与支付账户"
-          description="长期记账的基础元数据。后端归档基础已建立，前端管理页将在后续 Task35.2 接入。"
-        >
+      <SettingsSection
+        id="metadata"
+        eyebrow="02"
+        title="分类、标签与支付账户"
+        description="归档项不会进入新账单选择器，已经引用它们的历史账单仍保留原名称。"
+      >
+        <div className="settings-card-grid settings-card-grid--three">
           <SettingsActionCard
-            icon={<Tags size={18} />}
+            icon={<Tags size={20} />}
             title="分类管理"
-            description="新增、编辑、归档和恢复分类。归档项不会进入新增账单默认选择器。"
+            description="维护支出和收入分类，支持排序、归档和恢复。"
           >
-            <Link
-              to="/settings/categories"
-              className="btn-secondary"
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
-            >
-              管理分类
-            </Link>
+            <Link className="ui-button ui-button--secondary" to="/settings/categories">管理分类</Link>
           </SettingsActionCard>
           <SettingsActionCard
-            icon={<Tags size={18} />}
+            icon={<Tags size={20} />}
             title="标签管理"
-            description="维护账单标签和自动补全数据源。历史账单会保留已归档标签展示。"
+            description="维护场景、项目与报销标签，历史引用不会因归档丢失。"
           >
-            <Link
-              to="/settings/tags"
-              className="btn-secondary"
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
-            >
-              管理标签
-            </Link>
+            <Link className="ui-button ui-button--secondary" to="/settings/tags">管理标签</Link>
           </SettingsActionCard>
           <SettingsActionCard
-            icon={<CreditCard size={18} />}
+            icon={<CreditCard size={20} />}
             title="支付账户"
-            description="管理现金、银行卡、支付宝、微信等支付来源，服务导入和快捷记账。"
+            description="管理现金、银行卡、支付宝和微信等支付来源，不计算账户余额。"
           >
-            <Link
-              to="/settings/accounts"
-              className="btn-secondary"
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
-            >
-              管理支付账户
-            </Link>
+            <Link className="ui-button ui-button--secondary" to="/settings/accounts">管理支付账户</Link>
           </SettingsActionCard>
-        </SettingsSection>
+        </div>
+      </SettingsSection>
 
-        <SettingsSection
-          title="周期规则与模板"
-          description="管理可复用的记账配置，减少重复录入。周期规则需要用户确认后才会生成真实账单。"
-        >
+      <SettingsSection
+        id="automation"
+        eyebrow="03"
+        title="周期规则与模板"
+        description="周期规则只生成待确认提醒，用户确认后才会写入正式账单。"
+      >
+        <div className="settings-card-grid">
           <SettingsActionCard
-            icon={<Clock size={18} />}
+            icon={<Clock size={20} />}
             title="周期账单规则"
-            description="配置每周、每月、每年自动触发的待确认记账提醒。"
+            description="维护每周、每月或每年的待确认记账提醒。"
           >
-            <Link
-              to="/recurring-rules"
-              className="btn-secondary"
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
-            >
-              <Settings size={14} /> 进入周期规则
-            </Link>
+            <Link className="ui-button ui-button--secondary" to="/recurring-rules">进入周期规则</Link>
           </SettingsActionCard>
           <SettingsActionCard
-            icon={<FileJson size={18} />}
+            icon={<FileJson size={20} />}
             title="账单模板"
-            description="模板入口当前集成在记账抽屉中。后续会拆出独立模板管理区。"
-            badge="抽屉内管理"
+            description="模板入口保留在记账抽屉中，不进入统计、结算或正式流水。"
+            badge={<StatusChip>抽屉内管理</StatusChip>}
           />
-        </SettingsSection>
+        </div>
+      </SettingsSection>
 
-        <SettingsSection
-          title="导入与导出"
-          description="用于补账、审计和迁移。导出文件包含明文账目信息，请妥善保管。"
-        >
+      <SettingsSection
+        id="transfer"
+        eyebrow="04"
+        title="导入与导出"
+        description="导入先进入预览工作区；导出产生明文财务文件。支付宝当前仅支持 CSV，微信支持 CSV/XLSX。"
+      >
+        <div className="settings-card-grid settings-card-grid--three">
           <SettingsActionCard
-            icon={<FileSpreadsheet size={18} />}
+            icon={<FileSpreadsheet size={20} />}
             title="账单文件导入"
-            description="支持将微信 CSV/XLSX 或支付宝 CSV 上传到预览工作区，核对后再提交。"
+            description="上传文件后先核对状态与错误，preview 不会写入正式账单。"
           >
-            <PermissionGate
-              allow={['owner', 'editor']}
-              fallback={<NoPermissionHint text="观察者不能导入账单。" />}
-            >
-              <Link
-                to="/import"
-                className="btn-secondary"
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', textDecoration: 'none' }}
-              >
-                <RefreshCw size={14} /> 进入账单导入工作区
-              </Link>
-            </PermissionGate>
+            {canImportData ? (
+              <Link className="ui-button ui-button--secondary" to="/import">进入导入工作区</Link>
+            ) : (
+              <NoPermissionHint text="Viewer 只能查看账本，不能导入账单。" />
+            )}
           </SettingsActionCard>
-
           <SettingsActionCard
-            icon={<FileSpreadsheet size={18} />}
-            title="CSV 交易流水导出"
-            description="包含发生时间、标题、分类、金额、付款人、可见性和备注，适合 Excel 审计。"
+            icon={<FileSpreadsheet size={20} />}
+            title="交易流水 CSV"
+            description="按月份或全量导出当前角色可见流水。Owner 和 Editor 可以导出。"
+            badge={<StatusChip tone="warning">明文文件</StatusChip>}
           >
-            <PermissionGate
-              allow={['owner', 'editor']}
-              fallback={<NoPermissionHint text="观察者不能导出账本数据。" />}
-            >
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  style={{ flex: '1 1 150px', minWidth: 0, padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,12,16,0.6)', color: '#fff' }}
-                />
-                <button
-                  onClick={() => openConfirmModal('csv')}
-                  className="btn-primary"
-                  style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', flex: '0 0 auto' }}
-                  disabled={actionLoading || !canExportData}
-                >
-                  <Download size={14} /> 导出 CSV
-                </button>
-              </div>
-              {selectedMonth && (
-                <span className="dimmed-desc" style={{ fontSize: '11px', color: 'var(--accent-green)' }}>
-                  已选择按月份：{selectedMonth} 导出
-                </span>
-              )}
-            </PermissionGate>
-          </SettingsActionCard>
-
-          <SettingsActionCard
-            icon={<FileJson size={18} />}
-            title="JSON 全量数据包导出"
-            description="包含脱敏后的成员、分类、标签、交易分摊和结算记录，可用于迁移归档。"
-          >
-            <PermissionGate
-              allow={['owner', 'editor']}
-              fallback={<NoPermissionHint text="观察者不能导出账本数据。" />}
-            >
-              <button
-                onClick={() => openConfirmModal('json')}
-                className="btn-secondary"
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px' }}
+            <PermissionGate allow={['owner', 'editor']} fallback={<NoPermissionHint text="Viewer 不能导出账本数据。" />}>
+              <label className="settings-month-field">
+                <span>月份范围</span>
+                <input type="month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} />
+              </label>
+              <Button
+                variant="primary"
+                startIcon={<Download size={16} />}
+                onClick={() => setModalType('csv')}
                 disabled={actionLoading || !canExportData}
+                fullWidth
               >
-                <Download size={14} /> 导出全量 JSON 数据包
-              </button>
+                导出 CSV
+              </Button>
             </PermissionGate>
           </SettingsActionCard>
-        </SettingsSection>
-
-        <SettingsSection
-          title="备份与恢复"
-          description="SQLite 物理备份和恢复属于高风险操作，仅 Owner 显示入口。恢复前仍需要二次确认。"
-        >
           <SettingsActionCard
-            icon={<Database size={18} />}
-            title="SQLite 物理安全备份"
-            description="利用 SQLite 在线事务安全备份机制生成数据库镜像文件。"
-            badge="Owner"
-            danger
+            icon={<FileJson size={20} />}
+            title="全量 JSON 数据包"
+            description="包含当前角色可见数据的脱敏成员、元数据、交易分摊和结算记录。"
+            badge={<StatusChip tone="warning">敏感归档</StatusChip>}
           >
-            <PermissionGate
-              allow={['owner']}
-              fallback={<NoPermissionHint text="只有 Owner 可以创建、恢复或下载物理备份。" />}
-            >
-              <button
-                onClick={() => openConfirmModal('backup')}
-                className="btn-primary"
-                style={{ padding: '12px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', fontWeight: 600 }}
-                disabled={actionLoading || !canManageSafety}
+            <PermissionGate allow={['owner', 'editor']} fallback={<NoPermissionHint text="Viewer 不能导出账本数据。" />}>
+              <Button
+                variant="secondary"
+                startIcon={<Download size={16} />}
+                onClick={() => setModalType('json')}
+                disabled={actionLoading || !canExportData}
+                fullWidth
               >
-                <Database size={16} /> 立即创建手动安全备份
-              </button>
+                导出 JSON
+              </Button>
+            </PermissionGate>
+          </SettingsActionCard>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        id="safety"
+        eyebrow="05"
+        title="备份与恢复"
+        description="物理备份包含整个 SQLite 数据库。恢复入口只准备安全前置备份与人工操作指引，不会在线替换运行中的数据库。"
+      >
+        <div className="settings-card-grid">
+          <SettingsActionCard
+            icon={<Database size={20} />}
+            title="创建 SQLite 安全备份"
+            description="生成当前数据库的只读镜像并写入审计日志，不修改任何现有账单。"
+            badge={<StatusChip tone="danger">Owner 高风险</StatusChip>}
+            tone="danger"
+          >
+            <PermissionGate allow={['owner']} fallback={<NoPermissionHint text="只有 Owner 可以创建、下载或准备恢复物理备份。" />}>
+              <Button
+                variant="primary"
+                startIcon={<Database size={16} />}
+                onClick={() => setModalType('backup')}
+                disabled={actionLoading || !canManageSafety}
+                fullWidth
+              >
+                创建安全备份
+              </Button>
             </PermissionGate>
           </SettingsActionCard>
 
-          <PermissionGate
-            allow={['owner']}
-            fallback={null}
-          >
+          <PermissionGate allow={['owner']} fallback={null}>
             <SettingsActionCard
-              icon={<HardDrive size={18} />}
-              title="历史手动备份文件"
-              description="展示已生成的备份文件，可下载或发起恢复。恢复前系统会再次确认。"
-              danger
+              icon={<HardDrive size={20} />}
+              title="历史手动备份"
+              description="下载会产生完整数据库文件；准备恢复前会再次要求输入确认短语。"
+              tone="danger"
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                <strong style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>备份列表</strong>
-                <button
-                  onClick={fetchBackups}
-                  className="btn-close-drawer"
-                  style={{ padding: '6px' }}
+              <div className="settings-card__toolbar">
+                <strong>备份文件</strong>
+                <Button
+                  variant="ghost"
+                  iconOnly
+                  aria-label="刷新备份列表"
                   title="刷新备份列表"
+                  onClick={() => void fetchBackups()}
                   disabled={loadingBackups}
-                >
-                  <RefreshCw size={16} className={loadingBackups ? 'animate-spin' : ''} />
-                </button>
-              </div>
-
-              {loadingBackups && backups.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                  <RefreshCw size={18} className="animate-spin" style={{ margin: '0 auto 8px' }} />
-                  <span>扫描备份文件中...</span>
-                </div>
-              ) : backups.length === 0 ? (
-                <EmptyState
-                  title="暂无手动备份"
-                  description="系统暂未生成备份文件。建议在日常正式记账前，先创建一次手动备份以确保安全。"
+                  startIcon={<RefreshCw className={loadingBackups ? 'animate-spin' : ''} size={17} />}
                 />
+              </div>
+              {loadingBackups && backups.length === 0 ? (
+                <div className="settings-loading"><RefreshCw className="animate-spin" size={18} />扫描备份文件中</div>
+              ) : backups.length === 0 ? (
+                <EmptyState title="暂无手动备份" description="正式记账或版本升级前，建议先创建一份安全备份。" />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '260px', overflowY: 'auto', paddingRight: '4px' }}>
-                  {backups.map((b) => (
-                    <div key={b.filename} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '10px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left', minWidth: 0 }}>
-                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
-                          {b.filename.replace('manual/', '')}
-                        </span>
-                        <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            <HardDrive size={12} /> {formatBytes(b.size_bytes)}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            <Clock size={12} /> {formatDate(b.created_at)}
-                          </span>
-                        </div>
+                <div className="settings-backup-list">
+                  {backups.map((backup) => (
+                    <article key={backup.filename} className="settings-backup-item">
+                      <div>
+                        <strong>{backup.filename.replace('manual/', '')}</strong>
+                        <span>{formatBytes(backup.size_bytes)} · {formatDate(backup.created_at)}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={() => setSelectedBackup(b)}
-                          className="btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, color: 'var(--accent-danger)' }}
+                      <div className="settings-backup-item__actions">
+                        <Button variant="danger" onClick={() => setSelectedBackup(backup)} disabled={actionLoading} startIcon={<RotateCcw size={14} />}>
+                          准备恢复
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => void triggerDownload(`/api/admin/backups/${encodeURIComponent(backup.filename)}`, backup.filename.split('/').pop() || 'backup.db')}
                           disabled={actionLoading}
+                          startIcon={<Download size={14} />}
                         >
-                          <RotateCcw size={12} /> 恢复
-                        </button>
-                        <button
-                          onClick={() => triggerDownload(`/api/admin/backups/${encodeURIComponent(b.filename)}`, b.filename.split('/').pop() || 'backup.db')}
-                          className="btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
-                          disabled={actionLoading}
-                        >
-                          <Download size={12} /> 下载
-                        </button>
+                          下载
+                        </Button>
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
               )}
             </SettingsActionCard>
           </PermissionGate>
-        </SettingsSection>
+        </div>
+      </SettingsSection>
 
-        <SettingsSection
-          title="系统诊断"
-          description="用于定位配置、数据库、备份目录、上传目录和运行环境问题。仅 Owner 可查看脱敏诊断结果。"
+      <SettingsSection
+        id="diagnostics"
+        eyebrow="06"
+        title="系统诊断"
+        description="只展示脱敏运行状态，不展示密码、Cookie、密钥、DSN 或服务器绝对路径。"
+      >
+        <SettingsActionCard
+          icon={<Activity size={20} />}
+          title="运行与存储诊断"
+          description="检查环境、schema、Cookie 策略、数据库和目录可写性。"
+          badge={<StatusChip>Owner</StatusChip>}
+          wide
         >
-          <SettingsActionCard
-            icon={<Activity size={18} />}
-            title="诊断面板"
-            description="展示运行环境、数据库 schema、目录可写性、Cookie 策略和最近备份，不展示 secret、DSN 或绝对路径。"
-            badge="Owner"
-          >
-            <PermissionGate
-              allow={['owner']}
-              fallback={<NoPermissionHint text="只有 Owner 可以查看系统诊断。" />}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button
-                  onClick={() => refetchDiagnostics()}
-                  className="btn-close-drawer"
-                  style={{ alignSelf: 'flex-end', padding: '6px' }}
-                  title="刷新诊断"
-                  disabled={fetchingDiagnostics}
-                >
-                  <RefreshCw size={16} className={fetchingDiagnostics ? 'animate-spin' : ''} />
-                </button>
-
-                {loadingDiagnostics ? (
-                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
-                    <RefreshCw size={18} className="animate-spin" style={{ margin: '0 auto 8px' }} />
-                    <span>加载诊断信息中...</span>
-                  </div>
-                ) : isDiagnosticsError ? (
-                  <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: '8px', padding: '10px 12px', color: '#fca5a5', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertTriangle size={14} />
-                    <span>{diagnosticsErrorText}</span>
-                  </div>
-                ) : diagnostics ? (
-                  <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
-                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
-                        <span className="dimmed-desc" style={{ fontSize: '11px' }}>运行环境</span>
-                        <strong style={{ display: 'block', fontSize: '13px', marginTop: '3px' }}>
-                          {getDeploymentChannelMeta(diagnostics.deployment_channel).label} · {diagnostics.env}
-                        </strong>
-                      </div>
-                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
-                        <span className="dimmed-desc" style={{ fontSize: '11px' }}>Cookie 策略</span>
-                        <strong style={{ display: 'block', fontSize: '13px', marginTop: '3px' }}>
-                          Secure {diagnostics.cookie_secure} · {diagnostics.cookie_samesite}
-                        </strong>
-                      </div>
-                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
-                        <span className="dimmed-desc" style={{ fontSize: '11px' }}>外部访问地址</span>
-                        <strong style={{ display: 'block', fontSize: '13px', marginTop: '3px' }}>
-                          {diagnostics.app_base_url_set ? '已配置' : '未配置'}
-                        </strong>
-                      </div>
-                    </div>
-
-                    <div>
-                      <DiagnosticLine item={diagnostics.database} />
-                      {diagnostics.storage.map((item) => (
-                        <DiagnosticLine key={item.key} item={item} />
-                      ))}
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <CheckCircle2 size={14} style={{ color: 'var(--accent-green)' }} />
-                        最近备份：{diagnostics.latest_backup ? `${diagnostics.latest_backup.filename.replace('manual/', '')} · ${formatBytes(diagnostics.latest_backup.size_bytes)}` : '暂无'}
-                      </span>
-                      <span className="dimmed-desc">生成时间：{formatDate(diagnostics.generated_at)}</span>
-                    </div>
-                  </>
-                ) : null}
+          <PermissionGate allow={['owner']} fallback={<NoPermissionHint text="只有 Owner 可以查看系统诊断。" />}>
+            <div className="settings-card__toolbar settings-card__toolbar--end">
+              <Button
+                variant="ghost"
+                iconOnly
+                aria-label="刷新系统诊断"
+                title="刷新系统诊断"
+                onClick={() => void refetchDiagnostics()}
+                disabled={fetchingDiagnostics}
+                startIcon={<RefreshCw className={fetchingDiagnostics ? 'animate-spin' : ''} size={17} />}
+              />
+            </div>
+            {loadingDiagnostics ? (
+              <div className="settings-loading"><RefreshCw className="animate-spin" size={18} />加载诊断信息中</div>
+            ) : isDiagnosticsError ? (
+              <div className="settings-permission-hint settings-permission-hint--error">
+                <AlertTriangle size={16} />
+                <span>{diagnosticsErrorText}</span>
               </div>
-            </PermissionGate>
-          </SettingsActionCard>
-        </SettingsSection>
-      </div>
+            ) : diagnostics ? (
+              <div className="settings-diagnostics">
+                <dl className="settings-diagnostics__summary">
+                  <div><dt>运行环境</dt><dd>{getDeploymentChannelMeta(diagnostics.deployment_channel).label} · {diagnostics.env}</dd></div>
+                  <div><dt>Cookie 策略</dt><dd>Secure {diagnostics.cookie_secure} · {diagnostics.cookie_samesite}</dd></div>
+                  <div><dt>外部访问地址</dt><dd>{diagnostics.app_base_url_set ? '已配置' : '未配置'}</dd></div>
+                </dl>
+                <div className="settings-diagnostics__lines">
+                  <DiagnosticLine item={diagnostics.database} />
+                  {diagnostics.storage.map((item) => <DiagnosticLine key={item.key} item={item} />)}
+                </div>
+                <div className="settings-diagnostics__footer">
+                  <span><CheckCircle2 size={15} />最近备份：{diagnostics.latest_backup ? `${diagnostics.latest_backup.filename.replace('manual/', '')} · ${formatBytes(diagnostics.latest_backup.size_bytes)}` : '暂无'}</span>
+                  <span>诊断生成时间：{formatDate(diagnostics.generated_at)}</span>
+                </div>
+              </div>
+            ) : null}
+          </PermissionGate>
+        </SettingsActionCard>
+      </SettingsSection>
 
-      {/* 恢复备份确认弹窗 */}
-      {selectedBackup && (
+      {selectedBackup ? (
         <RestoreBackupModal
           backup={selectedBackup}
           onClose={() => setSelectedBackup(null)}
@@ -690,81 +610,19 @@ export default function SettingsPage() {
             setSelectedBackup(null);
           }}
         />
-      )}
+      ) : null}
 
-      {/* ==========================================
-         UI 安全防范二次确认弹窗 Modal (Danger 警示样式按钮)
-         ========================================== */}
-      {modalType && (
-        <div className="drawer-overlay show" style={{ alignItems: 'center', justifyContent: 'center' }}>
-          <div className="confirm-modal-box animate-fade-in">
-            <div className="drawer-header" style={{ padding: '16px 20px' }}>
-              <div className="header-title" style={{ color: '#ef4444' }}>
-                <AlertTriangle className="title-icon" style={{ color: 'inherit' }} />
-                <h3 style={{ fontSize: '16px' }}>
-                  {modalType === 'backup' && '立即创建手动备份？'}
-                  {modalType === 'csv' && '确认导出交易流水 CSV？'}
-                  {modalType === 'json' && '确认导出 JSON 数据包？'}
-                </h3>
-              </div>
-              <button className="btn-close-drawer" onClick={() => setModalType(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal-body-padding" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <p className="modal-alert-text">
-                {modalType === 'backup' && '系统将基于当前真实的 SQLite 数据库，生成一个只读备份文件并存放在 NAS manual 目录下。该文件包含完整的物理账目，请确保 NAS 硬盘容量充足。'}
-                {modalType === 'csv' && `即将导出 ${selectedMonth ? selectedMonth + ' 月份的' : '全量'} 账单流水文件。导出的 CSV 文件包含明文账目信息，为了您的信息安全，请妥善保管所下载的明文表格。`}
-                {modalType === 'json' && '即将导出全量 JSON 账目归档。导出的 JSON 数据包中已经去除了所有用户的登录密码 Hash 等系统敏感密钥凭证。该文件包含核心财务流水，切勿随意发送给外部他人。'}
-              </p>
-
-              <div style={{ background: 'rgba(239, 68, 68, 0.04)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#fca5a5', textAlign: 'left' }}>
-                <AlertTriangle size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
-                <span>此操作作为高风险数据变动动作，将被自动记录并同步写入系统的 `audit_logs` 审计表中以备历史追溯。</span>
-              </div>
-
-              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                <button className="btn-secondary mobile-full" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={() => setModalType(null)}>
-                  取消
-                </button>
-                {modalType === 'backup' && (
-                  <button className="btn-danger mobile-full" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={handleBackupSubmit}>
-                    立即备份
-                  </button>
-                )}
-                {modalType === 'csv' && (
-                  <button
-                    className="btn-danger mobile-full"
-                    style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
-                    onClick={() => {
-                      setModalType(null);
-                      triggerDownload(
-                        `/api/export/transactions.csv${selectedMonth ? '?month=' + selectedMonth : ''}`,
-                        `transactions${selectedMonth ? '_' + selectedMonth : ''}.csv`
-                      );
-                    }}
-                  >
-                    下载 CSV 账单
-                  </button>
-                )}
-                {modalType === 'json' && (
-                  <button
-                    className="btn-danger mobile-full"
-                    style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }}
-                    onClick={() => {
-                      setModalType(null);
-                      triggerDownload('/api/export/full.json', 'ledger_full_export.json');
-                    }}
-                  >
-                    下载 JSON 归档
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <ConfirmDialog
+        open={modalType !== null}
+        title={confirmation?.title || ''}
+        description={confirmation?.description || ''}
+        confirmLabel={confirmation?.confirmLabel || '确认'}
+        tone={modalType === 'backup' ? 'primary' : 'danger'}
+        icon={modalType === 'backup' ? <Database /> : <AlertTriangle />}
+        isConfirming={actionLoading}
+        onClose={() => setModalType(null)}
+        onConfirm={executeConfirmedAction}
+      />
+    </main>
   );
 }

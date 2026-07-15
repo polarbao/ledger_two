@@ -1,0 +1,91 @@
+.restore-backup {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lt-space-4);
+}
+
+.restore-backup__file {
+  margin: 0;
+  padding: var(--lt-space-3);
+  border: 1px solid var(--lt-border-subtle);
+  border-radius: var(--lt-radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lt-space-2);
+  background: var(--lt-bg-control);
+}
+
+.restore-backup__file > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: var(--lt-space-2);
+}
+
+.restore-backup__file dt {
+  color: var(--lt-text-muted);
+}
+
+.restore-backup__file dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--lt-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.restore-backup__warning {
+  padding: var(--lt-space-3);
+  border: 1px solid var(--lt-status-danger-border);
+  border-radius: var(--lt-radius-control);
+  background: var(--lt-status-danger-bg);
+  color: var(--lt-status-danger-text);
+}
+
+.restore-backup__warning p {
+  margin: var(--lt-space-1) 0 0;
+  font-size: var(--lt-font-size-body-sm);
+  line-height: var(--lt-line-height-normal);
+}
+
+.restore-backup__error {
+  color: var(--lt-status-danger-text);
+  font-size: var(--lt-font-size-body-sm);
+  text-align: center;
+}
+
+.restore-backup__confirm-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lt-space-2);
+  color: var(--lt-text-secondary);
+  font-size: var(--lt-font-size-body-sm);
+}
+
+.restore-backup__confirm-field strong {
+  color: var(--lt-status-danger-text);
+}
+
+.restore-backup__confirm-field input {
+  width: 100%;
+  min-height: var(--lt-control-height);
+  padding: 9px 12px;
+  border: 1px solid var(--lt-border-strong);
+  border-radius: var(--lt-radius-control);
+  background: var(--lt-bg-control);
+  color: var(--lt-text-primary);
+  font: 500 var(--lt-font-size-body) / var(--lt-line-height-normal) var(--lt-font-sans);
+}
+
+.restore-backup__confirm-field input:focus-visible {
+  outline: none;
+  border-color: var(--lt-danger);
+  box-shadow: 0 0 0 3px var(--lt-status-danger-border);
+}
+
+@media (max-width: 430px) {
+  .restore-backup__file > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

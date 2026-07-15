@@ -1,15 +1,32 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowLeft, ArrowUp, Archive, RotateCcw, Save, Search, Tags, X } from 'lucide-react';
+import {
+  Archive,
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  FolderTree,
+  Pencil,
+  RotateCcw,
+  Save,
+  Search,
+  Tag,
+  WalletCards,
+  X,
+} from 'lucide-react';
+import { ApiError } from '../api/client';
 import { metadataApi } from '../api/metadata.api';
 import { queryKeys } from '../api/queryKeys';
+import Button from '../components/ui/Button';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import PageState from '../components/ui/PageState';
+import SegmentedControl from '../components/ui/SegmentedControl';
+import StatusChip from '../components/ui/StatusChip';
+import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
 import { useLedgerStore } from '../stores/ledger.store';
 import type { MetadataItem, MetadataKind, MetadataUpsertPayload } from '../types/metadata';
-import PageState from '../components/ui/PageState';
-import PermissionGate from '../components/ledger/PermissionGate';
-import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
-import { ApiError } from '../api/client';
+import './MetadataManagePage.css';
 
 interface KindConfig {
   title: string;
@@ -20,11 +37,13 @@ interface KindConfig {
   typeOptions?: Array<{ label: string; value: string }>;
 }
 
+type StatusFilter = 'all' | 'active' | 'archived';
+
 const KIND_CONFIG: Record<MetadataKind, KindConfig> = {
   categories: {
     title: '分类管理',
     singular: '分类',
-    description: '维护支出和收入分类。已归档分类不会出现在新增账单默认选择器中，历史账单仍保留展示。',
+    description: '维护支出和收入分类。归档项不再进入新账单选择器，历史账单仍保留原名称。',
     namePlaceholder: '例如：餐饮、交通、工资',
     typeLabel: '分类类型',
     typeOptions: [
@@ -41,7 +60,7 @@ const KIND_CONFIG: Record<MetadataKind, KindConfig> = {
   accounts: {
     title: '支付账户管理',
     singular: '支付账户',
-    description: '维护现金、银行卡、支付宝、微信等支付来源，服务导入和快捷记账。',
+    description: '维护现金、银行卡、支付宝、微信等支付来源，不进行余额校准。',
     namePlaceholder: '例如：招商银行卡、支付宝、现金',
     typeLabel: '账户类型',
     typeOptions: [
@@ -54,21 +73,24 @@ const KIND_CONFIG: Record<MetadataKind, KindConfig> = {
   },
 };
 
+const typeLabels: Record<string, string> = {
+  expense: '支出',
+  income: '收入',
+  cash: '现金',
+  bank: '银行卡',
+  alipay: '支付宝',
+  wechat: '微信',
+  other: '其他',
+};
+
 function parseKind(value: string | undefined): MetadataKind | null {
-  if (value === 'categories' || value === 'tags' || value === 'accounts') {
-    return value;
-  }
-  return null;
+  return value === 'categories' || value === 'tags' || value === 'accounts' ? value : null;
 }
 
 function defaultForm(kind: MetadataKind) {
-  if (kind === 'categories') {
-    return { name: '', type: 'expense', icon: '', color: '' };
-  }
-  if (kind === 'accounts') {
-    return { name: '', type: 'cash', icon: '', color: '' };
-  }
-  return { name: '', type: '', icon: '', color: '' };
+  if (kind === 'categories') return { name: '', type: 'expense', icon: '', color: '#10b981' };
+  if (kind === 'accounts') return { name: '', type: 'cash', icon: '', color: '#10b981' };
+  return { name: '', type: '', icon: '', color: '#10b981' };
 }
 
 function metadataMatchesSearch(item: MetadataItem, keyword: string) {
@@ -78,13 +100,19 @@ function metadataMatchesSearch(item: MetadataItem, keyword: string) {
     .some((value) => value!.toLowerCase().includes(keyword));
 }
 
+function validColor(value: string | undefined) {
+  return value && /^#[0-9a-f]{6}$/i.test(value) ? value : '#10b981';
+}
+
+function kindIcon(kind: MetadataKind) {
+  if (kind === 'categories') return <FolderTree />;
+  if (kind === 'accounts') return <WalletCards />;
+  return <Tag />;
+}
+
 export default function MetadataManagePage() {
-  const params = useParams();
-  const kind = parseKind(params.kind);
-  if (!kind) {
-    return <Navigate to="/settings" replace />;
-  }
-  return <MetadataManageContent key={kind} kind={kind} />;
+  const kind = parseKind(useParams().kind);
+  return kind ? <MetadataManageContent key={kind} kind={kind} /> : <Navigate to="/settings" replace />;
 }
 
 function MetadataManageContent({ kind }: { kind: MetadataKind }) {
@@ -92,29 +120,29 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
   const canManage = useHasLedgerRole(['owner']);
   const queryClient = useQueryClient();
   const [editingItem, setEditingItem] = useState<MetadataItem | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<MetadataItem | null>(null);
   const [form, setForm] = useState(defaultForm(kind));
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
-
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const config = KIND_CONFIG[kind];
 
-  const { data: items = [], isLoading, isError, refetch } = useQuery({
+  const itemsQuery = useQuery({
     queryKey: queryKeys.metadata.list(activeLedgerId, kind),
     queryFn: () => metadataApi.list(kind, true),
   });
-
+  const items = useMemo(() => itemsQuery.data || [], [itemsQuery.data]);
   const activeItems = useMemo(() => items.filter((item) => !item.is_archived), [items]);
   const archivedItems = useMemo(() => items.filter((item) => item.is_archived), [items]);
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const visibleActiveItems = useMemo(
     () => statusFilter === 'archived' ? [] : activeItems.filter((item) => metadataMatchesSearch(item, normalizedSearchTerm)),
-    [activeItems, normalizedSearchTerm, statusFilter]
+    [activeItems, normalizedSearchTerm, statusFilter],
   );
   const visibleArchivedItems = useMemo(
     () => statusFilter === 'active' ? [] : archivedItems.filter((item) => metadataMatchesSearch(item, normalizedSearchTerm)),
-    [archivedItems, normalizedSearchTerm, statusFilter]
+    [archivedItems, normalizedSearchTerm, statusFilter],
   );
 
   const resetForm = () => {
@@ -123,45 +151,40 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
   };
 
   const invalidateMetadata = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.metadata.list(activeLedgerId, kind) });
-    if (kind === 'categories') {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories(activeLedgerId) });
-    }
-    if (kind === 'accounts') {
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts(activeLedgerId) });
-    }
+    void queryClient.invalidateQueries({ queryKey: queryKeys.metadata.list(activeLedgerId, kind) });
+    if (kind === 'categories') void queryClient.invalidateQueries({ queryKey: queryKeys.categories(activeLedgerId) });
+    if (kind === 'accounts') void queryClient.invalidateQueries({ queryKey: queryKeys.accounts(activeLedgerId) });
   };
 
   const submitMutation = useMutation({
-    mutationFn: async (payload: MetadataUpsertPayload): Promise<unknown> => {
-      if (editingItem) {
-        return metadataApi.update(kind, editingItem.id, payload);
-      }
-      return metadataApi.create(kind, payload);
-    },
+    mutationFn: (payload: MetadataUpsertPayload): Promise<unknown> => editingItem
+      ? metadataApi.update(kind, editingItem.id, payload)
+      : metadataApi.create(kind, payload),
     onSuccess: () => {
       setSuccessMsg(editingItem ? `${config.singular}已更新` : `${config.singular}已新增`);
       setErrorMsg(null);
       resetForm();
       invalidateMetadata();
     },
-    onError: (err: unknown) => {
+    onError: (error: unknown) => {
       setSuccessMsg(null);
-      setErrorMsg(err instanceof ApiError ? err.message : '保存失败，请稍后重试');
+      setErrorMsg(error instanceof ApiError ? error.message : '保存失败，请稍后重试');
     },
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (item: MetadataItem) =>
-      item.is_archived ? metadataApi.restore(kind, item.id) : metadataApi.archive(kind, item.id),
+    mutationFn: (item: MetadataItem) => item.is_archived
+      ? metadataApi.restore(kind, item.id)
+      : metadataApi.archive(kind, item.id),
     onSuccess: (_, item) => {
+      setArchiveTarget(null);
       setSuccessMsg(item.is_archived ? `${config.singular}已恢复` : `${config.singular}已归档`);
       setErrorMsg(null);
       invalidateMetadata();
     },
-    onError: (err: unknown) => {
+    onError: (error: unknown) => {
       setSuccessMsg(null);
-      setErrorMsg(err instanceof ApiError ? err.message : '状态更新失败，请稍后重试');
+      setErrorMsg(error instanceof ApiError ? error.message : '状态更新失败，请稍后重试');
     },
   });
 
@@ -172,9 +195,9 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
       setErrorMsg(null);
       invalidateMetadata();
     },
-    onError: (err: unknown) => {
+    onError: (error: unknown) => {
       setSuccessMsg(null);
-      setErrorMsg(err instanceof ApiError ? err.message : '排序更新失败，请稍后重试');
+      setErrorMsg(error instanceof ApiError ? error.message : '排序更新失败，请稍后重试');
     },
   });
 
@@ -184,7 +207,7 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
       name: item.name,
       type: item.type || defaultForm(kind).type,
       icon: item.icon || '',
-      color: item.color || '',
+      color: validColor(item.color),
     });
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -192,310 +215,264 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    const payload: MetadataUpsertPayload = {
+    submitMutation.mutate({
       name: form.name.trim(),
       type: form.type,
       icon: form.icon.trim(),
       color: form.color.trim(),
-    };
-    submitMutation.mutate(payload);
-  };
-
-  const handleArchiveToggle = (item: MetadataItem) => {
-    const action = item.is_archived ? '恢复' : '归档';
-    const usageCount = item.usage_count || 0;
-    const usageHint = item.is_archived
-      ? `恢复后，「${item.name}」会重新出现在新建账单选择器中。`
-      : usageCount > 0
-        ? `该${config.singular}已被 ${usageCount} 笔历史账单使用。归档后不会出现在新建账单选择器中，但历史账单仍会显示原名称。`
-        : `该${config.singular}尚未被历史账单使用。归档后不会出现在新建账单选择器中。`;
-    if (!window.confirm(`确认${action}「${item.name}」吗？\n\n${usageHint}`)) {
-      return;
-    }
-    archiveMutation.mutate(item);
+    });
   };
 
   const moveItem = (item: MetadataItem, direction: -1 | 1) => {
-    const index = activeItems.findIndex((activeItem) => activeItem.id === item.id);
+    const index = activeItems.findIndex((candidate) => candidate.id === item.id);
     const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= activeItems.length) {
-      return;
-    }
+    if (nextIndex < 0 || nextIndex >= activeItems.length) return;
     const nextItems = [...activeItems];
     const [current] = nextItems.splice(index, 1);
     nextItems.splice(nextIndex, 0, current);
-    reorderMutation.mutate(nextItems.map((item) => item.id));
+    reorderMutation.mutate(nextItems.map((candidate) => candidate.id));
   };
 
-  const renderItem = (item: MetadataItem, displayIndex: number, sortable: boolean) => {
-    const orderIndex = item.is_archived ? displayIndex : activeItems.findIndex((activeItem) => activeItem.id === item.id);
+  const renderItem = (item: MetadataItem) => {
+    const orderIndex = item.is_archived ? -1 : activeItems.findIndex((candidate) => candidate.id === item.id);
     return (
-    <div key={item.id} className="metadata-item-card">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: '14px' }}>{item.name}</strong>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '999px', padding: '1px 8px' }}>
-            #{orderIndex + 1}
-          </span>
-          {item.type && (
-            <span style={{ fontSize: '11px', color: '#c084fc', border: '1px solid rgba(168,85,247,0.18)', borderRadius: '999px', padding: '1px 8px' }}>
-              {item.type}
-            </span>
-          )}
-          {item.is_archived && (
-            <span style={{ fontSize: '11px', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.18)', borderRadius: '999px', padding: '1px 8px' }}>
-              已归档
-            </span>
-          )}
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '999px', padding: '1px 8px' }}>
-            引用 {item.usage_count || 0} 笔
-          </span>
+      <article key={item.id} className={`metadata-item${item.is_archived ? ' metadata-item--archived' : ''}`}>
+        <div className="metadata-item__identity">
+          <input
+            className="metadata-color-swatch"
+            type="color"
+            value={validColor(item.color)}
+            aria-label={`${item.name} 的颜色 ${item.color || '未设置'}`}
+            disabled
+          />
+          <div>
+            <div className="metadata-item__title-row">
+              <strong>{item.name}</strong>
+              {!item.is_archived ? <StatusChip>排序 {orderIndex + 1}</StatusChip> : null}
+              {item.type ? <StatusChip tone="info">{typeLabels[item.type] || item.type}</StatusChip> : null}
+              {item.is_archived ? <StatusChip tone="warning">已归档</StatusChip> : null}
+            </div>
+            <span>{item.icon ? `图标 ${item.icon} · ` : ''}历史引用 {item.usage_count || 0} 笔</span>
+          </div>
         </div>
-        {(item.icon || item.color) && (
-          <span className="dimmed-desc" style={{ fontSize: '12px' }}>
-            图标：{item.icon || '-'} / 颜色：{item.color || '-'}
-          </span>
-        )}
-      </div>
-      <PermissionGate allow={['owner']}>
-        <div className="metadata-item-actions">
-          {sortable && (
-            <>
-              <button
-                className="btn-secondary metadata-order-button"
-                style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center' }}
-                onClick={() => moveItem(item, -1)}
-                disabled={orderIndex <= 0 || reorderMutation.isPending}
-                title="上移"
-              >
-                <ArrowUp size={13} />
-              </button>
-              <button
-                className="btn-secondary metadata-order-button"
-                style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center' }}
-                onClick={() => moveItem(item, 1)}
-                disabled={orderIndex === activeItems.length - 1 || reorderMutation.isPending}
-                title="下移"
-              >
-                <ArrowDown size={13} />
-              </button>
-            </>
-          )}
-          {!item.is_archived && (
-            <button className="btn-secondary metadata-text-action" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }} onClick={() => handleEdit(item)}>
-              编辑
-            </button>
-          )}
-          <button
-            className="btn-secondary metadata-text-action"
-            style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', color: item.is_archived ? 'var(--accent-green)' : '#fca5a5' }}
-            onClick={() => handleArchiveToggle(item)}
-            disabled={archiveMutation.isPending}
-          >
-            {item.is_archived ? <RotateCcw size={13} /> : <Archive size={13} />}
-            <span style={{ marginLeft: '4px' }}>{item.is_archived ? '恢复' : '归档'}</span>
-          </button>
-        </div>
-      </PermissionGate>
-    </div>
+
+        {canManage ? (
+          <div className="metadata-item__actions">
+            {!item.is_archived && activeItems.length > 1 ? (
+              <div className="metadata-item__order-actions">
+                <Button
+                  variant="ghost"
+                  iconOnly
+                  aria-label={`上移 ${item.name}`}
+                  title="上移"
+                  startIcon={<ArrowUp size={15} />}
+                  onClick={() => moveItem(item, -1)}
+                  disabled={orderIndex <= 0 || reorderMutation.isPending}
+                />
+                <Button
+                  variant="ghost"
+                  iconOnly
+                  aria-label={`下移 ${item.name}`}
+                  title="下移"
+                  startIcon={<ArrowDown size={15} />}
+                  onClick={() => moveItem(item, 1)}
+                  disabled={orderIndex === activeItems.length - 1 || reorderMutation.isPending}
+                />
+              </div>
+            ) : null}
+            {!item.is_archived ? (
+              <Button variant="secondary" startIcon={<Pencil size={14} />} onClick={() => handleEdit(item)}>编辑</Button>
+            ) : null}
+            <Button
+              variant={item.is_archived ? 'secondary' : 'danger'}
+              startIcon={item.is_archived ? <RotateCcw size={14} /> : <Archive size={14} />}
+              onClick={() => setArchiveTarget(item)}
+              disabled={archiveMutation.isPending}
+            >
+              {item.is_archived ? '恢复' : '归档'}
+            </Button>
+          </div>
+        ) : null}
+      </article>
     );
   };
 
+  const archiveUsage = archiveTarget?.usage_count || 0;
+  const archiveDescription = archiveTarget?.is_archived
+    ? `恢复后，「${archiveTarget.name}」会重新进入新建账单选择器。历史账单不会改变。`
+    : archiveTarget
+      ? `归档后，「${archiveTarget.name}」不会再进入新建账单选择器，但 ${archiveUsage} 笔历史引用仍保留原名称。`
+      : '';
+
   return (
-    <div className="page-content animate-fade-in text-left">
-      <div className="glass-card header-banner" style={{ justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Tags className="banner-icon" />
+    <main className="metadata-page">
+      <header className="metadata-page__header">
+        <div className="metadata-page__title">
+          <span className="metadata-page__icon" aria-hidden="true">{kindIcon(kind)}</span>
           <div>
-            <h2>{config.title}</h2>
+            <span className="metadata-page__eyebrow">设置 / 元数据</span>
+            <h1>{config.title}</h1>
             <p>{config.description}</p>
           </div>
         </div>
-        <Link to="/settings" className="btn-secondary mobile-full" style={{ textDecoration: 'none', padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-          <ArrowLeft size={14} /> 返回设置
-        </Link>
+        <Link to="/settings" className="ui-button ui-button--secondary"><ArrowLeft size={16} />返回设置</Link>
+      </header>
+
+      <div className="metadata-page__messages" aria-live="polite">
+        {errorMsg ? <div className="metadata-message metadata-message--error">{errorMsg}</div> : null}
+        {successMsg ? <div className="metadata-message metadata-message--success">{successMsg}</div> : null}
       </div>
 
-      {errorMsg && (
-        <div className="error-banner animate-fade-in" style={{ margin: '0 0 16px 0', borderRadius: '12px' }}>
-          {errorMsg}
-        </div>
-      )}
-      {successMsg && (
-        <div className="glass-card text-green animate-fade-in" style={{ padding: '12px 20px', margin: '0 0 16px 0', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      <div className="form-row-2">
-        <PermissionGate
-          allow={['owner']}
-          fallback={(
-            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <strong>只读模式</strong>
-              <p className="dimmed-desc" style={{ margin: 0 }}>
-                只有 Owner 可以新增、编辑、归档或恢复{config.singular}。当前角色可以查看列表。
-              </p>
-            </div>
-          )}
-        >
-          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-              <strong>{editingItem ? `编辑${config.singular}` : `新增${config.singular}`}</strong>
-              {editingItem && (
-                <button className="btn-close-drawer" onClick={resetForm} title="取消编辑">
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>{config.singular}名称</label>
-                <input
-                  className="form-input"
-                  value={form.name}
-                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                  placeholder={config.namePlaceholder}
-                  maxLength={40}
-                  required
-                />
-              </div>
-              {config.typeOptions && (
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>{config.typeLabel}</label>
-                  <select
-                    className="form-select"
-                    value={form.type}
-                    onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value }))}
-                  >
-                    {config.typeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div className="form-row-2" style={{ gap: '10px' }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>图标</label>
+      <div className="metadata-page__layout">
+        <aside className="metadata-editor">
+          {canManage ? (
+            <>
+              <header className="metadata-panel-heading">
+                <div><h2>{editingItem ? `编辑${config.singular}` : `新增${config.singular}`}</h2><p>同一账本内名称不可重复。</p></div>
+                {editingItem ? (
+                  <Button variant="ghost" iconOnly aria-label="取消编辑" title="取消编辑" startIcon={<X size={17} />} onClick={resetForm} />
+                ) : null}
+              </header>
+              <form onSubmit={handleSubmit}>
+                <label>
+                  <span>{config.singular}名称</span>
                   <input
-                    className="form-input"
+                    value={form.name}
+                    onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))}
+                    placeholder={config.namePlaceholder}
+                    maxLength={40}
+                    required
+                  />
+                </label>
+                {config.typeOptions ? (
+                  <label>
+                    <span>{config.typeLabel}</span>
+                    <select value={form.type} onChange={(event) => setForm((previous) => ({ ...previous, type: event.target.value }))}>
+                      {config.typeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                ) : null}
+                <label>
+                  <span>图标文字（可选）</span>
+                  <input
                     value={form.icon}
-                    onChange={(event) => setForm((prev) => ({ ...prev, icon: event.target.value }))}
-                    placeholder="可选"
+                    onChange={(event) => setForm((previous) => ({ ...previous, icon: event.target.value }))}
+                    placeholder="例如：餐、行、卡"
                     maxLength={20}
                   />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>颜色</label>
-                  <input
-                    className="form-input"
-                    value={form.color}
-                    onChange={(event) => setForm((prev) => ({ ...prev, color: event.target.value }))}
-                    placeholder="#a855f7"
-                    maxLength={24}
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                className="btn-primary"
-                style={{ padding: '10px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                disabled={submitMutation.isPending || !form.name.trim() || !canManage}
-              >
-                <Save size={15} />
-                {submitMutation.isPending ? '保存中...' : editingItem ? '保存修改' : `新增${config.singular}`}
-              </button>
-            </form>
-          </div>
-        </PermissionGate>
-
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-            <div>
-              <strong>当前{config.singular}</strong>
-              <p className="dimmed-desc" style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
-                活跃 {activeItems.length} 个，已归档 {archivedItems.length} 个。
-              </p>
-            </div>
-            <button className="btn-close-drawer" onClick={() => refetch()} title="刷新列表">
-              <RotateCcw size={16} />
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div className="input-wrapper">
-              <Search className="input-icon" />
-              <input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder={`搜索${config.singular}`}
-                maxLength={40}
-              />
-              {searchTerm && (
-                <button
-                  className="btn-close-drawer"
-                  onClick={() => setSearchTerm('')}
-                  title="清空搜索"
-                  style={{ position: 'absolute', right: '10px' }}
+                </label>
+                <label>
+                  <span>识别颜色</span>
+                  <div className="metadata-color-field">
+                    <input
+                      type="color"
+                      value={validColor(form.color)}
+                      onChange={(event) => setForm((previous) => ({ ...previous, color: event.target.value }))}
+                      aria-label="选择颜色"
+                    />
+                    <input
+                      value={form.color}
+                      onChange={(event) => setForm((previous) => ({ ...previous, color: event.target.value }))}
+                      placeholder="#10b981"
+                      maxLength={7}
+                      pattern="#[0-9a-fA-F]{6}"
+                    />
+                  </div>
+                </label>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  fullWidth
+                  isLoading={submitMutation.isPending}
+                  disabled={!form.name.trim()}
+                  startIcon={<Save size={16} />}
                 >
-                  <X size={14} />
-                </button>
-              )}
+                  {editingItem ? '保存修改' : `新增${config.singular}`}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <div className="metadata-readonly">
+              <StatusChip tone="neutral">只读模式</StatusChip>
+              <h2>当前角色仅可查看</h2>
+              <p>只有 Owner 可以新增、编辑、排序、归档或恢复{config.singular}，后端会拒绝越权写入。</p>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
-              {[
-                { label: '全部', value: 'all' as const },
-                { label: '活跃', value: 'active' as const },
-                { label: '归档', value: 'archived' as const },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  className="btn-secondary"
-                  onClick={() => setStatusFilter(option.value)}
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: statusFilter === option.value ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    borderColor: statusFilter === option.value ? 'rgba(168,85,247,0.36)' : 'rgba(255,255,255,0.08)',
-                  }}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+          )}
+        </aside>
+
+        <section className="metadata-list-panel">
+          <header className="metadata-panel-heading metadata-panel-heading--list">
+            <div><h2>当前{config.singular}</h2><p>活跃 {activeItems.length} 个，已归档 {archivedItems.length} 个。</p></div>
+            <Button
+              variant="ghost"
+              iconOnly
+              aria-label="刷新列表"
+              title="刷新列表"
+              startIcon={<RotateCcw size={17} />}
+              onClick={() => void itemsQuery.refetch()}
+              disabled={itemsQuery.isFetching}
+            />
+          </header>
+
+          <div className="metadata-toolbar">
+            <label className="metadata-search">
+              <Search size={17} aria-hidden="true" />
+              <span className="sr-only">搜索{config.singular}</span>
+              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder={`搜索${config.singular}`} maxLength={40} />
+              {searchTerm ? (
+                <Button variant="ghost" iconOnly aria-label="清空搜索" title="清空搜索" startIcon={<X size={15} />} onClick={() => setSearchTerm('')} />
+              ) : null}
+            </label>
+            <SegmentedControl
+              ariaLabel={`${config.singular}状态筛选`}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { label: '全部', value: 'all', count: items.length },
+                { label: '活跃', value: 'active', count: activeItems.length },
+                { label: '归档', value: 'archived', count: archivedItems.length },
+              ]}
+            />
           </div>
 
           <PageState
-            isLoading={isLoading}
-            isError={isError}
+            isLoading={itemsQuery.isLoading}
+            isError={itemsQuery.isError}
             isEmpty={items.length === 0}
-            emptyMessage={`暂无${config.singular}，Owner 可以在左侧新增。`}
+            emptyMessage={`暂无${config.singular}${canManage ? '，可以在左侧新增。' : '。'}`}
+            errorMsg={itemsQuery.error instanceof ApiError ? itemsQuery.error.message : `获取${config.singular}失败`}
             skeletonType="table"
-            onRetry={() => refetch()}
+            onRetry={() => void itemsQuery.refetch()}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              {statusFilter !== 'archived' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span className="dimmed-desc" style={{ fontSize: '12px' }}>活跃项</span>
-                  {visibleActiveItems.length === 0 ? (
-                    <div className="dimmed-desc" style={{ fontSize: '12px' }}>暂无匹配的活跃项。</div>
-                  ) : visibleActiveItems.map((item, index) => renderItem(item, index, activeItems.length > 1))}
-                </div>
-              )}
-
-              {statusFilter !== 'active' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span className="dimmed-desc" style={{ fontSize: '12px' }}>已归档项</span>
-                  {visibleArchivedItems.length === 0 ? (
-                    <div className="dimmed-desc" style={{ fontSize: '12px' }}>暂无匹配的归档项。</div>
-                  ) : visibleArchivedItems.map((item, index) => renderItem(item, index, false))}
-                </div>
-              )}
+            <div className="metadata-list">
+              {statusFilter !== 'archived' ? (
+                <section className="metadata-list__group">
+                  <h3>活跃项</h3>
+                  {visibleActiveItems.length ? visibleActiveItems.map(renderItem) : <p>没有匹配的活跃项。</p>}
+                </section>
+              ) : null}
+              {statusFilter !== 'active' ? (
+                <section className="metadata-list__group">
+                  <h3>已归档项</h3>
+                  {visibleArchivedItems.length ? visibleArchivedItems.map(renderItem) : <p>没有匹配的归档项。</p>}
+                </section>
+              ) : null}
             </div>
           </PageState>
-        </div>
+        </section>
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={archiveTarget !== null}
+        title={archiveTarget?.is_archived ? `恢复${config.singular}「${archiveTarget.name}」？` : `归档${config.singular}「${archiveTarget?.name || ''}」？`}
+        description={archiveDescription}
+        confirmLabel={archiveTarget?.is_archived ? '确认恢复' : '确认归档'}
+        tone={archiveTarget?.is_archived ? 'primary' : 'danger'}
+        icon={archiveTarget?.is_archived ? <RotateCcw /> : <Archive />}
+        isConfirming={archiveMutation.isPending}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={() => archiveTarget && archiveMutation.mutate(archiveTarget)}
+      />
+    </main>
   );
 }

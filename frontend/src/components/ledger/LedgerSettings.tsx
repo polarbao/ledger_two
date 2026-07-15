@@ -1,205 +1,277 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useLedgerStore } from '../../stores/ledger.store';
-import { ledgerApi, type LedgerMember } from '../../api/ledger.api';
-import { Users, UserPlus, Shield, X } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, BookOpen, Shield, Trash2, UserPlus, Users } from 'lucide-react';
 import { ApiError } from '../../api/client';
+import { ledgerApi, type LedgerMember } from '../../api/ledger.api';
 import { queryKeys } from '../../api/queryKeys';
+import { useLedgerStore } from '../../stores/ledger.store';
+import Button from '../ui/Button';
+import ConfirmDialog from '../ui/ConfirmDialog';
+import PageState from '../ui/PageState';
+import StatusChip from '../ui/StatusChip';
+import './LedgerSettings.css';
+
+interface RoleChange {
+  member: LedgerMember;
+  nextRole: 'editor' | 'viewer';
+}
+
+const roleLabels: Record<string, string> = {
+  owner: 'Owner',
+  editor: 'Editor',
+  viewer: 'Viewer',
+};
 
 export default function LedgerSettings() {
   const queryClient = useQueryClient();
   const { activeLedgerId, activeRole, setActiveLedger } = useLedgerStore();
-  const [members, setMembers] = useState<LedgerMember[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const [inviteUsername, setInviteUsername] = useState('');
-  const [inviteRole, setInviteRole] = useState('viewer');
-  
+  const canManage = activeRole === 'owner';
+  const [memberUsername, setMemberUsername] = useState('');
+  const [memberRole, setMemberRole] = useState<'editor' | 'viewer'>('viewer');
   const [newLedgerName, setNewLedgerName] = useState('');
-  const [creatingLedger, setCreatingLedger] = useState(false);
+  const [roleChange, setRoleChange] = useState<RoleChange | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<LedgerMember | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const fetchMembers = useCallback(async () => {
-    if (!activeLedgerId) return;
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const data = await ledgerApi.getLedgerMembers(activeLedgerId);
-      setMembers(data);
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setErrorMsg(err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [activeLedgerId]);
+  const membersQuery = useQuery({
+    queryKey: queryKeys.ledgers.members(activeLedgerId),
+    queryFn: () => ledgerApi.getLedgerMembers(activeLedgerId || ''),
+    enabled: Boolean(activeLedgerId),
+  });
 
-  useEffect(() => {
-    const load = async () => {
-      await fetchMembers();
-    };
-    load();
-  }, [fetchMembers]);
+  const invalidateMembers = () => queryClient.invalidateQueries({
+    queryKey: queryKeys.ledgers.members(activeLedgerId),
+  });
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeLedgerId || !inviteUsername) return;
-    setErrorMsg(null);
-    try {
-      await ledgerApi.addMember(activeLedgerId, { username: inviteUsername, role: inviteRole });
-      setInviteUsername('');
-      fetchMembers();
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setErrorMsg(err.message);
-      }
-    }
-  };
-
-  const handleUpdateRole = async (userId: string, newRole: string) => {
-    if (!activeLedgerId) return;
-    setErrorMsg(null);
-    try {
-      await ledgerApi.updateMemberRole(activeLedgerId, userId, { role: newRole });
-      fetchMembers();
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setErrorMsg(err.message);
-      }
-    }
-  };
-
-  const handleRemove = async (userId: string) => {
-    if (!activeLedgerId) return;
-    if (!window.confirm('确定要移除该成员吗？')) return;
-    setErrorMsg(null);
-    try {
-      await ledgerApi.removeMember(activeLedgerId, userId);
-      fetchMembers();
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setErrorMsg(err.message);
-      }
-    }
-  };
-
-  const handleCreateLedger = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newLedgerName) return;
-    setCreatingLedger(true);
-    setErrorMsg(null);
-    try {
-      const createdLedger = await ledgerApi.createLedger({ name: newLedgerName.trim() });
+  const createLedgerMutation = useMutation({
+    mutationFn: (name: string) => ledgerApi.createLedger({ name }),
+    onSuccess: (ledger) => {
       setNewLedgerName('');
-      setActiveLedger(createdLedger.id, 'owner');
-      queryClient.invalidateQueries({ queryKey: queryKeys.ledgers.all });
-      queryClient.invalidateQueries();
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setErrorMsg(err.message);
-      }
-    } finally {
-      setCreatingLedger(false);
-    }
+      setErrorMsg(null);
+      setSuccessMsg(`已创建并切换到账本「${ledger.name}」`);
+      setActiveLedger(ledger.id, 'owner');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ledgers.all });
+      void queryClient.invalidateQueries();
+    },
+    onError: (error: unknown) => {
+      setSuccessMsg(null);
+      setErrorMsg(error instanceof ApiError ? error.message : '创建账本失败，请稍后重试');
+    },
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: (payload: { username: string; role: 'editor' | 'viewer' }) =>
+      ledgerApi.addMember(activeLedgerId || '', payload),
+    onSuccess: () => {
+      setMemberUsername('');
+      setErrorMsg(null);
+      setSuccessMsg('成员已添加');
+      void invalidateMembers();
+    },
+    onError: (error: unknown) => {
+      setSuccessMsg(null);
+      setErrorMsg(error instanceof ApiError ? error.message : '添加成员失败，请稍后重试');
+    },
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: (change: RoleChange) =>
+      ledgerApi.updateMemberRole(activeLedgerId || '', change.member.user_id, { role: change.nextRole }),
+    onSuccess: (_, change) => {
+      setRoleChange(null);
+      setErrorMsg(null);
+      setSuccessMsg(`${change.member.username} 的角色已调整为 ${roleLabels[change.nextRole]}`);
+      void invalidateMembers();
+    },
+    onError: (error: unknown) => {
+      setErrorMsg(error instanceof ApiError ? error.message : '角色调整失败，请稍后重试');
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: (member: LedgerMember) => ledgerApi.removeMember(activeLedgerId || '', member.user_id),
+    onSuccess: (_, member) => {
+      setMemberToRemove(null);
+      setErrorMsg(null);
+      setSuccessMsg(`已将 ${member.username} 移出当前账本`);
+      void invalidateMembers();
+    },
+    onError: (error: unknown) => {
+      setErrorMsg(error instanceof ApiError ? error.message : '移除成员失败，请稍后重试');
+    },
+  });
+
+  const handleCreateLedger = (event: FormEvent) => {
+    event.preventDefault();
+    const name = newLedgerName.trim();
+    if (name) createLedgerMutation.mutate(name);
   };
 
-  if (activeRole !== 'owner') {
-    return (
-      <div className="glass-card" style={{ padding: '20px', marginTop: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
-          <Shield size={18} />
-          <span>您当前的角色是 <strong>{activeRole}</strong>，无法管理账本成员。只有 Owner 具有管理权限。</span>
-        </div>
-      </div>
-    );
-  }
+  const handleAddMember = (event: FormEvent) => {
+    event.preventDefault();
+    const username = memberUsername.trim();
+    if (username) addMemberMutation.mutate({ username, role: memberRole });
+  };
 
   return (
-    <div className="glass-card" style={{ padding: '20px', marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '12px' }}>
-        <Users size={20} className="partner-highlight" />
-        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>账本成员管理</h3>
+    <div className="ledger-settings">
+      <div className="ledger-settings__messages" aria-live="polite">
+        {errorMsg ? <div className="ledger-settings__message ledger-settings__message--error"><AlertTriangle size={16} />{errorMsg}</div> : null}
+        {successMsg ? <div className="ledger-settings__message ledger-settings__message--success">{successMsg}</div> : null}
       </div>
 
-      {errorMsg && (
-        <div className="error-banner" style={{ padding: '10px', borderRadius: '8px' }}>
-          {errorMsg}
-        </div>
-      )}
-
-      {/* Create Ledger Form */}
-      <form onSubmit={handleCreateLedger} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-        <input 
-          type="text" 
-          placeholder="输入新账本名称" 
-          value={newLedgerName}
-          onChange={e => setNewLedgerName(e.target.value)}
-          className="form-input"
-          style={{ flexGrow: 1 }}
-          required
-        />
-        <button type="submit" className="btn-primary" style={{ padding: '10px 16px' }} disabled={creatingLedger}>
-          创建新账本
-        </button>
-      </form>
-
-      <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '10px 0' }} />
-
-      {/* Invite Form */}
-      <form onSubmit={handleInvite} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-        <input 
-          type="text" 
-          placeholder="输入要邀请的用户名" 
-          value={inviteUsername}
-          onChange={e => setInviteUsername(e.target.value)}
-          className="form-input"
-          style={{ flexGrow: 1 }}
-          required
-        />
-        <select 
-          value={inviteRole} 
-          onChange={e => setInviteRole(e.target.value)}
-          className="form-input"
-          style={{ width: '120px' }}
-        >
-          <option value="editor">Editor</option>
-          <option value="viewer">Viewer</option>
-        </select>
-        <button type="submit" className="btn-primary" style={{ padding: '10px 16px', display: 'flex', gap: '6px' }}>
-          <UserPlus size={16} /> 添加成员
-        </button>
-      </form>
-
-      {/* Member List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {loading && <div style={{ color: 'var(--text-muted)' }}>加载中...</div>}
-        {!loading && members.map(m => (
-          <div key={m.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
+      <div className="ledger-settings__member-panel">
+        <header className="ledger-settings__panel-header">
+          <div>
+            <Users size={20} aria-hidden="true" />
             <div>
-              <span style={{ fontWeight: 600 }}>{m.username}</span>
-              <span style={{ marginLeft: '10px', fontSize: '12px', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{m.role}</span>
+              <h3>当前账本成员</h3>
+              <p>所有成员可以查看名单；成员管理操作只对 Owner 开放。</p>
             </div>
-            
-            {m.role !== 'owner' && (
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <select 
-                  value={m.role}
-                  onChange={(e) => handleUpdateRole(m.user_id, e.target.value)}
-                  className="form-input"
-                  style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}
-                >
-                  <option value="editor">Editor</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-                <button onClick={() => handleRemove(m.user_id)} className="btn-danger" style={{ padding: '4px 8px', fontSize: '12px' }}>
-                  <X size={14} /> 移除
-                </button>
-              </div>
-            )}
           </div>
-        ))}
+          <StatusChip tone={canManage ? 'success' : 'neutral'}>{roleLabels[activeRole || ''] || '未选择'}</StatusChip>
+        </header>
+
+        <PageState
+          isLoading={membersQuery.isLoading}
+          isError={membersQuery.isError}
+          isEmpty={!membersQuery.isLoading && (membersQuery.data?.length || 0) === 0}
+          emptyMessage="当前账本暂无可展示成员。"
+          errorMsg={membersQuery.error instanceof ApiError ? membersQuery.error.message : '成员列表加载失败'}
+          onRetry={() => void membersQuery.refetch()}
+          skeletonType="card"
+        >
+          <div className="ledger-settings__member-list">
+            {(membersQuery.data || []).map((member) => (
+              <article key={member.user_id} className="ledger-settings__member">
+                <div className="ledger-settings__member-identity">
+                  <span aria-hidden="true">{member.username.slice(0, 1).toUpperCase()}</span>
+                  <div>
+                    <strong>{member.username}</strong>
+                    <small>{member.role === 'owner' ? '账本管理员' : member.role === 'editor' ? '可记账与结算' : '只读查看'}</small>
+                  </div>
+                </div>
+                <div className="ledger-settings__member-actions">
+                  {canManage && member.role !== 'owner' ? (
+                    <>
+                      <label>
+                        <span className="sr-only">调整 {member.username} 的角色</span>
+                        <select
+                          value={member.role}
+                          onChange={(event) => setRoleChange({
+                            member,
+                            nextRole: event.target.value as 'editor' | 'viewer',
+                          })}
+                        >
+                          <option value="editor">Editor</option>
+                          <option value="viewer">Viewer</option>
+                        </select>
+                      </label>
+                      <Button
+                        variant="danger"
+                        startIcon={<Trash2 size={15} />}
+                        onClick={() => setMemberToRemove(member)}
+                      >
+                        移除
+                      </Button>
+                    </>
+                  ) : (
+                    <StatusChip tone={member.role === 'owner' ? 'success' : 'neutral'}>{roleLabels[member.role] || member.role}</StatusChip>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </PageState>
+
+        {!canManage ? (
+          <div className="ledger-settings__readonly">
+            <Shield size={17} aria-hidden="true" />
+            当前角色可查看成员，但不能添加成员、调整角色或移除成员。
+          </div>
+        ) : null}
       </div>
+
+      {canManage ? (
+        <div className="ledger-settings__management-grid">
+          <section className="ledger-settings__form-panel">
+            <header>
+              <UserPlus size={19} aria-hidden="true" />
+              <div><h3>添加已有用户</h3><p>这是直接添加账号，不会发送邀请或通知。</p></div>
+            </header>
+            <form onSubmit={handleAddMember}>
+              <label>
+                <span>用户名</span>
+                <input
+                  type="text"
+                  value={memberUsername}
+                  onChange={(event) => setMemberUsername(event.target.value)}
+                  placeholder="输入已注册用户名"
+                  maxLength={64}
+                  required
+                />
+              </label>
+              <label>
+                <span>角色</span>
+                <select value={memberRole} onChange={(event) => setMemberRole(event.target.value as 'editor' | 'viewer')}>
+                  <option value="editor">Editor 编辑者</option>
+                  <option value="viewer">Viewer 观察者</option>
+                </select>
+              </label>
+              <Button type="submit" variant="primary" isLoading={addMemberMutation.isPending} fullWidth startIcon={<UserPlus size={16} />}>
+                添加成员
+              </Button>
+            </form>
+          </section>
+
+          <section className="ledger-settings__form-panel">
+            <header>
+              <BookOpen size={19} aria-hidden="true" />
+              <div><h3>创建独立账本</h3><p>创建后会立即切换。归档与恢复将在 Task50 实现。</p></div>
+            </header>
+            <form onSubmit={handleCreateLedger}>
+              <label>
+                <span>账本名称</span>
+                <input
+                  type="text"
+                  value={newLedgerName}
+                  onChange={(event) => setNewLedgerName(event.target.value)}
+                  placeholder="例如：两人生活账本"
+                  maxLength={80}
+                  required
+                />
+              </label>
+              <Button type="submit" variant="secondary" isLoading={createLedgerMutation.isPending} fullWidth startIcon={<BookOpen size={16} />}>
+                创建并切换
+              </Button>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      <ConfirmDialog
+        open={roleChange !== null}
+        title="确认调整成员角色？"
+        description={roleChange ? `${roleChange.member.username} 将从 ${roleLabels[roleChange.member.role]} 调整为 ${roleLabels[roleChange.nextRole]}。新权限会在服务端立即生效。` : ''}
+        confirmLabel="确认调整角色"
+        icon={<Shield />}
+        isConfirming={updateRoleMutation.isPending}
+        onClose={() => setRoleChange(null)}
+        onConfirm={() => roleChange && updateRoleMutation.mutate(roleChange)}
+      />
+
+      <ConfirmDialog
+        open={memberToRemove !== null}
+        title="将成员移出当前账本？"
+        description={memberToRemove ? `${memberToRemove.username} 将立即失去当前账本及其账单、附件和统计的访问权限。历史账单不会被删除。` : ''}
+        confirmLabel="确认移除成员"
+        tone="danger"
+        icon={<Trash2 />}
+        isConfirming={removeMemberMutation.isPending}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={() => memberToRemove && removeMemberMutation.mutate(memberToRemove)}
+      />
     </div>
   );
 }

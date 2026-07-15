@@ -1,11 +1,12 @@
 import { ApiError } from '../api/client';
 import type { ImportPreviewBatch, ImportPreviewRow, ImportSourceType } from '../types/imports';
 
-export type ImportRowFilter = 'all' | 'new' | 'needs_attention' | 'invalid' | 'suspicious' | 'skipped';
+export type ImportRowFilter = 'all' | 'new' | 'duplicate' | 'needs_attention' | 'invalid' | 'suspicious' | 'skipped';
 
 export const IMPORT_ROW_FILTER_LABELS: Record<ImportRowFilter, string> = {
   all: '全部流水',
   new: '新增流水',
+  duplicate: '重复流水',
   needs_attention: '需要处理',
   invalid: '无效行',
   suspicious: '疑似重复',
@@ -85,6 +86,8 @@ export function importRowMatchesFilter(row: ImportPreviewRow, filter: ImportRowF
   switch (filter) {
     case 'new':
       return row.duplicate_status === 'new' && row.row_status !== 'skipped';
+    case 'duplicate':
+      return row.duplicate_status === 'duplicate';
     case 'needs_attention':
       return (
         row.duplicate_status === 'invalid' && row.row_status !== 'skipped'

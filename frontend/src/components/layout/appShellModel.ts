@@ -39,3 +39,7 @@ export function getLedgerRoleLabel(role: string | null | undefined) {
 export function canCreateTransaction(role: string | null | undefined) {
   return role === 'owner' || role === 'editor';
 }
+
+export function shouldShowQuickRecordAction(pathname: string) {
+  return !isAppRouteActive(pathname, '/import');
+}

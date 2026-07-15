@@ -96,6 +96,15 @@ describe('import page state', () => {
     expect(filterImportRows(rows, 'skipped').map((row) => row.row_number)).toEqual([4]);
   });
 
+  it('keeps duplicate rows available as an explicit review filter', () => {
+    const rows = [
+      createRow(),
+      createRow({ id: 'row-2', row_number: 2, duplicate_status: 'duplicate', row_status: 'skipped' }),
+    ];
+
+    expect(filterImportRows(rows, 'duplicate').map((row) => row.row_number)).toEqual([2]);
+  });
+
   it('includes the failing row number in import errors', () => {
     const error = new ApiError('IMPORT_ROW_INVALID', '存在未跳过的无效导入行', 400, {
       row_id: 'row-5',

@@ -38,6 +38,7 @@ import {
   canCreateTransaction,
   getLedgerRoleLabel,
   isAppRouteActive,
+  shouldShowQuickRecordAction,
   type AppPrimaryNavigationId,
   type AppToolNavigationId,
 } from './appShellModel';
@@ -134,6 +135,7 @@ export default function AppShell() {
 
   const activeLedger = ledgers.find((ledger) => ledger.id === activeLedgerId);
   const canWriteLedger = canCreateTransaction(activeRole);
+  const showQuickRecordAction = shouldShowQuickRecordAction(location.pathname);
   const recordActionTitle = canWriteLedger ? '记一笔' : '当前账本为只读，无法记账';
   const networkTone: StatusChipTone = isOffline ? 'danger' : drafts.length > 0 ? 'info' : 'success';
   const networkLabel = isOffline ? '网络离线' : drafts.length > 0 ? `${drafts.length} 条草稿` : '网络在线';
@@ -351,17 +353,19 @@ export default function AppShell() {
         </div>
       </main>
 
-      <Button
-        className="lt-shell__fab"
-        variant="primary"
-        startIcon={<Plus size={19} />}
-        disabled={!canWriteLedger}
-        title={recordActionTitle}
-        aria-label="记一笔"
-        onClick={openTransactionForm}
-      >
-        记一笔
-      </Button>
+      {showQuickRecordAction ? (
+        <Button
+          className="lt-shell__fab"
+          variant="primary"
+          startIcon={<Plus size={19} />}
+          disabled={!canWriteLedger}
+          title={recordActionTitle}
+          aria-label="记一笔"
+          onClick={openTransactionForm}
+        >
+          记一笔
+        </Button>
+      ) : null}
 
       <nav className="lt-shell__bottom-nav" aria-label="主导航">
         {APP_PRIMARY_NAV_ITEMS.map((item) => {

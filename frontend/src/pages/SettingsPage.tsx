@@ -183,7 +183,7 @@ export default function SettingsPage() {
   const currentUser = useAuthStore((state) => state.user);
   const activeRole = useLedgerStore((state) => state.activeRole);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
-  const canImportData = useHasLedgerRole(['owner', 'editor']);
+  const canImportData = useHasLedgerRole(['owner']);
   const canExportData = useHasLedgerRole(['owner', 'editor']);
   const canManageSafety = useHasLedgerRole(['owner']);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
@@ -422,7 +422,7 @@ export default function SettingsPage() {
             {canImportData ? (
               <Link className="ui-button ui-button--secondary" to="/import">进入导入工作区</Link>
             ) : (
-              <NoPermissionHint text="Viewer 只能查看账本，不能导入账单。" />
+              <NoPermissionHint text="导入是批量写入操作，仅账本 Owner 可以使用。" />
             )}
           </SettingsActionCard>
           <SettingsActionCard

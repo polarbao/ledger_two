@@ -53,6 +53,18 @@ describe('UI-FL-02 AppShell contract', () => {
     expect(shellModel.canCreateTransaction(null)).toBe(false);
   });
 
+  it('hides the quick record action inside the import workbench', async () => {
+    const shellModel = await import('./appShellModel').catch(() => null);
+
+    expect(shellModel).not.toBeNull();
+    if (!shellModel) return;
+
+    expect(shellModel.shouldShowQuickRecordAction('/')).toBe(true);
+    expect(shellModel.shouldShowQuickRecordAction('/transactions')).toBe(true);
+    expect(shellModel.shouldShowQuickRecordAction('/import')).toBe(false);
+    expect(shellModel.shouldShowQuickRecordAction('/import/batches/batch-1')).toBe(false);
+  });
+
   it('exposes semantic navigation, status and record actions in the shell source', () => {
     const shellSource = readSource('./AppShell.tsx');
 

@@ -21,7 +21,7 @@
 
 ## 当前产品阶段
 
-截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + Fresh Light 体验质量专项 + v1.3 开工前评审准备`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-06 已完成，下一任务为 UI-FL-07；Task50 仅开启开发前准备，尚未形成可直接编码的冻结 PRD。
+截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + Fresh Light 体验质量专项 + v1.3 开工前评审准备`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-07 已完成，下一任务为 UI-FL-08；Task50P.1 现状盘点和 Task50P.2 产品范围冻结已完成，但 Tech/OpenAPI/UI/Migration 与开发准入尚未完成。
 
 当前产品重点：
 
@@ -65,6 +65,7 @@
 28-transaction-caliber-supplement.md    交易与账户口径补充
 29-prd-v1.2-module-business-service-breakdown.md v1.2 导入模块业务与服务细分
 30-prd-v1.2-xlsx-import-special.md    v1.2 微信 XLSX/支付宝 CSV 导入专项 PRD
+31-prd-v1.3-multi-ledger.md           v1.3 Task50 多账本正式化冻结 PRD
 ```
 
 ## 使用方式
@@ -100,3 +101,4 @@ Task30 后的产品规划建议优先阅读：
 10. `27-acceptance-case-matrix.md`
 11. `28-transaction-caliber-supplement.md`
 12. `30-prd-v1.2-xlsx-import-special.md`（Task49X 开发前必读）
+13. `31-prd-v1.3-multi-ledger.md`（Task50 准备与开发前必读）

@@ -260,5 +260,5 @@ Task50 必须复用 UI-FL-01 至 UI-FL-10 的 Token、Button、Dialog、Sheet、
 1. Task50P.3 技术契约与 migration 评审。
 2. Task50P.4 OpenAPI、Fixture 与验收矩阵冻结。
 3. Task50P.5 Fresh Light UI 流程和本地 handoff。
-4. UI-FL-08、UI-FL-09、UI-FL-10 全部完成。
+4. UI-FL-08、UI-FL-09 已完成，UI-FL-10 全局验收必须关闭。
 5. Task50P.6 环境、数据备份、版本和回滚准入评审。

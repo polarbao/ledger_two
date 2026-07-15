@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task49 已完成；Task49X 开发与本机验收完成并继续关闭 NAS 发布门禁；Fresh Light UI-FL-01 至 UI-FL-09 已完成，下一任务为 UI-FL-10；Task50P.1-P.3 已完成，P.4-P.6 与开发准入待完成
+适用阶段：Task01-Task49 已完成；Task49X 开发与本机验收完成并继续关闭 NAS 发布门禁；Fresh Light UI-FL-01 至 UI-FL-09 已完成，下一任务为 UI-FL-10；Task50P.1-P.4 已完成，P.5-P.6 与开发准入待完成
 
 ## 1. 目标
 
@@ -28,6 +28,8 @@
 13-fresh-light-ui-interaction-plan.md v1.2 收口后的 Fresh Light UI/UX 协同开发计划
 14-v1.3-task50-predevelopment-plan.md v1.3 Task50 多账本正式化开发前准备与准入计划
 ../prd/31-prd-v1.3-multi-ledger.md v1.3 Task50 多账本正式化冻结 PRD
+../prd/32-v1.3-task50-acceptance-fixtures.md v1.3 Task50 匿名 Fixture 与验收矩阵
+../api/openapi-v1.3-ledger-draft.yaml v1.3 Task50 API 开发前冻结草案
 ../releases/                    v1.2 发布说明、升级回滚和发布验收清单
 ```
 

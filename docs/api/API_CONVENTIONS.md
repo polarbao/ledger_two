@@ -272,3 +272,16 @@ POST  /api/metadata/{kind}/{id}/restore
 3. 若新增错误码，更新本文件和 `docs/tech/10-error-codes.md`。
 4. 若新增列表接口，明确分页、筛选和排序。
 5. 若新增写接口，明确角色权限和审计要求。
+
+## 11. Task50 v1.3 冻结补充
+
+以下规则由 Task50P.4 冻结，但在 Task50 代码完成前仍属于目标契约：
+
+1. 账本内业务请求缺少显式账本返回 400 `LEDGER_REQUIRED`，不再 fallback 到首个账本。
+2. 账本管理 path 与可选 `X-Ledger-Id` 不一致返回 400 `LEDGER_CONTEXT_MISMATCH`。
+3. 非成员访问账本统一返回 403 `LEDGER_ACCESS_DENIED`；成员在可访问账本中请求不存在对象返回 404 `LEDGER_OBJECT_NOT_FOUND`。
+4. archived 写入返回 409 `LEDGER_ARCHIVED`；恢复是 archived 唯一 lifecycle mutation。
+5. rename/archive/restore/add/update/remove/leave/transfer 必须携带 `If-Match: "ledger:<id>:v<version>"`；冲突返回 409 `LEDGER_VERSION_CONFLICT`。
+6. 成员上限、Owner 移交、ready 导入阻断分别使用 `LEDGER_MEMBER_LIMIT_REACHED`、`LEDGER_OWNER_TRANSFER_REQUIRED`、`LEDGER_READY_IMPORT_EXISTS`。
+7. 整库 backup/restore/diagnostics 不读取 Ledger Context，仅由实例管理员授权；拒绝使用 403 `INSTANCE_ADMIN_REQUIRED`。
+8. 完整 DTO、HTTP 映射和响应 envelope 以 `openapi-v1.3-ledger-draft.yaml` 为准。

@@ -216,3 +216,24 @@ handler 不直接拼错误响应。
 - 权限错误不会暴露资源是否真实存在的敏感信息。
 - 备份、导出失败时有明确错误码。
 - 表单校验错误能定位到字段。
+
+## 9. Task50 v1.3 目标错误码
+
+以下错误码已由 Task50P.4 冻结，当前 router 完成 Task50 实现前不得视为已上线：
+
+| 错误码 | HTTP 状态 | 说明 |
+|---|---:|---|
+| LEDGER_REQUIRED | 400 | 账本内业务请求未显式指定账本 |
+| LEDGER_CONTEXT_MISMATCH | 400 | path 账本与 `X-Ledger-Id` 不一致 |
+| LEDGER_ACCESS_DENIED | 403 | 当前用户不是账本成员或角色不允许操作 |
+| INSTANCE_ADMIN_REQUIRED | 403 | 当前用户没有整库运维能力 |
+| LEDGER_OBJECT_NOT_FOUND | 404 | 对象不属于当前可访问账本或不存在 |
+| LEDGER_INVALID_STATE | 409 | 当前账本生命周期不允许该操作 |
+| LEDGER_ARCHIVED | 409 | 对 archived 账本执行被禁止的写操作 |
+| LEDGER_VERSION_CONFLICT | 409 | `If-Match` 与当前账本 version 不同 |
+| LEDGER_MEMBER_LIMIT_REACHED | 409 | 账本已达到 Task50 两人上限 |
+| LEDGER_OWNER_TRANSFER_REQUIRED | 409 | Owner 离开前必须先移交所有权 |
+| LEDGER_OWNER_INVARIANT_VIOLATION | 409 | 操作会产生零 Owner 或多 Owner |
+| LEDGER_READY_IMPORT_EXISTS | 409 | 未过期 ready 导入批次阻止归档 |
+
+前端必须按错误码提供刷新、移交、完成/放弃导入等可执行动作，不能解析 SQLite 文案。

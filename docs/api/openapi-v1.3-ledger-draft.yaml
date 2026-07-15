@@ -1,0 +1,966 @@
+openapi: 3.0.3
+info:
+  title: LedgerTwo v1.3 Multi-ledger API
+  version: 1.3.0-draft
+  description: |
+    Task50P.4 冻结契约，仅描述 v1.3 多账本正式化新增或改变的接口。
+    本文件不是当前 router 已上线清单；现网事实仍以 API_INVENTORY.md 为准。
+    账本内既有业务接口继续由 openapi.yaml 与 v1.2 导入补充契约约束。
+    所有金额均为整数分，所有失败响应使用统一 error envelope。
+servers:
+  - url: /api
+    description: Current compatibility API root
+tags:
+  - name: auth
+  - name: ledgers
+  - name: ledger-members
+  - name: imports
+  - name: exports
+  - name: instance-admin
+
+paths:
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Get current user and instance capability
+      description: 不返回或推断当前账本；前端必须使用账本列表校验本地偏好。
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /ledgers:
+    get:
+      tags: [ledgers]
+      summary: List ledgers visible to current user
+      description: 默认只返回 active；结果不承担当前账本 fallback。
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, archived, all]
+            default: active
+      responses:
+        "200":
+          description: Ledger list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerListResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [ledgers]
+      summary: Create an active ledger
+      description: 创建者成为唯一 Owner；创建同名账本合法。客户端失败后不得盲目自动重试。
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerCreateRequest"
+      responses:
+        "201":
+          description: Ledger created
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /ledgers/{ledgerId}:
+    get:
+      tags: [ledgers]
+      summary: Get one active or archived ledger
+      description: 非成员统一返回 403，不用 404 掩盖成员关系。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          description: Ledger detail
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+    patch:
+      tags: [ledgers]
+      summary: Rename an active ledger
+      description: Owner only. 归档账本必须先恢复。重复旧版本请求返回 LEDGER_VERSION_CONFLICT。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerRenameRequest"
+      responses:
+        "200":
+          description: Ledger renamed
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /ledgers/{ledgerId}/archive:
+    post:
+      tags: [ledgers]
+      summary: Archive an active ledger
+      description: |
+        Owner only. 未结清净额不阻止归档；未过期 ready 导入批次阻止归档。
+        归档不生成结算、不删除历史数据，成功后账本进入只读状态。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerArchiveRequest"
+      responses:
+        "200":
+          description: Ledger archived
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /ledgers/{ledgerId}/restore:
+    post:
+      tags: [ledgers]
+      summary: Restore an archived ledger
+      description: Owner only. 这是 archived 状态唯一允许的账本级 mutation。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      responses:
+        "200":
+          description: Ledger restored
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /ledgers/{ledgerId}/members:
+    get:
+      tags: [ledger-members]
+      summary: List active or archived ledger members
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          description: Member list
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerMemberListResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [ledger-members]
+      summary: Add the second member
+      description: Owner only. 最多两人；新增成员可读取既有 partner_readable 与 shared 历史。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerMemberAddRequest"
+      responses:
+        "201":
+          description: Member added
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerMemberMutationResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /ledgers/{ledgerId}/members/{userId}:
+    patch:
+      tags: [ledger-members]
+      summary: Change Editor and Viewer role
+      description: Owner only. 不接受 owner 角色，也不能用本接口变更当前 Owner。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerMemberRoleRequest"
+      responses:
+        "200":
+          description: Role updated
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerMemberMutationResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [ledger-members]
+      summary: Remove a non-owner member
+      description: Owner only. 历史交易、split、结算、附件和审计保持不变。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      responses:
+        "200":
+          description: Member removed
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerMemberMutationResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /ledgers/{ledgerId}/members/{userId}/transfer-owner:
+    post:
+      tags: [ledger-members]
+      summary: Atomically transfer ownership
+      description: 当前 Owner 发起；目标必须是同账本 Editor 或 Viewer。成功后原 Owner 成为 Editor。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerTransferRequest"
+      responses:
+        "200":
+          description: Owner transferred atomically
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerMemberMutationResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /ledgers/{ledgerId}/leave:
+    post:
+      tags: [ledger-members]
+      summary: Leave a ledger
+      description: Editor/Viewer 可离开；Owner 必须先移交所有权。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      responses:
+        "200":
+          description: Membership removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessEmptyResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /imports/{batchId}/discard:
+    post:
+      tags: [imports]
+      summary: Explicitly discard a ready import batch
+      description: |
+        Owner only. 将 ready 批次置为 expired，保留行、hash 与审计，不创建 transaction。
+        archived 账本不允许执行；必须在归档前完成。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportDiscardRequest"
+      responses:
+        "200":
+          description: Batch discarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportDiscardResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /export/transactions.csv:
+    get:
+      tags: [exports]
+      summary: Export visible transactions of one ledger
+      description: Owner/Editor only. archived 账本允许导出；返回内容只包含当前角色可见交易。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-[0-9]{2}$"
+      responses:
+        "200":
+          description: UTF-8 CSV stream
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /export/full.json:
+    get:
+      tags: [exports]
+      summary: Export visible ledger data package
+      description: Owner/Editor only. 这是账本导出，不是 SQLite 物理备份。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      responses:
+        "200":
+          description: Ledger-scoped JSON stream
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /admin/diagnostics:
+    get:
+      tags: [instance-admin]
+      summary: Get redacted instance diagnostics
+      description: Instance admin only. 不读取 X-Ledger-Id，不因账本 Owner 身份授权。
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Redacted diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceDiagnosticsResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /admin/backup:
+    post:
+      tags: [instance-admin]
+      summary: Create a physical database backup
+      description: Instance admin only. 这是整库运维动作，写 instance audit。
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Backup created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupCreateResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /admin/backups:
+    get:
+      tags: [instance-admin]
+      summary: List physical database backups
+      description: Instance admin only. 不读取 X-Ledger-Id。
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Backup list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupListResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /admin/backups/{filename}:
+    get:
+      tags: [instance-admin]
+      summary: Download one physical database backup
+      description: Instance admin only. 文件名必须来自列表且通过路径和扩展名校验。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BackupFilenamePath"
+      responses:
+        "200":
+          description: SQLite backup stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /admin/restore:
+    post:
+      tags: [instance-admin]
+      summary: Prepare restore instructions for a physical backup
+      description: |
+        Instance admin only. Task50 保持当前“生成停机恢复指令”语义，不在 Web 请求中热替换数据库。
+        production 执行前必须有独立备份和发布窗口。
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestorePrepareRequest"
+      responses:
+        "200":
+          description: Restore instructions prepared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestorePrepareResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+
+  parameters:
+    LedgerIdPath:
+      name: ledgerId
+      in: path
+      required: true
+      schema:
+        type: string
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    BatchIdPath:
+      name: batchId
+      in: path
+      required: true
+      schema:
+        type: string
+    BackupFilenamePath:
+      name: filename
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9._-]+\\.db$"
+    LedgerIdHeaderRequired:
+      name: X-Ledger-Id
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Required ledger context for ledger-scoped business routes.
+    LedgerIdHeaderOptional:
+      name: X-Ledger-Id
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Optional on path-scoped ledger management routes; if present it must equal ledgerId.
+    IfMatchLedger:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: '^"ledger:[^"\\s]+:v[0-9]+"$'
+        example: '"ledger:ledger-a:v3"'
+
+  headers:
+    LedgerETag:
+      description: Optimistic concurrency token for the returned ledger version.
+      schema:
+        type: string
+        example: '"ledger:ledger-a:v4"'
+
+  responses:
+    Error:
+      description: Unified error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    AuthMeResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [id, username, instance_admin]
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+            instance_admin:
+              type: boolean
+
+    Ledger:
+      type: object
+      required: [id, name, role, status, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/LedgerRole"
+        status:
+          $ref: "#/components/schemas/LedgerStatus"
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        member_count:
+          type: integer
+          minimum: 1
+          maximum: 2
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        archived_by_user_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LedgerRole:
+      type: string
+      enum: [owner, editor, viewer]
+
+    LedgerStatus:
+      type: string
+      enum: [active, archived]
+
+    LedgerCreateRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+
+    LedgerRenameRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+
+    LedgerArchiveRequest:
+      type: object
+      required: [acknowledge_unsettled_balance]
+      additionalProperties: false
+      properties:
+        acknowledge_unsettled_balance:
+          type: boolean
+          description: Must be true when the server-provided unsettled amount is non-zero.
+
+    LedgerResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/Ledger"
+
+    LedgerListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ledger"
+
+    LedgerMember:
+      type: object
+      required: [user_id, username, role, joined_at]
+      properties:
+        user_id:
+          type: string
+        username:
+          type: string
+        role:
+          $ref: "#/components/schemas/LedgerRole"
+        joined_at:
+          type: string
+          format: date-time
+
+    LedgerMemberListData:
+      type: object
+      required: [ledger, members]
+      properties:
+        ledger:
+          $ref: "#/components/schemas/Ledger"
+        members:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/LedgerMember"
+
+    LedgerMemberListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/LedgerMemberListData"
+
+    LedgerMemberAddRequest:
+      type: object
+      required: [username, role, acknowledge_history_visibility]
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          enum: [editor, viewer]
+        acknowledge_history_visibility:
+          type: boolean
+          enum: [true]
+
+    LedgerMemberRoleRequest:
+      type: object
+      required: [role]
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          enum: [editor, viewer]
+
+    OwnerTransferRequest:
+      type: object
+      required: [acknowledge_permission_change]
+      additionalProperties: false
+      properties:
+        acknowledge_permission_change:
+          type: boolean
+          enum: [true]
+
+    LedgerMemberMutationResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/LedgerMemberListData"
+
+    ImportDiscardRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          enum: [user_requested]
+
+    ImportDiscardResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [batch_id, status, discard_reason]
+          properties:
+            batch_id:
+              type: string
+            status:
+              type: string
+              enum: [expired]
+            discard_reason:
+              type: string
+              enum: [user_requested]
+
+    BackupInfo:
+      type: object
+      required: [filename, size_bytes, created_at]
+      properties:
+        filename:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+
+    BackupCreateResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/BackupInfo"
+
+    BackupListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackupInfo"
+
+    RestorePrepareRequest:
+      type: object
+      required: [filename]
+      additionalProperties: false
+      properties:
+        filename:
+          type: string
+          pattern: "^[A-Za-z0-9._-]+\\.db$"
+
+    RestorePrepareResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [filename, instructions, requires_downtime]
+          properties:
+            filename:
+              type: string
+            instructions:
+              type: string
+            requires_downtime:
+              type: boolean
+              enum: [true]
+
+    InstanceDiagnosticsResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          description: Redacted deployment, database and storage diagnostics; never contains secrets.
+
+    SuccessEmptyResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - UNAUTHORIZED
+                - LEDGER_REQUIRED
+                - LEDGER_CONTEXT_MISMATCH
+                - LEDGER_ACCESS_DENIED
+                - INSTANCE_ADMIN_REQUIRED
+                - LEDGER_OBJECT_NOT_FOUND
+                - LEDGER_ARCHIVED
+                - LEDGER_INVALID_STATE
+                - LEDGER_VERSION_CONFLICT
+                - LEDGER_MEMBER_LIMIT_REACHED
+                - LEDGER_OWNER_TRANSFER_REQUIRED
+                - LEDGER_OWNER_INVARIANT_VIOLATION
+                - LEDGER_READY_IMPORT_EXISTS
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+              nullable: true

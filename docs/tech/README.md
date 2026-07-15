@@ -30,7 +30,7 @@
 3. v1.2 RC 的关键技术门禁是 schema 19 staging、XLSX 开关、备份链、health 校验和回滚脚本。
 4. Fresh Light 属于前端体验专项，不应改变后端金额、权限、导入、结算或 migration 契约。
 5. v1.3 前应重新评审多账本、多成员、多人分摊的数据模型、权限矩阵和 migration 策略。
-6. Task50P.1-P.4 已冻结产品、技术、Migration、OpenAPI、Fixture 与验收矩阵；UI/UX 和开发准入未完成，现有 LedgerContext 和成员 API 仍只是实现基线。
+6. Task50P.1-P.5 已冻结产品、技术、Migration、OpenAPI、Fixture、验收矩阵与 UI/UX；UI-FL-10 和 P.6 开发准入未完成，现有 LedgerContext 和成员 API 仍只是实现基线。
 
 当前已知技术债：
 

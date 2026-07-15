@@ -1,0 +1,234 @@
+{
+  "artifact_class": "requirement",
+  "status": "target-baseline",
+  "version": "task50-p5-2026-07-15",
+  "online_figma_sync": "not_verified",
+  "figma_account": null,
+  "figma_file_url": null,
+  "verified_node_ids": [],
+  "source_reference": [
+    "docs/prd/31-prd-v1.3-multi-ledger.md",
+    "docs/tech/25-v1.3-multi-ledger-implementation-contract.md",
+    "docs/api/openapi-v1.3-ledger-draft.yaml",
+    "docs/prd/32-v1.3-task50-acceptance-fixtures.md",
+    "docs/ui/16-v1.3-multi-ledger-flows.md"
+  ],
+  "figma_page": "07 v1.3 Multi-ledger",
+  "frames": [
+    {
+      "name": "Context and Component Matrix 1440",
+      "size": "1440x1024",
+      "section": "00 Context & Components",
+      "status": "required",
+      "purpose": "active/archived/no-active、角色和复用组件总览"
+    },
+    {
+      "name": "Ledger Switcher Desktop 1440",
+      "size": "1440x1024",
+      "section": "01 Ledger Switcher",
+      "status": "required",
+      "route": "/",
+      "react_target": "frontend/src/components/ledger/LedgerSwitcher.tsx",
+      "acceptance": ["T50-WEB-001", "T50-WEB-004"]
+    },
+    {
+      "name": "Ledger Switcher Mobile 390",
+      "size": "390x844",
+      "section": "01 Ledger Switcher",
+      "status": "required",
+      "route": "/",
+      "react_target": "frontend/src/components/ledger/LedgerSwitcher.tsx",
+      "acceptance": ["T50-WEB-004", "T50-WEB-008"]
+    },
+    {
+      "name": "Ledger Switcher Narrow 375",
+      "size": "375x812",
+      "section": "01 Ledger Switcher",
+      "status": "required",
+      "purpose": "最长名称、角色、当前项和 44px 触控目标"
+    },
+    {
+      "name": "Active Ledgers Desktop 1440",
+      "size": "1440x1024",
+      "section": "02 Ledger Management",
+      "status": "required",
+      "route": "/settings/ledgers",
+      "react_target": "frontend/src/pages/LedgerManagementPage.tsx",
+      "acceptance": ["T50-API-001", "T50-WEB-008"]
+    },
+    {
+      "name": "Active Ledgers Mobile 390",
+      "size": "390x844",
+      "section": "02 Ledger Management",
+      "status": "required",
+      "route": "/settings/ledgers",
+      "react_target": "frontend/src/pages/LedgerManagementPage.tsx"
+    },
+    {
+      "name": "Active Ledgers Wide Mobile 430",
+      "size": "430x932",
+      "section": "02 Ledger Management",
+      "status": "required",
+      "purpose": "移动卡片保持不切换桌面表格"
+    },
+    {
+      "name": "Archived Ledgers Desktop 1440",
+      "size": "1440x1024",
+      "section": "02 Ledger Management",
+      "status": "required",
+      "route": "/settings/ledgers?status=archived",
+      "react_target": "frontend/src/pages/LedgerManagementPage.tsx",
+      "acceptance": ["T50-API-002", "T50-WEB-006"]
+    },
+    {
+      "name": "Archived Ledgers Mobile 390",
+      "size": "390x844",
+      "section": "02 Ledger Management",
+      "status": "required",
+      "route": "/settings/ledgers?status=archived"
+    },
+    {
+      "name": "Create Ledger Desktop Dialog",
+      "size": "720x520",
+      "section": "02 Ledger Management",
+      "status": "required",
+      "states": ["idle", "invalid", "submitting", "error"]
+    },
+    {
+      "name": "Create Ledger Mobile Sheet",
+      "size": "390x844",
+      "section": "02 Ledger Management",
+      "status": "required",
+      "states": ["idle", "invalid", "submitting", "error"]
+    },
+    {
+      "name": "Rename and Version Conflict",
+      "size": "720x560",
+      "section": "02 Ledger Management",
+      "status": "required",
+      "states": ["idle", "version-conflict"]
+    },
+    {
+      "name": "Archive Settled and Unsettled",
+      "size": "1440x900",
+      "section": "03 Lifecycle Confirmations",
+      "status": "required",
+      "states": ["settled", "unsettled", "submitting"],
+      "acceptance": ["T50-LIFE-005"]
+    },
+    {
+      "name": "Archive Ready Batch Blocked Mobile",
+      "size": "390x844",
+      "section": "03 Lifecycle Confirmations",
+      "status": "required",
+      "states": ["ready-blocked", "discard-explanation"],
+      "acceptance": ["T50-LIFE-006", "T50-LIFE-007"]
+    },
+    {
+      "name": "Restore Ledger Confirm",
+      "size": "720x520",
+      "section": "03 Lifecycle Confirmations",
+      "status": "required",
+      "states": ["idle", "submitting", "version-conflict"],
+      "acceptance": ["T50-LIFE-010"]
+    },
+    {
+      "name": "Ledger Members Owner Desktop 1440",
+      "size": "1440x1024",
+      "section": "04 Members & Ownership",
+      "status": "required",
+      "route": "/settings/ledgers/:ledgerId",
+      "react_target": "frontend/src/pages/LedgerDetailPage.tsx"
+    },
+    {
+      "name": "Ledger Members Mobile 390",
+      "size": "390x844",
+      "section": "04 Members & Ownership",
+      "status": "required",
+      "route": "/settings/ledgers/:ledgerId"
+    },
+    {
+      "name": "Add Member History Warning",
+      "size": "720x620",
+      "section": "04 Members & Ownership",
+      "status": "required",
+      "states": ["history-warning", "limit-reached", "error"],
+      "acceptance": ["T50-MEM-001", "T50-MEM-002"]
+    },
+    {
+      "name": "Owner Transfer Confirm",
+      "size": "720x600",
+      "section": "04 Members & Ownership",
+      "status": "required",
+      "states": ["idle", "submitting", "version-conflict"],
+      "acceptance": ["T50-MEM-006", "T50-MEM-007"]
+    },
+    {
+      "name": "Remove Leave and Owner Blocked",
+      "size": "1440x900",
+      "section": "04 Members & Ownership",
+      "status": "required",
+      "states": ["remove-other", "member-leave", "owner-blocked"],
+      "acceptance": ["T50-MEM-008", "T50-MEM-009", "T50-MEM-010"]
+    },
+    {
+      "name": "Editor Viewer Permission Matrix",
+      "size": "1440x900",
+      "section": "04 Members & Ownership",
+      "status": "required",
+      "states": ["editor", "viewer", "instance-admin-cross-check"]
+    },
+    {
+      "name": "Archived Read Only Shell Desktop 1440",
+      "size": "1440x1024",
+      "section": "05 Archived & No Active",
+      "status": "required",
+      "route": "/?archived_ledger_id=:id",
+      "react_target": "frontend/src/components/ledger/ArchivedLedgerBanner.tsx",
+      "acceptance": ["T50-WEB-006"]
+    },
+    {
+      "name": "Archived Read Only Shell Mobile 390",
+      "size": "390x844",
+      "section": "05 Archived & No Active",
+      "status": "required",
+      "purpose": "只读状态带、隐藏 FAB、返回/恢复动作"
+    },
+    {
+      "name": "No Active Ledger Desktop 1440",
+      "size": "1440x1024",
+      "section": "05 Archived & No Active",
+      "status": "required",
+      "react_target": "frontend/src/components/ledger/NoActiveLedgerShell.tsx",
+      "acceptance": ["T50-WEB-003"]
+    },
+    {
+      "name": "No Active Ledger Mobile 390",
+      "size": "390x844",
+      "section": "05 Archived & No Active",
+      "status": "required",
+      "acceptance": ["T50-WEB-003", "T50-WEB-008"]
+    },
+    {
+      "name": "Loading Empty Error Permission",
+      "size": "1440x1024",
+      "section": "06 Error Permission Responsive",
+      "status": "required",
+      "states": ["loading", "active-empty", "archived-empty", "list-error", "permission-lost"]
+    },
+    {
+      "name": "Error Code Action Mapping Mobile 390",
+      "size": "390x844",
+      "section": "06 Error Permission Responsive",
+      "status": "required",
+      "states": ["archived", "version-conflict", "ready-import", "owner-transfer-required"]
+    },
+    {
+      "name": "Task50 React API Acceptance Map",
+      "size": "1440x1024",
+      "section": "07 Code Mapping",
+      "status": "required",
+      "purpose": "Frame、route、React、API、role、error code、T50 用例映射"
+    }
+  ]
+}

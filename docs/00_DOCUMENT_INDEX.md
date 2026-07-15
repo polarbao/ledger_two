@@ -2,7 +2,7 @@
 
 > 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝当前仍只导出 CSV，不再等待支付宝 XLSX。剩余发布门禁为 NAS schema 19 staging、production 一致性备份与逐批导入确认。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 >
-> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-09 已完成，结算、设置、元数据、导入与分析工作台、高风险确认和 375/1440px 本机路径于 2026-07-15 通过。下一任务为 UI-FL-10 全局验收，UI 专项以 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 为执行入口；Task50P.1-P.4 已完成，产品、Tech、Migration、OpenAPI、Fixture 与验收矩阵已冻结，UI 和开发准入仍待完成，尚未进入编码。本地预览不代表线上 Figma 已完整同步。
+> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-09 已完成，结算、设置、元数据、导入与分析工作台、高风险确认和 375/1440px 本机路径于 2026-07-15 通过。下一任务为 UI-FL-10 全局验收，UI 专项以 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 为执行入口；Task50P.1-P.5 已完成，产品、Tech、Migration、OpenAPI、Fixture、验收矩阵与 UI 已冻结，仅 P.6 开发准入待完成，尚未进入编码。本地预览不代表线上 Figma 已完整同步。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -56,8 +56,11 @@ docs/fixtures/imports/README.md
 docs/ui/README.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
+docs/ui/16-v1.3-multi-ledger-flows.md
 docs/ui/figma/README.md
 docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md
+docs/ui/figma/task50-v1.3-multi-ledger/README.md
+docs/ui/figma/task50-v1.3-multi-ledger/task50-frame-manifest.json
 docs/codex_tasks/05-foundation-task-plan.md
 docs/codex_tasks/08-product-roadmap-dev-plan.md
 docs/codex_tasks/09-task41-49-detailed-plan.md

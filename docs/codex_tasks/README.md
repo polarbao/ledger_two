@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task49 已完成；Task49X 已冻结微信 CSV/XLSX、支付宝 CSV、通用 CSV 支持矩阵并进入发布收口；Fresh Light UI-FL-01 至 UI-FL-04 已完成，UI-FL-05 核心工作台已交付并继续收口编辑契约与真实账号回归
+适用阶段：Task01-Task49 已完成；Task49X 开发与本机验收完成并继续关闭 NAS 发布门禁；Fresh Light UI-FL-01 至 UI-FL-05 已完成，下一任务为 UI-FL-06；Task50 开发前文档准备已开启但尚未达到编码准入
 
 ## 1. 目标
 
@@ -26,6 +26,7 @@
 11-v1.2-release-hardening-plan.md v1.2 RC 环境隔离、NAS staging 与 production 升级任务
 12-v1.2-xlsx-import-special-plan.md v1.2 微信 XLSX/支付宝 CSV 导入专项任务
 13-fresh-light-ui-interaction-plan.md v1.2 收口后的 Fresh Light UI/UX 协同开发计划
+14-v1.3-task50-predevelopment-plan.md v1.3 Task50 多账本正式化开发前准备与准入计划
 ../releases/                    v1.2 发布说明、升级回滚和发布验收清单
 ```
 

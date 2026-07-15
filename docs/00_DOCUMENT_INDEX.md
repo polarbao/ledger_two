@@ -2,7 +2,7 @@
 
 > 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝当前仍只导出 CSV，不再等待支付宝 XLSX。剩余发布门禁为 NAS schema 19 staging、production 一致性备份与逐批导入确认。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 >
-> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-04 已完成，UI-FL-05 已交付流水工作台、共享响应式列表和本机视觉验收，剩余编辑契约与真实账号回归。UI 专项以 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 为执行入口，并与后续业务 Task 双向登记；本地预览不代表线上 Figma 已完整同步。
+> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-05 已完成，UI-FL-05E 固定镜像、真实账号和隔离数据库副本写路径于 2026-07-15 通过。下一任务为 UI-FL-06，UI 专项以 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` 为执行入口；Task50 仅开启开发前文档准备，尚未进入编码。本地预览不代表线上 Figma 已完整同步。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -22,6 +22,8 @@
 当前产品与开发规划入口：
 
 ```text
+docs/README.md
+docs/prd/README.md
 docs/prd/00-product-roadmap.md
 docs/prd/20-product-retrospective-and-positioning.md
 docs/prd/21-roadmap-short-mid-long.md
@@ -34,6 +36,8 @@ docs/prd/29-prd-v1.2-module-business-service-breakdown.md
 docs/prd/30-prd-v1.2-xlsx-import-special.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
+docs/tech/README.md
+docs/tech/00-current-architecture-after-task30.md
 docs/tech/18-short-mid-architecture-slices.md
 docs/tech/19-short-mid-implementation-readiness.md
 docs/tech/20-v1.2-import-implementation-contract.md
@@ -46,6 +50,7 @@ docs/api/API_CONVENTIONS.md
 docs/api/openapi.yaml
 docs/api/openapi-v1.2-import-draft.yaml
 docs/fixtures/imports/README.md
+docs/ui/README.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
 docs/ui/figma/README.md
@@ -57,6 +62,7 @@ docs/codex_tasks/10-task33-40-detailed-plan.md
 docs/codex_tasks/11-v1.2-release-hardening-plan.md
 docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md
 docs/codex_tasks/13-fresh-light-ui-interaction-plan.md
+docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md
 ```
 
 ### 1.2 历史 v0.3 结论
@@ -81,6 +87,9 @@ AI 编码模型必须按以下顺序阅读：
 00_DOCUMENT_INDEX.md
 README.md
 docs/README.md
+docs/prd/README.md
+docs/tech/README.md
+docs/ui/README.md
 docs/releases/README.md
 docs/releases/v1.2.0-rc-release-notes.md
 docs/releases/v1.2.0-rc-upgrade-guide.md
@@ -117,6 +126,7 @@ docs/fixtures/imports/README.md
 docs/codex_tasks/README.md
 docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md
 docs/codex_tasks/13-fresh-light-ui-interaction-plan.md
+docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md
 ```
 
 如果处理早期 Demo 或 v0.3 任务，再补读：

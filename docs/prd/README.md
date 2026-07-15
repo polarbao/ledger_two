@@ -1,6 +1,43 @@
 # PRD 模块目录
 
+状态：当前产品事实源入口
+最近更新：2026-07-15
+
 本目录按照产品业务模块拆分 LedgerTwo 的 PRD。后续每个模块可以独立进入设计、开发、测试和迭代。
+
+## 总览判断
+
+当前 PRD 已有总览文档，不需要新增平行的产品总览：
+
+| 层级 | 文件 | 作用 |
+|---|---|---|
+| 产品总览 | `00-product-roadmap.md` | 当前产品定位、版本状态、路线、优先级和边界 |
+| 产品复盘 | `20-product-retrospective-and-positioning.md` | 从产品经理视角重整定位、用户场景和不做事项 |
+| 版本路线 | `21-roadmap-short-mid-long.md` | Foundation、v1.1、v1.2、Fresh Light、v1.3+ 路线 |
+| 优先级决策 | `23-feature-priority-and-deferral-decisions.md` | 必做、应做但不急、延后和不做功能 |
+| 验收口径 | `27-acceptance-case-matrix.md`、`28-transaction-caliber-supplement.md` | 关键业务验收样例和交易/账户口径 |
+
+后续产品规划应优先更新以上总览，而不是新增重复 PRD。只有新版本或新模块已经完成范围冻结，才新增独立 PRD。
+
+## 当前产品阶段
+
+截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + Fresh Light 体验质量专项 + v1.3 开工前评审准备`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-05 已完成，Task50 仅开启开发前准备，尚未形成可直接编码的冻结 PRD。
+
+当前产品重点：
+
+1. 保持 v1.2 业务范围冻结。
+2. 完成 NAS staging schema 19 和 production 发布门禁。
+3. 收口 Fresh Light 全应用体验，不改变已冻结金额、权限、导入和结算规则。
+4. v1.3 前重新评审多账本、多成员和多人分摊。
+
+当前不进入开发：
+
+1. 银行自动同步。
+2. OCR 小票识别。
+3. 原生 App。
+4. 企业多租户。
+5. 复杂预算系统。
+6. 自动通知共同支付。
 
 ## 模块列表
 
@@ -37,6 +74,15 @@
 1. 本模块 PRD。
 2. `docs/ui/` 中对应 UI 文档。
 3. `docs/tech/` 中对应技术实现文档。
+4. `docs/codex_tasks/` 中对应任务卡；任务卡只用于执行切片，不替代 PRD 事实源。
+
+发生冲突时，优先级为：
+
+1. 当前代码、迁移、测试和已验收发布记录。
+2. `00-product-roadmap.md`、`20-30` 当前 PRD。
+3. `docs/tech/` 和 `docs/ui/` 当前契约。
+4. `docs/codex_tasks/` 任务卡。
+5. 早期 `01-09` 模块 PRD 和根目录 Demo 文档。
 
 ## 当前推荐入口
 
@@ -54,4 +100,3 @@ Task30 后的产品规划建议优先阅读：
 10. `27-acceptance-case-matrix.md`
 11. `28-transaction-caliber-supplement.md`
 12. `30-prd-v1.2-xlsx-import-special.md`（Task49X 开发前必读）
-

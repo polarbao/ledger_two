@@ -29,8 +29,7 @@ func TestRBACAcceptanceViewerCannotCreateTransaction(t *testing.T) {
 	router := New(database, rbacRouterConfig(t))
 
 	fixture := seedRBACLedger(t, database)
-	guestID := insertRBACUser(t, database, "guest", "Guest")
-	addRBACMember(t, database, fixture.LedgerID, guestID, "viewer")
+	setRBACMemberRole(t, database, fixture.LedgerID, fixture.UserBID, "viewer")
 
 	beforeCount := countTransactions(t, database)
 	payload := map[string]interface{}{
@@ -38,13 +37,13 @@ func TestRBACAcceptanceViewerCannotCreateTransaction(t *testing.T) {
 		"title":         "viewer should not write",
 		"amount_cents":  int64(1234),
 		"occurred_at":   time.Now().Format(time.RFC3339),
-		"payer_user_id": guestID,
+		"payer_user_id": fixture.UserBID,
 		"visibility":    "private",
 	}
 	body, _ := json.Marshal(payload)
 	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewReader(body))
 	req.Header.Set("X-Ledger-Id", fixture.LedgerID)
-	req.AddCookie(authCookie(t, guestID))
+	req.AddCookie(authCookie(t, fixture.UserBID))
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -62,8 +61,6 @@ func TestRBACAcceptanceImportManagementOwnerOnly(t *testing.T) {
 	router := New(database, rbacRouterConfig(t))
 
 	fixture := seedRBACLedger(t, database)
-	viewerID := insertRBACUser(t, database, "import-viewer", "Import Viewer")
-	addRBACMember(t, database, fixture.LedgerID, viewerID, "viewer")
 	payload, _ := json.Marshal(map[string]any{
 		"name":       "forbidden rule",
 		"match_type": "merchant_contains",
@@ -86,19 +83,14 @@ func TestRBACAcceptanceImportManagementOwnerOnly(t *testing.T) {
 		{method: http.MethodGet, path: "/api/imports/missing-batch"},
 	}
 
-	for _, member := range []struct {
-		name   string
-		userID string
-	}{
-		{name: "editor", userID: fixture.UserBID},
-		{name: "viewer", userID: viewerID},
-	} {
+	for _, role := range []string{"editor", "viewer"} {
+		setRBACMemberRole(t, database, fixture.LedgerID, fixture.UserBID, role)
 		for _, endpoint := range endpoints {
-			t.Run(member.name+" "+endpoint.method+" "+endpoint.path, func(t *testing.T) {
+			t.Run(role+" "+endpoint.method+" "+endpoint.path, func(t *testing.T) {
 				req := httptest.NewRequest(endpoint.method, endpoint.path, bytes.NewReader(endpoint.body))
 				req.Header.Set("X-Ledger-Id", fixture.LedgerID)
 				req.Header.Set("Content-Type", "application/json")
-				req.AddCookie(authCookie(t, member.userID))
+				req.AddCookie(authCookie(t, fixture.UserBID))
 				rr := httptest.NewRecorder()
 
 				router.ServeHTTP(rr, req)
@@ -187,12 +179,11 @@ func TestRBACAcceptanceDiagnosticsOwnerOnlyAndSanitized(t *testing.T) {
 	router := New(database, cfg)
 
 	fixture := seedRBACLedger(t, database)
-	viewerID := insertRBACUser(t, database, "diag-viewer", "Diagnostics Viewer")
-	addRBACMember(t, database, fixture.LedgerID, viewerID, "viewer")
+	setRBACMemberRole(t, database, fixture.LedgerID, fixture.UserBID, "viewer")
 
 	reqViewer := httptest.NewRequest(http.MethodGet, "/api/admin/diagnostics", nil)
 	reqViewer.Header.Set("X-Ledger-Id", fixture.LedgerID)
-	reqViewer.AddCookie(authCookie(t, viewerID))
+	reqViewer.AddCookie(authCookie(t, fixture.UserBID))
 	rrViewer := httptest.NewRecorder()
 	router.ServeHTTP(rrViewer, reqViewer)
 	if rrViewer.Code != http.StatusForbidden {
@@ -436,16 +427,17 @@ func insertRBACUser(t *testing.T, database *sql.DB, username string, displayName
 	return userID
 }
 
-func addRBACMember(t *testing.T, database *sql.DB, ledgerID string, userID string, role string) {
+func setRBACMemberRole(t *testing.T, database *sql.DB, ledgerID string, userID string, role string) {
 	t.Helper()
 
 	now := time.Now().Format(time.RFC3339)
 	_, err := database.Exec(`
-		INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, ledgerID, userID, role, now, now)
+		UPDATE ledger_members
+		SET role = ?, updated_at = ?
+		WHERE ledger_id = ? AND user_id = ?
+	`, role, now, ledgerID, userID)
 	if err != nil {
-		t.Fatalf("insert member %s role %s: %v", userID, role, err)
+		t.Fatalf("update member %s role %s: %v", userID, role, err)
 	}
 }
 

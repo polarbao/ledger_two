@@ -1,7 +1,7 @@
 # LedgerTwo 文档总入口
 
 状态：当前文档入口
-最近更新：2026-07-14
+最近更新：2026-07-15
 
 本文档用于判断 `docs/` 下哪些资料是当前事实源、哪些只是历史参考或验收证据。后续产品、架构、UI/UX、部署和 AI 开发任务都应先从这里进入，再按具体模块读取。
 
@@ -26,9 +26,9 @@ docs/
 | 角色 | 目录或文件 | 使用规则 |
 |---|---|---|
 | 当前入口 | `docs/README.md`、`docs/00_DOCUMENT_INDEX.md` | 先读，用于确定阶段、阅读顺序和事实源优先级 |
-| 产品事实源 | `docs/prd/README.md`、`docs/prd/00-product-roadmap.md`、`docs/prd/20-30` | 当前产品定位、路线、范围和验收口径 |
-| 技术事实源 | `docs/tech/README.md`、`docs/tech/00-current-architecture-after-task30.md`、`docs/tech/18-24` | 当前架构、实施契约、部署隔离和迁移策略 |
-| UI/UX 事实源 | `docs/ui/README.md`、`docs/ui/14-15`、`docs/ui/figma/README.md` | 当前页面流程、长期体验专项、Figma 配套规范 |
+| 产品事实源 | `docs/prd/README.md`、`docs/prd/00-product-roadmap.md`、`docs/prd/20-32` | 当前产品定位、路线、范围和验收口径 |
+| 技术事实源 | `docs/tech/README.md`、`docs/tech/00-current-architecture-after-task30.md`、`docs/tech/18-25` | 当前架构、实施契约、部署隔离和迁移策略 |
+| UI/UX 事实源 | `docs/ui/README.md`、`docs/ui/14-16`、`docs/ui/figma/README.md` | 当前页面流程、长期体验专项、Figma 配套规范 |
 | 任务入口 | `docs/codex_tasks/README.md` 和当前任务文件 | 只用于执行已确认任务，不替代 PRD/Tech/UI 事实源 |
 | 发布证据 | `docs/releases/`、`docs/project_analysis/2026-*` | 记录已执行验收和发布状态，不单独定义新需求 |
 | 历史资料 | 根目录早期 `01-18` 文档、`project_analysis/extracted_archives`、旧 zip | 背景参考；不得用于推翻 Task30 后的新能力 |
@@ -86,7 +86,7 @@ docs/
 
 当前项目已完成 Task01-Task49。Task49X 核心实现、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview 和移动端视觉验收已完成；支付宝当前仍只导出 CSV。后续发布收口聚焦 NAS schema 19 staging、production 一致性备份与逐批导入确认，开发入口以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为准。
 
-2026-07-15 更新：Fresh Light UI-FL-01 至 UI-FL-10 已完成，Fresh Light 为无偏好新会话默认体验，Dark Glass 保留显式回退；全局证据见 `docs/project_analysis/ui-fl-10-global-2026-07-15/`。Task50P.1-P.6 已完成，入口为 `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md` 与 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`；下一实现任务为只在独立 development 环境执行的 Task50.1，WSL staging 与 NAS 不迁移至 schema 21。
+2026-07-15 更新：Fresh Light UI-FL-01 至 UI-FL-10 已完成，Fresh Light 为无偏好新会话默认体验，Dark Glass 保留显式回退；全局证据见 `docs/project_analysis/ui-fl-10-global-2026-07-15/`。Task50P.1-P.6 与 Task50.1 已完成，入口为 `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md` 与 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`；下一实现任务为只在独立 development 环境执行的 Task50.2，WSL staging 与 NAS 仍不迁移至 schema 21。
 
 ## AI 开发使用方式
 

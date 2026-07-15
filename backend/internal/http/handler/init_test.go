@@ -120,4 +120,26 @@ func TestInitFlow(t *testing.T) {
 	if hash == "pass123" || hash == "" {
 		t.Errorf("Test 5 failed: password was not hashed correctly")
 	}
+
+	// The first initialized user is the only initial instance administrator.
+	var adminUsername string
+	err = db.QueryRow(`
+		SELECT u.username
+		FROM instance_admins ia
+		JOIN users u ON u.id = ia.user_id
+	`).Scan(&adminUsername)
+	if err != nil {
+		t.Fatalf("Test 6 failed: query instance administrator %v", err)
+	}
+	if adminUsername != "userA" {
+		t.Errorf("Test 6 failed: expected userA to be instance administrator, got %s", adminUsername)
+	}
+
+	var adminCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM instance_admins").Scan(&adminCount); err != nil {
+		t.Fatalf("Test 6 failed: count instance administrators %v", err)
+	}
+	if adminCount != 1 {
+		t.Errorf("Test 6 failed: expected exactly one instance administrator, got %d", adminCount)
+	}
 }

@@ -67,6 +67,15 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 		if err != nil {
 			return err
 		}
+		if i == 0 {
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO instance_admins (user_id, granted_at, granted_by_user_id)
+				VALUES (?, ?, NULL)
+			`, userID, now)
+			if err != nil {
+				return err
+			}
+		}
 
 		memberRole := "editor"
 		if i == 0 {

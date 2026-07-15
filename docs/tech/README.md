@@ -30,8 +30,8 @@
 3. v1.2 RC 的关键技术门禁是 schema 19 staging、XLSX 开关、备份链、health 校验和回滚脚本。
 4. Fresh Light 属于前端体验专项，不应改变后端金额、权限、导入、结算或 migration 契约。
 5. v1.3 前应重新评审多账本、多成员、多人分摊的数据模型、权限矩阵和 migration 策略。
-6. UI-FL-10 与 Task50P.1-P.6 已完成；Task50 仅获准在独立本地 development 环境从 Task50.1 开始，现有 LedgerContext 和成员 API 仍只是实现基线。
-7. WSL staging 继续固定 schema 19；migration 020/021 在 Task50.1 只能进入 development 新库、自动化临时库或明确脱敏副本。
+6. UI-FL-10、Task50P.1-P.6 与 Task50.1 已完成；schema 21 migration、升级预检、Ledger model/repository 和实例管理员初始化已形成实现基线，下一任务为 Task50.2 显式 LedgerContext 与统一 Guard。
+7. WSL staging 继续固定 schema 19；migration 020/021 当前只在自动化临时库完成验收，未进入 WSL staging、NAS 或真实数据库。
 
 当前已知技术债：
 

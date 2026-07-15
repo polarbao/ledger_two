@@ -21,7 +21,7 @@
 
 ## 当前产品阶段
 
-截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + v1.3 Task50 独立开发准入`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-10 已完成并关闭专项；Task50P.1-P.6 已完成，产品、Tech、Migration、OpenAPI、Fixture、验收矩阵、UI 与开发准入均已冻结，下一实现任务为 Task50.1。
+截至 2026-07-15，项目处于 `v1.2.0-rc 发布收口 + v1.3 Task50 独立开发`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-10 已完成并关闭专项；Task50P.1-P.6 与 Task50.1 已完成，产品、Tech、Migration、OpenAPI、Fixture、验收矩阵、UI、开发准入及 schema 21 数据基础均已验收，下一实现任务为 Task50.2。
 
 当前产品重点：
 

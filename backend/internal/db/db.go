@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -29,7 +30,18 @@ func Init(dsn string) (*sql.DB, error) {
 	}
 
 	currentVersion, err := goose.GetDBVersion(database)
-	if err == nil && currentVersion > 0 {
+	if err != nil {
+		database.Close()
+		return nil, fmt.Errorf("failed to read database schema version: %w", err)
+	}
+
+	task50Snapshot, err := prepareTask50Upgrade(context.Background(), database, currentVersion)
+	if err != nil {
+		database.Close()
+		return nil, fmt.Errorf("database migration preflight failed: %w", err)
+	}
+
+	if currentVersion > 0 {
 		// 在执行可能有风险的 Migration 之前进行防破坏自动备份
 		// 提取物理路径 (粗略移除可能存在的 URI 协议与参数)
 		dbPath := dsn
@@ -55,6 +67,10 @@ func Init(dsn string) (*sql.DB, error) {
 	if err := goose.Up(database, "."); err != nil {
 		database.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+	if err := verifyTask50MigrationSnapshot(context.Background(), database, task50Snapshot); err != nil {
+		database.Close()
+		return nil, fmt.Errorf("database migration conservation check failed: %w", err)
 	}
 	log.Printf("Database migrations completed successfully")
 

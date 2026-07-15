@@ -279,6 +279,11 @@ button {
   padding: 40px 32px;
 }
 
+:where(a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 2px solid var(--lt-brand);
+  outline-offset: 2px;
+}
+
 .init-card {
   width: min(100%, 840px);
   max-width: calc(100vw - 32px);
@@ -2351,5 +2356,16 @@ button {
   }
   .dashboard-reminder-buttons {
     flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

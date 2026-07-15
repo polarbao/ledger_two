@@ -1,0 +1,144 @@
+.recurring-rules-page {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.recurring-rules-page .glass-card {
+  border-color: var(--lt-border-subtle);
+  border-radius: var(--lt-radius-card);
+  background: var(--lt-bg-surface);
+  box-shadow: var(--lt-shadow-sm);
+  backdrop-filter: none;
+}
+
+.recurring-rules-page .glass-card::before {
+  display: none;
+}
+
+.recurring-rules-page__back-link {
+  min-height: var(--lt-control-height);
+  gap: 6px;
+}
+
+.recurring-rules-page__feedback {
+  min-width: 0;
+  margin-bottom: var(--lt-space-4);
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: var(--lt-radius-panel);
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: var(--lt-font-size-body-sm);
+  font-weight: 600;
+  line-height: var(--lt-line-height-normal);
+}
+
+.recurring-rules-page__feedback svg {
+  flex: 0 0 18px;
+  margin-top: 1px;
+}
+
+.recurring-rules-page__feedback--success {
+  border-color: var(--lt-status-success-border);
+  background: var(--lt-status-success-bg);
+  color: var(--lt-status-success-text);
+}
+
+.recurring-rules-page__feedback--danger {
+  border-color: var(--lt-status-danger-border);
+  background: var(--lt-status-danger-bg);
+  color: var(--lt-status-danger-text);
+}
+
+.recurring-rules-page__section-heading {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--lt-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.recurring-rules-page__section-heading--start {
+  justify-content: flex-start;
+}
+
+.recurring-rules-page__schedule-chip,
+.recurring-rules-page__tag {
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid var(--lt-status-accent-border);
+  border-radius: var(--lt-radius-pill);
+  display: inline-flex;
+  align-items: center;
+  background: var(--lt-status-accent-bg);
+  color: var(--lt-status-accent-text);
+  font-size: var(--lt-font-size-caption);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.recurring-rules-page__rule-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--lt-border-subtle);
+  border-radius: var(--lt-radius-card);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--lt-bg-surface-muted);
+}
+
+.recurring-rules-page__delete {
+  color: var(--lt-text-muted);
+}
+
+.recurring-rules-page__delete:hover:not(:disabled) {
+  background: var(--lt-status-danger-bg);
+  color: var(--lt-status-danger-text);
+}
+
+.recurring-rules-page__rule-details {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--lt-radius-panel);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px 16px;
+  background: var(--lt-bg-control);
+  color: var(--lt-text-secondary);
+  font-size: var(--lt-font-size-caption);
+}
+
+.recurring-rules-page__tag {
+  border-color: var(--lt-status-neutral-border);
+  background: var(--lt-status-neutral-bg);
+  color: var(--lt-status-neutral-text);
+}
+
+.recurring-rules-page__note {
+  padding: 7px 10px;
+  border-left: 2px solid var(--lt-border-strong);
+  border-radius: 0 var(--lt-radius-control) var(--lt-radius-control) 0;
+  background: var(--lt-bg-control);
+  color: var(--lt-text-muted);
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.recurring-rules-page .ui-segmented-control {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .recurring-rules-page__back-link {
+    width: 100%;
+  }
+
+  .recurring-rules-page .recurring-reminder-actions,
+  .recurring-rules-page .recurring-reminder-actions .ui-button {
+    width: 100%;
+  }
+}

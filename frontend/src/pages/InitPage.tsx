@@ -76,7 +76,7 @@ export default function InitPage() {
           <DeploymentBadge />
         </div>
 
-        {errorMsg && <div className="error-banner">{errorMsg}</div>}
+        {errorMsg && <div className="error-banner" role="alert">{errorMsg}</div>}
 
         <form onSubmit={handleSubmit(onSubmit)} className="init-form">
           <div className="form-section">
@@ -87,28 +87,34 @@ export default function InitPage() {
             
             <div className="form-row-2">
               <div className="form-group">
-                <label>账本名称</label>
+                <label htmlFor="setup-ledger-name">账本名称</label>
                 <input
+                  id="setup-ledger-name"
                   type="text"
                   placeholder="例如：小家温馨账本、情侣日常开销"
                   {...register('ledger_name')}
                   className={errors.ledger_name ? 'input-error' : ''}
+                  aria-invalid={Boolean(errors.ledger_name)}
+                  aria-describedby={errors.ledger_name ? 'setup-ledger-name-error' : undefined}
                 />
-                {errors.ledger_name && <span className="field-error">{errors.ledger_name.message}</span>}
+                {errors.ledger_name && <span id="setup-ledger-name-error" className="field-error">{errors.ledger_name.message}</span>}
               </div>
 
               <div className="form-group">
-                <label>默认币种</label>
+                <label htmlFor="setup-currency">默认币种</label>
                 <select
+                  id="setup-currency"
                   {...register('default_currency')}
                   className={`form-select ${errors.default_currency ? 'input-error' : ''}`}
+                  aria-invalid={Boolean(errors.default_currency)}
+                  aria-describedby={errors.default_currency ? 'setup-currency-error' : undefined}
                 >
                   <option value="CNY">CNY - 人民币 (¥)</option>
                   <option value="USD">USD - 美元 ($)</option>
                   <option value="EUR">EUR - 欧元 (€)</option>
                   <option value="HKD">HKD - 港币 (HK$)</option>
                 </select>
-                {errors.default_currency && <span className="field-error">{errors.default_currency.message}</span>}
+                {errors.default_currency && <span id="setup-currency-error" className="field-error">{errors.default_currency.message}</span>}
               </div>
             </div>
           </div>
@@ -121,39 +127,50 @@ export default function InitPage() {
                 <h3>创建成员 A (你)</h3>
               </div>
               <div className="form-group">
-                <label>显示昵称</label>
+                <label htmlFor="setup-user-a-display-name">显示昵称</label>
                 <input
+                  id="setup-user-a-display-name"
                   type="text"
                   placeholder="例如：Lynn、Polar"
                   {...register('user_a_display_name')}
                   className={errors.user_a_display_name ? 'input-error' : ''}
+                  aria-invalid={Boolean(errors.user_a_display_name)}
+                  aria-describedby={errors.user_a_display_name ? 'setup-user-a-display-name-error' : undefined}
                 />
                 {errors.user_a_display_name && (
-                  <span className="field-error">{errors.user_a_display_name.message}</span>
+                  <span id="setup-user-a-display-name-error" className="field-error">{errors.user_a_display_name.message}</span>
                 )}
               </div>
               <div className="form-group">
-                <label>登录用户名</label>
+                <label htmlFor="setup-user-a-username">登录用户名</label>
                 <input
+                  id="setup-user-a-username"
                   type="text"
                   placeholder="登录账号，至少3个字符"
                   {...register('user_a_username')}
                   className={errors.user_a_username ? 'input-error' : ''}
+                  aria-invalid={Boolean(errors.user_a_username)}
+                  aria-describedby={errors.user_a_username ? 'setup-user-a-username-error' : undefined}
+                  autoComplete="username"
                 />
                 {errors.user_a_username && (
-                  <span className="field-error">{errors.user_a_username.message}</span>
+                  <span id="setup-user-a-username-error" className="field-error">{errors.user_a_username.message}</span>
                 )}
               </div>
               <div className="form-group">
-                <label>密码</label>
+                <label htmlFor="setup-user-a-password">密码</label>
                 <input
+                  id="setup-user-a-password"
                   type="password"
                   placeholder="至少6位密码"
                   {...register('user_a_password')}
                   className={errors.user_a_password ? 'input-error' : ''}
+                  aria-invalid={Boolean(errors.user_a_password)}
+                  aria-describedby={errors.user_a_password ? 'setup-user-a-password-error' : undefined}
+                  autoComplete="new-password"
                 />
                 {errors.user_a_password && (
-                  <span className="field-error">{errors.user_a_password.message}</span>
+                  <span id="setup-user-a-password-error" className="field-error">{errors.user_a_password.message}</span>
                 )}
               </div>
             </div>
@@ -165,39 +182,50 @@ export default function InitPage() {
                 <h3>创建成员 B (伙伴)</h3>
               </div>
               <div className="form-group">
-                <label>显示昵称</label>
+                <label htmlFor="setup-user-b-display-name">显示昵称</label>
                 <input
+                  id="setup-user-b-display-name"
                   type="text"
                   placeholder="例如：Bob、Alice"
                   {...register('user_b_display_name')}
                   className={errors.user_b_display_name ? 'input-error' : ''}
+                  aria-invalid={Boolean(errors.user_b_display_name)}
+                  aria-describedby={errors.user_b_display_name ? 'setup-user-b-display-name-error' : undefined}
                 />
                 {errors.user_b_display_name && (
-                  <span className="field-error">{errors.user_b_display_name.message}</span>
+                  <span id="setup-user-b-display-name-error" className="field-error">{errors.user_b_display_name.message}</span>
                 )}
               </div>
               <div className="form-group">
-                <label>登录用户名</label>
+                <label htmlFor="setup-user-b-username">登录用户名</label>
                 <input
+                  id="setup-user-b-username"
                   type="text"
                   placeholder="伙伴的登录账号，至少3个字符"
                   {...register('user_b_username')}
                   className={errors.user_b_username ? 'input-error' : ''}
+                  aria-invalid={Boolean(errors.user_b_username)}
+                  aria-describedby={errors.user_b_username ? 'setup-user-b-username-error' : undefined}
+                  autoComplete="username"
                 />
                 {errors.user_b_username && (
-                  <span className="field-error">{errors.user_b_username.message}</span>
+                  <span id="setup-user-b-username-error" className="field-error">{errors.user_b_username.message}</span>
                 )}
               </div>
               <div className="form-group">
-                <label>密码</label>
+                <label htmlFor="setup-user-b-password">密码</label>
                 <input
+                  id="setup-user-b-password"
                   type="password"
                   placeholder="伙伴的登录密码"
                   {...register('user_b_password')}
                   className={errors.user_b_password ? 'input-error' : ''}
+                  aria-invalid={Boolean(errors.user_b_password)}
+                  aria-describedby={errors.user_b_password ? 'setup-user-b-password-error' : undefined}
+                  autoComplete="new-password"
                 />
                 {errors.user_b_password && (
-                  <span className="field-error">{errors.user_b_password.message}</span>
+                  <span id="setup-user-b-password-error" className="field-error">{errors.user_b_password.message}</span>
                 )}
               </div>
             </div>

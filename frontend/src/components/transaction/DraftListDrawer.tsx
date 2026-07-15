@@ -1,6 +1,12 @@
-import { X, Edit3, Trash2, CloudOff } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, CloudOff, Edit3, Trash2, Wifi } from 'lucide-react';
 import { useDraftStore } from '../../stores/draft.store';
 import { useUIStore } from '../../stores/ui.store';
+import BottomSheet from '../ui/BottomSheet';
+import Button from '../ui/Button';
+import ConfirmDialog from '../ui/ConfirmDialog';
+import StatePanel from '../ui/StatePanel';
+import './DraftListDrawer.css';
 
 interface Props {
   open: boolean;
@@ -16,8 +22,7 @@ export default function DraftListDrawer({ open, onClose }: Props) {
     setEditSourceTransaction,
     isOffline,
   } = useUIStore();
-
-  if (!open) return null;
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   const handleEditDraft = (id: string) => {
     setCopySourceTransaction(null);
@@ -27,91 +32,112 @@ export default function DraftListDrawer({ open, onClose }: Props) {
     onClose();
   };
 
+  const handleClose = () => {
+    setIsClearConfirmOpen(false);
+    onClose();
+  };
+
   const handleClearAll = () => {
-    if (confirm('确定要清空所有离线草稿吗？')) {
-      clearDrafts();
-    }
+    clearDrafts();
+    setIsClearConfirmOpen(false);
   };
 
   return (
-    <div className="drawer-overlay glass-blur show" onClick={onClose}>
-      <div className="drawer-container glass-card" onClick={(e) => e.stopPropagation()}>
-        <div className="drawer-header">
-          <div className="header-title">
-            <CloudOff className="title-icon text-glow" />
-            <h3>离线草稿箱</h3>
-          </div>
-          <button className="btn-close-drawer" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="drawer-body p-4" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {isOffline && (
-            <div className="error-banner" style={{ background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.2)', color: '#ca8a04', margin: 0 }}>
-              <p>当前仍处于离线状态，您可以继续编辑草稿，但无法提交为正式账单。</p>
+    <>
+      <BottomSheet
+        open={open && !isClearConfirmOpen}
+        title="离线草稿箱"
+        description={drafts.length > 0 ? `共 ${drafts.length} 条本机草稿` : '草稿只保存在当前浏览器'}
+        footer={drafts.length > 0 ? (
+          <Button
+            variant="ghost"
+            className="draft-list__clear"
+            startIcon={<Trash2 size={17} />}
+            onClick={() => setIsClearConfirmOpen(true)}
+          >
+            全部清空
+          </Button>
+        ) : undefined}
+        onClose={handleClose}
+      >
+        <div className="draft-list">
+          {isOffline ? (
+            <div className="draft-list__feedback draft-list__feedback--warning" role="status">
+              <CloudOff size={18} aria-hidden="true" />
+              <span>当前仍处于离线状态，可以继续编辑草稿，但暂时不能提交为正式账单。</span>
             </div>
-          )}
-
-          {!isOffline && drafts.length > 0 && (
-            <div className="success-banner" style={{ background: 'rgba(34, 197, 94, 0.1)', borderColor: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', margin: 0, padding: '12px', borderRadius: '8px' }}>
-              <p>网络已恢复，您可以点击下方草稿进行提交。</p>
+          ) : drafts.length > 0 ? (
+            <div className="draft-list__feedback draft-list__feedback--success" role="status">
+              <Wifi size={18} aria-hidden="true" />
+              <span>网络已恢复，可以打开草稿检查并提交。</span>
             </div>
-          )}
+          ) : null}
 
           {drafts.length === 0 ? (
-            <div className="empty-state" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-              暂无离线草稿
-            </div>
+            <StatePanel
+              title="暂无离线草稿"
+              description="离线记账后，尚未提交的内容会显示在这里。"
+              icon={<CloudOff size={24} />}
+            />
           ) : (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>共 {drafts.length} 条草稿</span>
-                <button 
-                  className="btn-text" 
-                  style={{ color: 'var(--accent-danger)', fontSize: '12px' }}
-                  onClick={handleClearAll}
-                >
-                  全部清空
-                </button>
-              </div>
+            <div className="draft-list__items" aria-label="离线草稿列表">
+              {drafts.map((draft) => {
+                const typeLabel = draft.formValues.type === 'expense'
+                  ? '支出'
+                  : draft.formValues.type === 'income'
+                    ? '收入'
+                    : '共同支出';
+                const title = draft.formValues.title?.trim();
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {drafts.map((draft) => (
-                  <div key={draft.id} className="transaction-card glass-card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: '500', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                        {draft.formValues.type === 'expense' ? '支出' : draft.formValues.type === 'income' ? '收入' : '共同支出'} 
-                        {' · '} 
-                        {draft.formValues.amount ? `￥${draft.formValues.amount}` : '未填金额'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {draft.formValues.occurred_at} {draft.formValues.title ? ` · ${draft.formValues.title}` : ''}
-                      </div>
+                return (
+                  <article key={draft.id} className="draft-list__item">
+                    <div className="draft-list__copy">
+                      <strong className="draft-list__amount">
+                        {typeLabel} · {draft.formValues.amount ? `¥${draft.formValues.amount}` : '未填金额'}
+                      </strong>
+                      <span className="draft-list__meta">
+                        {draft.formValues.occurred_at}{title ? ` · ${title}` : ''}
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        className="btn-icon" 
+                    <div className="draft-list__actions">
+                      <Button
+                        variant="secondary"
+                        iconOnly
+                        aria-label={`编辑${title || typeLabel}草稿`}
+                        title="编辑并提交"
                         onClick={() => handleEditDraft(draft.id)}
-                        title="编辑/提交"
                       >
-                        <Edit3 size={16} />
-                      </button>
-                      <button 
-                        className="btn-icon danger" 
-                        onClick={() => removeDraft(draft.id)}
+                        <Edit3 size={17} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        iconOnly
+                        className="draft-list__delete"
+                        aria-label={`删除${title || typeLabel}草稿`}
                         title="删除草稿"
+                        onClick={() => removeDraft(draft.id)}
                       >
-                        <Trash2 size={16} />
-                      </button>
+                        <Trash2 size={17} />
+                      </Button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </>
+                  </article>
+                );
+              })}
+            </div>
           )}
         </div>
-      </div>
-    </div>
+      </BottomSheet>
+
+      <ConfirmDialog
+        open={open && isClearConfirmOpen}
+        title="清空所有离线草稿？"
+        description="草稿只保存在当前浏览器。清空后无法恢复，也不会删除已经提交的正式账单。"
+        confirmLabel="清空全部草稿"
+        tone="danger"
+        icon={<AlertTriangle size={22} />}
+        onConfirm={handleClearAll}
+        onClose={() => setIsClearConfirmOpen(false)}
+      />
+    </>
   );
 }

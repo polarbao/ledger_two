@@ -39,15 +39,16 @@ describe('UI-FL-01 theme foundation', () => {
     expect(primitiveCss).toContain('background: var(--lt-action-danger-bg);');
   });
 
-  it('keeps Dark Glass as the fallback and applies a valid explicit theme', async () => {
+  it('uses Fresh Light as the fallback and preserves an explicit Dark Glass choice', async () => {
     const themeModule = await import('./theme').catch(() => null);
 
     expect(themeModule).not.toBeNull();
     if (!themeModule) return;
 
-    expect(themeModule.resolveTheme(null)).toBe('dark-glass');
-    expect(themeModule.resolveTheme('unknown')).toBe('dark-glass');
+    expect(themeModule.resolveTheme(null)).toBe('fresh-light');
+    expect(themeModule.resolveTheme('unknown')).toBe('fresh-light');
     expect(themeModule.resolveTheme('fresh-light')).toBe('fresh-light');
+    expect(themeModule.resolveInitialTheme('dark-glass', 'fresh-light')).toBe('dark-glass');
     expect(themeModule.resolveInitialTheme('fresh-light', 'dark-glass')).toBe('fresh-light');
     expect(themeModule.resolveInitialTheme(null, 'fresh-light')).toBe('fresh-light');
 

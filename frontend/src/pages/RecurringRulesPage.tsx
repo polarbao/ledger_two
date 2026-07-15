@@ -14,8 +14,7 @@ import {
   DollarSign, 
   Tag, 
   AlertTriangle, 
-  Ban,
-  X
+  Ban
 } from 'lucide-react';
 import { transactionsApi } from '../api/transactions.api';
 import type { CreateRecurringRulePayload } from '../types/transaction';
@@ -27,6 +26,27 @@ import { useLedgerStore } from '../stores/ledger.store';
 import PageState from '../components/ui/PageState';
 import EmptyState from '../components/ui/EmptyState';
 import PermissionGate from '../components/ledger/PermissionGate';
+import Button from '../components/ui/Button';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import SegmentedControl from '../components/ui/SegmentedControl';
+import './RecurringRulesPage.css';
+
+const TRANSACTION_TYPE_OPTIONS = [
+  { value: 'expense', label: '个人支出' },
+  { value: 'income', label: '个人收入' },
+  { value: 'shared_expense', label: '共同支出' },
+] as const;
+
+const FREQUENCY_OPTIONS = [
+  { value: 'weekly', label: '每周' },
+  { value: 'monthly', label: '每月' },
+  { value: 'yearly', label: '每年' },
+] as const;
+
+const SPLIT_METHOD_OPTIONS = [
+  { value: 'equal', label: '均等平分' },
+  { value: 'payer_only', label: '付款人全额' },
+] as const;
 
 // 验证 Schema
 const ruleSchema = z.object({
@@ -243,7 +263,7 @@ export default function RecurringRulesPage() {
   };
 
   return (
-    <div className="page-content animate-fade-in text-left">
+    <div className="page-content animate-fade-in text-left recurring-rules-page">
       {/* 头部区 */}
       <div className="glass-card header-banner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -253,27 +273,28 @@ export default function RecurringRulesPage() {
             <p>配置自动到期提醒规则，减轻每月固定消费的手动录入负担</p>
           </div>
         </div>
-        <Link to="/settings" className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none', padding: '8px 16px', fontSize: '13px' }}>
+        <Link to="/settings" className="ui-button ui-button--secondary recurring-rules-page__back-link">
           <ArrowLeft size={14} /> 返回设置
         </Link>
       </div>
 
       {/* 提示消息 */}
       {successMsg && (
-        <div className="glass-card text-green animate-fade-in" style={{ padding: '12px 20px', margin: '0 0 16px 0', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+        <div className="recurring-rules-page__feedback recurring-rules-page__feedback--success animate-fade-in" role="status">
+          <CheckCircle2 size={18} aria-hidden="true" />
           <span>{successMsg}</span>
         </div>
       )}
       {errorMsg && (
-        <div className="error-banner animate-fade-in" style={{ margin: '0 0 16px 0', borderRadius: '12px' }}>
-          <AlertTriangle size={18} style={{ marginRight: '8px', flexShrink: 0 }} />
+        <div className="recurring-rules-page__feedback recurring-rules-page__feedback--danger animate-fade-in" role="alert">
+          <AlertTriangle size={18} aria-hidden="true" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {(isLoadingReminders || pendingReminders.length > 0) && (
         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '12px' }}>
+          <div className="recurring-rules-page__section-heading">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Calendar size={20} className="partner-highlight" />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>待确认周期账单</h3>
@@ -297,7 +318,7 @@ export default function RecurringRulesPage() {
                       <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {reminder.rule_name}
                       </span>
-                      <span style={{ fontSize: '11px', background: 'rgba(168,85,247,0.1)', color: 'var(--accent-purple)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.2)' }}>
+                      <span className="recurring-rules-page__schedule-chip">
                         到期 {reminder.due_date}
                       </span>
                       <span className={`type-badge ${reminder.type === 'shared_expense' ? 'badge-shared' : reminder.type === 'income' ? 'badge-income' : 'badge-expense'}`}>
@@ -316,26 +337,22 @@ export default function RecurringRulesPage() {
 
                   <PermissionGate allow={['owner', 'editor']}>
                     <div className="recurring-reminder-actions">
-                      <button
-                        type="button"
-                        className="btn-secondary mobile-full"
-                        style={{ padding: '8px 12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      <Button
+                        variant="secondary"
+                        startIcon={<Ban size={14} />}
                         disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
                         onClick={() => skipReminderMutation.mutate(reminder.id)}
                       >
-                        <Ban size={14} />
-                        <span>跳过本期</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-primary mobile-full"
-                        style={{ padding: '8px 12px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        跳过本期
+                      </Button>
+                      <Button
+                        variant="primary"
+                        startIcon={<CheckCircle2 size={14} />}
                         disabled={confirmReminderMutation.isPending || skipReminderMutation.isPending}
                         onClick={() => confirmReminderMutation.mutate(reminder.id)}
                       >
-                        <CheckCircle2 size={14} />
-                        <span>确认入账</span>
-                      </button>
+                        确认入账
+                      </Button>
                     </div>
                   </PermissionGate>
                 </div>
@@ -354,7 +371,7 @@ export default function RecurringRulesPage() {
         <div className="form-row-2">
           {/* 左栏：新建周期规则表单 */}
           <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '12px' }}>
+            <div className="recurring-rules-page__section-heading recurring-rules-page__section-heading--start">
               <Plus size={20} className="partner-highlight" />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>新建周期记账规则</h3>
             </div>
@@ -379,29 +396,13 @@ export default function RecurringRulesPage() {
                   name="type"
                   control={control}
                   render={({ field }) => (
-                    <div className="segmented-control">
-                      <button
-                        type="button"
-                        className={`segment-btn ${field.value === 'expense' ? 'active' : ''}`}
-                        onClick={() => field.onChange('expense')}
-                      >
-                        个人支出
-                      </button>
-                      <button
-                        type="button"
-                        className={`segment-btn ${field.value === 'income' ? 'active' : ''}`}
-                        onClick={() => field.onChange('income')}
-                      >
-                        个人收入
-                      </button>
-                      <button
-                        type="button"
-                        className={`segment-btn ${field.value === 'shared_expense' ? 'active' : ''}`}
-                        onClick={() => field.onChange('shared_expense')}
-                      >
-                        共同支出
-                      </button>
-                    </div>
+                    <SegmentedControl
+                      ariaLabel="账单类型"
+                      value={field.value}
+                      options={TRANSACTION_TYPE_OPTIONS}
+                      onChange={field.onChange}
+                      fullWidth
+                    />
                   )}
                 />
               </div>
@@ -441,29 +442,13 @@ export default function RecurringRulesPage() {
                   name="frequency"
                   control={control}
                   render={({ field }) => (
-                    <div className="segmented-control">
-                      <button
-                        type="button"
-                        className={`segment-btn ${field.value === 'weekly' ? 'active' : ''}`}
-                        onClick={() => field.onChange('weekly')}
-                      >
-                        每周 (Weekly)
-                      </button>
-                      <button
-                        type="button"
-                        className={`segment-btn ${field.value === 'monthly' ? 'active' : ''}`}
-                        onClick={() => field.onChange('monthly')}
-                      >
-                        每月 (Monthly)
-                      </button>
-                      <button
-                        type="button"
-                        className={`segment-btn ${field.value === 'yearly' ? 'active' : ''}`}
-                        onClick={() => field.onChange('yearly')}
-                      >
-                        每年 (Yearly)
-                      </button>
-                    </div>
+                    <SegmentedControl
+                      ariaLabel="重复周期"
+                      value={field.value}
+                      options={FREQUENCY_OPTIONS}
+                      onChange={field.onChange}
+                      fullWidth
+                    />
                   )}
                 />
               </div>
@@ -502,22 +487,13 @@ export default function RecurringRulesPage() {
                       name="split_method"
                       control={control}
                       render={({ field }) => (
-                        <div className="segmented-control">
-                          <button
-                            type="button"
-                            className={`segment-btn ${field.value === 'equal' ? 'active' : ''}`}
-                            onClick={() => field.onChange('equal')}
-                          >
-                            均等平分
-                          </button>
-                          <button
-                            type="button"
-                            className={`segment-btn ${field.value === 'payer_only' ? 'active' : ''}`}
-                            onClick={() => field.onChange('payer_only')}
-                          >
-                            付款人全额
-                          </button>
-                        </div>
+                        <SegmentedControl
+                          ariaLabel="分摊方式"
+                          value={field.value || 'equal'}
+                          options={SPLIT_METHOD_OPTIONS}
+                          onChange={field.onChange}
+                          fullWidth
+                        />
                       )}
                     />
                   </div>
@@ -547,21 +523,22 @@ export default function RecurringRulesPage() {
               </div>
 
               <PermissionGate allow={['owner', 'editor']}>
-                <button
+                <Button
                   type="submit"
-                  className="btn-primary"
-                  style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, marginTop: '8px' }}
-                  disabled={isSubmitting || createMutation.isPending}
+                  variant="primary"
+                  fullWidth
+                  isLoading={isSubmitting || createMutation.isPending}
+                  startIcon={<Plus size={17} />}
                 >
-                  {isSubmitting || createMutation.isPending ? '创建中...' : '保存并启用该周期规则'}
-                </button>
+                  保存并启用该周期规则
+                </Button>
               </PermissionGate>
             </form>
           </div>
 
           {/* 右栏：已有周期规则列表 */}
           <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '12px' }}>
+            <div className="recurring-rules-page__section-heading recurring-rules-page__section-heading--start">
               <Clock size={20} className="partner-highlight" />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>当前已启用的周期规则列表</h3>
             </div>
@@ -601,15 +578,7 @@ export default function RecurringRulesPage() {
                   return (
                     <div 
                       key={rule.id}
-                      style={{ 
-                        background: 'rgba(255,255,255,0.02)', 
-                        border: '1px solid rgba(255,255,255,0.03)', 
-                        borderRadius: '12px', 
-                        padding: '16px', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: '12px' 
-                      }}
+                      className="recurring-rules-page__rule-card"
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -620,7 +589,7 @@ export default function RecurringRulesPage() {
                             <span className={`type-badge ${typeBadge}`}>
                               {typeLabel}
                             </span>
-                            <span style={{ fontSize: '11px', background: 'rgba(168,85,247,0.1)', color: 'var(--accent-purple)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(168,85,247,0.2)' }}>
+                            <span className="recurring-rules-page__schedule-chip">
                               {freqLabel}
                             </span>
                           </div>
@@ -630,36 +599,21 @@ export default function RecurringRulesPage() {
                         </div>
 
                         <PermissionGate allow={['owner', 'editor']}>
-                          <button
+                          <Button
+                            variant="ghost"
+                            iconOnly
                             onClick={() => setDeleteTargetId(rule.id)}
-                            className="btn-close-drawer"
-                            style={{ padding: '6px', color: 'var(--text-muted)' }}
+                            className="recurring-rules-page__delete"
+                            aria-label={`删除周期规则${rule.name}`}
                             title="删除规则"
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = '#ef4444';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--text-muted)';
-                            }}
                           >
                             <Trash2 size={16} />
-                          </button>
+                          </Button>
                         </PermissionGate>
                       </div>
 
                       {/* 规则细节网格 */}
-                      <div 
-                        style={{ 
-                          display: 'grid', 
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
-                          gap: '8px 16px',
-                          background: 'rgba(0,0,0,0.1)', 
-                          padding: '10px 12px', 
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                          color: 'var(--text-secondary)'
-                        }}
-                      >
+                      <div className="recurring-rules-page__rule-details">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <DollarSign size={13} className="text-green" />
                           <span>金额: {rule.amount_cents != null ? `¥${centsToYuan(rule.amount_cents)}` : '未设定'}</span>
@@ -686,14 +640,14 @@ export default function RecurringRulesPage() {
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                               <Tag size={12} style={{ color: 'var(--text-muted)' }} />
                               {rule.tag_names.map((t) => (
-                                <span key={t} style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <span key={t} className="recurring-rules-page__tag">
                                   #{t}
                                 </span>
                               ))}
                             </div>
                           )}
                           {rule.note && (
-                            <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', background: 'rgba(255,255,255,0.01)', padding: '6px 10px', borderRadius: '6px', borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
+                            <div className="recurring-rules-page__note">
                               注: {rule.note}
                             </div>
                           )}
@@ -708,39 +662,17 @@ export default function RecurringRulesPage() {
         </div>
       </PageState>
 
-      {/* ==========================================
-         二次确认删除 Modal (Danger 警示样式按钮)
-         ========================================== */}
-      {deleteTargetId && (
-        <div className="drawer-overlay show" style={{ alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="confirm-modal-box animate-fade-in" style={{ maxWidth: '400px' }}>
-            <div className="drawer-header" style={{ padding: '16px 20px' }}>
-              <div className="header-title" style={{ color: '#ef4444' }}>
-                <AlertTriangle className="title-icon" style={{ color: 'inherit' }} />
-                <h3 style={{ fontSize: '16px' }}>删除周期记账规则？</h3>
-              </div>
-              <button className="btn-close-drawer" onClick={() => setDeleteTargetId(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal-body-padding" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <p className="modal-alert-text">
-                确认删除这条周期规则吗？删除规则仅会停止未来的到期提醒，<strong className="text-expense">不会影响您以往由该规则生成并确认的历史交易账单记录</strong>。
-              </p>
-
-              <div className="drawer-footer" style={{ borderTop: 'none', paddingTop: 0, marginTop: '8px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                <button className="btn-secondary mobile-full" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={() => setDeleteTargetId(null)}>
-                  取消
-                </button>
-                <button className="btn-danger mobile-full" style={{ padding: '10px 20px', fontSize: '14px', borderRadius: '10px' }} onClick={confirmDelete}>
-                  确认删除
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(deleteTargetId)}
+        title="删除周期记账规则？"
+        description="删除只会停止未来的到期提醒，不会修改已经确认生成的历史账单。"
+        confirmLabel="删除周期规则"
+        tone="danger"
+        icon={<AlertTriangle size={22} />}
+        isConfirming={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTargetId(null)}
+      />
     </div>
   );
 }

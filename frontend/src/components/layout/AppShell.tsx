@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -127,6 +127,7 @@ export default function AppShell() {
   const setActiveLedger = useLedgerStore((state) => state.setActiveLedger);
   const drafts = useDraftStore((state) => state.drafts);
   const [isDraftListOpen, setIsDraftListOpen] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
   const { data: ledgers = [] } = useQuery({
     queryKey: queryKeys.ledgers.all,
     queryFn: ledgerApi.listUserLedgers,
@@ -164,6 +165,10 @@ export default function AppShell() {
     }
   }, [activeLedger, activeRole, ledgers, setActiveLedger]);
 
+  useEffect(() => {
+    pageRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
+
   const handleLedgerChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextLedger = ledgers.find((ledger) => ledger.id === event.target.value);
     if (nextLedger && nextLedger.id !== activeLedgerId) {
@@ -193,6 +198,7 @@ export default function AppShell() {
 
   return (
     <div className="lt-shell">
+      <a className="lt-shell__skip-link" href="#main-content">跳到主要内容</a>
       <aside className="lt-shell__sidebar" aria-label="应用侧栏">
         <div className="lt-shell__brand">
           <span className="lt-shell__brand-mark"><Sparkles size={20} aria-hidden="true" /></span>
@@ -348,7 +354,7 @@ export default function AppShell() {
           </div>
         </header>
 
-        <div className="lt-shell__page">
+        <div ref={pageRef} id="main-content" className="lt-shell__page" tabIndex={-1}>
           <Outlet />
         </div>
       </main>

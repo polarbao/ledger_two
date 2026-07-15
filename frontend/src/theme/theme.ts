@@ -7,7 +7,7 @@ export interface ThemeTarget {
   style: { colorScheme?: string };
 }
 
-export const DEFAULT_UI_THEME: UiTheme = 'dark-glass';
+export const DEFAULT_UI_THEME: UiTheme = 'fresh-light';
 export const UI_THEME_STORAGE_KEY = 'ledger-two-ui-theme';
 
 export function resolveTheme(value: string | null | undefined): UiTheme {

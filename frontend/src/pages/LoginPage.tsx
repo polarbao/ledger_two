@@ -62,43 +62,53 @@ export default function LoginPage() {
           <DeploymentBadge />
         </div>
 
-        {errorMsg && <div className="error-banner">{errorMsg}</div>}
+        {errorMsg && <div className="error-banner" role="alert">{errorMsg}</div>}
 
         <form onSubmit={handleSubmit(onSubmit)} className="login-form">
           <div className="form-group">
-            <label>用户名</label>
+            <label htmlFor="login-username">用户名</label>
             <div className="input-wrapper">
               <UserIcon className="input-icon" />
               <input
+                id="login-username"
                 type="text"
                 placeholder="请输入用户名"
                 {...register('username')}
                 className={errors.username ? 'input-error' : ''}
+                aria-invalid={Boolean(errors.username)}
+                aria-describedby={errors.username ? 'login-username-error' : undefined}
+                autoComplete="username"
               />
             </div>
-            {errors.username && <span className="field-error">{errors.username.message}</span>}
+            {errors.username && <span id="login-username-error" className="field-error">{errors.username.message}</span>}
           </div>
 
           <div className="form-group">
-            <label>密码</label>
+            <label htmlFor="login-password">密码</label>
             <div className="input-wrapper">
               <KeyRound className="input-icon" />
               <input
+                id="login-password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="请输入密码"
                 {...register('password')}
                 className={errors.password ? 'input-error' : ''}
+                aria-invalid={Boolean(errors.password)}
+                aria-describedby={errors.password ? 'login-password-error' : undefined}
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 className="btn-toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
+                aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                aria-pressed={showPassword}
+                title={showPassword ? '隐藏密码' : '显示密码'}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
               </button>
             </div>
-            {errors.password && <span className="field-error">{errors.password.message}</span>}
+            {errors.password && <span id="login-password-error" className="field-error">{errors.password.message}</span>}
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary login-btn">

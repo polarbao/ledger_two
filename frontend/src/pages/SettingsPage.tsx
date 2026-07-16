@@ -538,7 +538,7 @@ export default function SettingsPage() {
                         </Button>
                         <Button
                           variant="secondary"
-                          onClick={() => void triggerDownload(`/api/admin/backups/${encodeURIComponent(backup.filename)}`, backup.filename.split('/').pop() || 'backup.db')}
+                          onClick={() => void triggerDownload(safetyApi.backupDownloadUrl(backup.filename), backup.filename.split('/').pop() || 'backup.db')}
                           disabled={actionLoading}
                           startIcon={<Download size={14} />}
                         >

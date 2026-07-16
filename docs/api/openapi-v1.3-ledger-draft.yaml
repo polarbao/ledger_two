@@ -534,7 +534,7 @@ paths:
     get:
       tags: [instance-admin]
       summary: Get redacted instance diagnostics
-      description: Instance admin only. 不读取 X-Ledger-Id，不因账本 Owner 身份授权。
+      description: Instance admin only. 不读取 X-Ledger-Id，不因账本 Owner 身份授权；成功读取写 instance audit。
       security:
         - cookieAuth: []
       responses:
@@ -546,12 +546,14 @@ paths:
                 $ref: "#/components/schemas/InstanceDiagnosticsResponse"
         "403":
           $ref: "#/components/responses/Error"
+        "500":
+          $ref: "#/components/responses/Error"
 
   /admin/backup:
     post:
       tags: [instance-admin]
       summary: Create a physical database backup
-      description: Instance admin only. 这是整库运维动作，写 instance audit。
+      description: Instance admin only. 这是整库运维动作；备份文件和 instance audit 必须同时成功，响应返回完整 BackupInfo。
       security:
         - cookieAuth: []
       responses:
@@ -563,12 +565,14 @@ paths:
                 $ref: "#/components/schemas/BackupCreateResponse"
         "403":
           $ref: "#/components/responses/Error"
+        "500":
+          $ref: "#/components/responses/Error"
 
   /admin/backups:
     get:
       tags: [instance-admin]
       summary: List physical database backups
-      description: Instance admin only. 不读取 X-Ledger-Id。
+      description: Instance admin only. 不读取 X-Ledger-Id；只返回受管理目录内的安全相对 key，并写 instance audit。
       security:
         - cookieAuth: []
       responses:
@@ -580,12 +584,14 @@ paths:
                 $ref: "#/components/schemas/BackupListResponse"
         "403":
           $ref: "#/components/responses/Error"
+        "500":
+          $ref: "#/components/responses/Error"
 
   /admin/backups/{filename}:
     get:
       tags: [instance-admin]
       summary: Download one physical database backup
-      description: Instance admin only. 文件名必须来自列表且通过路径和扩展名校验。
+      description: Instance admin only. filename 是列表返回的 URI 编码相对 key，可包含安全目录段；服务端校验规范路径、扩展名和受管理目录边界并写 instance audit。
       security:
         - cookieAuth: []
       parameters:
@@ -598,9 +604,13 @@ paths:
               schema:
                 type: string
                 format: binary
+        "400":
+          $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
         "404":
+          $ref: "#/components/responses/Error"
+        "500":
           $ref: "#/components/responses/Error"
 
   /admin/restore:
@@ -630,6 +640,8 @@ paths:
         "403":
           $ref: "#/components/responses/Error"
         "404":
+          $ref: "#/components/responses/Error"
+        "500":
           $ref: "#/components/responses/Error"
 
 components:
@@ -662,9 +674,11 @@ components:
       name: filename
       in: path
       required: true
+      allowReserved: true
+      description: URI 编码的受管理备份相对 key；目录分隔符按路径段编码，不允许 `.`、`..`、反斜杠或受管理目录外路径。
       schema:
         type: string
-        pattern: "^[A-Za-z0-9._-]+\\.db$"
+        pattern: "^(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\\.db$"
     LedgerIdHeaderRequired:
       name: X-Ledger-Id
       in: header
@@ -1014,7 +1028,8 @@ components:
       properties:
         filename:
           type: string
-          pattern: "^[A-Za-z0-9._-]+\\.db$"
+          description: 必须来自备份列表的安全相对 key。
+          pattern: "^(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\\.db$"
 
     RestorePrepareResponse:
       type: object
@@ -1043,8 +1058,67 @@ components:
           type: boolean
           enum: [true]
         data:
+          $ref: "#/components/schemas/InstanceDiagnostics"
+
+    InstanceDiagnostics:
+      type: object
+      required:
+        - env
+        - deployment_channel
+        - app_base_url_set
+        - cookie_secure
+        - cookie_samesite
+        - database
+        - storage
+        - audit_action_count
+        - generated_at
+      properties:
+        env:
+          type: string
+        deployment_channel:
+          type: string
+        app_base_url_set:
+          type: boolean
+        cookie_secure:
+          type: string
+        cookie_samesite:
+          type: string
+        database:
+          $ref: "#/components/schemas/DiagnosticStatus"
+        storage:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagnosticStatus"
+        latest_backup:
+          $ref: "#/components/schemas/BackupInfo"
+        audit_action_count:
           type: object
-          description: Redacted deployment, database and storage diagnostics; never contains secrets.
+          additionalProperties:
+            type: integer
+        generated_at:
+          type: string
+          format: date-time
+
+    DiagnosticStatus:
+      type: object
+      required: [key, label, status, configured]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [ok, warning, error]
+        configured:
+          type: boolean
+        writable:
+          type: boolean
+        message:
+          type: string
+        version:
+          type: integer
+          format: int64
 
     SuccessEmptyResponse:
       type: object
@@ -1070,10 +1144,13 @@ components:
             code:
               type: string
               enum:
+                - BAD_REQUEST
                 - VALIDATION_ERROR
                 - UNAUTHORIZED
+                - FORBIDDEN
                 - NOT_FOUND
                 - CONFLICT
+                - INTERNAL_ERROR
                 - LEDGER_REQUIRED
                 - LEDGER_CONTEXT_MISMATCH
                 - LEDGER_ACCESS_DENIED
@@ -1086,6 +1163,9 @@ components:
                 - LEDGER_OWNER_TRANSFER_REQUIRED
                 - LEDGER_OWNER_INVARIANT_VIOLATION
                 - LEDGER_READY_IMPORT_EXISTS
+                - BACKUP_FAILED
+                - BACKUP_NOT_FOUND
+                - BACKUP_PATH_INVALID
             message:
               type: string
             details:

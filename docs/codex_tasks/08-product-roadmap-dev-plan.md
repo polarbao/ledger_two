@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-16）：Task41-Task49 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53P.1-P.6 分类标签专项准备包已经形成并暂缓实现。Task50.1、Task50.2、Task50.3A 与 Task50.3B 已完成，下一实现任务为 Task50.3C；Task51 正式冻结仍等待 Task50.6，Task52 保持延后调研。
+> 执行更新（2026-07-16）：Task41-Task49 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53P.1-P.6 分类标签专项准备包已经形成并暂缓实现。Task50.1、Task50.2 与 Task50.3A-3C 已完成，下一实现任务为 Task50.4；Task51P.1 非约束性准备已放行，正式冻结仍等待 Task50.6，Task52 保持延后调研。
 
 ## 1. 使用说明
 
@@ -183,7 +183,7 @@
 
 ### Task50：多账本正式化
 
-状态：Task50.1、Task50.2、Task50.3A 与 Task50.3B 已完成；Task50.3C 现为下一实现任务，Task50.4/50.5 条件准入，Task50.6 验收框架已具备。Task53 实现暂缓。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
+状态：Task50.1、Task50.2 与 Task50.3A-3C 已完成；Task50.4 已放行，Task50.5 条件准入，Task50.6 验收框架已具备。Task53 实现暂缓。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
 
 目标：
 
@@ -209,7 +209,7 @@
 2. 冻结 OpenAPI、migration 022、错误码、Fixture expected JSON 和 UI/Figma handoff。
 3. 已形成 Task53.1-Task53.5/Task53U 详细开发计划、文件所有权、TDD 清单、环境和回滚门禁。
 
-当前顺序：`Task53P complete -> Task50.3B-Task50.6 -> 重新排序 Task53 implementation 与 Task51P`。Task52 不因本次调整而提前。
+当前顺序：`Task53P complete -> Task50.4-Task50.6 -> 重新排序 Task53 implementation 与正式 Task51P`。Task51P.1 可并行维护非约束性证据；Task52 不因本次调整而提前。
 
 ### Task51：多人分摊体验增强
 

@@ -15,7 +15,7 @@
 
 ```text
 Task53P 准备完成
--> Task50.3B-Task50.6
+-> Task50.4-Task50.6
 -> 重新排序 Task53 implementation 与正式 Task51P
 -> 获批任务进入实现与验收
 ```
@@ -124,7 +124,7 @@ Task53 未来实现与当前 Task50 可能冲突：
 | File/module | Task53 need | Coordination |
 |---|---|---|
 | `backend/internal/ledger/repo.go` | 新账本默认 profile | Task53 独占；Task50 恢复前 rebase/review |
-| `backend/internal/http/router/router.go` | 新 API | Task53 暂缓，等待 Task50.3C 收口 |
+| `backend/internal/http/router/router.go` | 新 API | Task53 暂缓，等待 Task50.6 收口后重新登记文件所有权 |
 | `docs/api/openapi-v1.3-ledger-draft.yaml` | LedgerCreate metadata extension | 先保持独立 Task53 draft，最终评审再合并 |
 | `frontend` ledger create UI | profile selector | Task50.4/50.5 先完成，Task53U 后续适配最终契约 |
 | `frontend/src/pages/ImportPage.tsx` | 分类状态与批量操作 | Task53 所有权 |

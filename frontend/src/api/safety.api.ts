@@ -6,9 +6,10 @@ export interface BackupInfo {
   created_at: string;
 }
 
-export interface RestoreResponse {
-  success: boolean;
+export interface RestorePreparation {
+  filename: string;
   instructions: string;
+  requires_downtime: true;
 }
 
 export interface DiagnosticStatus {
@@ -35,19 +36,22 @@ export interface SystemDiagnostics {
 }
 
 export const safetyApi = {
-  createBackup: async (): Promise<{ success: boolean; filename: string }> => {
-		return api.post('/api/admin/backup', undefined, { ledgerScope: 'none' });
+  createBackup: async (): Promise<BackupInfo> => {
+    return api.post('/api/admin/backup', undefined, { ledgerScope: 'none' });
   },
 
   getBackups: async (): Promise<BackupInfo[]> => {
-		return api.get('/api/admin/backups', { ledgerScope: 'none' });
+    return api.get('/api/admin/backups', { ledgerScope: 'none' });
   },
 
-  restoreBackup: async (filename: string): Promise<RestoreResponse> => {
-		return api.post('/api/admin/restore', { filename }, { ledgerScope: 'none' });
+  restoreBackup: async (filename: string): Promise<RestorePreparation> => {
+    return api.post('/api/admin/restore', { filename }, { ledgerScope: 'none' });
   },
 
   getDiagnostics: async (): Promise<SystemDiagnostics> => {
-		return api.get('/api/admin/diagnostics', { ledgerScope: 'none' });
+    return api.get('/api/admin/diagnostics', { ledgerScope: 'none' });
   },
+
+  backupDownloadUrl: (filename: string) =>
+    `/api/admin/backups/${filename.split('/').map(encodeURIComponent).join('/')}`,
 };

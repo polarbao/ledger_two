@@ -99,7 +99,7 @@ docs/
 
 当前项目已完成 Task01-Task49。Task49X 核心实现、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview 和移动端视觉验收已完成；支付宝当前仍只导出 CSV。后续发布收口聚焦 NAS schema 19 staging、production 一致性备份与逐批导入确认，开发入口以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为准。
 
-2026-07-16 更新：Task53P.1-P.6 准备完成并暂缓实现。Task50.3B 成员与 Owner 不变量已完成自动化验收，正式 PATCH 与兼容 PUT 共用事务 service，下一实现任务为 Task50.3C；Task51/Task52 继续保持原门禁。
+2026-07-16 更新：Task53P.1-P.6 准备完成并暂缓实现。Task50.3A-3C 已全部完成，生命周期、成员/Owner 不变量和实例运维契约已经收口，下一实现任务为 Task50.4；Task51 仅放行非约束性 P1 准备，Task52 继续保持调研门禁。
 
 ## AI 开发使用方式
 

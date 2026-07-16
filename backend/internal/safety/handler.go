@@ -3,8 +3,8 @@ package safety
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -33,16 +33,13 @@ func (h *Handler) HandleManualBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename, err := h.service.ManualBackup(r.Context(), currentUserID)
+	backup, err := h.service.ManualBackup(r.Context(), currentUserID)
 	if err != nil {
 		response.WriteError(w, err)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]interface{}{
-		"success":  true,
-		"filename": filename,
-	})
+	response.JSON(w, http.StatusOK, backup)
 }
 
 // HandleRestoreBackup 处理恢复备份请求 POST /api/admin/restore
@@ -56,25 +53,22 @@ func (h *Handler) HandleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Filename string `json:"filename"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeSafetyJSON(r, &req); err != nil {
 		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "无效的请求格式"))
 		return
 	}
-	if req.Filename == "" {
+	if strings.TrimSpace(req.Filename) == "" {
 		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "备份文件名不能为空"))
 		return
 	}
 
-	instructions, err := h.service.RestoreBackup(r.Context(), currentUserID, req.Filename)
+	preparation, err := h.service.RestoreBackup(r.Context(), currentUserID, req.Filename)
 	if err != nil {
 		response.WriteError(w, err)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]interface{}{
-		"success":      true,
-		"instructions": instructions,
-	})
+	response.JSON(w, http.StatusOK, preparation)
 }
 
 // HandleGetBackups 处理获取备份列表请求 GET /api/admin/backups
@@ -84,12 +78,7 @@ func (h *Handler) HandleGetBackups(w http.ResponseWriter, r *http.Request) {
 		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
-	if err := h.service.requireInstanceAdmin(r.Context(), currentUserID); err != nil {
-		response.WriteError(w, err)
-		return
-	}
-
-	list, err := h.service.GetBackups(r.Context())
+	list, err := h.service.ListBackups(r.Context(), currentUserID)
 	if err != nil {
 		response.WriteError(w, err)
 		return
@@ -122,11 +111,6 @@ func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
 		return
 	}
-	if err := h.service.requireInstanceAdmin(r.Context(), currentUserID); err != nil {
-		response.WriteError(w, err)
-		return
-	}
-
 	// 兼容通配符或者 URLParam 获取 filename 路由参数
 	filename := chi.URLParam(r, "filename")
 	if filename == "" {
@@ -141,46 +125,32 @@ func (h *Handler) HandleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	backupDir := filepath.Clean(h.service.cfg.BackupDir)
-	targetPath := filepath.Clean(filepath.Join(backupDir, filename))
-
-	// 安全加固 1: 路径穿越攻击防御
-	if !strings.HasPrefix(targetPath, backupDir) {
-		response.WriteError(w, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "无权访问该路径下的物理文件"))
-		return
-	}
-
-	// 安全加固 2: 仅允许下载 .db 文件
-	if !strings.HasSuffix(strings.ToLower(targetPath), ".db") {
-		response.WriteError(w, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅允许下载数据库备份文件"))
-		return
-	}
-
-	// 检查物理文件是否存在
-	fi, err := os.Stat(targetPath)
+	download, err := h.service.OpenBackupDownload(r.Context(), currentUserID, filename)
 	if err != nil {
-		if os.IsNotExist(err) {
-			response.WriteError(w, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeBackupNotFound, "备份文件不存在"))
-			return
-		}
-		response.WriteError(w, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取备份文件元数据失败"))
+		response.WriteError(w, err)
 		return
 	}
-
-	file, err := os.Open(targetPath)
-	if err != nil {
-		response.WriteError(w, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "打开备份文件失败"))
-		return
-	}
-	defer file.Close()
+	defer download.File.Close()
 
 	// 格式化输出文件流
 	w.Header().Set("Content-Description", "File Transfer")
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filepath.Base(filename)))
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", fi.Size()))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filepath.Base(download.Filename)))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", download.SizeBytes))
 
-	http.ServeContent(w, r, filepath.Base(filename), fi.ModTime(), file)
+	http.ServeContent(w, r, filepath.Base(download.Filename), download.ModifiedAt, download.File)
+}
+
+func decodeSafetyJSON(r *http.Request, target any) error {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体只能包含一个 JSON 对象")
+	}
+	return nil
 }
 
 // HandleExportCSV 处理交易流水导出 CSV 请求 GET /api/export/transactions.csv

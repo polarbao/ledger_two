@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -38,6 +39,19 @@ type BackupInfo struct {
 	Filename  string    `json:"filename"`
 	SizeBytes int64     `json:"size_bytes"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type RestorePreparation struct {
+	Filename         string `json:"filename"`
+	Instructions     string `json:"instructions"`
+	RequiresDowntime bool   `json:"requires_downtime"`
+}
+
+type BackupDownload struct {
+	File       *os.File
+	Filename   string
+	SizeBytes  int64
+	ModifiedAt time.Time
 }
 
 type Diagnostics struct {
@@ -122,10 +136,27 @@ func (s *Service) Diagnostics(ctx context.Context, actorUserID string) (*Diagnos
 		)
 	}
 
-	if backups, err := s.GetBackups(ctx); err == nil && len(backups) > 0 {
+	if backups, err := s.scanBackups(); err == nil && len(backups) > 0 {
 		diag.LatestBackup = &backups[0]
 	}
 	diag.AuditActionCount = s.auditActionCounts(ctx)
+	afterBytes, _ := json.Marshal(map[string]interface{}{
+		"deployment_channel": diag.DeploymentChannel,
+		"database_status":    diag.Database.Status,
+		"schema_version":     diag.Database.Version,
+		"storage_items":      len(diag.Storage),
+	})
+	if err := s.recordInstanceAudit(
+		ctx,
+		actorUserID,
+		"system_diagnostics",
+		"instance",
+		"current",
+		string(afterBytes),
+		time.Now().UTC(),
+	); err != nil {
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "记录系统诊断审计失败")
+	}
 	return diag, nil
 }
 
@@ -265,18 +296,21 @@ func (s *Service) recordInstanceAudit(ctx context.Context, actorUserID string, a
 }
 
 // ManualBackup 手动备份 SQLite 数据库
-func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string, error) {
+func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (*BackupInfo, error) {
 	if err := s.requireInstanceAdmin(ctx, actorUserID); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	backupDir := s.cfg.BackupDir
+	backupDir, err := s.backupRoot()
+	if err != nil {
+		return nil, err
+	}
 	manualDir := filepath.Join(backupDir, "manual")
 	if err := s.checkBackupDirWritable(manualDir); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	// 避免文件名中包含空格或冒号，采用简洁的时间格式
 	filename := fmt.Sprintf("backup_manual_%s_%d.db", now.Format("20060102_150405"), now.Nanosecond())
 	backupPath := filepath.Join(manualDir, filename)
@@ -284,55 +318,57 @@ func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string,
 	// 使用 VACUUM INTO 进行安全在线备份，防止热拷贝锁死
 	safePath := strings.ReplaceAll(backupPath, "'", "''")
 	query := fmt.Sprintf("VACUUM INTO '%s'", safePath)
-	_, err := s.db.ExecContext(ctx, query)
+	_, err = s.db.ExecContext(ctx, query)
 	if err != nil {
-		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "database vacuum into failed: "+err.Error())
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "database vacuum into failed: "+err.Error())
 	}
 
-	// 获取文件大小
-	var sizeBytes int64
-	if fi, err := os.Stat(backupPath); err == nil {
-		sizeBytes = fi.Size()
+	fileInfo, err := os.Stat(backupPath)
+	if err != nil {
+		_ = os.Remove(backupPath)
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "读取备份文件元数据失败")
+	}
+	backup := &BackupInfo{
+		Filename:  "manual/" + filename,
+		SizeBytes: fileInfo.Size(),
+		CreatedAt: fileInfo.ModTime().UTC(),
 	}
 
 	// 记录实例级审计日志，不伪造账本 ID。
 	afterJSONObj := map[string]interface{}{
-		"filename":   filename,
-		"size_bytes": sizeBytes,
-		"rel_path":   "manual/" + filename,
+		"filename":   backup.Filename,
+		"size_bytes": backup.SizeBytes,
 	}
 	afterBytes, _ := json.Marshal(afterJSONObj)
 
-	if err := s.recordInstanceAudit(ctx, actorUserID, "manual_database_backup", "database", filename, string(afterBytes), now); err != nil {
+	if err := s.recordInstanceAudit(ctx, actorUserID, "manual_database_backup", "database", backup.Filename, string(afterBytes), now); err != nil {
 		_ = os.Remove(backupPath)
-		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "failed to record backup audit log: "+err.Error())
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "failed to record backup audit log: "+err.Error())
 	}
 
-	return "manual/" + filename, nil
+	return backup, nil
 }
 
 // RestoreBackup 准备恢复流程。因操作系统文件锁机制，后端仅执行自动前置备份并返回操作指引。
-func (s *Service) RestoreBackup(ctx context.Context, actorUserID string, targetFilename string) (string, error) {
+func (s *Service) RestoreBackup(ctx context.Context, actorUserID string, targetFilename string) (*RestorePreparation, error) {
 	if err := s.requireInstanceAdmin(ctx, actorUserID); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	backupDir := s.cfg.BackupDir
-	targetPath := filepath.Join(backupDir, filepath.Clean(targetFilename))
-
-	// 防御：路径穿越或文件不存在
-	if !strings.HasPrefix(targetPath, filepath.Clean(backupDir)) {
-		return "", errors.NewAppError(http.StatusForbidden, "FORBIDDEN", "无权访问该路径下的物理文件")
+	backupDir, err := s.backupRoot()
+	if err != nil {
+		return nil, err
 	}
-	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-		return "", errors.NewAppError(http.StatusNotFound, "NOT_FOUND", "目标备份文件不存在")
+	targetKey, _, _, err := s.resolveBackupFile(targetFilename)
+	if err != nil {
+		return nil, err
 	}
 
 	// 1. 强制执行前置备份 (后悔药)
-	now := time.Now()
+	now := time.Now().UTC()
 	manualDir := filepath.Join(backupDir, "manual")
 	if err := s.checkBackupDirWritable(manualDir); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	preFilename := fmt.Sprintf("pre_restore_%s_%d.db", now.Format("20060102_150405"), now.Nanosecond())
@@ -340,70 +376,225 @@ func (s *Service) RestoreBackup(ctx context.Context, actorUserID string, targetF
 
 	safePath := strings.ReplaceAll(preBackupPath, "'", "''")
 	query := fmt.Sprintf("VACUUM INTO '%s'", safePath)
-	_, err := s.db.ExecContext(ctx, query)
+	_, err = s.db.ExecContext(ctx, query)
 	if err != nil {
-		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "自动前置备份失败，终止恢复流程: "+err.Error())
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "自动前置备份失败，终止恢复流程: "+err.Error())
 	}
 
 	afterJSONObj := map[string]interface{}{
 		"action":          "pre_restore_backup",
-		"target_restore":  targetFilename,
+		"target_restore":  targetKey,
 		"pre_backup_file": "manual/" + preFilename,
 	}
 	afterBytes, _ := json.Marshal(afterJSONObj)
-	if err := s.recordInstanceAudit(ctx, actorUserID, "prepare_database_restore", "database", targetFilename, string(afterBytes), now); err != nil {
+	if err := s.recordInstanceAudit(ctx, actorUserID, "prepare_database_restore", "database", targetKey, string(afterBytes), now); err != nil {
 		_ = os.Remove(preBackupPath)
-		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "记录恢复准备审计失败")
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "记录恢复准备审计失败")
 	}
 
 	// 2. 返回人工覆盖指引（策略 B）
-	instructions := fmt.Sprintf("已自动为您创建当前数据的安全备份 (%s)。为避免数据损坏，请关闭程序后，手动将文件 %s 覆盖至 data/ledger.db，随后重新启动服务即可生效。", preFilename, targetFilename)
+	instructions := fmt.Sprintf("已自动为您创建当前数据的安全备份 (%s)。为避免数据损坏，请关闭程序后，手动将文件 %s 覆盖至 data/ledger.db，随后重新启动服务即可生效。", preFilename, targetKey)
 
-	return instructions, nil
+	return &RestorePreparation{
+		Filename:         targetKey,
+		Instructions:     instructions,
+		RequiresDowntime: true,
+	}, nil
 }
 
-// GetBackups 获取所有备份文件列表
-func (s *Service) GetBackups(ctx context.Context) ([]BackupInfo, error) {
-	backupDir := s.cfg.BackupDir
-	if _, err := os.Stat(backupDir); os.IsNotExist(err) {
-		_ = os.MkdirAll(backupDir, 0755)
+// ListBackups 获取所有备份文件列表，并记录实例级读取审计。
+func (s *Service) ListBackups(ctx context.Context, actorUserID string) ([]BackupInfo, error) {
+	if err := s.requireInstanceAdmin(ctx, actorUserID); err != nil {
+		return nil, err
+	}
+	list, err := s.scanBackups()
+	if err != nil {
+		return nil, err
+	}
+	afterBytes, _ := json.Marshal(map[string]interface{}{"records": len(list)})
+	if err := s.recordInstanceAudit(
+		ctx,
+		actorUserID,
+		"list_database_backups",
+		"database_backup",
+		"all",
+		string(afterBytes),
+		time.Now().UTC(),
+	); err != nil {
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "记录备份列表审计失败")
+	}
+	return list, nil
+}
+
+// OpenBackupDownload 打开一个受管理的备份文件，并在返回文件流前记录实例审计。
+func (s *Service) OpenBackupDownload(ctx context.Context, actorUserID, filename string) (*BackupDownload, error) {
+	if err := s.requireInstanceAdmin(ctx, actorUserID); err != nil {
+		return nil, err
+	}
+	key, targetPath, fileInfo, err := s.resolveBackupFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(targetPath)
+	if err != nil {
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "打开备份文件失败")
+	}
+	afterBytes, _ := json.Marshal(map[string]interface{}{
+		"filename":   key,
+		"size_bytes": fileInfo.Size(),
+	})
+	if err := s.recordInstanceAudit(
+		ctx,
+		actorUserID,
+		"download_database_backup",
+		"database_backup",
+		key,
+		string(afterBytes),
+		time.Now().UTC(),
+	); err != nil {
+		_ = file.Close()
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "记录备份下载审计失败")
+	}
+	return &BackupDownload{
+		File:       file,
+		Filename:   key,
+		SizeBytes:  fileInfo.Size(),
+		ModifiedAt: fileInfo.ModTime(),
+	}, nil
+}
+
+func (s *Service) scanBackups() ([]BackupInfo, error) {
+	backupDir, err := s.backupRoot()
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupPathInvalid, "备份目录不可用")
 	}
 
 	list := make([]BackupInfo, 0)
-	err := filepath.Walk(backupDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+	err = filepath.Walk(backupDir, func(filePath string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if info == nil {
+			return nil
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}
 		if info.IsDir() {
 			return nil
 		}
-		if !strings.HasSuffix(info.Name(), ".db") {
+		if !strings.EqualFold(filepath.Ext(info.Name()), ".db") {
 			return nil
 		}
 
-		rel, err := filepath.Rel(backupDir, path)
-		if err != nil {
-			rel = info.Name()
+		rel, relErr := filepath.Rel(backupDir, filePath)
+		if relErr != nil {
+			return relErr
 		}
-		rel = filepath.ToSlash(rel)
+		key := filepath.ToSlash(rel)
+		if _, err := normalizeBackupKey(key); err != nil {
+			return nil
+		}
 
 		list = append(list, BackupInfo{
-			Filename:  rel,
+			Filename:  key,
 			SizeBytes: info.Size(),
-			CreatedAt: info.ModTime(),
+			CreatedAt: info.ModTime().UTC(),
 		})
 		return nil
 	})
 	if err != nil {
-		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "failed to scan backups: "+err.Error())
+		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "扫描备份目录失败")
 	}
 
-	// 降序排序（最新修改的备份在前）
+	// 降序排序（最新修改的备份在前），同一时间按 key 保持确定性。
 	sort.Slice(list, func(i, j int) bool {
+		if list[i].CreatedAt.Equal(list[j].CreatedAt) {
+			return list[i].Filename < list[j].Filename
+		}
 		return list[i].CreatedAt.After(list[j].CreatedAt)
 	})
 
 	return list, nil
+}
+
+func (s *Service) backupRoot() (string, error) {
+	if s.cfg == nil || strings.TrimSpace(s.cfg.BackupDir) == "" {
+		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupPathInvalid, "备份目录未配置")
+	}
+	root, err := filepath.Abs(filepath.Clean(s.cfg.BackupDir))
+	if err != nil {
+		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupPathInvalid, "备份目录无效")
+	}
+	return root, nil
+}
+
+func (s *Service) resolveBackupFile(filename string) (string, string, os.FileInfo, error) {
+	key, err := normalizeBackupKey(filename)
+	if err != nil {
+		return "", "", nil, err
+	}
+	root, err := s.backupRoot()
+	if err != nil {
+		return "", "", nil, err
+	}
+	targetPath := filepath.Join(root, filepath.FromSlash(key))
+	rel, err := filepath.Rel(root, targetPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", "", nil, errors.NewAppError(http.StatusBadRequest, errors.ErrCodeValidationError, "备份文件名无效")
+	}
+
+	currentPath := root
+	segments := strings.Split(key, "/")
+	var fileInfo os.FileInfo
+	for index, segment := range segments {
+		currentPath = filepath.Join(currentPath, segment)
+		fileInfo, err = os.Lstat(currentPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return "", "", nil, errors.NewAppError(http.StatusNotFound, errors.ErrCodeBackupNotFound, "备份文件不存在")
+			}
+			return "", "", nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "读取备份文件元数据失败")
+		}
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			return "", "", nil, errors.NewAppError(http.StatusBadRequest, errors.ErrCodeValidationError, "备份路径不能包含符号链接")
+		}
+		if index < len(segments)-1 && !fileInfo.IsDir() {
+			return "", "", nil, errors.NewAppError(http.StatusBadRequest, errors.ErrCodeValidationError, "备份文件名无效")
+		}
+	}
+	if fileInfo == nil || fileInfo.IsDir() {
+		return "", "", nil, errors.NewAppError(http.StatusBadRequest, errors.ErrCodeValidationError, "备份文件名无效")
+	}
+	return key, targetPath, fileInfo, nil
+}
+
+func normalizeBackupKey(value string) (string, error) {
+	key := strings.TrimSpace(value)
+	if key == "" || strings.Contains(key, "\\") || path.Clean(key) != key || strings.HasPrefix(key, "/") {
+		return "", errors.NewAppError(http.StatusBadRequest, errors.ErrCodeValidationError, "备份文件名无效")
+	}
+	if !strings.EqualFold(path.Ext(key), ".db") {
+		return "", errors.NewAppError(http.StatusBadRequest, errors.ErrCodeValidationError, "备份文件必须是 .db 文件")
+	}
+	for _, segment := range strings.Split(key, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return "", errors.NewAppError(http.StatusBadRequest, errors.ErrCodeValidationError, "备份文件名无效")
+		}
+		for _, char := range segment {
+			if (char >= 'a' && char <= 'z') ||
+				(char >= 'A' && char <= 'Z') ||
+				(char >= '0' && char <= '9') ||
+				char == '.' || char == '_' || char == '-' {
+				continue
+			}
+			return "", errors.NewAppError(http.StatusBadRequest, errors.ErrCodeValidationError, "备份文件名包含不允许的字符")
+		}
+	}
+	return key, nil
 }
 
 // ExportCSV 导出当前登录用户有权查看的交易流水为 CSV 内容

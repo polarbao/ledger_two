@@ -2,7 +2,7 @@
 
 状态：预备草案；仅 P1 非约束性发现可提前开展，正式门禁等待 Task50.6
 创建日期：2026-07-16
-前置任务：Task50.3A 已完成；Task50.3B-Task50.6 未完成
+前置任务：Task50.3A-3C 已完成；Task50.4-Task50.6 未完成
 禁止事项：不得实现 Task51 代码、解除两人约束或冻结 migration/版本号
 
 调度说明：Task53 分类标签专项准备已完成并暂缓实现，当前恢复 Task50。Task51 仍不提前，除维护既有 P1 问题模板外不新增冻结性产物；正式准备顺序继续等待 Task50.6。
@@ -116,7 +116,7 @@ Task51P 正式启动前必须满足：
 ## 6. Dependency order
 
 ```text
-Task50.3B -> Task50.3C -> Task50.4 -> Task50.5 -> Task50.6
+Task50.4 -> Task50.5 -> Task50.6
                                               |
                                               v
 Task51P.1 -> P2 -> P3 -> P4 -> P5 -> P6 -> Task51 implementation plan

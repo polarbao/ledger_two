@@ -109,6 +109,46 @@ func TestDashboardFlow(t *testing.T) {
 
 	currentMonth := time.Now().Format("2006-01")
 
+	t.Run("empty dashboard serializes collections as arrays", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/dashboard?month="+currentMonth, nil)
+		req.AddCookie(cookieA)
+		setTestLedgerHeader(t, db, req, "Test Ledger")
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("empty dashboard failed: %s", rr.Body.String())
+		}
+		var body struct {
+			Data struct {
+				RecentTransactions []json.RawMessage `json:"recent_transactions"`
+				CategorySummary    []json.RawMessage `json:"category_summary"`
+				TagSummary         []json.RawMessage `json:"tag_summary"`
+				UserStats          []json.RawMessage `json:"user_stats"`
+				SharedBalance      struct {
+					SuggestedTransfers []json.RawMessage `json:"suggested_transfers"`
+				} `json:"shared_balance"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode empty dashboard: %v", err)
+		}
+		if body.Data.RecentTransactions == nil {
+			t.Fatalf("expected recent_transactions to be [], got null: %s", rr.Body.String())
+		}
+		if body.Data.CategorySummary == nil {
+			t.Fatalf("expected category_summary to be [], got null: %s", rr.Body.String())
+		}
+		if body.Data.TagSummary == nil {
+			t.Fatalf("expected tag_summary to be [], got null: %s", rr.Body.String())
+		}
+		if body.Data.UserStats == nil {
+			t.Fatalf("expected user_stats to be an array, got null: %s", rr.Body.String())
+		}
+		if body.Data.SharedBalance.SuggestedTransfers == nil {
+			t.Fatalf("expected suggested_transfers to be [], got null: %s", rr.Body.String())
+		}
+	})
+
 	// ----------------------------------------------------
 	// 场景 1: A 录入一笔 150.00元 (15000分) 的个人普通支出 (分类: cat1, 标签: 外卖)
 	// ----------------------------------------------------

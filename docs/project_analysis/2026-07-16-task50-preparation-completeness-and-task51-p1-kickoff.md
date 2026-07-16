@@ -1,8 +1,8 @@
 # Task50 准备完整度与 Task51P.1 启动评审
 
-状态：Task50 准备阶段完整；Task51P.1 非约束性准备已启动<br>
+状态：Task50 准备阶段完整；Task50.5 已完成；Task51P.1 非约束性准备已启动<br>
 日期：2026-07-16<br>
-当前实现主线：Task50.5<br>
+当前实现主线：Task50.6<br>
 并行产品研究线：Task51P.1 场景与证据
 
 ## 1. Task50 preparation conclusion
@@ -18,13 +18,13 @@ Task50P.1-P.6 已全部完成并形成闭环，不需要再建立平行 PRD、DE
 | P5 UI/UX/Figma | UI 16、本地 28 Frame handoff | 完成 |
 | P6 开发准入 | `2026-07-15-task50-p6-development-readiness.md` | 条件关闭 |
 
-Task50.4 已完成代码与自动化验收；Task50.5、Task50.6 尚未完成的是实现、候选镜像和真实验收证据，不是开发前文档缺口。候选镜像、独立 staging、浏览器截图和升级恢复结果必须在对应实现完成后生成，不能提前伪造为准备产物。
+Task50.4 与 Task50.5 已完成代码、自动化和本地 development 浏览器验收；Task50.6 尚未完成的是候选镜像、独立 staging、全模块隔离、升级恢复和真实发布证据，不是开发前文档缺口。这些结果必须在对应执行阶段生成，不能提前伪造为准备产物。
 
 ## 2. Remaining Task50 order
 
 1. Task50.4：active-ledger、Query Cache、迟到响应、无账本状态机和本地草稿隔离，已完成。
-2. Task50.5：Fresh Light 账本/成员管理页面，已放行。
-3. Task50.6：全模块隔离、schema 19 -> 21、独立 v1.3 staging、浏览器与回滚收口。
+2. Task50.5：Fresh Light 账本/成员管理、归档只读上下文和响应式验收，已完成。
+3. Task50.6：全模块隔离、schema 19 -> 21、独立 v1.3 staging、浏览器与回滚收口，已放行。
 
 Task50 实现主线继续串行，不与 Task51 共享 schema、router 或前端状态文件。
 

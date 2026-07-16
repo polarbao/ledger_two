@@ -7,10 +7,10 @@ import { queryKeys } from '../api/queryKeys';
 import AnalyticsMemberPanel from '../components/analytics/AnalyticsMemberPanel';
 import AnalyticsRankingPanel from '../components/analytics/AnalyticsRankingPanel';
 import AnalyticsTrendPanel from '../components/analytics/AnalyticsTrendPanel';
+import { useLedgerContext } from '../components/ledger/useLedgerContext';
 import PageState from '../components/ui/PageState';
 import SegmentedControl from '../components/ui/SegmentedControl';
 import StatusChip from '../components/ui/StatusChip';
-import { useLedgerStore } from '../stores/ledger.store';
 import { useUIStore } from '../stores/ui.store';
 import { buildMonthRange, buildTransactionsDrilldown } from './analyticsPageModel';
 import './AnalyticsPage.css';
@@ -31,35 +31,35 @@ function isMonthlySummary(value: MonthlySummary | undefined): value is MonthlySu
 export default function AnalyticsPage() {
   const navigate = useNavigate();
   const currentMonth = useUIStore((state) => state.currentMonth);
-  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
+  const { ledgerId, isArchivedView } = useLedgerContext();
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('trend');
   const trendMonths = buildMonthRange(currentMonth, 6);
 
   const trendQueries = useQueries({
     queries: trendMonths.map((month) => ({
-      queryKey: queryKeys.reports.monthly(activeLedgerId, month),
+      queryKey: queryKeys.reports.monthly(ledgerId, month),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
         reportsApi.getMonthlySummary(month, signal),
-      enabled: Boolean(activeLedgerId) && activeTab === 'trend',
+      enabled: Boolean(ledgerId) && activeTab === 'trend',
     })),
   });
 
   const categoryQuery = useQuery({
-    queryKey: queryKeys.reports.category(activeLedgerId, currentMonth),
+    queryKey: queryKeys.reports.category(ledgerId, currentMonth),
     queryFn: ({ signal }) => reportsApi.getCategorySummary(currentMonth, signal),
-    enabled: Boolean(activeLedgerId) && activeTab === 'category',
+    enabled: Boolean(ledgerId) && activeTab === 'category',
   });
 
   const memberQuery = useQuery({
-    queryKey: queryKeys.reports.member(activeLedgerId, currentMonth),
+    queryKey: queryKeys.reports.member(ledgerId, currentMonth),
     queryFn: ({ signal }) => reportsApi.getMemberSummary(currentMonth, signal),
-    enabled: Boolean(activeLedgerId) && activeTab === 'member',
+    enabled: Boolean(ledgerId) && activeTab === 'member',
   });
 
   const tagQuery = useQuery({
-    queryKey: queryKeys.reports.tag(activeLedgerId, currentMonth),
+    queryKey: queryKeys.reports.tag(ledgerId, currentMonth),
     queryFn: ({ signal }) => reportsApi.getTagSummary(currentMonth, signal),
-    enabled: Boolean(activeLedgerId) && activeTab === 'tag',
+    enabled: Boolean(ledgerId) && activeTab === 'tag',
   });
 
   const trendPoints = trendQueries.map((query) => query.data).filter(isMonthlySummary);
@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
             retry: tagQuery.refetch,
           };
 
-  const emptyMessage = activeLedgerId
+  const emptyMessage = ledgerId
     ? `${currentMonth} 暂无${activeTab === 'member' ? '成员统计' : activeTab === 'category' ? '分类支出' : activeTab === 'tag' ? '标签支出' : '趋势数据'}。`
     : '当前没有可用账本。';
 
@@ -133,7 +133,10 @@ export default function AnalyticsPage() {
         {activeTab === 'trend' && trendPoints.length === trendMonths.length ? (
           <AnalyticsTrendPanel
             points={trendPoints}
-            onMonthDrilldown={(month) => navigate(buildTransactionsDrilldown({ month }))}
+            onMonthDrilldown={(month) => navigate(buildTransactionsDrilldown({
+              month,
+              archivedLedgerId: isArchivedView ? ledgerId ?? undefined : undefined,
+            }))}
           />
         ) : null}
 
@@ -144,7 +147,11 @@ export default function AnalyticsPage() {
             items={categoryQuery.data}
             onDrilldown={(item) => {
               if ('id' in item && item.id) {
-                navigate(buildTransactionsDrilldown({ month: currentMonth, categoryId: item.id }));
+                navigate(buildTransactionsDrilldown({
+                  month: currentMonth,
+                  categoryId: item.id,
+                  archivedLedgerId: isArchivedView ? ledgerId ?? undefined : undefined,
+                }));
               }
             }}
           />
@@ -154,7 +161,11 @@ export default function AnalyticsPage() {
           <AnalyticsMemberPanel
             month={currentMonth}
             members={memberQuery.data}
-            onDrilldown={(payerUserId) => navigate(buildTransactionsDrilldown({ month: currentMonth, payerUserId }))}
+            onDrilldown={(payerUserId) => navigate(buildTransactionsDrilldown({
+              month: currentMonth,
+              payerUserId,
+              archivedLedgerId: isArchivedView ? ledgerId ?? undefined : undefined,
+            }))}
           />
         ) : null}
 
@@ -163,7 +174,11 @@ export default function AnalyticsPage() {
             kind="tag"
             month={currentMonth}
             items={tagQuery.data}
-            onDrilldown={(item) => navigate(buildTransactionsDrilldown({ month: currentMonth, tag: item.name }))}
+            onDrilldown={(item) => navigate(buildTransactionsDrilldown({
+              month: currentMonth,
+              tag: item.name,
+              archivedLedgerId: isArchivedView ? ledgerId ?? undefined : undefined,
+            }))}
           />
         ) : null}
       </PageState>

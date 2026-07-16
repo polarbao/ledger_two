@@ -1,0 +1,214 @@
+{
+  "generatedAt": "2026-07-16T11:04:25.504Z",
+  "browser": "Chrome headless via CDP",
+  "modal": {
+    "triggerFound": true,
+    "interaction": "mouse trigger plus Escape",
+    "open": {
+      "dialogOpen": true,
+      "activeTag": "BUTTON",
+      "activeType": "button"
+    },
+    "closed": {
+      "dialogOpen": false,
+      "focusReturned": true,
+      "activeTag": "BUTTON",
+      "activeClass": "ui-button ui-button--primary ui-button--md"
+    },
+    "severe": []
+  },
+  "reports": [
+    {
+      "name": "desktop-active-fresh.png",
+      "url": "http://127.0.0.1:5173/settings/ledgers",
+      "theme": "fresh-light",
+      "viewportWidth": 1440,
+      "viewportHeight": 1000,
+      "bodyWidth": 1440,
+      "scrollWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "h1": "账本管理",
+      "hasRouterError": false,
+      "alertCount": 0,
+      "dialogCount": 0,
+      "archivedBanner": false,
+      "floatingAction": false,
+      "severe": []
+    },
+    {
+      "name": "desktop-archived-fresh.png",
+      "url": "http://127.0.0.1:5173/settings/ledgers?status=archived",
+      "theme": "fresh-light",
+      "viewportWidth": 1440,
+      "viewportHeight": 1000,
+      "bodyWidth": 1440,
+      "scrollWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "h1": "账本管理",
+      "hasRouterError": false,
+      "alertCount": 0,
+      "dialogCount": 0,
+      "archivedBanner": false,
+      "floatingAction": false,
+      "severe": []
+    },
+    {
+      "name": "desktop-detail-fresh.png",
+      "url": "http://127.0.0.1:5173/settings/ledgers/3de5e399-6d05-4d97-9416-9c4e24ed6d84",
+      "theme": "fresh-light",
+      "viewportWidth": 1440,
+      "viewportHeight": 1000,
+      "bodyWidth": 1440,
+      "scrollWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "h1": "Travel Fund",
+      "hasRouterError": false,
+      "alertCount": 0,
+      "dialogCount": 0,
+      "archivedBanner": false,
+      "floatingAction": false,
+      "severe": []
+    },
+    {
+      "name": "mobile-375-active-fresh.png",
+      "url": "http://127.0.0.1:5173/settings/ledgers",
+      "theme": "fresh-light",
+      "viewportWidth": 375,
+      "viewportHeight": 812,
+      "bodyWidth": 375,
+      "scrollWidth": 375,
+      "hasHorizontalOverflow": false,
+      "h1": "账本管理",
+      "hasRouterError": false,
+      "alertCount": 0,
+      "dialogCount": 0,
+      "archivedBanner": false,
+      "floatingAction": false,
+      "severe": []
+    },
+    {
+      "name": "mobile-390-archived-fresh.png",
+      "url": "http://127.0.0.1:5173/settings/ledgers?status=archived",
+      "theme": "fresh-light",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "bodyWidth": 390,
+      "scrollWidth": 390,
+      "hasHorizontalOverflow": false,
+      "h1": "账本管理",
+      "hasRouterError": false,
+      "alertCount": 0,
+      "dialogCount": 0,
+      "archivedBanner": false,
+      "floatingAction": false,
+      "severe": []
+    },
+    {
+      "name": "mobile-430-detail-fresh.png",
+      "url": "http://127.0.0.1:5173/settings/ledgers/3de5e399-6d05-4d97-9416-9c4e24ed6d84",
+      "theme": "fresh-light",
+      "viewportWidth": 430,
+      "viewportHeight": 932,
+      "bodyWidth": 430,
+      "scrollWidth": 430,
+      "hasHorizontalOverflow": false,
+      "h1": "Travel Fund",
+      "hasRouterError": false,
+      "alertCount": 0,
+      "dialogCount": 0,
+      "archivedBanner": false,
+      "floatingAction": false,
+      "severe": []
+    },
+    {
+      "name": "desktop-active-dark.png",
+      "url": "http://127.0.0.1:5173/settings/ledgers",
+      "theme": "dark-glass",
+      "viewportWidth": 1440,
+      "viewportHeight": 1000,
+      "bodyWidth": 1440,
+      "scrollWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "h1": "账本管理",
+      "hasRouterError": false,
+      "alertCount": 0,
+      "dialogCount": 0,
+      "archivedBanner": false,
+      "floatingAction": false,
+      "severe": []
+    },
+    {
+      "name": "desktop-archived-view-fresh.png",
+      "url": "http://127.0.0.1:5173/?archived_ledger_id=c954bfdf-b1ce-4a2e-98b2-fd8209d8df2c",
+      "theme": "fresh-light",
+      "viewportWidth": 1440,
+      "viewportHeight": 1000,
+      "bodyWidth": 1440,
+      "scrollWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "h1": "本月概览",
+      "hasRouterError": false,
+      "alertCount": 0,
+      "dialogCount": 0,
+      "archivedBanner": true,
+      "floatingAction": false,
+      "severe": [],
+      "writeControlsHidden": true
+    }
+  ],
+  "archivedCleanupTransition": {
+    "activeLedgerId": "3de5e399-6d05-4d97-9416-9c4e24ed6d84",
+    "archivedLedgerId": "c954bfdf-b1ce-4a2e-98b2-fd8209d8df2c",
+    "requests": [
+      {
+        "url": "/api/init/status",
+        "header": null
+      },
+      {
+        "url": "/api/init/status",
+        "header": null
+      },
+      {
+        "url": "/api/auth/me",
+        "header": null
+      },
+      {
+        "url": "/api/auth/me",
+        "header": null
+      },
+      {
+        "url": "/api/ledgers?status=active",
+        "header": null
+      },
+      {
+        "url": "/api/dashboard?month=2042-03",
+        "header": "3de5e399-6d05-4d97-9416-9c4e24ed6d84"
+      },
+      {
+        "url": "/api/transactions?month=2042-03&page=1&page_size=15",
+        "header": "3de5e399-6d05-4d97-9416-9c4e24ed6d84"
+      },
+      {
+        "url": "/api/ledgers?status=archived",
+        "header": null
+      },
+      {
+        "url": "/api/dashboard?month=2042-03",
+        "header": "3de5e399-6d05-4d97-9416-9c4e24ed6d84"
+      },
+      {
+        "url": "/api/transactions?month=2042-03&page=1&page_size=15",
+        "header": "3de5e399-6d05-4d97-9416-9c4e24ed6d84"
+      },
+      {
+        "url": "/api/ledgers?status=archived",
+        "header": null
+      }
+    ],
+    "containsArchivedHeader": false,
+    "allScopedRequestsUseActive": true,
+    "archivedBannerAfterTransition": false,
+    "routerError": false,
+    "severe": []
+  }
+}

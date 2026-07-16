@@ -12,14 +12,13 @@ import SettlementActionCard from '../components/dashboard/SettlementActionCard';
 import {
   getDashboardSummaryMetrics,
   getSettlementAction,
+  normalizeDashboardResponse,
 } from '../components/dashboard/dashboardModel';
-import PermissionGate from '../components/ledger/PermissionGate';
-import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
+import { useLedgerContext } from '../components/ledger/useLedgerContext';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
 import { useAuthStore } from '../stores/auth.store';
-import { useLedgerStore } from '../stores/ledger.store';
 import { useUIStore } from '../stores/ui.store';
 import './DashboardPage.css';
 
@@ -36,8 +35,8 @@ export default function DashboardPage() {
   const setCopySourceTransaction = useUIStore((state) => state.setCopySourceTransaction);
   const setEditSourceTransaction = useUIStore((state) => state.setEditSourceTransaction);
   const setEditingDraftId = useUIStore((state) => state.setEditingDraftId);
-  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
-  const canWriteLedger = useHasLedgerRole(['owner', 'editor']);
+  const { ledgerId, role, isArchivedView } = useLedgerContext();
+  const canWriteLedger = !isArchivedView && (role === 'owner' || role === 'editor');
 
   const {
     data: dashboardData,
@@ -45,30 +44,30 @@ export default function DashboardPage() {
     error,
     refetch,
   } = useQuery({
-    queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
+    queryKey: queryKeys.dashboard.month(ledgerId, currentMonth),
     queryFn: ({ signal }) => dashboardApi.getDashboard(currentMonth, signal),
-    enabled: Boolean(currentUser && activeLedgerId),
+    enabled: Boolean(currentUser && ledgerId),
   });
 
   const { data: reminders = [] } = useQuery({
-    queryKey: queryKeys.recurringReminders(activeLedgerId),
+    queryKey: queryKeys.recurringReminders(ledgerId),
     queryFn: ({ signal }) => transactionsApi.listRecurringReminders(signal),
-    enabled: Boolean(currentUser && activeLedgerId),
+    enabled: Boolean(currentUser && ledgerId),
   });
 
   const confirmReminderMutation = useMutation({
     mutationFn: (id: string) => transactionsApi.confirmReminder(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(activeLedgerId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(ledgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(ledgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(ledgerId) });
     },
   });
 
   const skipReminderMutation = useMutation({
     mutationFn: (id: string) => transactionsApi.skipReminder(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringReminders(ledgerId) });
     },
   });
 
@@ -87,16 +86,19 @@ export default function DashboardPage() {
     skipReminderMutation.mutate(id);
   };
 
-  const summaryMetrics = dashboardData
-    ? getDashboardSummaryMetrics(dashboardData, currentUser?.id)
+  const normalizedDashboardData = dashboardData
+    ? normalizeDashboardResponse(dashboardData)
+    : undefined;
+  const summaryMetrics = normalizedDashboardData
+    ? getDashboardSummaryMetrics(normalizedDashboardData, currentUser?.id)
     : [];
-  const settlementAction = dashboardData
-    ? getSettlementAction(dashboardData, currentUser?.id)
+  const settlementAction = normalizedDashboardData
+    ? getSettlementAction(normalizedDashboardData, currentUser?.id)
     : null;
-  const isMonthEmpty = dashboardData
-    ? dashboardData.total_expense_cents === 0
-      && dashboardData.total_income_cents === 0
-      && dashboardData.recent_transactions.length === 0
+  const isMonthEmpty = normalizedDashboardData
+    ? normalizedDashboardData.total_expense_cents === 0
+      && normalizedDashboardData.total_income_cents === 0
+      && normalizedDashboardData.recent_transactions.length === 0
     : false;
   const reminderMutationPending = confirmReminderMutation.isPending || skipReminderMutation.isPending;
 
@@ -108,7 +110,7 @@ export default function DashboardPage() {
           <h1>本月概览</h1>
           <p>{currentUser?.display_name ? `${currentUser.display_name}，` : ''}你们的共享账目在这里汇总。</p>
         </div>
-        <PermissionGate allow={['owner', 'editor']}>
+        {canWriteLedger ? (
           <Button
             className="lt-dashboard__record-button"
             variant="primary"
@@ -117,7 +119,7 @@ export default function DashboardPage() {
           >
             记一笔
           </Button>
-        </PermissionGate>
+        ) : null}
       </header>
 
       {error ? (
@@ -139,7 +141,10 @@ export default function DashboardPage() {
               </div>
             </section>
           ) : (
-            <SettlementActionCard action={settlementAction} />
+            <SettlementActionCard
+              action={settlementAction}
+              archivedLedgerId={isArchivedView ? ledgerId : null}
+            />
           )}
 
           {reminders.length > 0 ? (
@@ -147,6 +152,7 @@ export default function DashboardPage() {
               reminders={reminders}
               isMutating={reminderMutationPending}
               confirmingId={confirmReminderMutation.isPending ? confirmReminderMutation.variables : undefined}
+              readOnly={isArchivedView}
               onConfirm={handleConfirmReminder}
               onSkip={handleSkipReminder}
             />
@@ -165,12 +171,12 @@ export default function DashboardPage() {
             <div className="lt-dashboard-content-grid">
               <div className="lt-dashboard-content-stack">
                 <CategorySummary
-                  items={dashboardData?.category_summary ?? []}
+                  items={normalizedDashboardData?.category_summary ?? []}
                   isLoading={isLoading}
                 />
-                {dashboardData ? (
+                {normalizedDashboardData ? (
                   <MemberContributionSummary
-                    data={dashboardData}
+                    data={normalizedDashboardData}
                     currentUserId={currentUser?.id}
                   />
                 ) : (
@@ -182,9 +188,10 @@ export default function DashboardPage() {
                 )}
               </div>
               <RecentTransactionList
-                data={dashboardData}
+                data={normalizedDashboardData}
                 currentUserId={currentUser?.id}
                 isLoading={isLoading}
+                archivedLedgerId={isArchivedView ? ledgerId : null}
               />
             </div>
           )}

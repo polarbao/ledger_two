@@ -93,14 +93,14 @@ func buildBalanceResponse(
 	users []string,
 	paidMap, shareMap, settledOutMap, settledInMap map[string]int64,
 ) *BalanceResponse {
-	var userBalances []UserBalance
+	userBalances := make([]UserBalance, 0, len(users))
 	// 记录债务人与债权人用于贪心算法
 	type userNet struct {
 		userID   string
 		netCents int64
 	}
-	var debtors []userNet   // net < 0
-	var creditors []userNet // net > 0
+	debtors := make([]userNet, 0, len(users))   // net < 0
+	creditors := make([]userNet, 0, len(users)) // net > 0
 
 	// 4. 应用差额计算公式：raw_net = paid - share，final_net = raw_net + settled_out - settled_in
 	for _, u := range users {
@@ -133,7 +133,7 @@ func buildBalanceResponse(
 	}
 
 	// 5. 贪心算法消债
-	var suggestedTransfers []SuggestedTransfer
+	suggestedTransfers := make([]SuggestedTransfer, 0)
 	// 简单贪心匹配：不一定是最优（最小交易次数），但能平账。
 	// 这里不再强制要求图的最优解，优先匹配第一个可抵消的债务
 	i, j := 0, 0

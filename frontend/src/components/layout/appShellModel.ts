@@ -43,3 +43,32 @@ export function canCreateTransaction(role: string | null | undefined) {
 export function shouldShowQuickRecordAction(pathname: string) {
   return !isAppRouteActive(pathname, '/import');
 }
+
+export function isLedgerManagementRoute(pathname: string) {
+  return pathname === '/settings/ledgers' || pathname.startsWith('/settings/ledgers/');
+}
+
+export function isArchivedHistoryRoute(pathname: string) {
+  return pathname === '/'
+    || pathname === '/transactions'
+    || pathname === '/analytics'
+    || pathname === '/settlement';
+}
+
+export function isArchivedContextCleanupPending(
+  archivedViewingLedgerId: string | null | undefined,
+  archivedRequestedId: string | null | undefined,
+) {
+  return Boolean(archivedViewingLedgerId && !archivedRequestedId);
+}
+
+export function buildShellNavigationPath(
+  itemPath: string,
+  archivedLedgerId: string | null,
+) {
+  if (!archivedLedgerId) return itemPath;
+  if (itemPath === '/settings') return `/settings/ledgers/${encodeURIComponent(archivedLedgerId)}`;
+  if (!isArchivedHistoryRoute(itemPath)) return itemPath;
+  const separator = itemPath.includes('?') ? '&' : '?';
+  return `${itemPath}${separator}archived_ledger_id=${encodeURIComponent(archivedLedgerId)}`;
+}

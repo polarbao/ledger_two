@@ -16,12 +16,11 @@ import { settlementApi } from '../api/settlement.api';
 import { dashboardApi } from '../api/dashboard.api';
 import { queryKeys } from '../api/queryKeys';
 import { useAuthStore } from '../stores/auth.store';
-import { useLedgerStore } from '../stores/ledger.store';
+import { useLedgerContext } from '../components/ledger/useLedgerContext';
 import { useUIStore } from '../stores/ui.store';
 import type { SuggestedTransfer } from '../types/settlement';
 import { centsToYuan } from '../utils/money';
 import { formatDate } from '../utils/date';
-import PermissionGate from '../components/ledger/PermissionGate';
 import Button from '../components/ui/Button';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import EmptyState from '../components/ui/EmptyState';
@@ -48,7 +47,8 @@ const scopeOptions = [
 export default function SettlementPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
+  const { ledgerId, role, isArchivedView } = useLedgerContext();
+  const canCreateSettlement = !isArchivedView && (role === 'owner' || role === 'editor');
   const { currentMonth, isOffline } = useUIStore();
   const [scope, setScope] = useState<SettlementScope>('all');
   const [activeTransfer, setActiveTransfer] = useState<SuggestedTransfer | null>(null);
@@ -64,9 +64,9 @@ export default function SettlementPage() {
     error: balanceError,
     refetch: refetchBalance,
   } = useQuery({
-    queryKey: queryKeys.settlements.balance(activeLedgerId, balanceMonth),
+    queryKey: queryKeys.settlements.balance(ledgerId, balanceMonth),
     queryFn: ({ signal }) => settlementApi.getBalance(balanceMonth, signal),
-    enabled: Boolean(currentUser && activeLedgerId),
+    enabled: Boolean(currentUser && ledgerId),
   });
 
   const {
@@ -76,15 +76,15 @@ export default function SettlementPage() {
     error: historyError,
     refetch: refetchHistory,
   } = useQuery({
-    queryKey: queryKeys.settlements.list(activeLedgerId, currentMonth),
+    queryKey: queryKeys.settlements.list(ledgerId, currentMonth),
     queryFn: ({ signal }) => settlementApi.getSettlements(currentMonth, signal),
-    enabled: Boolean(currentUser && activeLedgerId),
+    enabled: Boolean(currentUser && ledgerId),
   });
 
   const { data: dashboardData } = useQuery({
-    queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
+    queryKey: queryKeys.dashboard.month(ledgerId, currentMonth),
     queryFn: ({ signal }) => dashboardApi.getDashboard(currentMonth, signal),
-    enabled: Boolean(currentUser && activeLedgerId),
+    enabled: Boolean(currentUser && ledgerId),
   });
 
   const users = dashboardData?.user_stats || [];
@@ -118,11 +118,11 @@ export default function SettlementPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.settlements.balanceRoot(activeLedgerId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.settlements.root(activeLedgerId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settlements.balanceRoot(ledgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settlements.root(ledgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(ledgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(ledgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.root(ledgerId) });
       setActiveTransfer(null);
       setNote('');
     },
@@ -184,7 +184,7 @@ export default function SettlementPage() {
   const pageErrorMessage = (balanceError instanceof Error ? balanceError.message : '')
     || (historyError instanceof Error ? historyError.message : '')
     || '获取结算对账信息失败';
-  const sharedExpenseDetailUrl = `/transactions?month=${encodeURIComponent(currentMonth)}&type=shared_expense&page=1`;
+  const sharedExpenseDetailUrl = `/transactions?month=${encodeURIComponent(currentMonth)}&type=shared_expense&page=1${isArchivedView && ledgerId ? `&archived_ledger_id=${encodeURIComponent(ledgerId)}` : ''}`;
   const scopeLabel = scope === 'month' ? `${currentMonth} 本月` : '全部未结账期';
 
   return (
@@ -261,7 +261,7 @@ export default function SettlementPage() {
                       >
                         复制文案
                       </Button>
-                      <PermissionGate allow={['owner', 'editor']}>
+                      {canCreateSettlement ? (
                         <Button
                           variant="primary"
                           startIcon={<Scale size={17} />}
@@ -272,7 +272,7 @@ export default function SettlementPage() {
                         >
                           生成结算记录
                         </Button>
-                      </PermissionGate>
+                      ) : null}
                     </div>
                   </article>
                 ))}
@@ -427,7 +427,7 @@ export default function SettlementPage() {
         confirmLabel="生成结算记录"
         icon={<Scale size={22} />}
         isConfirming={createSettlementMutation.isPending}
-        confirmDisabled={isOffline || !activeTransfer}
+        confirmDisabled={isOffline || isArchivedView || !activeTransfer}
         onConfirm={() => createSettlementMutation.mutate()}
         onClose={closeConfirmDialog}
       >

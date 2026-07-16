@@ -20,15 +20,16 @@ describe('Task50.4 no-active ledger shell contract', () => {
     expect(source).not.toMatch(/dashboardApi|transactionsApi|reportsApi|importsApi/);
   });
 
-  it('prevents AppShell from mounting business routes without an active context', () => {
+  it('prevents AppShell from mounting ledger business routes without a validated context', () => {
     const source = readSource('./AppShell.tsx');
 
     expect(source).toContain('<NoActiveLedgerShell');
-    expect(source).toContain('canMountBusinessRoutes ? <Outlet key={activeLedgerId} />');
+    expect(source).toContain('const canMountOutlet = globalLedgerRoute || ledgerContextReady');
+    expect(source).toContain('{canMountOutlet ? <Outlet');
   });
 
-  it('routes existing settings-based ledger creation through the same safe switch path', () => {
-    const source = readSource('../ledger/LedgerSettings.tsx');
+  it('routes canonical ledger creation through the same safe switch path', () => {
+    const source = readSource('../../pages/LedgerManagementPage.tsx');
 
     expect(source).toContain('switchActiveLedgerContext');
     expect(source).not.toContain('void queryClient.invalidateQueries();');

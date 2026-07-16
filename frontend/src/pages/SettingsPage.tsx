@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
   AlertTriangle,
+  BookOpen,
   CheckCircle2,
   Clock,
   CreditCard,
@@ -22,7 +23,6 @@ import {
 import { ApiError } from '../api/client';
 import { queryKeys } from '../api/queryKeys';
 import { safetyApi, type BackupInfo, type DiagnosticStatus } from '../api/safety.api';
-import LedgerSettings from '../components/ledger/LedgerSettings';
 import PermissionGate from '../components/ledger/PermissionGate';
 import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
 import Button from '../components/ui/Button';
@@ -331,8 +331,8 @@ export default function SettingsPage() {
         <a href="#metadata">分类与账户</a>
         <a href="#automation">规则与模板</a>
         <a href="#transfer">导入与导出</a>
-        <a href="#safety">数据安全</a>
-        <a href="#diagnostics">系统诊断</a>
+        {canManageSafety ? <a href="#safety">数据安全</a> : null}
+        {canManageSafety ? <a href="#diagnostics">系统诊断</a> : null}
       </nav>
 
       <div className="settings-page__messages" aria-live="polite">
@@ -354,9 +354,23 @@ export default function SettingsPage() {
         id="ledger"
         eyebrow="01"
         title="账本与成员"
-        description="查看当前账本成员。只有 Owner 可以创建账本、直接添加已有用户、调整角色或移除成员。"
+        description="统一查看活跃和已归档账本；成员、角色、所有权和生命周期在账本详情中管理。"
       >
-        <LedgerSettings />
+        <div className="settings-card-grid">
+          <SettingsActionCard
+            icon={<BookOpen size={20} />}
+            title="账本管理"
+            description="创建、切换、归档、恢复账本，并按角色管理成员与所有权。"
+            badge={<StatusChip tone={activeRole === 'owner' ? 'success' : 'neutral'}>
+              {activeRole ? roleLabels[activeRole] || activeRole : '无活跃账本'}
+            </StatusChip>}
+            wide
+          >
+            <Link className="ui-button ui-button--primary" to="/settings/ledgers">
+              管理账本
+            </Link>
+          </SettingsActionCard>
+        </div>
       </SettingsSection>
 
       <SettingsSection
@@ -474,6 +488,8 @@ export default function SettingsPage() {
         </div>
       </SettingsSection>
 
+      {canManageSafety ? (
+      <>
       <SettingsSection
         id="safety"
         eyebrow="05"
@@ -608,6 +624,8 @@ export default function SettingsPage() {
 			) : <NoPermissionHint text="只有实例管理员可以查看系统诊断。" />}
         </SettingsActionCard>
       </SettingsSection>
+      </>
+      ) : null}
 
       {selectedBackup ? (
         <RestoreBackupModal

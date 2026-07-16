@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -22,12 +22,33 @@ export default function useModalSurface({
   surfaceRef,
   initialFocusRef,
 }: ModalSurfaceOptions) {
+  const onCloseRef = useRef(onClose);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (open || typeof document === 'undefined') return;
+
+    const rememberFocus = (event?: FocusEvent) => {
+      const target = event?.target ?? document.activeElement;
+      const isInsideModal = target instanceof HTMLElement
+        && target.closest('[role="dialog"], [role="alertdialog"]');
+      if (target instanceof HTMLElement && target !== document.body && !isInsideModal) {
+        returnFocusRef.current = target;
+      }
+    };
+
+    rememberFocus();
+    document.addEventListener('focusin', rememberFocus);
+    return () => document.removeEventListener('focusin', rememberFocus);
+  }, [open]);
+
   useEffect(() => {
     if (!open || typeof document === 'undefined') return;
 
-    const previousFocus = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
@@ -40,7 +61,7 @@ export default function useModalSurface({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -76,7 +97,7 @@ export default function useModalSurface({
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      previousFocus?.focus();
+      returnFocusRef.current?.focus();
     };
-  }, [initialFocusRef, onClose, open, surfaceRef]);
+  }, [initialFocusRef, open, surfaceRef]);
 }

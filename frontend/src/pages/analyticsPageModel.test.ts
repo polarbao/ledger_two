@@ -36,6 +36,8 @@ describe('UI-FL-09 analytics page model', () => {
       .toBe('/transactions?month=2026-07&page=1&tag=%E5%91%A8%E6%9C%AB+%E5%A4%96%E5%87%BA');
     expect(buildTransactionsDrilldown({ month: '2026-07', payerUserId: 'user-a' }))
       .toBe('/transactions?month=2026-07&page=1&payer_user_id=user-a');
+    expect(buildTransactionsDrilldown({ month: '2026-07', archivedLedgerId: 'ledger-a' }))
+      .toBe('/transactions?month=2026-07&page=1&archived_ledger_id=ledger-a');
   });
 
   it('keeps month labels and chart bars readable', () => {

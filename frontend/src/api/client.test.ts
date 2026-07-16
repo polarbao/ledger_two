@@ -141,6 +141,35 @@ describe('API Client Error Parsing', () => {
 		}));
 	});
 
+	it('uses the temporary archived viewing ledger without changing the active preference', async () => {
+		useLedgerStore.getState().setActiveLedger('ledger-active', 'owner');
+		useLedgerStore.getState().enterArchivedLedgerView({
+			id: 'ledger-archived',
+			name: '历史账本',
+			role: 'viewer',
+			status: 'archived',
+			version: 2,
+			member_count: 2,
+			archived_at: '2026-07-15T00:00:00Z',
+			archived_by_user_id: 'user-owner',
+			created_at: '2026-07-01T00:00:00Z',
+			updated_at: '2026-07-15T00:00:00Z',
+		});
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: () => Promise.resolve({ success: true, data: null }),
+		}));
+
+		await request('/api/transactions');
+		expect(fetch).toHaveBeenCalledWith('/api/transactions', expect.objectContaining({
+			headers: expect.objectContaining({ 'X-Ledger-Id': 'ledger-archived' }),
+		}));
+		expect(useLedgerStore.getState().activeLedgerId).toBe('ledger-active');
+		expect(useLedgerStore.getState().recentLedgerUsedAt).toHaveProperty('ledger-active');
+		expect(useLedgerStore.getState().recentLedgerUsedAt).not.toHaveProperty('ledger-archived');
+	});
+
 	it('replaces caller-provided ledger headers with the resolved ledger scope', async () => {
 		useLedgerStore.getState().setActiveLedger('ledger-active', 'owner');
 		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

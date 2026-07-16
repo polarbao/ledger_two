@@ -58,8 +58,8 @@ export async function request<T>(
 	}
 
 	if (ledgerScope !== 'none') {
-		const { activeLedgerId } = useLedgerStore.getState();
-		const explicitLedgerId = ledgerId?.trim() || activeLedgerId;
+		const { activeLedgerId, archivedViewingLedger } = useLedgerStore.getState();
+		const explicitLedgerId = ledgerId?.trim() || archivedViewingLedger?.id || activeLedgerId;
 		if (!explicitLedgerId) {
 			throw new ApiError('LEDGER_REQUIRED', '请先选择账本', 400);
 		}

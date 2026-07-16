@@ -12,6 +12,7 @@ interface RecurringReminderListProps {
   reminders: RecurringReminderResponse[];
   isMutating: boolean;
   confirmingId?: string;
+  readOnly?: boolean;
   onConfirm: (id: string) => void;
   onSkip: (id: string) => void;
 }
@@ -20,6 +21,7 @@ export default function RecurringReminderList({
   reminders,
   isMutating,
   confirmingId,
+  readOnly = false,
   onConfirm,
   onSkip,
 }: RecurringReminderListProps) {
@@ -52,7 +54,7 @@ export default function RecurringReminderList({
                 ? '金额待确认'
                 : formatDashboardAmount(reminder.amount_cents)}
             </strong>
-            <div className="lt-dashboard-reminder-row__actions">
+            {!readOnly ? <div className="lt-dashboard-reminder-row__actions">
               <Button
                 className="lt-dashboard-compact-button"
                 variant="secondary"
@@ -72,11 +74,13 @@ export default function RecurringReminderList({
               >
                 {confirmingId === reminder.id ? '记账中' : '确认记账'}
               </Button>
-            </div>
+            </div> : <StatusChip tone="warning">归档期不可确认</StatusChip>}
           </article>
         ))}
       </div>
-      <p className="lt-dashboard-reminders__note">确认后生成真实账单；跳过只影响本期提醒。</p>
+      <p className="lt-dashboard-reminders__note">
+        {readOnly ? '归档账本仅展示既有提醒，不允许确认或跳过。' : '确认后生成真实账单；跳过只影响本期提醒。'}
+      </p>
     </section>
   );
 }

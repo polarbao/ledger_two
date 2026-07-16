@@ -23,8 +23,8 @@ import Button from '../components/ui/Button';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PageState from '../components/ui/PageState';
 import ResponsiveDataList from '../components/ui/ResponsiveDataList';
+import { useLedgerContext } from '../components/ledger/useLedgerContext';
 import { useAuthStore } from '../stores/auth.store';
-import { useLedgerStore } from '../stores/ledger.store';
 import { useUIStore } from '../stores/ui.store';
 import type { TransactionResponse } from '../types/transaction';
 import './TransactionsPage.css';
@@ -35,8 +35,7 @@ const quickTypes: TransactionQuickType[] = ['', 'expense', 'income', 'shared_exp
 export default function TransactionsPage() {
   const currentMonth = useUIStore((state) => state.currentMonth);
   const currentUser = useAuthStore((state) => state.user);
-  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
-  const activeRole = useLedgerStore((state) => state.activeRole);
+  const { ledgerId, role, isArchivedView } = useLedgerContext();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -52,8 +51,8 @@ export default function TransactionsPage() {
   const tag = searchParams.get('tag') || '';
   const parsedPage = Number.parseInt(searchParams.get('page') || '1', 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-  const canWrite = activeRole === 'owner' || activeRole === 'editor';
-  const canExport = activeRole === 'owner';
+  const canWrite = !isArchivedView && (role === 'owner' || role === 'editor');
+  const canExport = role === 'owner' || role === 'editor';
 
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionResponse | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<TransactionResponse | null>(null);
@@ -89,14 +88,15 @@ export default function TransactionsPage() {
     const next = new URLSearchParams();
     next.set('month', month);
     next.set('page', '1');
+    if (isArchivedView && ledgerId) next.set('archived_ledger_id', ledgerId);
     setSelectedIds([]);
     setSearchParams(next);
   };
 
   const { data: dashboardData } = useQuery({
-    queryKey: queryKeys.dashboard.month(activeLedgerId, month),
+    queryKey: queryKeys.dashboard.month(ledgerId, month),
     queryFn: ({ signal }) => dashboardApi.getDashboard(month, signal),
-    enabled: Boolean(activeLedgerId),
+    enabled: Boolean(ledgerId),
   });
   const users = dashboardData?.user_stats || [];
   const ledgerUserIds = users.map((user) => user.user_id);
@@ -107,11 +107,12 @@ export default function TransactionsPage() {
   const getUserName = (userId: string) => payerNames[userId] || (userId === currentUser?.id ? '我' : '账本成员');
 
   const { data: categories = [] } = useQuery({
-    queryKey: queryKeys.categories(activeLedgerId, true),
+    queryKey: queryKeys.categories(ledgerId, true),
     queryFn: ({ signal }) => transactionsApi.getCategories({ includeArchived: true }, signal),
-    enabled: Boolean(activeLedgerId),
+    enabled: Boolean(ledgerId),
   });
-  const categoryNames = categories.reduce<Record<string, string>>((names, category) => {
+  const normalizedCategories = categories ?? [];
+  const categoryNames = normalizedCategories.reduce<Record<string, string>>((names, category) => {
     names[category.id] = category.is_archived ? `${category.name}（已归档）` : category.name;
     return names;
   }, {});
@@ -162,9 +163,9 @@ export default function TransactionsPage() {
     error,
     refetch,
   } = useQuery({
-    queryKey: queryKeys.transactions.list(activeLedgerId, transactionFilter),
+    queryKey: queryKeys.transactions.list(ledgerId, transactionFilter),
     queryFn: ({ signal }) => transactionsApi.list(transactionFilter, signal),
-    enabled: Boolean(activeLedgerId),
+    enabled: Boolean(ledgerId),
   });
 
   const deleteMutation = useMutation({
@@ -172,9 +173,9 @@ export default function TransactionsPage() {
     onSuccess: () => {
       setTransactionToDelete(null);
       setSelectedTransaction(null);
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(activeLedgerId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(ledgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root(ledgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.root(ledgerId) });
     },
   });
   const batchTagMutation = useMutation({
@@ -184,7 +185,7 @@ export default function TransactionsPage() {
       setBatchTags('');
       setSelectedIds([]);
       setBatchMode(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(activeLedgerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root(ledgerId) });
     },
   });
 
@@ -253,12 +254,12 @@ export default function TransactionsPage() {
     setExporting(true);
     setPageMessage(null);
     try {
-		if (!activeLedgerId) {
+		if (!ledgerId) {
 			throw new Error('请先选择账本');
 		}
       const response = await fetch(`/api/export/transactions.csv?month=${encodeURIComponent(month)}`, {
         credentials: 'include',
-			headers: { 'X-Ledger-Id': activeLedgerId },
+			headers: { 'X-Ledger-Id': ledgerId },
       });
       if (!response.ok) throw new Error('导出失败，请稍后重试');
       const blobUrl = window.URL.createObjectURL(await response.blob());
@@ -317,7 +318,7 @@ export default function TransactionsPage() {
         <section className="transactions-filter-panel" aria-label="更多筛选">
           <TransactionFilterFields
             key={filterFieldsKey}
-            categories={categories}
+            categories={normalizedCategories}
             users={users.map((user) => ({ userId: user.user_id, label: getUserName(user.user_id) }))}
             values={advancedFilterValues}
             onApply={applyAdvancedFilters}
@@ -441,7 +442,7 @@ export default function TransactionsPage() {
       >
         <TransactionFilterFields
           key={`mobile-${filterFieldsKey}`}
-          categories={categories}
+          categories={normalizedCategories}
           users={users.map((user) => ({ userId: user.user_id, label: getUserName(user.user_id) }))}
           values={advancedFilterValues}
           onApply={applyAdvancedFilters}

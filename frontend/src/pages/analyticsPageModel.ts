@@ -8,6 +8,7 @@ export interface TransactionDrilldown {
   categoryId?: string;
   tag?: string;
   payerUserId?: string;
+  archivedLedgerId?: string;
 }
 
 const monthPattern = /^(\d{4})-(0[1-9]|1[0-2])$/;
@@ -56,11 +57,13 @@ export function buildTransactionsDrilldown({
   categoryId,
   tag,
   payerUserId,
+  archivedLedgerId,
 }: TransactionDrilldown) {
   const params = new URLSearchParams({ month, page: '1' });
   if (categoryId) params.set('category_id', categoryId);
   if (tag) params.set('tag', tag);
   if (payerUserId) params.set('payer_user_id', payerUserId);
+  if (archivedLedgerId) params.set('archived_ledger_id', archivedLedgerId);
   return `/transactions?${params.toString()}`;
 }
 

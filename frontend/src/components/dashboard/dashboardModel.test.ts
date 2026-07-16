@@ -32,6 +32,33 @@ const dashboardFixture: DashboardResponse = {
 };
 
 describe('UI-FL-03 dashboard presentation model', () => {
+  it('normalizes persisted null collections before rendering an empty ledger', async () => {
+    const model = await import('./dashboardModel').catch(() => null);
+
+    expect(model).not.toBeNull();
+    if (!model) return;
+
+    const normalized = model.normalizeDashboardResponse({
+      ...dashboardFixture,
+      recent_transactions: null,
+      category_summary: null,
+      tag_summary: null,
+      user_stats: null,
+      shared_balance: {
+        ...dashboardFixture.shared_balance,
+        user_balances: null,
+        suggested_transfers: null,
+      },
+    } as never);
+
+    expect(normalized.recent_transactions).toEqual([]);
+    expect(normalized.category_summary).toEqual([]);
+    expect(normalized.tag_summary).toEqual([]);
+    expect(normalized.user_stats).toEqual([]);
+    expect(normalized.shared_balance.user_balances).toEqual([]);
+    expect(normalized.shared_balance.suggested_transfers).toEqual([]);
+  });
+
   it('keeps the high-priority monthly metrics in a stable mobile-first order', async () => {
     const model = await import('./dashboardModel').catch(() => null);
 

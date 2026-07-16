@@ -65,6 +65,25 @@ describe('UI-FL-02 AppShell contract', () => {
     expect(shellModel.shouldShowQuickRecordAction('/import/batches/batch-1')).toBe(false);
   });
 
+  it('keeps archived history navigation explicit and routes settings to ledger detail', async () => {
+    const shellModel = await import('./appShellModel').catch(() => null);
+
+    expect(shellModel).not.toBeNull();
+    if (!shellModel) return;
+
+    expect(shellModel.isLedgerManagementRoute('/settings/ledgers')).toBe(true);
+    expect(shellModel.isLedgerManagementRoute('/settings/ledgers/ledger-a')).toBe(true);
+    expect(shellModel.isArchivedHistoryRoute('/transactions')).toBe(true);
+    expect(shellModel.isArchivedHistoryRoute('/import')).toBe(false);
+    expect(shellModel.buildShellNavigationPath('/analytics', 'ledger-a'))
+      .toBe('/analytics?archived_ledger_id=ledger-a');
+    expect(shellModel.buildShellNavigationPath('/settings', 'ledger-a'))
+      .toBe('/settings/ledgers/ledger-a');
+    expect(shellModel.isArchivedContextCleanupPending('ledger-a', null)).toBe(true);
+    expect(shellModel.isArchivedContextCleanupPending('ledger-a', 'ledger-a')).toBe(false);
+    expect(shellModel.isArchivedContextCleanupPending(null, null)).toBe(false);
+  });
+
   it('exposes semantic navigation, status and record actions in the shell source', () => {
     const shellSource = readSource('./AppShell.tsx');
 
@@ -73,6 +92,8 @@ describe('UI-FL-02 AppShell contract', () => {
     expect(shellSource).toContain('setAddDrawerOpen(true)');
     expect(shellSource).toContain('aria-label="记一笔"');
     expect(shellSource).toContain('aria-live="polite"');
+    expect(shellSource).toContain("restoreErrorPresentation?.recovery === 'refresh'");
+    expect(shellSource).toContain('archivedLedgersQuery.refetch()');
   });
 
   it('defines stable desktop and mobile shell geometry without horizontal overflow', () => {

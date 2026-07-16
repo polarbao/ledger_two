@@ -25,6 +25,32 @@ export interface TransactionTypePresentation {
   tone: 'expense' | 'income' | 'shared' | 'settlement';
 }
 
+export function normalizeDashboardResponse(data: DashboardResponse): DashboardResponse {
+  const candidate = data as DashboardResponse & {
+    recent_transactions: DashboardResponse['recent_transactions'] | null;
+    category_summary: DashboardResponse['category_summary'] | null;
+    tag_summary: DashboardResponse['tag_summary'] | null;
+    user_stats: DashboardResponse['user_stats'] | null;
+  };
+  const balance = candidate.shared_balance as DashboardResponse['shared_balance'] & {
+    user_balances?: DashboardResponse['shared_balance']['user_balances'] | null;
+    suggested_transfers?: DashboardResponse['shared_balance']['suggested_transfers'] | null;
+  };
+
+  return {
+    ...candidate,
+    recent_transactions: candidate.recent_transactions ?? [],
+    category_summary: candidate.category_summary ?? [],
+    tag_summary: candidate.tag_summary ?? [],
+    user_stats: candidate.user_stats ?? [],
+    shared_balance: {
+      ...balance,
+      user_balances: balance.user_balances ?? [],
+      suggested_transfers: balance.suggested_transfers ?? [],
+    },
+  };
+}
+
 export function formatDashboardAmount(amountCents: number) {
   const normalizedCents = Math.trunc(amountCents);
   const absoluteCents = Math.abs(normalizedCents);

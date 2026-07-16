@@ -22,9 +22,11 @@ describe('UI-FL-05 transactions page contract', () => {
     expect(source).toContain('transactionsApi.batchTag(payload)');
     expect(source).toContain('getTransactionEditBlockReason(');
     expect(source).toContain('setEditSourceTransaction(tx)');
-    expect(source).toContain('queryKeys.transactions.root(activeLedgerId)');
-    expect(source).toContain('queryKeys.dashboard.root(activeLedgerId)');
-    expect(source).toContain('queryKeys.reports.root(activeLedgerId)');
+    expect(source).toContain('queryKeys.transactions.root(ledgerId)');
+    expect(source).toContain('queryKeys.dashboard.root(ledgerId)');
+    expect(source).toContain('queryKeys.reports.root(ledgerId)');
+    expect(source).toContain('!isArchivedView');
+    expect(source).toContain('const normalizedCategories = categories ?? [];');
     expect(source).not.toContain('style={{');
   });
 

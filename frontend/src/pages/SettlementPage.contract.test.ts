@@ -18,8 +18,9 @@ describe('UI-FL-06 Settlement page contract', () => {
     expect(source).toContain("import SegmentedControl from '../components/ui/SegmentedControl'");
     expect(source).toContain('settlementApi.getBalance(balanceMonth, signal)');
     expect(source).toContain('settlementApi.createSettlement');
-    expect(source).toContain('queryKeys.settlements.balanceRoot(activeLedgerId)');
-    expect(source).toContain('queryKeys.reports.root(activeLedgerId)');
+    expect(source).toContain('queryKeys.settlements.balanceRoot(ledgerId)');
+    expect(source).toContain('queryKeys.reports.root(ledgerId)');
+    expect(source).toContain('!isArchivedView');
     expect(source).toContain('不会修改历史共同支出');
     expect(source).toContain('复制失败，请手动选择下方文案');
     expect(source).not.toContain('style={{');

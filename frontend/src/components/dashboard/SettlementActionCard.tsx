@@ -5,9 +5,13 @@ import { formatDashboardAmount } from './dashboardModel';
 
 interface SettlementActionCardProps {
   action: SettlementAction;
+  archivedLedgerId?: string | null;
 }
 
-export default function SettlementActionCard({ action }: SettlementActionCardProps) {
+export default function SettlementActionCard({
+  action,
+  archivedLedgerId,
+}: SettlementActionCardProps) {
   const settled = action.state === 'settled';
 
   return (
@@ -22,7 +26,12 @@ export default function SettlementActionCard({ action }: SettlementActionCardPro
       </div>
       <div className="lt-dashboard-settlement__action">
         <strong>{formatDashboardAmount(action.amountCents)}</strong>
-        <Link className="lt-dashboard-text-link" to="/settlement">
+        <Link
+          className="lt-dashboard-text-link"
+          to={archivedLedgerId
+            ? `/settlement?archived_ledger_id=${encodeURIComponent(archivedLedgerId)}`
+            : '/settlement'}
+        >
           <span>查看结算</span>
           <ArrowRight size={17} aria-hidden="true" />
         </Link>

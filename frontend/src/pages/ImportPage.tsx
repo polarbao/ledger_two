@@ -85,6 +85,7 @@ function ImportWorkspace({
   const [batch, setBatch] = useState<ImportPreviewBatch | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const [commitResult, setCommitResult] = useState<ImportCommitResult | null>(null);
   const [editingRow, setEditingRow] = useState<ImportPreviewRow | null>(null);
   const [ruleToArchive, setRuleToArchive] = useState<ImportRule | null>(null);
@@ -176,6 +177,24 @@ function ImportWorkspace({
     onError: (err: unknown) => {
       setIsConfirmOpen(false);
       setErrorMsg(resolveImportErrorMessage(err, '导入提交失败，当前批次未写入正式账单'));
+      if (batch) void importsApi.getBatch(batch.id).then(setBatch).catch(() => undefined);
+    },
+  });
+
+  const discardMutation = useMutation({
+    mutationFn: async () => {
+      if (!batch) throw new Error('missing batch');
+      await importsApi.discard(batch.id);
+      return importsApi.getBatch(batch.id);
+    },
+    onSuccess: (latestBatch) => {
+      setBatch(latestBatch);
+      setIsDiscardOpen(false);
+      setErrorMsg(null);
+    },
+    onError: (err: unknown) => {
+      setIsDiscardOpen(false);
+      setErrorMsg(resolveImportErrorMessage(err, '放弃预览失败，当前批次仍保持原状态'));
       if (batch) void importsApi.getBatch(batch.id).then(setBatch).catch(() => undefined);
     },
   });
@@ -504,20 +523,33 @@ function ImportWorkspace({
                     <strong>{commitSummary.blockingCount > 0 ? `还有 ${commitSummary.blockingCount} 条需要处理` : '当前批次可以提交'}</strong>
                     <span>将导入 {commitSummary.importableCount} 条，跳过 {commitSummary.skippedCount} 条。</span>
                   </div>
-                  <Button
-                    variant={commitSummary.blockingCount > 0 ? 'secondary' : 'primary'}
-                    onClick={handleOpenCommit}
-                    isLoading={commitMutation.isPending}
-                    disabled={!canOpenCommit || updateRowMutation.isPending}
-                  >
-                    {batch.status === 'committed'
-                      ? '已完成导入'
-                      : batch.status === 'failed'
-                        ? '当前批次不可提交'
-                        : commitSummary.blockingCount > 0
-                          ? '查看待处理流水'
-                          : '确认导入'}
-                  </Button>
+                  <div className="import-commit-bar__actions">
+                    {batch.status === 'ready' ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() => setIsDiscardOpen(true)}
+                        disabled={commitMutation.isPending || updateRowMutation.isPending}
+                      >
+                        放弃预览
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant={commitSummary.blockingCount > 0 ? 'secondary' : 'primary'}
+                      onClick={handleOpenCommit}
+                      isLoading={commitMutation.isPending}
+                      disabled={!canOpenCommit || updateRowMutation.isPending}
+                    >
+                      {batch.status === 'committed'
+                        ? '已完成导入'
+                        : batch.status === 'failed'
+                          ? '当前批次不可提交'
+                          : batch.status === 'expired'
+                            ? '预览已放弃'
+                            : commitSummary.blockingCount > 0
+                              ? '查看待处理流水'
+                              : '确认导入'}
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
@@ -565,6 +597,19 @@ function ImportWorkspace({
           <div><span>错误未跳过</span><strong>{commitSummary.invalidOpenCount}</strong></div>
         </div>
       </ConfirmDialog>
+
+      <ConfirmDialog
+        open={isDiscardOpen && batch?.status === 'ready'}
+        title="放弃当前导入预览？"
+        description="预览会标记为已过期，正式流水不会新增；原始行、hash 和审计记录会保留。"
+        confirmLabel="放弃预览"
+        cancelLabel="返回预览"
+        tone="danger"
+        icon={<AlertTriangle size={22} />}
+        isConfirming={discardMutation.isPending}
+        onConfirm={() => discardMutation.mutate()}
+        onClose={() => setIsDiscardOpen(false)}
+      />
 
       <ConfirmDialog
         open={Boolean(ruleToArchive)}

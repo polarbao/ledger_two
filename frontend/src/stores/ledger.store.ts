@@ -17,11 +17,14 @@ export interface LedgerContextNotice {
 export interface LedgerState {
   activeLedgerId: string | null;
   activeRole: LedgerRole | null;
+  archivedViewingLedger: LedgerWithRole | null;
   recentLedgerUsedAt: Record<string, number>;
   contextStatus: LedgerContextStatus;
   contextNotice: LedgerContextNotice | null;
   validationError: string | null;
   setActiveLedger: (id: string, role: LedgerRole, usedAt?: number) => void;
+  enterArchivedLedgerView: (ledger: LedgerWithRole) => void;
+  exitArchivedLedgerView: () => void;
   reconcileActiveLedgers: (ledgers: LedgerWithRole[], usedAt?: number) => void;
   beginLedgerValidation: () => void;
   failLedgerValidation: (message: string) => void;
@@ -34,6 +37,7 @@ export const useLedgerStore = create<LedgerState>()(
     (set) => ({
       activeLedgerId: null,
       activeRole: null,
+      archivedViewingLedger: null,
       recentLedgerUsedAt: {},
       contextStatus: 'validating',
       contextNotice: null,
@@ -48,7 +52,12 @@ export const useLedgerStore = create<LedgerState>()(
         contextStatus: 'active',
         contextNotice: null,
         validationError: null,
+        archivedViewingLedger: null,
       })),
+      enterArchivedLedgerView: (ledger) => set({
+        archivedViewingLedger: ledger.status === 'archived' ? ledger : null,
+      }),
+      exitArchivedLedgerView: () => set({ archivedViewingLedger: null }),
       reconcileActiveLedgers: (ledgers, usedAt = Date.now()) => set((state) => {
         const selection = selectActiveLedger(
           ledgers,
@@ -105,6 +114,7 @@ export const useLedgerStore = create<LedgerState>()(
       clearActiveLedger: () => set({
         activeLedgerId: null,
         activeRole: null,
+        archivedViewingLedger: null,
         contextStatus: 'no-active',
         contextNotice: null,
         validationError: null,

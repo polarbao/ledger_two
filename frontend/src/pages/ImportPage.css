@@ -648,6 +648,13 @@
   gap: 3px;
 }
 
+.import-commit-bar__actions {
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--lt-space-2) !important;
+}
+
 .import-commit-bar strong {
   color: var(--lt-text-primary);
   font-size: var(--lt-font-size-body);
@@ -1101,7 +1108,12 @@
     flex-direction: column;
   }
 
-  .import-commit-bar > .ui-button {
+  .import-commit-bar__actions {
+    width: 100%;
+    flex-direction: column !important;
+  }
+
+  .import-commit-bar__actions > .ui-button {
     width: 100%;
   }
 

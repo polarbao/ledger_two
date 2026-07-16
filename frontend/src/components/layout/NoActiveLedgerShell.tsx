@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, BookOpen, FolderOpen, Plus } from 'lucide-react';
+import { Archive, BookOpen, ChevronRight, FolderOpen, Plus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { ApiError } from '../../api/client';
 import { ledgerApi, type LedgerWithRole } from '../../api/ledger.api';
@@ -24,6 +25,7 @@ interface NoActiveLedgerShellProps {
 }
 
 export default function NoActiveLedgerShell({ notice }: NoActiveLedgerShellProps) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const setActiveLedger = useLedgerStore((state) => state.setActiveLedger);
   const clearContextNotice = useLedgerStore((state) => state.clearContextNotice);
@@ -118,6 +120,9 @@ export default function NoActiveLedgerShell({ notice }: NoActiveLedgerShellProps
           >
             {showArchived ? '收起归档账本' : '查看已归档账本'}
           </Button>
+          <Button variant="ghost" onClick={() => navigate('/settings/ledgers')}>
+            管理全部账本
+          </Button>
 
           {showArchived ? (
             <div className="lt-no-active__archived-list" aria-live="polite">
@@ -137,6 +142,15 @@ export default function NoActiveLedgerShell({ notice }: NoActiveLedgerShellProps
                     <small>{ledger.archived_at ? new Date(ledger.archived_at).toLocaleDateString('zh-CN') : '已归档'}</small>
                   </span>
                   <StatusChip tone="warning">只读</StatusChip>
+                  <Button
+                    variant="ghost"
+                    iconOnly
+                    aria-label={`查看 ${ledger.name} 历史`}
+                    title="查看历史"
+                    onClick={() => navigate(`/?archived_ledger_id=${encodeURIComponent(ledger.id)}`)}
+                  >
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </Button>
                 </div>
               ))}
             </div>

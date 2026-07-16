@@ -8,6 +8,8 @@ import TransactionsPage from './pages/TransactionsPage';
 import SettlementPage from './pages/SettlementPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
+import LedgerManagementPage from './pages/LedgerManagementPage';
+import LedgerDetailPage from './pages/LedgerDetailPage';
 import MetadataManagePage from './pages/MetadataManagePage';
 import RecurringRulesPage from './pages/RecurringRulesPage';
 import ImportPage from './pages/ImportPage';
@@ -50,6 +52,14 @@ export const router = createBrowserRouter([
           {
             path: 'settings',
             element: <SettingsPage />,
+          },
+          {
+            path: 'settings/ledgers',
+            element: <LedgerManagementPage />,
+          },
+          {
+            path: 'settings/ledgers/:ledgerId',
+            element: <LedgerDetailPage />,
           },
           {
             path: 'settings/:kind',

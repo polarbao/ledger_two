@@ -15,10 +15,11 @@ describe('UI-FL-09 analytics page contract', () => {
 
     expect(source).toContain('<SegmentedControl');
     expect(source).toContain('<PageState');
-    expect(source).toContain('queryKeys.reports.monthly(activeLedgerId, month)');
-    expect(source).toContain('queryKeys.reports.category(activeLedgerId, currentMonth)');
-    expect(source).toContain('queryKeys.reports.member(activeLedgerId, currentMonth)');
-    expect(source).toContain('queryKeys.reports.tag(activeLedgerId, currentMonth)');
+    expect(source).toContain('queryKeys.reports.monthly(ledgerId, month)');
+    expect(source).toContain('queryKeys.reports.category(ledgerId, currentMonth)');
+    expect(source).toContain('queryKeys.reports.member(ledgerId, currentMonth)');
+    expect(source).toContain('queryKeys.reports.tag(ledgerId, currentMonth)');
+    expect(source).toContain('archivedLedgerId: isArchivedView');
   });
 
   it('keeps drilldowns on the existing transaction URL contract', () => {
@@ -29,6 +30,7 @@ describe('UI-FL-09 analytics page contract', () => {
     expect(model).toContain("params.set('category_id', categoryId)");
     expect(model).toContain("params.set('tag', tag)");
     expect(model).toContain("params.set('payer_user_id', payerUserId)");
+    expect(model).toContain("params.set('archived_ledger_id', archivedLedgerId)");
   });
 
   it('does not add local hardcoded colors or gradients', () => {

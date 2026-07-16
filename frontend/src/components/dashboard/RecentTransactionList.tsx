@@ -14,6 +14,7 @@ interface RecentTransactionListProps {
   data: DashboardResponse | undefined;
   currentUserId: string | undefined;
   isLoading: boolean;
+  archivedLedgerId?: string | null;
 }
 
 const TONE_MAP: Record<ReturnType<typeof getTransactionTypePresentation>['tone'], StatusChipTone> = {
@@ -27,6 +28,7 @@ export default function RecentTransactionList({
   data,
   currentUserId,
   isLoading,
+  archivedLedgerId,
 }: RecentTransactionListProps) {
   return (
     <section className="lt-dashboard-section lt-dashboard-recent" aria-labelledby="dashboard-recent-title">
@@ -38,7 +40,12 @@ export default function RecentTransactionList({
             <h2 id="dashboard-recent-title">最近流水</h2>
           </div>
         </div>
-        <Link className="lt-dashboard-text-link" to="/transactions">
+        <Link
+          className="lt-dashboard-text-link"
+          to={archivedLedgerId
+            ? `/transactions?archived_ledger_id=${encodeURIComponent(archivedLedgerId)}`
+            : '/transactions'}
+        >
           <span>查看全部</span>
           <ArrowRight size={16} aria-hidden="true" />
         </Link>

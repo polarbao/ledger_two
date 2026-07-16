@@ -131,7 +131,7 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 	}
 
 	// 6. 构造分类消费汇总并排序
-	var categorySummary []SummaryItem
+	categorySummary := make([]SummaryItem, 0, len(catAmountMap))
 	for catID, amount := range catAmountMap {
 		name, exists := categoryMap[catID]
 		if !exists || name == "" {
@@ -154,7 +154,7 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 	})
 
 	// 7. 构造标签消费汇总并排序
-	var tagSummary []SummaryItem
+	tagSummary := make([]SummaryItem, 0, len(tagAmountMap))
 	for name, amount := range tagAmountMap {
 		var percent float64 = 0
 		if totalExpenseCents > 0 {
@@ -172,7 +172,7 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 	})
 
 	// 8. 构造成员消费统计
-	var userStats []UserStatItem
+	userStats := make([]UserStatItem, 0, len(userMap))
 	for userID, dispName := range userMap {
 		userStats = append(userStats, UserStatItem{
 			UserID:      userID,
@@ -191,7 +191,7 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 	if recentCount > 10 {
 		recentCount = 10
 	}
-	var recentTransactions []transaction.TransactionResponse
+	recentTransactions := make([]transaction.TransactionResponse, 0, recentCount)
 	for i := 0; i < recentCount; i++ {
 		tx := list[i]
 		tags := tagsMap[tx.ID]

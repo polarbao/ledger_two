@@ -21,7 +21,7 @@
 
 ## 当前产品阶段
 
-截至 2026-07-16，项目处于 `v1.2.0-rc 发布收口 + v1.3 Task50.4 准入`。Task53P.1-P.6 分类标签准备包已形成并暂缓实现。Task50.1、Task50.2 与 Task50.3A-3C 已完成，下一实现任务为 Task50.4。
+截至 2026-07-16，项目处于 `v1.2.0-rc 发布收口 + v1.3 Task50.4 准入`。Task53P.1-P.6 分类标签准备包已形成并暂缓实现。Task50.1、Task50.2 与 Task50.3A-3C 已完成，下一实现任务为 Task50.4；Task51P.1 非约束性准备已启动且有效真实小组证据仍为 0。
 
 当前产品重点：
 
@@ -107,5 +107,5 @@ Task30 后的产品规划建议优先阅读：
 12. `30-prd-v1.2-xlsx-import-special.md`（Task49X 开发前必读）
 13. `31-prd-v1.3-multi-ledger.md`（Task50 准备与开发前必读）
 14. `32-v1.3-task50-acceptance-fixtures.md`（Task50 测试、Migration 与验收必读）
-15. `33-task51-scenario-evidence-and-scope-questions.md`（Task51P.1 非约束性发现准备；不代表开发准入）
+15. `33-task51-scenario-evidence-and-scope-questions.md`（Task51P.1 非约束性发现进行中；有效真实证据仍为 0，不代表开发准入）
 16. `34-prd-v1.3-category-tag-intelligence.md`（当前 Task53 产品评审入口）

@@ -1,8 +1,8 @@
 # Task51 多人分摊场景证据与范围问题
 
-状态：前置发现草案，不构成 PRD 冻结或开发准入
+状态：Task51P.1 非约束性准备进行中，不构成 PRD 冻结或开发准入
 创建日期：2026-07-16
-当前阶段：仅启动 Task51P.1 的非约束性证据准备；正式 Task51P 仍等待 Task50.6
+当前阶段：证据模板、登记表和 3/5 人假设回放 Fixture 已建立；有效真实小组证据为 0，正式 Task51P 仍等待 Task50.6
 
 ## 1. Goal
 
@@ -103,3 +103,14 @@ P1 评审只能给出以下三种结论：
 ## 8. Completion criteria
 
 Task51P.1 只有在 Task50.6 完成正式入口检查后，使用匿名证据记录重新评审并形成 `continue/narrow/defer` 结论，才算正式完成。本草案当前只完成场景分类、证据格式、隐私边界和决策规则准备。
+
+当前执行工作区：
+
+```text
+docs/project_analysis/task51_p1/README.md
+docs/project_analysis/task51_p1/evidence-register.md
+docs/project_analysis/task51_p1/evidence-record-template.md
+docs/project_analysis/task51_p1/prototype-replay-fixtures.md
+```
+
+当前不得把假设 Fixture 计为真实需求证据，也不得在证据数为 0 时给出 `continue` 或 `narrow`。

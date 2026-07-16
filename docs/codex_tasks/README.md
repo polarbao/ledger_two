@@ -35,6 +35,7 @@
 ../prd/31-prd-v1.3-multi-ledger.md v1.3 Task50 多账本正式化冻结 PRD
 ../prd/32-v1.3-task50-acceptance-fixtures.md v1.3 Task50 匿名 Fixture 与验收矩阵
 ../prd/33-task51-scenario-evidence-and-scope-questions.md Task51 多人分摊场景证据与范围问题
+../project_analysis/task51_p1/README.md Task51P.1 匿名证据登记、记录模板与假设回放工作区
 ../prd/34-prd-v1.3-category-tag-intelligence.md Task53 分类标签智能化评审 PRD
 ../api/openapi-v1.3-ledger-draft.yaml v1.3 Task50 API 开发前冻结草案
 ../api/openapi-v1.3-category-tag-draft.yaml Task53 元数据模板、批量调整、学习与重分类 API 草案
@@ -61,7 +62,7 @@
 9. Fresh Light 或后续业务 Task 涉及 UI 时，读取 `docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md` 和 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`，登记共享组件归属和并行冲突。
 10. Task50 当前从 Task50.4 继续，必须读取 `docs/project_analysis/2026-07-16-task50-3c-instance-ops-acceptance.md`、`docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`，并只启动当前放行的原子 Task。
 11. Task53 未来恢复开发时必须依次读取 `docs/prd/34-prd-v1.3-category-tag-intelligence.md`、`docs/tech/26-v1.3-category-tag-intelligence-contract.md`、`docs/tech/27-v1.3-category-tag-migration-review.md`、`docs/api/openapi-v1.3-category-tag-draft.yaml`、`docs/ui/17-v1.3-category-tag-intelligence-flows.md`、`docs/ui/figma/task53-v1.3-category-tag/README.md`、`docs/fixtures/category-tag/README.md`、`docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md` 和 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`；不得重复建立平行准备文档。
-12. Task51 准备必须读取 `docs/prd/33-task51-scenario-evidence-and-scope-questions.md` 与 `docs/codex_tasks/17-task51-predevelopment-plan.md`；Task50.6 前只允许非约束性 P1 证据准备，不得实现代码或解除两人约束。
+12. Task51 准备必须读取 `docs/prd/33-task51-scenario-evidence-and-scope-questions.md`、`docs/codex_tasks/17-task51-predevelopment-plan.md` 与 `docs/project_analysis/task51_p1/README.md`；Task50.6 前只允许非约束性 P1 证据准备，不得实现代码或解除两人约束。
 13. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
 14. 读取本目录代码风格文档。
 15. 读取对应任务。

@@ -193,7 +193,7 @@
 
 ### Task51：多人分摊体验增强
 
-状态：路线待准备，不具备直接开发条件。Task50.6 关闭后先执行 Task51P，不得直接解除 schema 21 的最多两名成员约束。
+状态：不具备直接开发条件。Task51P.1 的非约束性场景分类、证据模板与问题清单已开始准备；正式 Task51P、范围/版本冻结和代码开发仍等待 Task50.6，不得直接解除 schema 21 的最多两名成员约束。入口为 `../prd/33-task51-scenario-evidence-and-scope-questions.md` 与 `17-task51-predevelopment-plan.md`。
 
 目标：
 

@@ -29,8 +29,10 @@
 14-v1.3-task50-predevelopment-plan.md v1.3 Task50 多账本正式化开发前准备与准入计划
 15-v1.3-task50-detailed-implementation-plan.md v1.3 Task50.1-Task50.6 详细实施、验证、回滚与提交计划
 16-v1.3-task50-3-readiness-and-post-task50-entry.md Task50.3-Task50.6 准入、Task51P 与 Task52 后续边界
+17-task51-predevelopment-plan.md Task51P.1-P.6 开发前准备顺序与正式门禁
 ../prd/31-prd-v1.3-multi-ledger.md v1.3 Task50 多账本正式化冻结 PRD
 ../prd/32-v1.3-task50-acceptance-fixtures.md v1.3 Task50 匿名 Fixture 与验收矩阵
+../prd/33-task51-scenario-evidence-and-scope-questions.md Task51 多人分摊场景证据与范围问题
 ../api/openapi-v1.3-ledger-draft.yaml v1.3 Task50 API 开发前冻结草案
 ../ui/16-v1.3-multi-ledger-flows.md v1.3 Task50 Fresh Light 交互流程
 ../ui/figma/task50-v1.3-multi-ledger/ v1.3 Task50 本地 Figma handoff 与 Frame Manifest
@@ -49,13 +51,14 @@
 8. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
 9. Fresh Light 或后续业务 Task 涉及 UI 时，读取 `docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md` 和 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`，登记共享组件归属和并行冲突。
 10. Task50 开发必须读取 `docs/project_analysis/2026-07-15-task50-p6-development-readiness.md`、`docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`，并只启动当前放行的原子 Task。
-11. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
-12. 读取本目录代码风格文档。
-13. 读取对应任务。
-14. 输出计划和预计修改文件，等待确认。
-15. 只实现当前任务。
-16. 运行测试和构建。
-17. 输出变更摘要、验证命令、风险和下一步建议。
+11. Task51 准备必须读取 `docs/prd/33-task51-scenario-evidence-and-scope-questions.md` 与 `docs/codex_tasks/17-task51-predevelopment-plan.md`；Task50.6 前只允许非约束性 P1 证据准备，不得实现代码或解除两人约束。
+12. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
+13. 读取本目录代码风格文档。
+14. 读取对应任务。
+15. 输出计划和预计修改文件，等待确认。
+16. 只实现当前任务。
+17. 运行测试和构建。
+18. 输出变更摘要、验证命令、风险和下一步建议。
 
 ## 4. 禁止事项
 

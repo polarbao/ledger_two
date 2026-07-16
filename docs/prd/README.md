@@ -1,7 +1,7 @@
 # PRD 模块目录
 
 状态：当前产品事实源入口
-最近更新：2026-07-15
+最近更新：2026-07-16
 
 本目录按照产品业务模块拆分 LedgerTwo 的 PRD。后续每个模块可以独立进入设计、开发、测试和迭代。
 
@@ -28,7 +28,7 @@
 1. 保持 v1.2 业务范围冻结。
 2. 完成 NAS staging schema 19 和 production 发布门禁。
 3. 保持已关闭 Fresh Light 组件、主题、响应式和可访问性基线，不改变已冻结金额、权限、导入和结算规则。
-4. 在独立 development 环境按 Task50.1-Task50.6 实现多账本正式化；第三成员和多人分摊继续延后。
+4. 在独立 development 环境按 Task50.1-Task50.6 实现多账本正式化；第三成员和多人分摊继续延后，仅允许按 `33-task51-scenario-evidence-and-scope-questions.md` 提前准备非约束性场景证据。
 
 当前不进入开发：
 
@@ -67,6 +67,7 @@
 30-prd-v1.2-xlsx-import-special.md    v1.2 微信 XLSX/支付宝 CSV 导入专项 PRD
 31-prd-v1.3-multi-ledger.md           v1.3 Task50 多账本正式化冻结 PRD
 32-v1.3-task50-acceptance-fixtures.md Task50 匿名 Fixture、跨账本隔离与验收矩阵
+33-task51-scenario-evidence-and-scope-questions.md Task51 多人分摊场景证据模板、隐私边界与范围问题
 ```
 
 ## 使用方式
@@ -104,3 +105,4 @@ Task30 后的产品规划建议优先阅读：
 12. `30-prd-v1.2-xlsx-import-special.md`（Task49X 开发前必读）
 13. `31-prd-v1.3-multi-ledger.md`（Task50 准备与开发前必读）
 14. `32-v1.3-task50-acceptance-fixtures.md`（Task50 测试、Migration 与验收必读）
+15. `33-task51-scenario-evidence-and-scope-questions.md`（Task51P.1 非约束性发现准备；不代表开发准入）

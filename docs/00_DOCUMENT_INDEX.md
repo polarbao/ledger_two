@@ -36,6 +36,7 @@ docs/prd/29-prd-v1.2-module-business-service-breakdown.md
 docs/prd/30-prd-v1.2-xlsx-import-special.md
 docs/prd/31-prd-v1.3-multi-ledger.md
 docs/prd/32-v1.3-task50-acceptance-fixtures.md
+docs/prd/33-task51-scenario-evidence-and-scope-questions.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/README.md
@@ -71,6 +72,7 @@ docs/codex_tasks/13-fresh-light-ui-interaction-plan.md
 docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md
 docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md
 docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md
+docs/codex_tasks/17-task51-predevelopment-plan.md
 docs/project_analysis/2026-07-15-task50-current-state-gap-matrix.md
 docs/project_analysis/2026-07-15-task50-p6-development-readiness.md
 docs/project_analysis/2026-07-16-task50-2-ledger-context-acceptance.md

@@ -16,7 +16,7 @@ describe('UI-FL-06 Settlement page contract', () => {
 
     expect(source).toContain("import ConfirmDialog from '../components/ui/ConfirmDialog'");
     expect(source).toContain("import SegmentedControl from '../components/ui/SegmentedControl'");
-    expect(source).toContain('settlementApi.getBalance(balanceMonth)');
+    expect(source).toContain('settlementApi.getBalance(balanceMonth, signal)');
     expect(source).toContain('settlementApi.createSettlement');
     expect(source).toContain('queryKeys.settlements.balanceRoot(activeLedgerId)');
     expect(source).toContain('queryKeys.reports.root(activeLedgerId)');

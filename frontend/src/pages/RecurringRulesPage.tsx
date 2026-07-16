@@ -83,19 +83,22 @@ export default function RecurringRulesPage() {
   // 1. 获取周期规则列表
   const { data: rules, isLoading: isLoadingRules, error: loadRulesError, refetch: refetchRules } = useQuery({
     queryKey: queryKeys.recurringRules(activeLedgerId),
-    queryFn: () => transactionsApi.listRecurringRules(),
+    queryFn: ({ signal }) => transactionsApi.listRecurringRules(signal),
+    enabled: Boolean(activeLedgerId),
   });
 
   const { data: reminders, isLoading: isLoadingReminders } = useQuery({
     queryKey: queryKeys.recurringReminders(activeLedgerId),
-    queryFn: () => transactionsApi.listRecurringReminders(),
+    queryFn: ({ signal }) => transactionsApi.listRecurringReminders(signal),
+    enabled: Boolean(activeLedgerId),
   });
   const pendingReminders = reminders?.filter((item) => item.status === 'pending') || [];
 
   // 2. 获取分类列表
   const { data: categories } = useQuery({
     queryKey: queryKeys.categories(activeLedgerId),
-    queryFn: () => transactionsApi.getCategories(),
+    queryFn: ({ signal }) => transactionsApi.getCategories({}, signal),
+    enabled: Boolean(activeLedgerId),
   });
 
   const catMap = categories?.reduce((acc, cat) => {
@@ -107,8 +110,8 @@ export default function RecurringRulesPage() {
   const currentMonth = new Date().toISOString().substring(0, 7);
   const { data: dashboardData } = useQuery({
     queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
-    queryFn: () => dashboardApi.getDashboard(currentMonth),
-    enabled: !!currentUser,
+    queryFn: ({ signal }) => dashboardApi.getDashboard(currentMonth, signal),
+    enabled: Boolean(currentUser && activeLedgerId),
   });
 
   const users = dashboardData?.user_stats || [];

@@ -95,7 +95,8 @@ export default function TransactionsPage() {
 
   const { data: dashboardData } = useQuery({
     queryKey: queryKeys.dashboard.month(activeLedgerId, month),
-    queryFn: () => dashboardApi.getDashboard(month),
+    queryFn: ({ signal }) => dashboardApi.getDashboard(month, signal),
+    enabled: Boolean(activeLedgerId),
   });
   const users = dashboardData?.user_stats || [];
   const ledgerUserIds = users.map((user) => user.user_id);
@@ -107,7 +108,8 @@ export default function TransactionsPage() {
 
   const { data: categories = [] } = useQuery({
     queryKey: queryKeys.categories(activeLedgerId, true),
-    queryFn: () => transactionsApi.getCategories({ includeArchived: true }),
+    queryFn: ({ signal }) => transactionsApi.getCategories({ includeArchived: true }, signal),
+    enabled: Boolean(activeLedgerId),
   });
   const categoryNames = categories.reduce<Record<string, string>>((names, category) => {
     names[category.id] = category.is_archived ? `${category.name}（已归档）` : category.name;
@@ -161,7 +163,8 @@ export default function TransactionsPage() {
     refetch,
   } = useQuery({
     queryKey: queryKeys.transactions.list(activeLedgerId, transactionFilter),
-    queryFn: () => transactionsApi.list(transactionFilter),
+    queryFn: ({ signal }) => transactionsApi.list(transactionFilter, signal),
+    enabled: Boolean(activeLedgerId),
   });
 
   const deleteMutation = useMutation({

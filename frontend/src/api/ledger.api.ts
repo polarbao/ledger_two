@@ -75,20 +75,23 @@ function lifecycleMutationOptions(ledgerId: string, version: number): ApiRequest
 }
 
 export const ledgerApi = {
-  listUserLedgers: (status: LedgerListStatus = 'active') =>
-    api.get<Ledger[]>(`/api/ledgers?status=${status}`, { ledgerScope: 'none' }),
+  listUserLedgers: (status: LedgerListStatus = 'active', signal?: AbortSignal) =>
+    api.get<Ledger[]>(`/api/ledgers?status=${status}`, { ledgerScope: 'none', signal }),
 
   createLedger: (data: { name: string }) =>
     api.post<Ledger>('/api/ledgers', data, { ledgerScope: 'none' }),
 
-  getLedger: (ledgerId: string) =>
-    api.get<Ledger>(`/api/ledgers/${ledgerId}`, { ledgerId }),
+  getLedger: (ledgerId: string, signal?: AbortSignal) =>
+    api.get<Ledger>(`/api/ledgers/${ledgerId}`, { ledgerId, signal }),
 
   renameLedger: (ledgerId: string, version: number, data: { name: string }) =>
     api.patch<Ledger>(`/api/ledgers/${ledgerId}`, data, lifecycleMutationOptions(ledgerId, version)),
 
-  getArchivePreflight: (ledgerId: string) =>
-    api.get<LedgerArchivePreflight>(`/api/ledgers/${ledgerId}/archive-preflight`, { ledgerId }),
+  getArchivePreflight: (ledgerId: string, signal?: AbortSignal) =>
+    api.get<LedgerArchivePreflight>(`/api/ledgers/${ledgerId}/archive-preflight`, {
+      ledgerId,
+      signal,
+    }),
 
   archiveLedger: (ledgerId: string, version: number, data: ArchiveLedgerRequest) =>
     api.post<Ledger>(`/api/ledgers/${ledgerId}/archive`, data, lifecycleMutationOptions(ledgerId, version)),
@@ -96,8 +99,8 @@ export const ledgerApi = {
   restoreLedger: (ledgerId: string, version: number) =>
     api.post<Ledger>(`/api/ledgers/${ledgerId}/restore`, undefined, lifecycleMutationOptions(ledgerId, version)),
 
-  getLedgerMembers: (ledgerId: string) =>
-    api.get<LedgerMemberList>(`/api/ledgers/${ledgerId}/members`, { ledgerId }),
+  getLedgerMembers: (ledgerId: string, signal?: AbortSignal) =>
+    api.get<LedgerMemberList>(`/api/ledgers/${ledgerId}/members`, { ledgerId, signal }),
 
   addMember: (ledgerId: string, version: number, data: AddLedgerMemberRequest) =>
     api.post<LedgerMemberList>(

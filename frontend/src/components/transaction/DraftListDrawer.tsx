@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { AlertTriangle, CloudOff, Edit3, Trash2, Wifi } from 'lucide-react';
 import { useDraftStore } from '../../stores/draft.store';
+import { selectLedgerDrafts } from '../../stores/draftLedgerModel';
+import { useLedgerStore } from '../../stores/ledger.store';
 import { useUIStore } from '../../stores/ui.store';
 import BottomSheet from '../ui/BottomSheet';
 import Button from '../ui/Button';
@@ -14,7 +16,9 @@ interface Props {
 }
 
 export default function DraftListDrawer({ open, onClose }: Props) {
-  const { drafts, removeDraft, clearDrafts } = useDraftStore();
+  const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
+  const { drafts: allDrafts, removeDraft, clearLedgerDrafts } = useDraftStore();
+  const drafts = selectLedgerDrafts(allDrafts, activeLedgerId);
   const {
     setEditingDraftId,
     setAddDrawerOpen,
@@ -38,7 +42,7 @@ export default function DraftListDrawer({ open, onClose }: Props) {
   };
 
   const handleClearAll = () => {
-    clearDrafts();
+    if (activeLedgerId) clearLedgerDrafts(activeLedgerId);
     setIsClearConfirmOpen(false);
   };
 
@@ -130,9 +134,9 @@ export default function DraftListDrawer({ open, onClose }: Props) {
 
       <ConfirmDialog
         open={open && isClearConfirmOpen}
-        title="清空所有离线草稿？"
-        description="草稿只保存在当前浏览器。清空后无法恢复，也不会删除已经提交的正式账单。"
-        confirmLabel="清空全部草稿"
+        title="清空当前账本的离线草稿？"
+        description="只会清空当前账本保存在本浏览器中的草稿。清空后无法恢复，也不会删除已经提交的正式账单。"
+        confirmLabel="清空当前账本草稿"
         tone="danger"
         icon={<AlertTriangle size={22} />}
         onConfirm={handleClearAll}

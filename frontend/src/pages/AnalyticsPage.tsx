@@ -38,26 +38,27 @@ export default function AnalyticsPage() {
   const trendQueries = useQueries({
     queries: trendMonths.map((month) => ({
       queryKey: queryKeys.reports.monthly(activeLedgerId, month),
-      queryFn: () => reportsApi.getMonthlySummary(month),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        reportsApi.getMonthlySummary(month, signal),
       enabled: Boolean(activeLedgerId) && activeTab === 'trend',
     })),
   });
 
   const categoryQuery = useQuery({
     queryKey: queryKeys.reports.category(activeLedgerId, currentMonth),
-    queryFn: () => reportsApi.getCategorySummary(currentMonth),
+    queryFn: ({ signal }) => reportsApi.getCategorySummary(currentMonth, signal),
     enabled: Boolean(activeLedgerId) && activeTab === 'category',
   });
 
   const memberQuery = useQuery({
     queryKey: queryKeys.reports.member(activeLedgerId, currentMonth),
-    queryFn: () => reportsApi.getMemberSummary(currentMonth),
+    queryFn: ({ signal }) => reportsApi.getMemberSummary(currentMonth, signal),
     enabled: Boolean(activeLedgerId) && activeTab === 'member',
   });
 
   const tagQuery = useQuery({
     queryKey: queryKeys.reports.tag(activeLedgerId, currentMonth),
-    queryFn: () => reportsApi.getTagSummary(currentMonth),
+    queryFn: ({ signal }) => reportsApi.getTagSummary(currentMonth, signal),
     enabled: Boolean(activeLedgerId) && activeTab === 'tag',
   });
 

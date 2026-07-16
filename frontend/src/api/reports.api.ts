@@ -34,15 +34,27 @@ export interface MemberSummaryItem {
 }
 
 export const reportsApi = {
-  getMonthlySummary: (month: string) =>
-    api.get<MonthlySummary>(`/api/reports/monthly-summary?month=${encodeURIComponent(month)}`),
+  getMonthlySummary: (month: string, signal?: AbortSignal) =>
+    api.get<MonthlySummary>(
+      `/api/reports/monthly-summary?month=${encodeURIComponent(month)}`,
+      { signal },
+    ),
 
-  getCategorySummary: (month: string) =>
-    api.get<CategorySummaryItem[]>(`/api/reports/category-summary?month=${encodeURIComponent(month)}`),
+  getCategorySummary: (month: string, signal?: AbortSignal) =>
+    api.get<CategorySummaryItem[]>(
+      `/api/reports/category-summary?month=${encodeURIComponent(month)}`,
+      { signal },
+    ),
 
-  getTagSummary: (month: string) =>
-    api.get<TagSummaryItem[]>(`/api/reports/tag-summary?month=${encodeURIComponent(month)}`),
+  getTagSummary: (month: string, signal?: AbortSignal) =>
+    api.get<TagSummaryItem[]>(
+      `/api/reports/tag-summary?month=${encodeURIComponent(month)}`,
+      { signal },
+    ),
 
-  getMemberSummary: (month: string) =>
-    api.get<MemberSummaryItem[]>(`/api/reports/member-summary?month=${encodeURIComponent(month)}`),
+  getMemberSummary: (month: string, signal?: AbortSignal) =>
+    api.get<MemberSummaryItem[]>(
+      `/api/reports/member-summary?month=${encodeURIComponent(month)}`,
+      { signal },
+    ),
 };

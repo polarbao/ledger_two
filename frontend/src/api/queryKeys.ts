@@ -11,6 +11,8 @@ export const queryKeys = {
   },
   ledgers: {
     all: ['ledgers'] as const,
+    list: (status: 'active' | 'archived' | 'all' = 'active') =>
+      ['ledgers', status] as const,
     members: (ledgerId?: string | null) => ['ledgers', ledgerScope(ledgerId), 'members'] as const,
   },
   dashboard: {

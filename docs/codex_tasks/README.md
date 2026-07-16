@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task49 已完成；Task49X 开发与本机验收完成并继续关闭 NAS 发布门禁；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53P.1-P.6 准备完成并暂缓实现；Task50.3 已整体完成，下一实现任务为 Task50.4
+适用阶段：Task01-Task49 已完成；Task49X 开发与本机验收完成并继续关闭 NAS 发布门禁；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53P.1-P.6 准备完成并暂缓实现；Task50.1-Task50.4 已完成，下一实现任务为 Task50.5
 
 ## 1. 目标
 
@@ -60,7 +60,7 @@
 7. Task49X 开发前必须读取 `docs/prd/30-prd-v1.2-xlsx-import-special.md`、`docs/tech/24-v1.2-xlsx-import-implementation-plan.md` 和 `docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`。
 8. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
 9. Fresh Light 或后续业务 Task 涉及 UI 时，读取 `docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md` 和 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`，登记共享组件归属和并行冲突。
-10. Task50 当前从 Task50.4 继续，必须读取 `docs/project_analysis/2026-07-16-task50-3c-instance-ops-acceptance.md`、`docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`，并只启动当前放行的原子 Task。
+10. Task50 当前从 Task50.5 继续，必须读取 `docs/project_analysis/2026-07-16-task50-4-active-ledger-acceptance.md`、`docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`、`docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md` 和 Task50 UI/Figma handoff，并只启动当前放行的原子 Task。
 11. Task53 未来恢复开发时必须依次读取 `docs/prd/34-prd-v1.3-category-tag-intelligence.md`、`docs/tech/26-v1.3-category-tag-intelligence-contract.md`、`docs/tech/27-v1.3-category-tag-migration-review.md`、`docs/api/openapi-v1.3-category-tag-draft.yaml`、`docs/ui/17-v1.3-category-tag-intelligence-flows.md`、`docs/ui/figma/task53-v1.3-category-tag/README.md`、`docs/fixtures/category-tag/README.md`、`docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md` 和 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`；不得重复建立平行准备文档。
 12. Task51 准备必须读取 `docs/prd/33-task51-scenario-evidence-and-scope-questions.md`、`docs/codex_tasks/17-task51-predevelopment-plan.md` 与 `docs/project_analysis/task51_p1/README.md`；Task50.6 前只允许非约束性 P1 证据准备，不得实现代码或解除两人约束。
 13. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。

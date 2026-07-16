@@ -2,8 +2,11 @@ import { api } from './client';
 import type { MetadataItem, MetadataKind, MetadataUpsertPayload } from '../types/metadata';
 
 export const metadataApi = {
-  list: (kind: MetadataKind, includeArchived = true) =>
-    api.get<MetadataItem[]>(`/api/metadata/${kind}/?include_archived=${includeArchived ? 'true' : 'false'}`),
+  list: (kind: MetadataKind, includeArchived = true, signal?: AbortSignal) =>
+    api.get<MetadataItem[]>(
+      `/api/metadata/${kind}/?include_archived=${includeArchived ? 'true' : 'false'}`,
+      { signal },
+    ),
 
   create: (kind: MetadataKind, payload: MetadataUpsertPayload) =>
     api.post<MetadataItem>(`/api/metadata/${kind}/`, payload),

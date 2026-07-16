@@ -17,8 +17,8 @@ export const importsApi = {
     return api.post<ImportPreviewBatch>('/api/imports/preview', formData);
   },
 
-  getBatch: (batchId: string) =>
-    api.get<ImportPreviewBatch>(`/api/imports/${batchId}`),
+  getBatch: (batchId: string, signal?: AbortSignal) =>
+    api.get<ImportPreviewBatch>(`/api/imports/${batchId}`, { signal }),
 
   updateRow: (batchId: string, rowId: string, payload: UpdateImportRowPayload) =>
     api.patch<ImportPreviewBatch>(`/api/imports/${batchId}/rows/${rowId}`, payload),
@@ -29,8 +29,11 @@ export const importsApi = {
   discard: (batchId: string) =>
     api.post<ImportDiscardResult>(`/api/imports/${batchId}/discard`, { reason: 'user_requested' }),
 
-  listRules: (status: 'active' | 'archived' | 'all' = 'all') =>
-    api.get<ImportRule[]>(`/api/import-rules/?status=${status}`),
+  listRules: (
+    status: 'active' | 'archived' | 'all' = 'all',
+    signal?: AbortSignal,
+  ) =>
+    api.get<ImportRule[]>(`/api/import-rules/?status=${status}`, { signal }),
 
   createRule: (payload: ImportRuleUpsertPayload) =>
     api.post<ImportRule>('/api/import-rules/', payload),

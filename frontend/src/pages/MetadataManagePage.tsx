@@ -130,7 +130,8 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
 
   const itemsQuery = useQuery({
     queryKey: queryKeys.metadata.list(activeLedgerId, kind),
-    queryFn: () => metadataApi.list(kind, true),
+    queryFn: ({ signal }) => metadataApi.list(kind, true, signal),
+    enabled: Boolean(activeLedgerId),
   });
   const items = useMemo(() => itemsQuery.data || [], [itemsQuery.data]);
   const activeItems = useMemo(() => items.filter((item) => !item.is_archived), [items]);

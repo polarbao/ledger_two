@@ -65,8 +65,8 @@ export default function SettlementPage() {
     refetch: refetchBalance,
   } = useQuery({
     queryKey: queryKeys.settlements.balance(activeLedgerId, balanceMonth),
-    queryFn: () => settlementApi.getBalance(balanceMonth),
-    enabled: !!currentUser,
+    queryFn: ({ signal }) => settlementApi.getBalance(balanceMonth, signal),
+    enabled: Boolean(currentUser && activeLedgerId),
   });
 
   const {
@@ -77,14 +77,14 @@ export default function SettlementPage() {
     refetch: refetchHistory,
   } = useQuery({
     queryKey: queryKeys.settlements.list(activeLedgerId, currentMonth),
-    queryFn: () => settlementApi.getSettlements(currentMonth),
-    enabled: !!currentUser,
+    queryFn: ({ signal }) => settlementApi.getSettlements(currentMonth, signal),
+    enabled: Boolean(currentUser && activeLedgerId),
   });
 
   const { data: dashboardData } = useQuery({
     queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
-    queryFn: () => dashboardApi.getDashboard(currentMonth),
-    enabled: !!currentUser,
+    queryFn: ({ signal }) => dashboardApi.getDashboard(currentMonth, signal),
+    enabled: Boolean(currentUser && activeLedgerId),
   });
 
   const users = dashboardData?.user_stats || [];

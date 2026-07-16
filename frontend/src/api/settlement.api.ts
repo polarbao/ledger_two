@@ -13,9 +13,9 @@ export const settlementApi = {
    * @brief 获取当前两端未结清轧差数据
    * @return Promise<BalanceResponse> 轧差统计响应体
    */
-  getBalance: (month?: string) => {
+  getBalance: (month?: string, signal?: AbortSignal) => {
     const query = month ? `?month=${encodeURIComponent(month)}` : '';
-    return api.get<BalanceResponse>(`/api/settlements/balance${query}`);
+    return api.get<BalanceResponse>(`/api/settlements/balance${query}`, { signal });
   },
 
   /**
@@ -23,9 +23,9 @@ export const settlementApi = {
    * @param month 可选月份过滤参数 (如 "2026-06")
    * @return Promise<SettlementResponse[]> 结算流水数组
    */
-  getSettlements: (month?: string) => {
+  getSettlements: (month?: string, signal?: AbortSignal) => {
     const query = month ? `?month=${encodeURIComponent(month)}` : '';
-    return api.get<SettlementResponse[]>(`/api/settlements${query}`);
+    return api.get<SettlementResponse[]>(`/api/settlements${query}`, { signal });
   },
 
   /**

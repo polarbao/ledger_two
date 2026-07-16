@@ -23,6 +23,7 @@ import { queryKeys } from '../../api/queryKeys';
 import { yuanToCents } from '../../utils/money';
 import type { TransactionTemplateResponse, CreateTemplatePayload } from '../../types/transaction';
 import { useDraftStore } from '../../stores/draft.store';
+import { selectLedgerDrafts } from '../../stores/draftLedgerModel';
 import { useLedgerStore } from '../../stores/ledger.store';
 import { useHasLedgerRole } from '../ledger/useLedgerPermission';
 import Button from '../ui/Button';
@@ -105,7 +106,13 @@ export default function TransactionFormDrawer() {
     editingDraftId,
     setEditingDraftId,
   } = useUIStore();
-  const { addDraft, updateDraft, removeDraft, drafts } = useDraftStore();
+  const {
+    addDraft,
+    updateDraft,
+    removeDraft,
+    drafts: allDrafts,
+  } = useDraftStore();
+  const drafts = selectLedgerDrafts(allDrafts, activeLedgerId);
 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [submitAction, setSubmitAction] = useState<'close' | 'continue'>('close');
@@ -121,14 +128,15 @@ export default function TransactionFormDrawer() {
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const drawerWasOpenRef = useRef(false);
 
-  const LAST_TYPE_KEY = 'ledger_two_last_type';
-  const LAST_CATEGORY_KEY = 'ledger_two_last_category_id';
-  const LAST_ACCOUNT_KEY = 'ledger_two_last_account_id';
-  const RECENT_CATEGORIES_KEY = 'ledger_two_recent_categories';
-  const LAST_TAGS_KEY = 'ledger_two_last_tag_names';
-  const RECENT_TAGS_KEY = 'ledger_two_recent_tags';
-  const LAST_PAYER_KEY = 'ledger_two_last_payer_id';
-  const LAST_VISIBILITY_KEY = 'ledger_two_last_visibility';
+  const preferenceScope = activeLedgerId || 'no-active-ledger';
+  const LAST_TYPE_KEY = `ledger_two_last_type:${preferenceScope}`;
+  const LAST_CATEGORY_KEY = `ledger_two_last_category_id:${preferenceScope}`;
+  const LAST_ACCOUNT_KEY = `ledger_two_last_account_id:${preferenceScope}`;
+  const RECENT_CATEGORIES_KEY = `ledger_two_recent_categories:${preferenceScope}`;
+  const LAST_TAGS_KEY = `ledger_two_last_tag_names:${preferenceScope}`;
+  const RECENT_TAGS_KEY = `ledger_two_recent_tags:${preferenceScope}`;
+  const LAST_PAYER_KEY = `ledger_two_last_payer_id:${preferenceScope}`;
+  const LAST_VISIBILITY_KEY = `ledger_two_last_visibility:${preferenceScope}`;
 
   // 读取本地缓存的分类和标签列表以供快捷气泡使用
   const recentCategories = JSON.parse(localStorage.getItem(RECENT_CATEGORIES_KEY) || '[]') as string[];
@@ -137,13 +145,16 @@ export default function TransactionFormDrawer() {
   // 1. 获取全量分类列表
   const { data: categories, isLoading: isCategoriesLoading } = useQuery({
     queryKey: queryKeys.categories(activeLedgerId, Boolean(editSourceTransaction)),
-    queryFn: () => transactionsApi.getCategories({ includeArchived: Boolean(editSourceTransaction) }),
+    queryFn: ({ signal }) => transactionsApi.getCategories(
+      { includeArchived: Boolean(editSourceTransaction) },
+      signal,
+    ),
     enabled: addDrawerOpen && canWriteLedger,
   });
 
   const { data: accounts, isLoading: isAccountsLoading } = useQuery({
     queryKey: queryKeys.accounts(activeLedgerId),
-    queryFn: () => transactionsApi.listAccounts(),
+    queryFn: ({ signal }) => transactionsApi.listAccounts(signal),
     enabled: addDrawerOpen && canWriteLedger,
   });
   const editAccountUnavailable = Boolean(
@@ -153,14 +164,14 @@ export default function TransactionFormDrawer() {
 
   const { data: transactionDefaults, isFetched: isDefaultsFetched } = useQuery({
     queryKey: queryKeys.transactionDefaults(activeLedgerId),
-    queryFn: () => transactionsApi.getTransactionDefaults(),
+    queryFn: ({ signal }) => transactionsApi.getTransactionDefaults(signal),
     enabled: addDrawerOpen && canWriteLedger && !copySourceTransaction && !editSourceTransaction && !editingDraftId,
   });
 
   // 2. 获取成员用户列表（复用 Dashboard 返回的 user_stats）
   const { data: dashboardData } = useQuery({
     queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
-    queryFn: () => dashboardApi.getDashboard(currentMonth),
+    queryFn: ({ signal }) => dashboardApi.getDashboard(currentMonth, signal),
     enabled: addDrawerOpen && canWriteLedger && !!currentUser,
   });
 
@@ -169,7 +180,7 @@ export default function TransactionFormDrawer() {
   // 2.5 获取所有账单模板列表
   const { data: templates } = useQuery({
     queryKey: queryKeys.templates(activeLedgerId),
-    queryFn: () => transactionsApi.listTemplates({ includeArchived: true }),
+    queryFn: ({ signal }) => transactionsApi.listTemplates({ includeArchived: true }, signal),
     enabled: addDrawerOpen && canWriteLedger && !editSourceTransaction,
   });
   const activeTemplates = templates?.filter((tmpl) => !tmpl.is_archived) || [];
@@ -488,7 +499,22 @@ export default function TransactionFormDrawer() {
     return () => {
       if (advancedFrame !== undefined) window.cancelAnimationFrame(advancedFrame);
     };
-  }, [addDrawerOpen, copySourceTransaction, editSourceTransaction, editingDraftId, currentUser, reset, transactionDefaults, isDefaultsFetched]);
+  }, [
+    LAST_ACCOUNT_KEY,
+    LAST_CATEGORY_KEY,
+    LAST_PAYER_KEY,
+    LAST_TAGS_KEY,
+    LAST_TYPE_KEY,
+    LAST_VISIBILITY_KEY,
+    addDrawerOpen,
+    copySourceTransaction,
+    currentUser,
+    editSourceTransaction,
+    editingDraftId,
+    isDefaultsFetched,
+    reset,
+    transactionDefaults,
+  ]);
 
   // 处理“草稿编辑”回填逻辑
   useEffect(() => {
@@ -688,12 +714,14 @@ export default function TransactionFormDrawer() {
       if (editingDraftId) {
         updateDraft(editingDraftId, {
           id: editingDraftId,
+          ledgerId: activeLedgerId,
           formValues: values,
           createdAt: new Date().toISOString(),
         });
       } else {
         addDraft({
           id: crypto.randomUUID(),
+          ledgerId: activeLedgerId,
           formValues: values,
           createdAt: new Date().toISOString(),
         });

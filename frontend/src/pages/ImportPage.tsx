@@ -96,29 +96,29 @@ function ImportWorkspace({
 
   const { data: health } = useQuery({
     queryKey: queryKeys.system.health,
-    queryFn: systemApi.getHealth,
+    queryFn: ({ signal }) => systemApi.getHealth(signal),
     staleTime: Number.POSITIVE_INFINITY,
   });
   const xlsxEnabled = health?.import_xlsx_enabled ?? false;
 
   const { data: importRules = [] } = useQuery({
     queryKey: queryKeys.importRules(activeLedgerId),
-    queryFn: () => importsApi.listRules('all'),
+    queryFn: ({ signal }) => importsApi.listRules('all', signal),
     enabled: isOwner && Boolean(activeLedgerId),
   });
   const { data: categories = [] } = useQuery({
     queryKey: queryKeys.metadata.list(activeLedgerId, 'categories'),
-    queryFn: () => metadataApi.list('categories', true),
+    queryFn: ({ signal }) => metadataApi.list('categories', true, signal),
     enabled: isOwner && Boolean(activeLedgerId),
   });
   const { data: accounts = [] } = useQuery({
     queryKey: queryKeys.metadata.list(activeLedgerId, 'accounts'),
-    queryFn: () => metadataApi.list('accounts', true),
+    queryFn: ({ signal }) => metadataApi.list('accounts', true, signal),
     enabled: isOwner && Boolean(activeLedgerId),
   });
   const { data: tags = [] } = useQuery({
     queryKey: queryKeys.metadata.list(activeLedgerId, 'tags'),
-    queryFn: () => metadataApi.list('tags', true),
+    queryFn: ({ signal }) => metadataApi.list('tags', true, signal),
     enabled: isOwner && Boolean(activeLedgerId),
   });
 

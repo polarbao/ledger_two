@@ -46,14 +46,14 @@ export default function DashboardPage() {
     refetch,
   } = useQuery({
     queryKey: queryKeys.dashboard.month(activeLedgerId, currentMonth),
-    queryFn: () => dashboardApi.getDashboard(currentMonth),
-    enabled: !!currentUser,
+    queryFn: ({ signal }) => dashboardApi.getDashboard(currentMonth, signal),
+    enabled: Boolean(currentUser && activeLedgerId),
   });
 
   const { data: reminders = [] } = useQuery({
     queryKey: queryKeys.recurringReminders(activeLedgerId),
-    queryFn: () => transactionsApi.listRecurringReminders(),
-    enabled: !!currentUser,
+    queryFn: ({ signal }) => transactionsApi.listRecurringReminders(signal),
+    enabled: Boolean(currentUser && activeLedgerId),
   });
 
   const confirmReminderMutation = useMutation({

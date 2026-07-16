@@ -44,13 +44,13 @@ export interface ListCategoryOptions {
 }
 
 export const transactionsApi = {
-  getCategories: (options: ListCategoryOptions = {}) => {
+  getCategories: (options: ListCategoryOptions = {}, signal?: AbortSignal) => {
     const qs = options.includeArchived ? '?include_archived=true' : '';
-    return api.get<Category[]>(`/api/categories${qs}`);
+    return api.get<Category[]>(`/api/categories${qs}`, { signal });
   },
 
   /** GET /api/transactions — 分页流水列表 */
-  list: (filter: TransactionListFilter = {}) => {
+  list: (filter: TransactionListFilter = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams();
     if (filter.month)          params.set('month', filter.month);
     if (filter.type)           params.set('type', filter.type);
@@ -64,7 +64,10 @@ export const transactionsApi = {
     if (filter.page)           params.set('page', String(filter.page));
     if (filter.page_size)      params.set('page_size', String(filter.page_size));
     const qs = params.toString();
-    return api.get<TransactionResponse[]>(`/api/transactions${qs ? `?${qs}` : ''}`);
+    return api.get<TransactionResponse[]>(
+      `/api/transactions${qs ? `?${qs}` : ''}`,
+      { signal },
+    );
   },
 
   createTransaction: (payload: CreateTransactionPayload) =>
@@ -84,9 +87,13 @@ export const transactionsApi = {
   deleteTransaction: (id: string) =>
     api.delete<void>(`/api/transactions/${id}`),
 
-  listTemplates: (options: { includeArchived?: boolean } = {}) =>
+  listTemplates: (
+    options: { includeArchived?: boolean } = {},
+    signal?: AbortSignal,
+  ) =>
     api.get<TransactionTemplateResponse[]>(
-      `/api/transaction-templates${options.includeArchived ? '?include_archived=true' : ''}`
+      `/api/transaction-templates${options.includeArchived ? '?include_archived=true' : ''}`,
+      { signal },
     ),
 
   createTemplate: (payload: CreateTemplatePayload) =>
@@ -104,8 +111,8 @@ export const transactionsApi = {
   restoreTemplate: (id: string) =>
     api.post<{ success: boolean }>(`/api/transaction-templates/${id}/restore`, {}),
 
-  listRecurringRules: () =>
-    api.get<RecurringRuleResponse[]>('/api/recurring-rules'),
+  listRecurringRules: (signal?: AbortSignal) =>
+    api.get<RecurringRuleResponse[]>('/api/recurring-rules', { signal }),
 
   createRecurringRule: (payload: CreateRecurringRulePayload) =>
     api.post<RecurringRuleResponse>('/api/recurring-rules', payload),
@@ -113,8 +120,8 @@ export const transactionsApi = {
   deleteRecurringRule: (id: string) =>
     api.delete<void>(`/api/recurring-rules/${id}`),
 
-  listRecurringReminders: () =>
-    api.get<RecurringReminderResponse[]>('/api/recurring-reminders'),
+  listRecurringReminders: (signal?: AbortSignal) =>
+    api.get<RecurringReminderResponse[]>('/api/recurring-reminders', { signal }),
 
   confirmReminder: (id: string) =>
     api.post<void>(`/api/recurring-reminders/${id}/confirm`, {}),
@@ -146,14 +153,14 @@ export const transactionsApi = {
   commitImport: (payload: CommitImportPayload) =>
     api.post<{ status: string }>('/api/transactions/import/commit', payload),
 
-  listAccounts: () =>
-    api.get<Account[]>('/api/accounts'),
+  listAccounts: (signal?: AbortSignal) =>
+    api.get<Account[]>('/api/accounts', { signal }),
 
-  getTransactionDefaults: () =>
-    api.get<TransactionDefaultResponse>('/api/transaction-defaults'),
+  getTransactionDefaults: (signal?: AbortSignal) =>
+    api.get<TransactionDefaultResponse>('/api/transaction-defaults', { signal }),
 
-  listImportRules: () =>
-    api.get<ImportRuleResponse[]>('/api/import-rules'),
+  listImportRules: (signal?: AbortSignal) =>
+    api.get<ImportRuleResponse[]>('/api/import-rules', { signal }),
 
   createImportRule: (payload: CreateImportRulePayload) =>
     api.post<ImportRuleResponse>('/api/import-rules', payload),

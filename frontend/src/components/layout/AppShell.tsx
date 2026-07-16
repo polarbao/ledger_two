@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertTriangle,
   BarChart3,
+  BookOpen,
   Calendar,
-  ChevronDown,
   CloudOff,
   DollarSign,
   FileUp,
@@ -24,6 +25,7 @@ import { ledgerApi, type LedgerWithRole } from '../../api/ledger.api';
 import { queryKeys } from '../../api/queryKeys';
 import { useAuthStore } from '../../stores/auth.store';
 import { useDraftStore } from '../../stores/draft.store';
+import { selectLedgerDrafts } from '../../stores/draftLedgerModel';
 import { useLedgerStore } from '../../stores/ledger.store';
 import { useUIStore } from '../../stores/ui.store';
 import Button from '../ui/Button';
@@ -31,7 +33,10 @@ import StatusChip, { type StatusChipTone } from '../ui/StatusChip';
 import ThemeToggle from '../theme/ThemeToggle';
 import DraftListDrawer from '../transaction/DraftListDrawer';
 import TransactionFormDrawer from '../transaction/TransactionFormDrawer';
+import StatePanel from '../ui/StatePanel';
 import DeploymentBadge from './DeploymentBadge';
+import LedgerSwitcher from './LedgerSwitcher';
+import NoActiveLedgerShell from './NoActiveLedgerShell';
 import {
   APP_PRIMARY_NAV_ITEMS,
   APP_TOOL_NAV_ITEMS,
@@ -42,6 +47,7 @@ import {
   type AppPrimaryNavigationId,
   type AppToolNavigationId,
 } from './appShellModel';
+import { switchActiveLedgerContext } from './ledgerContextModel';
 import './AppShell.css';
 
 const PRIMARY_NAV_ICONS: Record<AppPrimaryNavigationId, LucideIcon> = {
@@ -56,37 +62,6 @@ const TOOL_NAV_ICONS: Record<AppToolNavigationId, LucideIcon> = {
   import: FileUp,
   recurring: Repeat2,
 };
-
-interface LedgerSelectorProps {
-  ledgers: LedgerWithRole[];
-  activeLedgerId: string | null;
-  onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
-}
-
-function LedgerSelector({ ledgers, activeLedgerId, onChange }: LedgerSelectorProps) {
-  return (
-    <label className="lt-shell__ledger-selector">
-      <span className="lt-shell__field-label">当前账本</span>
-      <span className="lt-shell__select-wrap">
-        <select
-          className="lt-shell__ledger-select"
-          value={activeLedgerId ?? ''}
-          onChange={onChange}
-          aria-label="当前账本"
-          disabled={ledgers.length === 0}
-        >
-          {ledgers.length === 0 ? <option value="">暂无可用账本</option> : null}
-          {ledgers.map((ledger) => (
-            <option key={ledger.id} value={ledger.id}>
-              {ledger.name} · {getLedgerRoleLabel(ledger.role)}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="lt-shell__select-icon" size={16} aria-hidden="true" />
-      </span>
-    </label>
-  );
-}
 
 interface MonthControlProps {
   value: string;
@@ -124,22 +99,47 @@ export default function AppShell() {
   const setIsOffline = useUIStore((state) => state.setIsOffline);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const activeRole = useLedgerStore((state) => state.activeRole);
+  const recentLedgerUsedAt = useLedgerStore((state) => state.recentLedgerUsedAt);
+  const contextStatus = useLedgerStore((state) => state.contextStatus);
+  const contextNotice = useLedgerStore((state) => state.contextNotice);
+  const validationError = useLedgerStore((state) => state.validationError);
   const setActiveLedger = useLedgerStore((state) => state.setActiveLedger);
-  const drafts = useDraftStore((state) => state.drafts);
+  const reconcileActiveLedgers = useLedgerStore((state) => state.reconcileActiveLedgers);
+  const beginLedgerValidation = useLedgerStore((state) => state.beginLedgerValidation);
+  const failLedgerValidation = useLedgerStore((state) => state.failLedgerValidation);
+  const clearContextNotice = useLedgerStore((state) => state.clearContextNotice);
+  const allDrafts = useDraftStore((state) => state.drafts);
+  const drafts = selectLedgerDrafts(allDrafts, activeLedgerId);
   const [isDraftListOpen, setIsDraftListOpen] = useState(false);
+  const [isSwitchingLedger, setIsSwitchingLedger] = useState(false);
+  const [switchMessage, setSwitchMessage] = useState<string | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
-  const { data: ledgers = [] } = useQuery({
-    queryKey: queryKeys.ledgers.all,
-    queryFn: () => ledgerApi.listUserLedgers(),
+  const activeLedgersQuery = useQuery({
+    queryKey: queryKeys.ledgers.list('active'),
+    queryFn: ({ signal }) => ledgerApi.listUserLedgers('active', signal),
     enabled: !!user,
   });
+  const archivedLedgersQuery = useQuery({
+    queryKey: queryKeys.ledgers.list('archived'),
+    queryFn: ({ signal }) => ledgerApi.listUserLedgers('archived', signal),
+    enabled: !!user,
+    staleTime: 0,
+  });
+  const ledgers = activeLedgersQuery.data ?? [];
 
   const activeLedger = ledgers.find((ledger) => ledger.id === activeLedgerId);
-  const canWriteLedger = canCreateTransaction(activeRole);
+  const canMountBusinessRoutes = contextStatus === 'active' && Boolean(activeLedger);
+  const canWriteLedger = canMountBusinessRoutes && canCreateTransaction(activeRole);
+  const ledgerListRefreshError = activeLedgersQuery.isError && canMountBusinessRoutes
+    ? activeLedgersQuery.error instanceof Error
+      ? activeLedgersQuery.error.message
+      : '账本列表加载失败'
+    : null;
   const showQuickRecordAction = shouldShowQuickRecordAction(location.pathname);
   const recordActionTitle = canWriteLedger ? '记一笔' : '当前账本为只读，无法记账';
-  const networkTone: StatusChipTone = isOffline ? 'danger' : drafts.length > 0 ? 'info' : 'success';
-  const networkLabel = isOffline ? '网络离线' : drafts.length > 0 ? `${drafts.length} 条草稿` : '网络在线';
+  const visibleDraftCount = canMountBusinessRoutes ? drafts.length : 0;
+  const networkTone: StatusChipTone = isOffline ? 'danger' : visibleDraftCount > 0 ? 'info' : 'success';
+  const networkLabel = isOffline ? '网络离线' : visibleDraftCount > 0 ? `${visibleDraftCount} 条草稿` : '网络在线';
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -154,26 +154,60 @@ export default function AppShell() {
   }, [setIsOffline]);
 
   useEffect(() => {
-    if (ledgers.length === 0) return;
-    if (!activeLedger) {
-      const firstLedger = ledgers[0];
-      setActiveLedger(firstLedger.id, firstLedger.role);
+    if (activeLedgersQuery.data) reconcileActiveLedgers(activeLedgersQuery.data);
+  }, [
+    activeLedgersQuery.data,
+    activeLedgersQuery.dataUpdatedAt,
+    reconcileActiveLedgers,
+  ]);
+
+  useEffect(() => {
+    if (!activeLedgersQuery.isError) return;
+    const message = activeLedgersQuery.error instanceof Error
+      ? activeLedgersQuery.error.message
+      : '账本列表加载失败';
+    if (contextStatus === 'active' && activeLedger) {
       return;
     }
-    if (activeLedger.role !== activeRole) {
-      setActiveLedger(activeLedger.id, activeLedger.role);
-    }
-  }, [activeLedger, activeRole, ledgers, setActiveLedger]);
+    failLedgerValidation(
+      message,
+    );
+  }, [
+    activeLedger,
+    activeLedgersQuery.error,
+    activeLedgersQuery.isError,
+    contextStatus,
+    failLedgerValidation,
+  ]);
+
+  useEffect(() => {
+    if (!contextNotice || contextNotice.kind !== 'fallback') return undefined;
+    const timer = window.setTimeout(() => clearContextNotice(), 6000);
+    return () => window.clearTimeout(timer);
+  }, [clearContextNotice, contextNotice]);
 
   useEffect(() => {
     pageRef.current?.focus({ preventScroll: true });
   }, [location.pathname]);
 
-  const handleLedgerChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextLedger = ledgers.find((ledger) => ledger.id === event.target.value);
-    if (nextLedger && nextLedger.id !== activeLedgerId) {
-      setActiveLedger(nextLedger.id, nextLedger.role);
-      queryClient.invalidateQueries();
+  const handleLedgerChange = async (nextLedger: LedgerWithRole) => {
+    if (nextLedger.id === activeLedgerId || isSwitchingLedger) return;
+    setIsSwitchingLedger(true);
+    setSwitchMessage(null);
+    setAddDrawerOpen(false);
+    setCopySourceTransaction(null);
+    setEditSourceTransaction(null);
+    setEditingDraftId(null);
+    try {
+      await switchActiveLedgerContext({
+        queryClient,
+        currentLedgerId: activeLedgerId,
+        nextLedger,
+        commit: (ledger) => setActiveLedger(ledger.id, ledger.role),
+      });
+      setSwitchMessage(`已切换到账本「${nextLedger.name}」`);
+    } finally {
+      setIsSwitchingLedger(false);
     }
   };
 
@@ -192,12 +226,54 @@ export default function AppShell() {
       // Local sign-out must remain available when the network is unavailable.
     } finally {
       clearAuth();
+      beginLedgerValidation();
       navigate('/login');
     }
   };
 
+  const retryLedgerList = () => {
+    if (!canMountBusinessRoutes) beginLedgerValidation();
+    void activeLedgersQuery.refetch();
+  };
+
+  const ledgerSwitcher = (
+    <LedgerSwitcher
+      ledgers={ledgers}
+      activeLedgerId={activeLedgerId}
+      recentLedgerUsedAt={recentLedgerUsedAt}
+      contextStatus={contextStatus}
+      errorMessage={validationError}
+      archivedCount={archivedLedgersQuery.data?.length ?? 0}
+      isSwitching={isSwitchingLedger}
+      onSelect={handleLedgerChange}
+      onRetry={retryLedgerList}
+      onManage={() => navigate('/settings')}
+    />
+  );
+
+  const inactiveContextContent = contextStatus === 'no-active'
+    ? <NoActiveLedgerShell notice={contextNotice} />
+    : contextStatus === 'error'
+      ? (
+          <StatePanel
+            tone="danger"
+            icon={<AlertTriangle size={40} />}
+            title="无法读取账本列表"
+            description={validationError || '请检查网络或登录状态后重试。'}
+            action={{ label: '重试读取账本', onClick: retryLedgerList }}
+          />
+        )
+      : (
+          <StatePanel
+            tone="info"
+            icon={<BookOpen size={40} />}
+            title="正在校验账本"
+            description="系统正在确认最近使用的账本是否仍可访问。"
+          />
+        );
+
   return (
-    <div className="lt-shell">
+    <div className={`lt-shell${canMountBusinessRoutes ? '' : ' lt-shell--inactive-context'}`}>
       <a className="lt-shell__skip-link" href="#main-content">跳到主要内容</a>
       <aside className="lt-shell__sidebar" aria-label="应用侧栏">
         <div className="lt-shell__brand">
@@ -208,21 +284,23 @@ export default function AppShell() {
           </div>
         </div>
 
-        <LedgerSelector ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={handleLedgerChange} />
+        {ledgerSwitcher}
 
-        <Button
-          className="lt-shell__record-button"
-          variant="primary"
-          startIcon={<Plus size={18} />}
-          disabled={!canWriteLedger}
-          title={recordActionTitle}
-          aria-label="记一笔"
-          onClick={openTransactionForm}
-        >
-          记一笔
-        </Button>
+        {canMountBusinessRoutes ? (
+          <Button
+            className="lt-shell__record-button"
+            variant="primary"
+            startIcon={<Plus size={18} />}
+            disabled={!canWriteLedger}
+            title={recordActionTitle}
+            aria-label="记一笔"
+            onClick={openTransactionForm}
+          >
+            记一笔
+          </Button>
+        ) : null}
 
-        <nav className="lt-shell__nav" aria-label="主导航">
+        {canMountBusinessRoutes ? <nav className="lt-shell__nav" aria-label="主导航">
           {APP_PRIMARY_NAV_ITEMS.map((item) => {
             const Icon = PRIMARY_NAV_ICONS[item.id];
             const isActive = isAppRouteActive(location.pathname, item.path);
@@ -238,9 +316,9 @@ export default function AppShell() {
               </Link>
             );
           })}
-        </nav>
+        </nav> : <div className="lt-shell__nav-spacer" />}
 
-        <nav className="lt-shell__tools" aria-label="账本工具">
+        {canMountBusinessRoutes ? <nav className="lt-shell__tools" aria-label="账本工具">
           <span className="lt-shell__tools-label">工具</span>
           {APP_TOOL_NAV_ITEMS.map((item) => {
             const Icon = TOOL_NAV_ICONS[item.id];
@@ -257,7 +335,7 @@ export default function AppShell() {
               </Link>
             );
           })}
-        </nav>
+        </nav> : null}
 
         <div className="lt-shell__footer">
           <div className="lt-shell__user">
@@ -277,22 +355,46 @@ export default function AppShell() {
       </aside>
 
       <main className="lt-shell__main">
-        {isOffline ? (
+        {canMountBusinessRoutes && isOffline ? (
           <div className="lt-shell__notice lt-shell__notice--offline" role="status" aria-live="polite">
             <WifiOff size={17} aria-hidden="true" />
             <span>当前网络已离线，未提交内容会保存在本机草稿中。</span>
-            {drafts.length > 0 ? (
+            {canMountBusinessRoutes && drafts.length > 0 ? (
               <button type="button" className="lt-shell__notice-action" onClick={() => setIsDraftListOpen(true)}>
                 查看 {drafts.length} 条草稿
               </button>
             ) : null}
           </div>
-        ) : drafts.length > 0 ? (
+        ) : canMountBusinessRoutes && drafts.length > 0 ? (
           <div className="lt-shell__notice lt-shell__notice--drafts" role="status" aria-live="polite">
             <CloudOff size={17} aria-hidden="true" />
             <span>有 {drafts.length} 条离线草稿待处理。</span>
             <button type="button" className="lt-shell__notice-action" onClick={() => setIsDraftListOpen(true)}>
               打开草稿箱
+            </button>
+          </div>
+        ) : ledgerListRefreshError ? (
+          <div className="lt-shell__notice lt-shell__notice--context" role="status" aria-live="polite">
+            <AlertTriangle size={17} aria-hidden="true" />
+            <span>账本列表暂未更新：{ledgerListRefreshError}</span>
+            <button type="button" className="lt-shell__notice-action" onClick={retryLedgerList}>
+              重试
+            </button>
+          </div>
+        ) : contextNotice?.kind === 'fallback' ? (
+          <div className="lt-shell__notice lt-shell__notice--context" role="status" aria-live="polite">
+            <BookOpen size={17} aria-hidden="true" />
+            <span>原账本已归档或无法访问，已切换到「{contextNotice.nextLedgerName}」。</span>
+            <button type="button" className="lt-shell__notice-action" onClick={clearContextNotice}>
+              知道了
+            </button>
+          </div>
+        ) : switchMessage ? (
+          <div className="lt-shell__notice lt-shell__notice--context" role="status" aria-live="polite">
+            <BookOpen size={17} aria-hidden="true" />
+            <span>{switchMessage}</span>
+            <button type="button" className="lt-shell__notice-action" onClick={() => setSwitchMessage(null)}>
+              关闭
             </button>
           </div>
         ) : null}
@@ -302,18 +404,20 @@ export default function AppShell() {
             <div className="lt-shell__ledger-summary">
               <span className="lt-shell__context-label">当前账本</span>
               <div className="lt-shell__ledger-summary-row">
-                <strong className="lt-shell__ledger-name">{activeLedger?.name || '正在加载账本'}</strong>
-                <StatusChip tone="neutral">{getLedgerRoleLabel(activeRole)}</StatusChip>
+                <strong className="lt-shell__ledger-name">{activeLedger?.name || '暂无活跃账本'}</strong>
+                <StatusChip tone={canMountBusinessRoutes ? 'neutral' : 'warning'}>
+                  {canMountBusinessRoutes ? getLedgerRoleLabel(activeRole) : '全局状态'}
+                </StatusChip>
               </div>
             </div>
-            <MonthControl value={currentMonth} onChange={setCurrentMonth} />
+            {canMountBusinessRoutes ? <MonthControl value={currentMonth} onChange={setCurrentMonth} /> : null}
           </div>
 
           <div className="lt-shell__topbar-actions">
             <StatusChip tone={networkTone} icon={isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}>
               {networkLabel}
             </StatusChip>
-            {drafts.length > 0 ? (
+            {canMountBusinessRoutes && drafts.length > 0 ? (
               <Button
                 variant="ghost"
                 iconOnly
@@ -347,19 +451,21 @@ export default function AppShell() {
                 <ThemeToggle className="lt-shell__theme-toggle" />
               </div>
             </div>
-            <div className="lt-shell__mobile-controls">
-              <LedgerSelector ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={handleLedgerChange} />
-              <MonthControl value={currentMonth} onChange={setCurrentMonth} />
-            </div>
+            {canMountBusinessRoutes ? (
+              <div className="lt-shell__mobile-controls">
+                {ledgerSwitcher}
+                <MonthControl value={currentMonth} onChange={setCurrentMonth} />
+              </div>
+            ) : null}
           </div>
         </header>
 
         <div ref={pageRef} id="main-content" className="lt-shell__page" tabIndex={-1}>
-          <Outlet />
+          {canMountBusinessRoutes ? <Outlet key={activeLedgerId} /> : inactiveContextContent}
         </div>
       </main>
 
-      {showQuickRecordAction ? (
+      {canMountBusinessRoutes && showQuickRecordAction ? (
         <Button
           className="lt-shell__fab"
           variant="primary"
@@ -373,7 +479,7 @@ export default function AppShell() {
         </Button>
       ) : null}
 
-      <nav className="lt-shell__bottom-nav" aria-label="主导航">
+      {canMountBusinessRoutes ? <nav className="lt-shell__bottom-nav" aria-label="主导航">
         {APP_PRIMARY_NAV_ITEMS.map((item) => {
           const Icon = PRIMARY_NAV_ICONS[item.id];
           const isActive = isAppRouteActive(location.pathname, item.path);
@@ -389,10 +495,12 @@ export default function AppShell() {
             </Link>
           );
         })}
-      </nav>
+      </nav> : null}
 
-      <TransactionFormDrawer />
-      <DraftListDrawer open={isDraftListOpen} onClose={() => setIsDraftListOpen(false)} />
+      {canMountBusinessRoutes ? <TransactionFormDrawer /> : null}
+      {canMountBusinessRoutes ? (
+        <DraftListDrawer open={isDraftListOpen} onClose={() => setIsDraftListOpen(false)} />
+      ) : null}
     </div>
   );
 }

@@ -40,16 +40,16 @@ export const safetyApi = {
     return api.post('/api/admin/backup', undefined, { ledgerScope: 'none' });
   },
 
-  getBackups: async (): Promise<BackupInfo[]> => {
-    return api.get('/api/admin/backups', { ledgerScope: 'none' });
+  getBackups: async (signal?: AbortSignal): Promise<BackupInfo[]> => {
+    return api.get('/api/admin/backups', { ledgerScope: 'none', signal });
   },
 
   restoreBackup: async (filename: string): Promise<RestorePreparation> => {
     return api.post('/api/admin/restore', { filename }, { ledgerScope: 'none' });
   },
 
-  getDiagnostics: async (): Promise<SystemDiagnostics> => {
-    return api.get('/api/admin/diagnostics', { ledgerScope: 'none' });
+  getDiagnostics: async (signal?: AbortSignal): Promise<SystemDiagnostics> => {
+    return api.get('/api/admin/diagnostics', { ledgerScope: 'none', signal });
   },
 
   backupDownloadUrl: (filename: string) =>

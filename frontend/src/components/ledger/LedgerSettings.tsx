@@ -2,9 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, BookOpen, Shield, Trash2, UserPlus, Users } from 'lucide-react';
 import { ApiError } from '../../api/client';
-import { ledgerApi, type LedgerMember } from '../../api/ledger.api';
+import { ledgerApi, type LedgerMember, type LedgerWithRole } from '../../api/ledger.api';
 import { queryKeys } from '../../api/queryKeys';
 import { useLedgerStore } from '../../stores/ledger.store';
+import { switchActiveLedgerContext } from '../layout/ledgerContextModel';
 import Button from '../ui/Button';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import PageState from '../ui/PageState';
@@ -37,19 +38,27 @@ export default function LedgerSettings() {
 
   const membersQuery = useQuery({
     queryKey: queryKeys.ledgers.members(activeLedgerId),
-    queryFn: () => ledgerApi.getLedgerMembers(activeLedgerId || ''),
+    queryFn: ({ signal }) => ledgerApi.getLedgerMembers(activeLedgerId || '', signal),
     enabled: Boolean(activeLedgerId),
   });
 
   const createLedgerMutation = useMutation({
     mutationFn: (name: string) => ledgerApi.createLedger({ name }),
-    onSuccess: (ledger) => {
+    onSuccess: async (ledger) => {
       setNewLedgerName('');
       setErrorMsg(null);
       setSuccessMsg(`已创建并切换到账本「${ledger.name}」`);
-      setActiveLedger(ledger.id, 'owner');
+      queryClient.setQueryData<LedgerWithRole[]>(
+        queryKeys.ledgers.list('active'),
+        (current = []) => [ledger, ...current.filter((item) => item.id !== ledger.id)],
+      );
+      await switchActiveLedgerContext({
+        queryClient,
+        currentLedgerId: activeLedgerId,
+        nextLedger: ledger,
+        commit: (nextLedger) => setActiveLedger(nextLedger.id, nextLedger.role),
+      });
       void queryClient.invalidateQueries({ queryKey: queryKeys.ledgers.all });
-      void queryClient.invalidateQueries();
     },
     onError: (error: unknown) => {
       setSuccessMsg(null);
@@ -264,7 +273,7 @@ export default function LedgerSettings() {
           <section className="ledger-settings__form-panel">
             <header>
               <BookOpen size={19} aria-hidden="true" />
-              <div><h3>创建独立账本</h3><p>创建后会立即切换。归档与恢复将在 Task50 实现。</p></div>
+              <div><h3>创建独立账本</h3><p>创建后会立即切换，账本数据与缓存保持独立。</p></div>
             </header>
             <form onSubmit={handleCreateLedger}>
               <label>
@@ -274,7 +283,7 @@ export default function LedgerSettings() {
                   value={newLedgerName}
                   onChange={(event) => setNewLedgerName(event.target.value)}
                   placeholder="例如：两人生活账本"
-                  maxLength={80}
+                  maxLength={60}
                   required
                 />
               </label>

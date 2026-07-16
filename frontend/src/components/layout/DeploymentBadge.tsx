@@ -7,7 +7,7 @@ import { getDeploymentChannelMeta } from './deploymentChannel';
 export default function DeploymentBadge() {
   const { data } = useQuery({
     queryKey: queryKeys.system.health,
-    queryFn: systemApi.getHealth,
+    queryFn: ({ signal }) => systemApi.getHealth(signal),
     staleTime: Number.POSITIVE_INFINITY,
   });
 

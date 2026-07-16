@@ -22,6 +22,16 @@ describe('Task50.3A ledger lifecycle API', () => {
     }));
   });
 
+  it('forwards TanStack Query cancellation to ledger list requests', async () => {
+    const controller = new AbortController();
+
+    await ledgerApi.listUserLedgers('active', controller.signal);
+
+    expect(fetch).toHaveBeenCalledWith('/api/ledgers?status=active', expect.objectContaining({
+      signal: controller.signal,
+    }));
+  });
+
   it('reads lifecycle detail in the path ledger scope', async () => {
     await ledgerApi.getLedger('ledger-a');
 

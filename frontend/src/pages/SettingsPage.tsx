@@ -278,7 +278,7 @@ export default function SettingsPage() {
     refetch: refetchDiagnostics,
   } = useQuery({
 		queryKey: queryKeys.safety.diagnostics,
-    queryFn: safetyApi.getDiagnostics,
+    queryFn: ({ signal }) => safetyApi.getDiagnostics(signal),
     enabled: canManageSafety,
   });
 

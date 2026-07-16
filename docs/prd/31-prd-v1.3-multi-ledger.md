@@ -2,7 +2,7 @@
 
 版本：v1.0-frozen
 
-状态：产品范围与全部开发前契约已冻结；Task50.1 已完成，下一实现任务为 Task50.2
+状态：产品范围与全部开发前契约已冻结；Task50.1、Task50.2 已完成，下一实现任务为 Task50.3A
 
 冻结日期：2026-07-15
 
@@ -77,6 +77,7 @@ Owner 先把所有权原子移交给另一名成员，再作为 Editor 留下或
 3. 达到两人后不可再添加成员；API 返回稳定业务错误，不依赖前端隐藏。
 4. 升级前若发现历史账本超过两名成员，不自动删除任何关系。该账本保持可读并阻止新增成员，发布门禁标记为需人工处理；处理过程必须有备份和审计。
 5. 第三名及以上成员只可由 Task51 重新冻结可见性、分摊和结算规则后开放。
+6. Task50 不设置单个账号可创建的账本总数上限；不得在实现中引入未冻结的任意数量阈值。资源治理如未来确有需要，必须另行以可解释配额评审。
 
 ### 6.2 角色权限
 
@@ -261,6 +262,6 @@ Task50 必须复用 UI-FL-01 至 UI-FL-10 的 Token、Button、Dialog、Sheet、
 2. Task50P.4 OpenAPI、Fixture 与验收矩阵已冻结。
 3. Task50P.5 Fresh Light UI 流程和本地 handoff 已冻结。
 4. UI-FL-01 至 UI-FL-10 已完成，Fresh Light 默认体验与 Dark Glass 回退均已验收。
-5. Task50P.6 已按“仅独立本地 development”有条件关闭；Task50.1 已完成，下一任务只允许 Task50.2，不迁移 WSL staging 或 NAS。
+5. Task50P.6 已按“仅独立本地 development”有条件关闭；Task50.1、Task50.2 已完成，下一任务只允许 Task50.3A，不迁移 WSL staging 或 NAS。
 
 详细准入证据见 `docs/project_analysis/2026-07-15-task50-p6-development-readiness.md`，实施顺序见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`。

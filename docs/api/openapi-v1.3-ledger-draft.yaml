@@ -176,6 +176,33 @@ paths:
         "409":
           $ref: "#/components/responses/Error"
 
+  /ledgers/{ledgerId}/archive-preflight:
+    get:
+      tags: [ledgers]
+      summary: Preview archive consequences without writing data
+      description: |
+        Owner only. 返回当前未结清方向/金额和未过期 ready 导入批次数，供归档确认使用。
+        该请求不写审计、不生成结算；归档提交仍会在事务内重新计算并校验。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      responses:
+        "200":
+          description: Current archive preflight snapshot
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerArchivePreflightResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
   /ledgers/{ledgerId}/restore:
     post:
       tags: [ledgers]
@@ -365,6 +392,9 @@ paths:
       responses:
         "200":
           description: Membership removed
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
           content:
             application/json:
               schema:
@@ -714,6 +744,54 @@ components:
         acknowledge_unsettled_balance:
           type: boolean
           description: Must be true when the server-provided unsettled amount is non-zero.
+
+    LedgerArchivePreflightResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/LedgerArchivePreflightData"
+
+    LedgerArchivePreflightData:
+      type: object
+      required:
+        - ledger
+        - unsettled_balance
+        - ready_import_batch_count
+        - can_archive
+        - requires_unsettled_acknowledgement
+      properties:
+        ledger:
+          $ref: "#/components/schemas/Ledger"
+        unsettled_balance:
+          $ref: "#/components/schemas/UnsettledBalanceSnapshot"
+        ready_import_batch_count:
+          type: integer
+          minimum: 0
+          description: Count of ready batches with no expiry or an expires_at value later than the server snapshot time.
+        can_archive:
+          type: boolean
+          description: False when an unexpired ready import batch must be completed or discarded first.
+        requires_unsettled_acknowledgement:
+          type: boolean
+
+    UnsettledBalanceSnapshot:
+      type: object
+      required: [from_user_id, to_user_id, amount_cents]
+      properties:
+        from_user_id:
+          type: string
+          nullable: true
+        to_user_id:
+          type: string
+          nullable: true
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 0
 
     LedgerResponse:
       type: object

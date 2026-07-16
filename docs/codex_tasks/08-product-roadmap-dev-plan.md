@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-14）：Task41-Task49 已完成。Task49X 已按真实格式冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；核心开发与本机验收完成，剩余 NAS/production 发布门禁。Fresh Light UI-FL-01 至 UI-FL-04 已完成，UI-FL-05 核心工作台已交付并继续收口编辑契约与真实账号回归；v1.3 业务任务仍需重新评审。
+> 执行更新（2026-07-16）：Task41-Task49 已完成。Task49X 已按真实格式冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；核心开发与本机验收完成，剩余 NAS/production 发布门禁。Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task50P.1-P.6、Task50.1 和 Task50.2 已完成，下一实现任务为 Task50.3A；Task51 仍处于路线待准备状态，Task52 仍为延后调研。
 
 ## 1. 使用说明
 
@@ -160,7 +160,7 @@
 
 ## 4. v1.2 收口后 Fresh Light UI/UX 专项
 
-状态：计划已冻结；UI-FL-01 至 UI-FL-04 已完成，UI-FL-05 核心工作台已交付并继续收口编辑契约与真实账号回归。
+状态：UI-FL-01 至 UI-FL-10 已完成并关闭专项；后续业务 UI 继续复用 Fresh Light 原语和协同规则。
 
 执行入口：`docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`。
 
@@ -183,6 +183,8 @@
 
 ### Task50：多账本正式化
 
+状态：Task50.1、Task50.2 已完成；Task50.3 已准入，Task50.4/50.5 条件准入，Task50.6 验收框架已具备。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
+
 目标：
 
 1. 账本创建、切换、归档。
@@ -191,13 +193,27 @@
 
 ### Task51：多人分摊体验增强
 
+状态：路线待准备，不具备直接开发条件。Task50.6 关闭后先执行 Task51P，不得直接解除 schema 21 的最多两名成员约束。
+
 目标：
 
 1. 多人 equal/amount/ratio/shares UI 优化。
 2. 转账建议解释。
 3. 旅行/聚会账本场景评估。
 
+开发前必须补齐：
+
+1. 场景证据、独立 PRD、成员角色与历史可见性矩阵。
+2. 多人领域模型 ADR、Split/Settlement 算法契约、整数分舍入和最小转账解释规则。
+3. OpenAPI、匿名 Fixture、新 migration 与数据守恒/回滚评审。
+4. UI 流程、组件归属、本地 Figma handoff、移动端与可访问性矩阵。
+5. 详细开发切片、独立 development/staging 和发布门禁。
+
+Task51 的目标版本在 Task50.6 后重新确认；旧路线中的版本号不作为提前开工依据。
+
 ### Task52：通知共同支付调研
+
+状态：保持研究任务，不进入工程准备或实现；最早在 Task51 稳定并获得真实反馈后重新评审。
 
 目标：
 

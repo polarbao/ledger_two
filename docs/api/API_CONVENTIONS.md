@@ -285,3 +285,13 @@ POST  /api/metadata/{kind}/{id}/restore
 6. 成员上限、Owner 移交、ready 导入阻断分别使用 `LEDGER_MEMBER_LIMIT_REACHED`、`LEDGER_OWNER_TRANSFER_REQUIRED`、`LEDGER_READY_IMPORT_EXISTS`。
 7. 整库 backup/restore/diagnostics 不读取 Ledger Context，仅由实例管理员授权；拒绝使用 403 `INSTANCE_ADMIN_REQUIRED`。
 8. 完整 DTO、HTTP 映射和响应 envelope 以 `openapi-v1.3-ledger-draft.yaml` 为准。
+
+## 12. Task53 分类标签智能化草案补充
+
+以下内容仅为开发前评审草案，尚未进入 router 或当前实现清单；完整 DTO 以 `openapi-v1.3-category-tag-draft.yaml` 为准：
+
+1. 默认元数据模板只允许 Owner 应用；preview 必须只读，apply 必须幂等并在单事务内完成。
+2. 批量调整、显式学习和重新分类必须使用 `X-Ledger-Id`，且只能操作同账本、同批次、仍可编辑的预览行。
+3. 人工选择优先于所有规则；既有 Task49 规则迁移后保持 `suggest`，不得因升级自动改写选中值。
+4. 新错误码候选：`CATEGORY_FALLBACK_REQUIRED`、`CATEGORY_TYPE_MISMATCH`、`TAG_LIMIT_EXCEEDED`、`CLASSIFICATION_CONFLICT`、`CLASSIFICATION_RULE_STALE`、`CLASSIFICATION_MERCHANT_REQUIRED`、`METADATA_PROFILE_CONFLICT`、`IMPORT_RECLASSIFY_CONFLICT`。
+5. 候选错误码只有在 Task53 OpenAPI/Tech 联合评审通过并同步 `docs/tech/10-error-codes.md` 后，才可写入代码。

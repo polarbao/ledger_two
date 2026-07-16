@@ -1,5 +1,10 @@
 # PRD：分类、标签、账户模块
 
+状态：早期模块摘要，保留为历史背景<br>
+当前事实源：`docs/prd/34-prd-v1.3-category-tag-intelligence.md`、`docs/tech/26-v1.3-category-tag-intelligence-contract.md`<br>
+
+> 本文中的默认分类名称、父子分类和自动补全只代表早期方向，不构成 Task53 开工依据。Task53 首期不做二级分类或标签分组，并采用可预览、可选择、幂等的 `basic_cn_v1` / `empty` 默认模板。
+
 ## 1. 模块目标
 
 分类、标签和账户用于提升账单组织、筛选和统计能力。

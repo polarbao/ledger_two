@@ -1,5 +1,10 @@
 # PRD：导入、导出、规则自动化模块
 
+状态：早期模块摘要，保留为历史背景<br>
+当前事实源：`docs/prd/26-prd-v1.2-import-module-specs.md`、`docs/prd/30-prd-v1.2-xlsx-import-special.md`、`docs/prd/34-prd-v1.3-category-tag-intelligence.md`<br>
+
+> 当前真实格式为微信 CSV/XLSX、支付宝 CSV 和通用 CSV；银行 CSV 未进入近期范围。Task53 在既有 preview/commit 管线上增加分级自动化，不复制 parser，不改变去重和整批事务提交。
+
 ## 1. 模块目标
 
 保证数据可迁移、可备份、可导入，并减少长期手动记账成本。

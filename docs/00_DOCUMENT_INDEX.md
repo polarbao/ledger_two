@@ -2,7 +2,7 @@
 
 > 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝当前仍只导出 CSV，不再等待支付宝 XLSX。剩余发布门禁为 NAS schema 19 staging、production 一致性备份与逐批导入确认。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 >
-> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-10 于 2026-07-15 全部关闭，Fresh Light 已成为无偏好新会话默认体验，Dark Glass 保留显式回退，28 个路由视口组合与全局可访问性验收通过。Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成：schema 21 数据基础、显式 LedgerContext、统一 Guard、跨账本隔离、账本生命周期/ETag、归档预检与显式放弃 ready 导入批次已通过自动化验收；Task50.3B/3C 的准备依据已复核，下一实现任务为 Task50.3B 成员与 Owner 不变量。Task50.4 仍需等待 Task50.3 整体收口。该结论不代表部署准入：WSL staging 仍为 schema 19，NAS 未执行 migration 020/021。本地预览不代表线上 Figma 已完整同步。
+> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-10 于 2026-07-15 全部关闭，Fresh Light 已成为无偏好新会话默认体验，Dark Glass 保留显式回退，28 个路由视口组合与全局可访问性验收通过。Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成；Task50.3B 起按用户要求暂停。当前最高优先级切换为 Task53 分类、标签与导入智能归类专项，采用“用户规则/显式学习高置信自动选择、内置知识只建议、其他分类兜底、整批仍需确认”的分级自动化。Task53P.1-P.6 准备包、Fixture expected、本地 Figma handoff 和详细实施计划已形成，等待用户确认进入 Task53.1；尚未修改代码、创建 migration 022 或部署。WSL staging 仍为 schema 19，NAS 未执行 migration 020/021。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -37,6 +37,7 @@ docs/prd/30-prd-v1.2-xlsx-import-special.md
 docs/prd/31-prd-v1.3-multi-ledger.md
 docs/prd/32-v1.3-task50-acceptance-fixtures.md
 docs/prd/33-task51-scenario-evidence-and-scope-questions.md
+docs/prd/34-prd-v1.3-category-tag-intelligence.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/README.md
@@ -48,20 +49,27 @@ docs/tech/21-v1.2-import-migration-review.md
 docs/tech/22-v1.2-import-task47-implementation-plan.md
 docs/tech/23-v1.2-deployment-environment-isolation.md
 docs/tech/24-v1.2-xlsx-import-implementation-plan.md
+docs/tech/26-v1.3-category-tag-intelligence-contract.md
+docs/tech/27-v1.3-category-tag-migration-review.md
 docs/api/API_INVENTORY.md
 docs/api/API_CONVENTIONS.md
 docs/api/openapi.yaml
 docs/api/openapi-v1.2-import-draft.yaml
 docs/api/openapi-v1.3-ledger-draft.yaml
+docs/api/openapi-v1.3-category-tag-draft.yaml
 docs/fixtures/imports/README.md
+docs/fixtures/category-tag/README.md
 docs/ui/README.md
 docs/ui/14-v1.1-v1.2-module-flows.md
 docs/ui/15-ledgertwo-ux-optimization-program.md
 docs/ui/16-v1.3-multi-ledger-flows.md
+docs/ui/17-v1.3-category-tag-intelligence-flows.md
 docs/ui/figma/README.md
 docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md
 docs/ui/figma/task50-v1.3-multi-ledger/README.md
 docs/ui/figma/task50-v1.3-multi-ledger/task50-frame-manifest.json
+docs/ui/figma/task53-v1.3-category-tag/README.md
+docs/ui/figma/task53-v1.3-category-tag/task53-frame-manifest.json
 docs/codex_tasks/05-foundation-task-plan.md
 docs/codex_tasks/08-product-roadmap-dev-plan.md
 docs/codex_tasks/09-task41-49-detailed-plan.md
@@ -73,6 +81,10 @@ docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md
 docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md
 docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md
 docs/codex_tasks/17-task51-predevelopment-plan.md
+docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md
+docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md
+docs/project_analysis/2026-07-16-category-tag-competitive-research.md
+docs/project_analysis/2026-07-16-task53-predevelopment-readiness.md
 docs/project_analysis/2026-07-15-task50-current-state-gap-matrix.md
 docs/project_analysis/2026-07-15-task50-p6-development-readiness.md
 docs/project_analysis/2026-07-16-task50-2-ledger-context-acceptance.md

@@ -1,7 +1,7 @@
 # 技术文档模块目录
 
 状态：当前技术事实源入口
-最近更新：2026-07-15
+最近更新：2026-07-16
 
 本目录按照工程模块拆分 LedgerTwo 的技术设计与实现方案。
 
@@ -18,6 +18,7 @@
 | 部署隔离总览 | `23-v1.2-deployment-environment-isolation.md` | development/staging/production 物理隔离、发布顺序和运行开关 |
 | XLSX 专项方案 | `24-v1.2-xlsx-import-implementation-plan.md` | Task49X reader、migration 019、安全、测试和回滚 |
 | Task50 技术契约 | `25-v1.3-multi-ledger-implementation-contract.md` | 多账本 lifecycle、LedgerContext、实例管理员、migration 020/021 和回滚 |
+| Task53 技术契约 | `26-v1.3-category-tag-intelligence-contract.md`、`27-v1.3-category-tag-migration-review.md` | 分级自动化、默认元数据、schema 22、API 和回滚 |
 
 后续技术规划应优先更新这些总览和契约。只有当 v1.3 新能力完成 PRD 范围冻结，且现有总览无法承载新的架构边界时，才新增独立技术总览或 ADR。
 
@@ -30,8 +31,9 @@
 3. v1.2 RC 的关键技术门禁是 schema 19 staging、XLSX 开关、备份链、health 校验和回滚脚本。
 4. Fresh Light 属于前端体验专项，不应改变后端金额、权限、导入、结算或 migration 契约。
 5. v1.3 前应重新评审多账本、多成员、多人分摊的数据模型、权限矩阵和 migration 策略。
-6. UI-FL-10、Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成；schema 21 migration、升级预检、显式 LedgerContext、统一 Guard、跨账本对象隔离、生命周期 ETag/事务审计和归档预检已形成实现基线，下一任务为 Task50.3B 成员与 Owner 不变量。
-7. WSL staging 继续固定 schema 19；migration 020/021 当前只在自动化临时库完成验收，未进入 WSL staging、NAS 或真实数据库。
+6. UI-FL-10、Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成；Task50.3B 起暂停。
+7. Task53 技术、migration、OpenAPI、Fixture 和详细实施基线已形成；schema 22 仍只存在文档草案，未创建 migration 文件或修改数据库。
+8. WSL staging 继续固定 schema 19；migration 020/021 未进入 WSL staging、NAS 或真实数据库。
 
 当前已知技术债：
 
@@ -65,6 +67,8 @@
 22-v1.2-import-task47-implementation-plan.md v1.2 Task47 导入预览实施计划
 24-v1.2-xlsx-import-implementation-plan.md v1.2 Task49X XLSX 导入专项实施方案
 25-v1.3-multi-ledger-implementation-contract.md v1.3 Task50 多账本技术与 Migration 冻结契约
+26-v1.3-category-tag-intelligence-contract.md Task53 分类/标签/导入智能归类技术契约
+27-v1.3-category-tag-migration-review.md Task53 schema 21 -> 22 Migration 评审
 ```
 
 ## 技术原则
@@ -103,3 +107,4 @@ Task30 后的技术规划建议优先阅读：
 8. `../prd/29-prd-v1.2-module-business-service-breakdown.md`（进入 Task47-Task49 前用于确认业务对象、服务边界和 UI 工作台）
 9. `24-v1.2-xlsx-import-implementation-plan.md`（Task49X 开发前用于确认依赖、reader、migration 019、安全和测试边界）
 10. `25-v1.3-multi-ledger-implementation-contract.md`（Task50 开发前用于确认 lifecycle、实例管理员、migration 020/021 和回滚）
+11. `26-v1.3-category-tag-intelligence-contract.md` 与 `27-v1.3-category-tag-migration-review.md`（当前 Task53 技术评审入口）

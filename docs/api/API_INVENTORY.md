@@ -6,6 +6,8 @@
 目标版本基路径：`/api/v1`，尚未实现 alias  
 更新时间：2026-07-16
 
+> Task53 分类标签智能化目前只有 `openapi-v1.3-category-tag-draft.yaml` 开发前草案，尚未实现。草案路径不得加入下方当前实现清单，也不得据此声称 router、migration 022 或客户端 DTO 已存在。
+
 ## 1. 总体约定
 
 响应格式：

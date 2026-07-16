@@ -26,9 +26,9 @@ docs/
 | 角色 | 目录或文件 | 使用规则 |
 |---|---|---|
 | 当前入口 | `docs/README.md`、`docs/00_DOCUMENT_INDEX.md` | 先读，用于确定阶段、阅读顺序和事实源优先级 |
-| 产品事实源 | `docs/prd/README.md`、`docs/prd/00-product-roadmap.md`、`docs/prd/20-33` | 当前产品定位、路线、范围和验收口径 |
-| 技术事实源 | `docs/tech/README.md`、`docs/tech/00-current-architecture-after-task30.md`、`docs/tech/18-25` | 当前架构、实施契约、部署隔离和迁移策略 |
-| UI/UX 事实源 | `docs/ui/README.md`、`docs/ui/14-16`、`docs/ui/figma/README.md` | 当前页面流程、长期体验专项、Figma 配套规范 |
+| 产品事实源 | `docs/prd/README.md`、`docs/prd/00-product-roadmap.md`、`docs/prd/20-34` | 当前产品定位、路线、范围和验收口径 |
+| 技术事实源 | `docs/tech/README.md`、`docs/tech/00-current-architecture-after-task30.md`、`docs/tech/18-27` | 当前架构、实施契约、部署隔离和迁移策略 |
+| UI/UX 事实源 | `docs/ui/README.md`、`docs/ui/14-17`、`docs/ui/figma/README.md` | 当前页面流程、长期体验专项、Figma 配套规范 |
 | 任务入口 | `docs/codex_tasks/README.md` 和当前任务文件 | 只用于执行已确认任务，不替代 PRD/Tech/UI 事实源 |
 | 发布证据 | `docs/releases/`、`docs/project_analysis/2026-*` | 记录已执行验收和发布状态，不单独定义新需求 |
 | 历史资料 | 根目录早期 `01-18` 文档、`project_analysis/extracted_archives`、旧 zip | 背景参考；不得用于推翻 Task30 后的新能力 |
@@ -83,13 +83,23 @@ docs/
 31. `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md`
 32. `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`
 33. `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`
-34. `docs/prd/33-task51-scenario-evidence-and-scope-questions.md`（仅 Task51 非约束性发现准备）
-35. `docs/codex_tasks/17-task51-predevelopment-plan.md`（正式门禁仍等待 Task50.6）
-36. 进入具体业务模块文档。
+34. `docs/prd/34-prd-v1.3-category-tag-intelligence.md`（当前最高优先级 Task53）
+35. `docs/tech/26-v1.3-category-tag-intelligence-contract.md`
+36. `docs/tech/27-v1.3-category-tag-migration-review.md`
+37. `docs/api/openapi-v1.3-category-tag-draft.yaml`
+38. `docs/ui/17-v1.3-category-tag-intelligence-flows.md`
+39. `docs/fixtures/category-tag/README.md`
+40. `docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md`
+41. `docs/ui/figma/task53-v1.3-category-tag/README.md`
+42. `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`
+43. `docs/project_analysis/2026-07-16-task53-predevelopment-readiness.md`
+44. `docs/prd/33-task51-scenario-evidence-and-scope-questions.md`（仅 Task51 非约束性发现准备）
+45. `docs/codex_tasks/17-task51-predevelopment-plan.md`（正式门禁仍等待 Task50.6）
+46. 进入具体业务模块文档。
 
 当前项目已完成 Task01-Task49。Task49X 核心实现、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview 和移动端视觉验收已完成；支付宝当前仍只导出 CSV。后续发布收口聚焦 NAS schema 19 staging、production 一致性备份与逐批导入确认，开发入口以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为准。
 
-2026-07-16 更新：Fresh Light UI-FL-01 至 UI-FL-10 已完成，Fresh Light 为无偏好新会话默认体验，Dark Glass 保留显式回退；全局证据见 `docs/project_analysis/ui-fl-10-global-2026-07-15/`。Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成，入口为 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 与 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`；下一实现任务为只在独立 development 环境执行的 Task50.3B，WSL staging 与 NAS 仍不迁移至 schema 21。Task51 只提前建立了场景证据模板和 P1-P6 准备顺序，不构成正式冻结或开发准入；正式 Task51P 仍等待 Task50.6。
+2026-07-16 更新：Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成，但 Task50.3B 起按用户要求暂停。Task53P.1-P.6 的 PRD、Tech、OpenAPI、Migration、Fixture expected、UI/Figma handoff、readiness 与详细实施计划已形成；当前未开始代码、migration 022 或部署。用户确认后从 Task53.1 开始，Task51/Task52 继续保持原门禁。
 
 ## AI 开发使用方式
 

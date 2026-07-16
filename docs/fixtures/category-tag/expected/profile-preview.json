@@ -1,0 +1,41 @@
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "key": "basic_cn_v1",
+      "version": 1,
+      "items": [
+        {"system_key": "expense_food", "kind": "expense_category", "name": "餐饮", "action": "create", "existing_id": null},
+        {"system_key": "expense_shopping", "kind": "expense_category", "name": "购物", "action": "create", "existing_id": null},
+        {"system_key": "expense_transport", "kind": "expense_category", "name": "交通", "action": "create", "existing_id": null},
+        {"system_key": "expense_housing", "kind": "expense_category", "name": "居住", "action": "create", "existing_id": null},
+        {"system_key": "expense_utilities", "kind": "expense_category", "name": "生活缴费", "action": "create", "existing_id": null},
+        {"system_key": "expense_health", "kind": "expense_category", "name": "医疗健康", "action": "create", "existing_id": null},
+        {"system_key": "expense_education", "kind": "expense_category", "name": "教育成长", "action": "create", "existing_id": null},
+        {"system_key": "expense_entertainment", "kind": "expense_category", "name": "休闲娱乐", "action": "create", "existing_id": null},
+        {"system_key": "expense_travel", "kind": "expense_category", "name": "旅行", "action": "create", "existing_id": null},
+        {"system_key": "expense_gift", "kind": "expense_category", "name": "人情往来", "action": "create", "existing_id": null},
+        {"system_key": "expense_business", "kind": "expense_category", "name": "工作经营", "action": "create", "existing_id": null},
+        {"system_key": "expense_other", "kind": "expense_category", "name": "其他支出", "action": "create", "existing_id": null},
+        {"system_key": "income_salary", "kind": "income_category", "name": "工资", "action": "create", "existing_id": null},
+        {"system_key": "income_bonus", "kind": "income_category", "name": "奖金", "action": "create", "existing_id": null},
+        {"system_key": "income_reimbursement", "kind": "income_category", "name": "报销", "action": "create", "existing_id": null},
+        {"system_key": "income_refund", "kind": "income_category", "name": "退款", "action": "create", "existing_id": null},
+        {"system_key": "income_gift", "kind": "income_category", "name": "红包礼金", "action": "create", "existing_id": null},
+        {"system_key": "income_business", "kind": "income_category", "name": "经营收入", "action": "create", "existing_id": null},
+        {"system_key": "income_other", "kind": "income_category", "name": "其他收入", "action": "create", "existing_id": null},
+        {"system_key": "tag_takeout", "kind": "tag", "name": "外卖", "action": "create", "existing_id": null},
+        {"system_key": "tag_supermarket", "kind": "tag", "name": "超市", "action": "create", "existing_id": null},
+        {"system_key": "tag_commute", "kind": "tag", "name": "通勤", "action": "create", "existing_id": null},
+        {"system_key": "tag_fixed_expense", "kind": "tag", "name": "固定支出", "action": "create", "existing_id": null},
+        {"system_key": "tag_subscription", "kind": "tag", "name": "订阅服务", "action": "create", "existing_id": null},
+        {"system_key": "tag_work", "kind": "tag", "name": "工作相关", "action": "create", "existing_id": null},
+        {"system_key": "tag_travel", "kind": "tag", "name": "旅行", "action": "create", "existing_id": null},
+        {"system_key": "tag_reimbursement", "kind": "tag", "name": "报销相关", "action": "create", "existing_id": null}
+      ]
+    },
+    "create_count": 27,
+    "reuse_count": 0,
+    "conflict_count": 0
+  }
+}

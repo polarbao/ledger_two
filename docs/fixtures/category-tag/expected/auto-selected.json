@@ -1,0 +1,15 @@
+{
+  "row_id": "CT-R01",
+  "selected_category_id": "cat_a_transport",
+  "selected_tag_ids": ["tag_a_commute"],
+  "classification": {
+    "status": "auto_selected",
+    "confidence": "high",
+    "source": "user_rule",
+    "reason_code": "merchant_contains",
+    "reason_text": "商户名称包含「滴滴」",
+    "matched_rule_ids": ["rule_a_didi_manual"],
+    "suggested_category_id": "cat_a_transport",
+    "suggested_tag_ids": ["tag_a_commute"]
+  }
+}

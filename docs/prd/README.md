@@ -21,14 +21,15 @@
 
 ## 当前产品阶段
 
-截至 2026-07-16，项目处于 `v1.2.0-rc 发布收口 + v1.3 Task50 独立开发`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV 导入支持矩阵；支付宝当前仍按 CSV 处理。UI-FL-01 至 UI-FL-10 已完成并关闭专项；Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成，产品、Tech、Migration、OpenAPI、Fixture、验收矩阵、UI、schema 21、显式账本隔离和生命周期闭环均已形成验收事实，下一实现任务为 Task50.3B。
+截至 2026-07-16，项目处于 `v1.2.0-rc 发布收口 + v1.3 Task53 待开发确认`。Task01-Task49 已完成，Task49X 已冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；UI-FL-01 至 UI-FL-10 已关闭。Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成，但 Task50.3B 起按用户要求暂停。Task53P.1-P.6 准备包已形成，等待确认后进入 Task53.1。
 
 当前产品重点：
 
 1. 保持 v1.2 业务范围冻结。
 2. 完成 NAS staging schema 19 和 production 发布门禁。
 3. 保持已关闭 Fresh Light 组件、主题、响应式和可访问性基线，不改变已冻结金额、权限、导入和结算规则。
-4. 在独立 development 环境按 Task50.1-Task50.6 实现多账本正式化；第三成员和多人分摊继续延后，仅允许按 `33-task51-scenario-evidence-and-scope-questions.md` 提前准备非约束性场景证据。
+4. 评审并实施 Task53 分级自动化、默认分类/标签和显式学习闭环；在 Task53 关闭前不恢复 Task50.3B。
+5. 第三成员、多人分摊和通知继续延后。
 
 当前不进入开发：
 
@@ -68,6 +69,7 @@
 31-prd-v1.3-multi-ledger.md           v1.3 Task50 多账本正式化冻结 PRD
 32-v1.3-task50-acceptance-fixtures.md Task50 匿名 Fixture、跨账本隔离与验收矩阵
 33-task51-scenario-evidence-and-scope-questions.md Task51 多人分摊场景证据模板、隐私边界与范围问题
+34-prd-v1.3-category-tag-intelligence.md Task53 分类、标签、默认元数据与导入智能归类 PRD
 ```
 
 ## 使用方式
@@ -106,3 +108,4 @@ Task30 后的产品规划建议优先阅读：
 13. `31-prd-v1.3-multi-ledger.md`（Task50 准备与开发前必读）
 14. `32-v1.3-task50-acceptance-fixtures.md`（Task50 测试、Migration 与验收必读）
 15. `33-task51-scenario-evidence-and-scope-questions.md`（Task51P.1 非约束性发现准备；不代表开发准入）
+16. `34-prd-v1.3-category-tag-intelligence.md`（当前 Task53 产品评审入口）

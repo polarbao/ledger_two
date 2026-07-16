@@ -1,0 +1,541 @@
+openapi: 3.0.3
+info:
+  title: LedgerTwo v1.3 Category and Tag Intelligence API
+  version: 1.3.0-task53-draft
+  description: |
+    Task53P 开发前草案，只描述分类、标签、默认元数据和导入分级自动化新增契约。
+    本文件不是当前 router 已实现清单；现状仍以 API_INVENTORY.md 为准。
+    Task50 当前暂停，migration 022、接口和 DTO 尚未实现。
+servers:
+  - url: /api
+tags:
+  - name: metadata-defaults
+  - name: import-classification
+
+paths:
+  /metadata/default-profile:
+    get:
+      tags: [metadata-defaults]
+      summary: Get the built-in metadata profile definition
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - name: profile
+          in: query
+          schema:
+            type: string
+            enum: [basic_cn_v1, empty]
+            default: basic_cn_v1
+      responses:
+        "200":
+          description: Profile definition and current ledger resolution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataProfileResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /metadata/default-profile/preview:
+    post:
+      tags: [metadata-defaults]
+      summary: Preview applying a metadata profile to the current ledger
+      description: Read-only. It must not create, rename, archive, or bind system keys.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataProfilePreviewRequest"
+      responses:
+        "200":
+          description: Profile conflict and action preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataProfilePreviewResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /metadata/default-profile/apply:
+    post:
+      tags: [metadata-defaults]
+      summary: Apply a metadata profile atomically
+      description: Owner-only. Conflicts must be resolved explicitly before the transaction starts.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataProfileApplyRequest"
+      responses:
+        "200":
+          description: Applied or idempotent no-op
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataProfileApplyResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /imports/{batchId}/rows/bulk-adjust:
+    post:
+      tags: [import-classification]
+      summary: Apply an explicit classification adjustment to selected preview rows
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - $ref: "#/components/parameters/BatchId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkClassificationRequest"
+      responses:
+        "200":
+          description: Updated batch summary and affected row count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkClassificationResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /imports/{batchId}/rows/{rowId}/learn:
+    post:
+      tags: [import-classification]
+      summary: Create or update an explicit learned merchant rule
+      description: The preview row adjustment is saved separately; learning failure must not roll it back.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - $ref: "#/components/parameters/BatchId"
+        - $ref: "#/components/parameters/RowId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearnMerchantRequest"
+      responses:
+        "200":
+          description: Learned rule created or updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearnMerchantResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /imports/{batchId}/reclassify:
+    post:
+      tags: [import-classification]
+      summary: Re-run current rules for eligible rows in a ready batch
+      description: Manual and bulk-adjusted rows are never overwritten.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - $ref: "#/components/parameters/BatchId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dry_run:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: Reclassification change summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclassifyResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+
+  parameters:
+    LedgerHeader:
+      name: X-Ledger-Id
+      in: header
+      required: true
+      schema:
+        type: string
+    BatchId:
+      name: batchId
+      in: path
+      required: true
+      schema:
+        type: string
+    RowId:
+      name: rowId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    Error:
+      description: Standard error envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    SuccessEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data: {}
+
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - BAD_REQUEST
+                - VALIDATION_ERROR
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - LEDGER_REQUIRED
+                - LEDGER_ACCESS_DENIED
+                - LEDGER_OBJECT_NOT_FOUND
+                - IMPORT_BATCH_NOT_FOUND
+                - IMPORT_ROW_INVALID
+                - IMPORT_COMMIT_CONFLICT
+                - CATEGORY_FALLBACK_REQUIRED
+                - CATEGORY_TYPE_MISMATCH
+                - TAG_LIMIT_EXCEEDED
+                - CLASSIFICATION_CONFLICT
+                - CLASSIFICATION_RULE_STALE
+                - CLASSIFICATION_MERCHANT_REQUIRED
+                - METADATA_PROFILE_CONFLICT
+                - IMPORT_RECLASSIFY_CONFLICT
+            message:
+              type: string
+            details:
+              nullable: true
+
+    MetadataProfileItem:
+      type: object
+      required: [system_key, kind, name, action]
+      properties:
+        system_key:
+          type: string
+        kind:
+          type: string
+          enum: [expense_category, income_category, tag]
+        name:
+          type: string
+        icon:
+          type: string
+          nullable: true
+        color:
+          type: string
+          nullable: true
+        action:
+          type: string
+          enum: [create, reuse, skip, conflict, existing]
+        existing_id:
+          type: string
+          nullable: true
+
+    MetadataProfile:
+      type: object
+      required: [key, version, items]
+      properties:
+        key:
+          type: string
+          enum: [basic_cn_v1, empty]
+        version:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetadataProfileItem"
+
+    MetadataProfileResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/MetadataProfile"
+
+    MetadataProfilePreviewRequest:
+      type: object
+      required: [profile]
+      properties:
+        profile:
+          type: string
+          enum: [basic_cn_v1, empty]
+
+    MetadataProfilePreviewResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [profile, create_count, reuse_count, conflict_count]
+              properties:
+                profile:
+                  $ref: "#/components/schemas/MetadataProfile"
+                create_count:
+                  type: integer
+                reuse_count:
+                  type: integer
+                conflict_count:
+                  type: integer
+
+    MetadataConflictResolution:
+      type: object
+      required: [system_key, action]
+      properties:
+        system_key:
+          type: string
+        action:
+          type: string
+          enum: [reuse, skip]
+        existing_id:
+          type: string
+          nullable: true
+
+    MetadataProfileApplyRequest:
+      type: object
+      required: [profile, resolutions]
+      properties:
+        profile:
+          type: string
+          enum: [basic_cn_v1, empty]
+        resolutions:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetadataConflictResolution"
+
+    MetadataProfileApplyResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [profile, created_count, reused_count, skipped_count, metadata_profile_version]
+              properties:
+                profile:
+                  type: string
+                created_count:
+                  type: integer
+                reused_count:
+                  type: integer
+                skipped_count:
+                  type: integer
+                metadata_profile_version:
+                  type: integer
+
+    Classification:
+      type: object
+      required: [status, confidence]
+      properties:
+        status:
+          type: string
+          enum: [auto_selected, suggested, fallback, manual, bulk, conflict, unresolved]
+        confidence:
+          type: string
+          enum: [high, medium, low, none]
+        source:
+          type: string
+          nullable: true
+          enum: [manual, bulk, user_rule, learned_rule, builtin, fallback]
+        reason_code:
+          type: string
+          nullable: true
+        reason_text:
+          type: string
+          nullable: true
+        matched_rule_ids:
+          type: array
+          items:
+            type: string
+        suggested_category_id:
+          type: string
+          nullable: true
+        suggested_tag_ids:
+          type: array
+          items:
+            type: string
+
+    BulkClassificationRequest:
+      type: object
+      required: [row_ids, action]
+      properties:
+        row_ids:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+        action:
+          type: string
+          enum: [accept_suggestions, apply_values]
+          description: accept_suggestions accepts each row's persisted suggestion; apply_values writes the shared category and tags below.
+        category_id:
+          type: string
+          nullable: true
+          description: Required only when action=apply_values.
+        tag_ids:
+          type: array
+          maxItems: 8
+          uniqueItems: true
+          items:
+            type: string
+          description: Required only when action=apply_values; use an empty array to clear tags.
+
+    BulkClassificationResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [affected_rows, skipped_rows, conflict_rows]
+              properties:
+                affected_rows:
+                  type: integer
+                skipped_rows:
+                  type: integer
+                conflict_rows:
+                  type: integer
+
+    LearnMerchantRequest:
+      type: object
+      required: [category_id, tag_ids, source_scope]
+      properties:
+        category_id:
+          type: string
+        tag_ids:
+          type: array
+          maxItems: 8
+          uniqueItems: true
+          items:
+            type: string
+        source_scope:
+          type: string
+          enum: [current_source, all_sources]
+          default: current_source
+
+    LearnMerchantResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rule_id, action, normalized_merchant]
+              properties:
+                rule_id:
+                  type: string
+                action:
+                  type: string
+                  enum: [created, updated]
+                normalized_merchant:
+                  type: string
+
+    ReclassifyResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [dry_run, eligible_rows, changed_rows, unchanged_rows, protected_manual_rows]
+              properties:
+                dry_run:
+                  type: boolean
+                eligible_rows:
+                  type: integer
+                changed_rows:
+                  type: integer
+                unchanged_rows:
+                  type: integer
+                protected_manual_rows:
+                  type: integer
+
+    LedgerCreateMetadataExtension:
+      type: object
+      description: Additive Task53 extension for POST /ledgers and first setup requests.
+      properties:
+        metadata_profile:
+          type: string
+          enum: [basic_cn_v1, empty]
+          default: basic_cn_v1

@@ -1,0 +1,15 @@
+{
+  "row_id": "CT-R07",
+  "selected_category_id": null,
+  "selected_tag_ids": [],
+  "classification": {
+    "status": "conflict",
+    "confidence": "high",
+    "source": "user_rule",
+    "reason_code": "same_rank_category_conflict",
+    "reason_text": "同级规则给出了不同分类，需要人工选择",
+    "matched_rule_ids": ["rule_a_conflict_1", "rule_a_conflict_2"],
+    "suggested_category_id": null,
+    "suggested_tag_ids": []
+  }
+}

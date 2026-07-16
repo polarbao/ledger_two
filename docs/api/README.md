@@ -12,6 +12,7 @@ API_INVENTORY.md  当前 router 实际暴露接口清单、认证要求、账本
 openapi.yaml      OpenAPI 草案，覆盖当前核心 API 路径、通用响应和主要请求 DTO
 openapi-v1.2-import-draft.yaml v1.2 导入模块已实现补充契约；文件名保留 draft 以避免破坏既有引用
 openapi-v1.3-ledger-draft.yaml Task50P.4 多账本生命周期、成员、实例运维和错误语义冻结草案；尚未实现
+openapi-v1.3-category-tag-draft.yaml Task53 分类、标签、默认元数据与导入分级自动化草案；尚未实现
 API_CONVENTIONS.md 错误码、分页、筛选、排序、金额、时间和 Ledger Context 规范
 ```
 
@@ -26,6 +27,7 @@ API_CONVENTIONS.md 错误码、分页、筛选、排序、金额、时间和 Led
 7. Foundation 阶段实际路径仍为 `/api/...`，文档可同时标注未来 `/api/v1/...` 目标路径，但不得把未实现 alias 描述为已上线。
 8. v1.2 导入接口以 `openapi-v1.2-import-draft.yaml` 为已实现补充契约，冻结检查需与 `API_INVENTORY.md` 和 router 同步核对。
 9. v1.3 多账本接口以 `openapi-v1.3-ledger-draft.yaml` 为开发前冻结契约；在 Task50 实现并更新 `API_INVENTORY.md` 前，不得描述为当前已上线接口。
+10. Task53 接口以 `openapi-v1.3-category-tag-draft.yaml` 为准备阶段草案；当前不得写入 `API_INVENTORY.md` 的已实现路径，也不得用于客户端生产调用。
 
 ## 稳定性标记
 

@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-16）：Task41-Task49 已完成。Task49X 已按真实格式冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；核心开发与本机验收完成，剩余 NAS/production 发布门禁。Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task50P.1-P.6、Task50.1、Task50.2 和 Task50.3A 已完成，下一实现任务为 Task50.3B；Task51 仅允许开展不具约束力的 Task51P.1 场景证据准备，正式冻结仍等待 Task50.6，Task52 仍为延后调研。
+> 执行更新（2026-07-16）：Task41-Task49 已完成。Task49X 已按真实格式冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；核心开发与本机验收完成，剩余 NAS/production 发布门禁。Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task50P.1-P.6、Task50.1、Task50.2 和 Task50.3A 已完成，但按用户要求暂停在 Task50.3B 前。Task53P.1-P.6 准备包已经形成，当前等待用户确认后从 Task53.1 进入代码；Task51 正式冻结仍等待 Task50.6，Task52 保持延后调研。
 
 ## 1. 使用说明
 
@@ -183,13 +183,33 @@
 
 ### Task50：多账本正式化
 
-状态：Task50.1、Task50.2、Task50.3A 已完成；Task50.3B/3C 已具备开发前依据，Task50.4/50.5 条件准入，Task50.6 验收框架已具备。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
+状态：Task50.1、Task50.2、Task50.3A 已完成；Task50.3B/3C 已具备开发前依据，Task50.4/50.5 条件准入，Task50.6 验收框架已具备。当前按用户要求暂停，不得与 Task53 并行修改 import、metadata、初始化或共享前端文件；Task53 收口后从 Task50.3B 恢复。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
 
 目标：
 
 1. 账本创建、切换、归档。
 2. 成员角色稳定。
 3. 数据隔离测试完善。
+
+### Task53：分类、标签与导入分级自动化
+
+状态：当前最高优先级，Task53P.1-P.6 准备包完成；等待用户确认后从 Task53.1 开始，尚未授权代码、migration 或部署变更。入口为 `docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md` 和 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`。
+
+目标：
+
+1. 为首次初始化、新建账本和既有账本补充可预览、可选择、幂等的默认分类与标签模板。
+2. 导入账单按“人工调整 > 用户规则 > 显式学习规则 > 内置本地知识 > 其他分类”执行确定性分级自动化。
+3. 高置信用户规则可在预览中自动填入选中值，内置知识只提供建议；批次提交前始终保留人工确认。
+4. 用户可显式选择“记住此商户”，不进行后台隐式学习，不调用云端 AI/LLM 或外部分类服务。
+5. 每条预览行展示分类来源、置信等级、命中理由与可修正入口；最多选择 8 个标签。
+
+开发前准备已补齐：
+
+1. 用户评审 PRD、分级阈值、默认模板、既有规则兼容和既有账本应用策略。
+2. 冻结 OpenAPI、migration 022、错误码、Fixture expected JSON 和 UI/Figma handoff。
+3. 已形成 Task53.1-Task53.5/Task53U 详细开发计划、文件所有权、TDD 清单、环境和回滚门禁。
+
+执行顺序：`Task53P -> Task53 实现与验收 -> 恢复 Task50.3B`。Task51/Task52 不因 Task53 插入而提前。
 
 ### Task51：多人分摊体验增强
 

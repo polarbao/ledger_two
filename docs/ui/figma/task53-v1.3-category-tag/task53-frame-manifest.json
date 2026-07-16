@@ -1,0 +1,137 @@
+{
+  "artifact_class": "requirement",
+  "status": "target-baseline",
+  "version": "task53-p5-2026-07-16",
+  "online_figma_sync": "not_verified",
+  "figma_account": null,
+  "figma_file_url": null,
+  "verified_node_ids": [],
+  "source_reference": [
+    "docs/prd/34-prd-v1.3-category-tag-intelligence.md",
+    "docs/tech/26-v1.3-category-tag-intelligence-contract.md",
+    "docs/api/openapi-v1.3-category-tag-draft.yaml",
+    "docs/fixtures/category-tag/README.md",
+    "docs/ui/17-v1.3-category-tag-intelligence-flows.md"
+  ],
+  "figma_page": "08 v1.3 Classification & Metadata",
+  "frames": [
+    {
+      "name": "Classification Context and State Matrix 1440",
+      "size": "1440x1024",
+      "section": "00 Context & Components",
+      "status": "required",
+      "purpose": "分级优先级、状态、来源、置信度、颜色和组件总览"
+    },
+    {
+      "name": "Import Classification Auto Selected Desktop 1440",
+      "size": "1440x1024",
+      "section": "01 Classification Summary",
+      "status": "required",
+      "route": "/import",
+      "react_target": "frontend/src/pages/ImportPage.tsx",
+      "acceptance": ["CT-UI-001", "CT-API-001"]
+    },
+    {
+      "name": "Import Classification Suggestions Mobile 390",
+      "size": "390x844",
+      "section": "01 Classification Summary",
+      "status": "required",
+      "route": "/import",
+      "react_target": "frontend/src/components/import/ImportPreviewRows.tsx",
+      "acceptance": ["CT-UI-001", "CT-UI-003"]
+    },
+    {
+      "name": "Import Classification Fallback Narrow 375",
+      "size": "375x812",
+      "section": "01 Classification Summary",
+      "status": "required",
+      "states": ["fallback", "long-merchant", "eight-tags"]
+    },
+    {
+      "name": "Import Classification Conflict Mobile 390",
+      "size": "390x844",
+      "section": "02 Preview Rows & Editor",
+      "status": "required",
+      "states": ["conflict", "rule-stale", "manual-resolution"],
+      "acceptance": ["CT-CL-001", "CT-UI-001"]
+    },
+    {
+      "name": "Import Row Editor Remember Merchant Mobile 390",
+      "size": "390x844",
+      "section": "02 Preview Rows & Editor",
+      "status": "required",
+      "react_target": "frontend/src/components/import/ImportRowEditor.tsx",
+      "states": ["idle", "eight-tags", "row-saved-learn-failed", "submitting"],
+      "acceptance": ["CT-API-003"]
+    },
+    {
+      "name": "Bulk Accept Suggestions Confirmation Mobile 390",
+      "size": "390x844",
+      "section": "03 Bulk & Reclassify",
+      "status": "required",
+      "states": ["selection", "confirmation", "partial-success"],
+      "acceptance": ["CT-API-004", "CT-UI-002"]
+    },
+    {
+      "name": "Apply Same Values and Same Merchant Desktop 1440",
+      "size": "1440x900",
+      "section": "03 Bulk & Reclassify",
+      "status": "required",
+      "states": ["apply-values", "same-merchant-batch", "same-merchant-learn"]
+    },
+    {
+      "name": "Reclassify Dry Run Desktop 1440",
+      "size": "1440x900",
+      "section": "03 Bulk & Reclassify",
+      "status": "required",
+      "states": ["dry-run", "confirm", "protected-manual", "stale-batch"]
+    },
+    {
+      "name": "Import Rule Manager Learned Rules Desktop 1440",
+      "size": "1440x1024",
+      "section": "04 Rule Management",
+      "status": "required",
+      "route": "/settings/import-rules",
+      "react_target": "frontend/src/components/import/ImportRuleManager.tsx",
+      "states": ["manual", "learned", "auto", "suggest", "stale"]
+    },
+    {
+      "name": "New Ledger Metadata Profile Mobile 390",
+      "size": "390x844",
+      "section": "05 Metadata Profiles",
+      "status": "required",
+      "states": ["basic-default", "empty-selected", "submitting", "error"]
+    },
+    {
+      "name": "Existing Ledger Profile Preview Desktop 1440",
+      "size": "1440x1024",
+      "section": "05 Metadata Profiles",
+      "status": "required",
+      "route": "/settings/metadata",
+      "react_target": "frontend/src/pages/MetadataManagePage.tsx",
+      "states": ["create", "reuse", "conflict", "skip", "no-op"]
+    },
+    {
+      "name": "Fallback Category Replacement Mobile 390",
+      "size": "390x844",
+      "section": "06 Metadata Safeguards",
+      "status": "required",
+      "states": ["select-replacement", "type-mismatch", "submitting"],
+      "acceptance": ["CT-DB-001"]
+    },
+    {
+      "name": "Metadata Rules References Desktop 1440",
+      "size": "1440x1024",
+      "section": "06 Metadata Safeguards",
+      "status": "required",
+      "states": ["active", "archived", "rule-references", "fallback-protected"]
+    },
+    {
+      "name": "Task53 Error Accessibility Code Map 1440",
+      "size": "1440x1024",
+      "section": "07 Error Accessibility Code Map",
+      "status": "required",
+      "purpose": "Frame、route、React、API、error、focus、aria-live 和 CT 用例映射"
+    }
+  ]
+}

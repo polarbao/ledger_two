@@ -83,7 +83,7 @@ docs/
 31. `docs/codex_tasks/14-v1.3-task50-predevelopment-plan.md`
 32. `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`
 33. `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`
-34. `docs/prd/34-prd-v1.3-category-tag-intelligence.md`（当前最高优先级 Task53）
+34. `docs/prd/34-prd-v1.3-category-tag-intelligence.md`（Task53 已完成准备，代码排期待后续复评）
 35. `docs/tech/26-v1.3-category-tag-intelligence-contract.md`
 36. `docs/tech/27-v1.3-category-tag-migration-review.md`
 37. `docs/api/openapi-v1.3-category-tag-draft.yaml`
@@ -99,7 +99,7 @@ docs/
 
 当前项目已完成 Task01-Task49。Task49X 核心实现、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview 和移动端视觉验收已完成；支付宝当前仍只导出 CSV。后续发布收口聚焦 NAS schema 19 staging、production 一致性备份与逐批导入确认，开发入口以 `docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 为准。
 
-2026-07-16 更新：Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成，但 Task50.3B 起按用户要求暂停。Task53P.1-P.6 的 PRD、Tech、OpenAPI、Migration、Fixture expected、UI/Figma handoff、readiness 与详细实施计划已形成；当前未开始代码、migration 022 或部署。用户确认后从 Task53.1 开始，Task51/Task52 继续保持原门禁。
+2026-07-16 更新：Task53P.1-P.6 的 PRD、Tech、OpenAPI、Migration、Fixture expected、UI/Figma handoff、readiness 与详细实施计划已形成，专项实现暂不启动且无需重复准备。当前恢复 Task50，下一实现任务为 Task50.3B；Task51/Task52 继续保持原门禁，Task53 代码排期在 Task50.6 后与 Task51P 重新排序。
 
 ## AI 开发使用方式
 

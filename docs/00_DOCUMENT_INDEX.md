@@ -2,7 +2,7 @@
 
 > 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝当前仍只导出 CSV，不再等待支付宝 XLSX。剩余发布门禁为 NAS schema 19 staging、production 一致性备份与逐批导入确认。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 >
-> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-10 于 2026-07-15 全部关闭，Fresh Light 已成为无偏好新会话默认体验，Dark Glass 保留显式回退，28 个路由视口组合与全局可访问性验收通过。Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成；Task50.3B 起按用户要求暂停。当前最高优先级切换为 Task53 分类、标签与导入智能归类专项，采用“用户规则/显式学习高置信自动选择、内置知识只建议、其他分类兜底、整批仍需确认”的分级自动化。Task53P.1-P.6 准备包、Fixture expected、本地 Figma handoff 和详细实施计划已形成，等待用户确认进入 Task53.1；尚未修改代码、创建 migration 022 或部署。WSL staging 仍为 schema 19，NAS 未执行 migration 020/021。
+> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-10 于 2026-07-15 全部关闭，Fresh Light 已成为无偏好新会话默认体验，Dark Glass 保留显式回退，28 个路由视口组合与全局可访问性验收通过。Task53 分类、标签与导入智能归类专项已完成 P1-P6 产品、技术、API、Migration、Fixture、UI/Figma 和详细任务细化，采用“用户规则/显式学习高置信自动选择、内置知识只建议、其他分类兜底、整批仍需确认”的分级自动化；其代码、migration 022 和部署暂不启动。当前恢复 Task50，Task50.1、Task50.2 与 Task50.3A 已完成，下一实现任务为 Task50.3B。WSL staging 仍为 schema 19，NAS 未执行 migration 020/021。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 

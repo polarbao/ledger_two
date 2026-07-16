@@ -1,8 +1,8 @@
 # Task53 分类、标签与导入智能归类专项准备计划
 
-状态：Task53P.1-P.6 准备包已形成；Task50.3B 起按用户要求暂停，Task53 优先<br>
+状态：Task53P.1-P.6 准备包已完成；实现暂缓，当前恢复 Task50.3B<br>
 创建日期：2026-07-16<br>
-当前准入：等待用户确认后可从 Task53.1 进入代码；尚未修改代码、创建 migration 022、升级数据库或部署<br>
+当前准入：Task50.6 后重新确认排期即可从 Task53.1 进入代码；尚未修改代码、创建 migration 022、升级数据库或部署<br>
 禁止：不得修改代码、创建 migration 022、升级数据库或部署 WSL/NAS
 
 ## 1. Goal
@@ -14,16 +14,13 @@
 执行优先级：
 
 ```text
-Task53P 准备
--> 用户书面评审
--> Task53 implementation
--> Task53 全量验收/发布门禁
--> 恢复 Task50.3B
--> Task50.3C-50.6
--> 正式 Task51P
+Task53P 准备完成
+-> Task50.3B-Task50.6
+-> 重新排序 Task53 implementation 与正式 Task51P
+-> 获批任务进入实现与验收
 ```
 
-说明：Task53 编号晚于 Task51/Task52，但因用户明确插入专项，其执行优先级最高。Task51 仍只是非约束性证据准备，Task52 仍延后；编号不代表当前执行顺序。
+说明：Task53 编号晚于 Task51/Task52，但准备工作已提前完成。当前执行优先级回到 Task50；Task51 仍只是非约束性证据准备，Task52 仍延后。
 
 ## 3. Preparation gates
 
@@ -122,14 +119,14 @@ Task53P 准备
 
 ## 5. File ownership risks
 
-Task53 与暂停的 Task50 可能冲突：
+Task53 未来实现与当前 Task50 可能冲突：
 
 | File/module | Task53 need | Coordination |
 |---|---|---|
 | `backend/internal/ledger/repo.go` | 新账本默认 profile | Task53 独占；Task50 恢复前 rebase/review |
-| `backend/internal/http/router/router.go` | 新 API | Task50.3C 暂停，不并行改 |
+| `backend/internal/http/router/router.go` | 新 API | Task53 暂缓，等待 Task50.3C 收口 |
 | `docs/api/openapi-v1.3-ledger-draft.yaml` | LedgerCreate metadata extension | 先保持独立 Task53 draft，最终评审再合并 |
-| `frontend` ledger create UI | profile selector | Task50.4/50.5 暂停 |
+| `frontend` ledger create UI | profile selector | Task50.4/50.5 先完成，Task53U 后续适配最终契约 |
 | `frontend/src/pages/ImportPage.tsx` | 分类状态与批量操作 | Task53 所有权 |
 | `backend/internal/importer/*` | classifier 集成 | Task53 所有权 |
 
@@ -157,7 +154,7 @@ IMAGE_TAG=task53-dev-<commit>
 2. OpenAPI YAML 可解析且 `$ref` 无悬空项。
 3. 默认 profile system_key 唯一、支出/收入兜底各一项。
 4. PRD 与 Tech 对 apply/suggest/fallback/learn 定义一致。
-5. Task50/Task51/Task52 状态和暂停边界一致。
+5. Task50 已恢复、Task53 实现暂缓、Task51/Task52 门禁一致。
 6. `git diff --check`、真实数据/数据库/密钥审计。
 
 ## 8. Rollback
@@ -174,4 +171,4 @@ IMAGE_TAG=task53-dev-<commit>
 4. 标签上限 8 个是否接受。
 5. Task53 完成后再恢复 Task50 的执行顺序是否确认。
 
-详细原子开发计划已经形成。确认进入开发后，下一任务为 Task53.1，不跳过 failing tests、migration review 或独立环境边界。
+详细原子开发计划已经形成。Task50.6 后确认 Task53 进入开发时，下一任务仍为 Task53.1，不跳过 failing tests、migration review 或独立环境边界。

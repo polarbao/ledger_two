@@ -5,7 +5,7 @@ info:
   description: |
     Task53P 开发前草案，只描述分类、标签、默认元数据和导入分级自动化新增契约。
     本文件不是当前 router 已实现清单；现状仍以 API_INVENTORY.md 为准。
-    Task50 当前暂停，migration 022、接口和 DTO 尚未实现。
+    Task53 准备已完成但实现暂缓；当前恢复 Task50，migration 022、接口和 DTO 尚未实现。
 servers:
   - url: /api
 tags:

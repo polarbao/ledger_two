@@ -192,6 +192,7 @@ func TestUpdatePreviewRowPersistsUserAdjustment(t *testing.T) {
 	t.Parallel()
 
 	database := openImporterTestDB(t)
+	seedImportRuleMetadata(t, database)
 	service := NewService(NewRepository(database))
 
 	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
@@ -220,7 +221,7 @@ func TestUpdatePreviewRowPersistsUserAdjustment(t *testing.T) {
 			RowStatus:             &adjustedStatus,
 			SelectedCategoryID:    &categoryID,
 			SelectedAccountID:     &accountID,
-			SelectedTagIDs:        []string{"tag-breakfast", "tag-workday"},
+			SelectedTagIDs:        []string{"tag-coffee", "tag-work"},
 			Visibility:            &visibility,
 		},
 	})
@@ -238,11 +239,143 @@ func TestUpdatePreviewRowPersistsUserAdjustment(t *testing.T) {
 	if updatedRow.Visibility != visibility {
 		t.Fatalf("expected visibility %s, got %s", visibility, updatedRow.Visibility)
 	}
-	if len(updatedRow.SelectedTagIDs) != 2 || updatedRow.SelectedTagIDs[0] != "tag-breakfast" {
+	if len(updatedRow.SelectedTagIDs) != 2 || updatedRow.SelectedTagIDs[0] != "tag-coffee" {
 		t.Fatalf("selected tags not persisted: %#v", updatedRow.SelectedTagIDs)
 	}
 	if countRows(t, database, "transactions") != 0 {
 		t.Fatalf("row adjustment must not write transactions")
+	}
+}
+
+func TestRepositoryUpdatePreviewRowRejectsCrossLedgerBatchContext(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	repository := NewRepository(database)
+	service := NewService(repository)
+
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	original := batch.Rows[0]
+	adjusted := original
+	adjusted.RowStatus = RowStatusSkipped
+	foreignBatch := *batch
+	foreignBatch.LedgerID = "ledger-two"
+
+	_, err = repository.UpdatePreviewRow(context.Background(), &foreignBatch, adjusted, RowAdjustment{})
+	if !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("expected cross-ledger update to return sql.ErrNoRows, got %v", err)
+	}
+
+	var storedStatus string
+	if err := database.QueryRow(`SELECT row_status FROM import_items WHERE id = ?`, original.ID).Scan(&storedStatus); err != nil {
+		t.Fatalf("read stored import row: %v", err)
+	}
+	if storedStatus != original.RowStatus {
+		t.Fatalf("cross-ledger update changed row status from %s to %s", original.RowStatus, storedStatus)
+	}
+}
+
+func TestUpdatePreviewRowRejectsMetadataFromAnotherLedger(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	if _, err := database.Exec(`
+		INSERT INTO categories (
+			id, ledger_id, owner_user_id, name, type, color, is_archived, created_at, updated_at
+		) VALUES (
+			'category-ledger-two', 'ledger-two', 'owner-user', 'Ledger Two Category',
+			'expense', '#22c55e', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+		)
+	`); err != nil {
+		t.Fatalf("seed second-ledger category: %v", err)
+	}
+	service := NewService(NewRepository(database))
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	categoryID := "category-ledger-two"
+	_, err = service.UpdatePreviewRow(context.Background(), UpdateRowCommand{
+		LedgerContext: ownerLedgerContext(),
+		BatchID:       batch.ID,
+		RowID:         batch.Rows[0].ID,
+		Patch: UpdateRowRequest{
+			SelectedCategoryID: &categoryID,
+		},
+	})
+	var appErr *appErrors.AppError
+	if !errors.As(err, &appErr) || appErr.Code != appErrors.ErrCodeValidationError {
+		t.Fatalf("expected cross-ledger metadata validation error, got %v", err)
+	}
+
+	var stored sql.NullString
+	if err := database.QueryRow("SELECT selected_category_id FROM import_items WHERE id = ?", batch.Rows[0].ID).Scan(&stored); err != nil {
+		t.Fatalf("read stored category selection: %v", err)
+	}
+	if stored.Valid {
+		t.Fatalf("cross-ledger category was persisted: %s", stored.String)
+	}
+}
+
+func TestCommitPreviewBatchRejectsPersistedCrossLedgerMetadata(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	if _, err := database.Exec(`
+		INSERT INTO categories (
+			id, ledger_id, owner_user_id, name, type, color, is_archived, created_at, updated_at
+		) VALUES (
+			'commit-category-ledger-two', 'ledger-two', 'owner-user', 'Ledger Two Commit Category',
+			'expense', '#22c55e', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+		)
+	`); err != nil {
+		t.Fatalf("seed second-ledger commit category: %v", err)
+	}
+	service := NewService(NewRepository(database))
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("PreviewCSV returned error: %v", err)
+	}
+
+	if _, err := database.Exec(`
+		UPDATE import_items
+		SET selected_category_id = 'commit-category-ledger-two',
+		    row_status = 'adjusted', status = 'adjusted', target_transaction_type = 'expense'
+		WHERE id = ?;
+		UPDATE import_items
+		SET row_status = 'skipped', status = 'skipped', target_transaction_type = 'skipped'
+		WHERE batch_id = ? AND id != ?;
+	`, batch.Rows[0].ID, batch.ID, batch.Rows[0].ID); err != nil {
+		t.Fatalf("inject persisted cross-ledger selection: %v", err)
+	}
+
+	_, err = service.CommitPreviewBatch(context.Background(), ownerLedgerContext(), batch.ID)
+	var appErr *appErrors.AppError
+	if !errors.As(err, &appErr) || appErr.Code != appErrors.ErrCodeValidationError {
+		t.Fatalf("expected persisted cross-ledger metadata validation error, got %v", err)
+	}
+	if countRows(t, database, "transactions") != 0 {
+		t.Fatalf("cross-ledger persisted metadata created transactions")
 	}
 }
 
@@ -813,7 +946,9 @@ func openImporterTestDB(t *testing.T) *sql.DB {
 			('owner-user', 'owner', 'Owner', 'hash', 'user', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
 			('editor-user', 'editor', 'Editor', 'hash', 'user', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 		INSERT INTO ledgers (id, name, default_currency, created_at, updated_at)
-		VALUES ('ledger-one', 'Ledger One', 'CNY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+		VALUES
+			('ledger-one', 'Ledger One', 'CNY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+			('ledger-two', 'Ledger Two', 'CNY', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 		INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
 		VALUES
 			('ledger-one', 'owner-user', 'owner', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),

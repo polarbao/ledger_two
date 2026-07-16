@@ -17,7 +17,7 @@ export interface SetupLedgerPayload {
 
 export const initApi = {
   getStatus: () =>
-    api.get<InitStatusResponse>('/api/init/status'),
+		api.get<InitStatusResponse>('/api/init/status', { ledgerScope: 'none' }),
   setup: (payload: SetupLedgerPayload) =>
-    api.post<void>('/api/init/setup', payload),
+		api.post<void>('/api/init/setup', payload, { ledgerScope: 'none' }),
 };

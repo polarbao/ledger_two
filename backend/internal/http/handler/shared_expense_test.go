@@ -12,7 +12,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
@@ -42,7 +41,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Get("/", txHandler.HandleList)
 			r.Get("/{id}", txHandler.HandleGetByID)
@@ -111,6 +110,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	body1, _ := json.Marshal(payload1)
 	req1, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(body1))
 	req1.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req1, "Test Ledger")
 	rr1 := httptest.NewRecorder()
 	r.ServeHTTP(rr1, req1)
 
@@ -153,6 +153,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	body2, _ := json.Marshal(payload2)
 	req2, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(body2))
 	req2.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req2, "Test Ledger")
 	rr2 := httptest.NewRecorder()
 	r.ServeHTTP(rr2, req2)
 
@@ -193,6 +194,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	body3, _ := json.Marshal(payload3)
 	req3, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(body3))
 	req3.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req3, "Test Ledger")
 	rr3 := httptest.NewRecorder()
 	r.ServeHTTP(rr3, req3)
 
@@ -227,6 +229,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	bodyUpdate, _ := json.Marshal(updatePayload)
 	reqUpdate, _ := http.NewRequest("PATCH", "/api/shared-expenses/"+txID1, bytes.NewBuffer(bodyUpdate))
 	reqUpdate.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqUpdate, "Test Ledger")
 	rrUpdate := httptest.NewRecorder()
 	r.ServeHTTP(rrUpdate, reqUpdate)
 
@@ -239,6 +242,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	// ----------------------------------------------------
 	reqGet, _ := http.NewRequest("GET", "/api/shared-expenses/"+txID1, nil)
 	reqGet.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqGet, "Test Ledger")
 	rrGet := httptest.NewRecorder()
 	r.ServeHTTP(rrGet, reqGet)
 
@@ -268,6 +272,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	bodyUpdate2, _ := json.Marshal(updatePayload2)
 	reqUpdate2, _ := http.NewRequest("PATCH", "/api/shared-expenses/"+txID1, bytes.NewBuffer(bodyUpdate2))
 	reqUpdate2.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqUpdate2, "Test Ledger")
 	rrUpdate2 := httptest.NewRecorder()
 	r.ServeHTTP(rrUpdate2, reqUpdate2)
 
@@ -304,6 +309,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	// ----------------------------------------------------
 	reqDel, _ := http.NewRequest("DELETE", "/api/transactions/"+txID1, nil)
 	reqDel.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDel, "Test Ledger")
 	rrDel := httptest.NewRecorder()
 	r.ServeHTTP(rrDel, reqDel)
 
@@ -314,6 +320,7 @@ func TestSharedExpenseFlow(t *testing.T) {
 	// A 再次获取列表，预期不含被软删除的 txID1
 	reqList, _ := http.NewRequest("GET", "/api/transactions", nil)
 	reqList.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqList, "Test Ledger")
 	rrList := httptest.NewRecorder()
 	r.ServeHTTP(rrList, reqList)
 

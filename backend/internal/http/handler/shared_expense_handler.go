@@ -33,7 +33,7 @@ func (h *SharedExpenseHandler) HandleCreate(w http.ResponseWriter, r *http.Reque
 
 	ledgerID, err := h.svc.GetUserLedgerID(r.Context(), userID)
 	if err != nil {
-		response.WriteError(w, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "获取系统账本失败"))
+		response.WriteError(w, err)
 		return
 	}
 

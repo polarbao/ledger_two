@@ -13,7 +13,6 @@ import (
 	"ledger_two/internal/dashboard"
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/service"
 	"ledger_two/internal/settlement"
@@ -52,7 +51,7 @@ func TestDashboardFlow(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreate)
 			r.Delete("/{id}", txHandler.HandleDelete)
@@ -127,6 +126,7 @@ func TestDashboardFlow(t *testing.T) {
 	body1, _ := json.Marshal(payload1)
 	req1, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(body1))
 	req1.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req1, "Test Ledger")
 	rr1 := httptest.NewRecorder()
 	r.ServeHTTP(rr1, req1)
 	if rr1.Code != http.StatusCreated {
@@ -149,6 +149,7 @@ func TestDashboardFlow(t *testing.T) {
 	body2, _ := json.Marshal(payload2)
 	req2, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(body2))
 	req2.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req2, "Test Ledger")
 	rr2 := httptest.NewRecorder()
 	r.ServeHTTP(rr2, req2)
 	if rr2.Code != http.StatusCreated {
@@ -171,6 +172,7 @@ func TestDashboardFlow(t *testing.T) {
 	body3, _ := json.Marshal(payload3)
 	req3, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(body3))
 	req3.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, req3, "Test Ledger")
 	rr3 := httptest.NewRecorder()
 	r.ServeHTTP(rr3, req3)
 	if rr3.Code != http.StatusCreated {
@@ -187,6 +189,7 @@ func TestDashboardFlow(t *testing.T) {
 	// ----------------------------------------------------
 	reqDash, _ := http.NewRequest("GET", "/api/dashboard?month="+currentMonth, nil)
 	reqDash.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDash, "Test Ledger")
 	rrDash := httptest.NewRecorder()
 	r.ServeHTTP(rrDash, reqDash)
 	if rrDash.Code != http.StatusOK {
@@ -269,6 +272,7 @@ func TestDashboardFlow(t *testing.T) {
 	// ----------------------------------------------------
 	reqDel, _ := http.NewRequest("DELETE", "/api/transactions/"+sharedTxID, nil)
 	reqDel.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqDel, "Test Ledger")
 	rrDel := httptest.NewRecorder()
 	r.ServeHTTP(rrDel, reqDel)
 	if rrDel.Code != http.StatusOK {

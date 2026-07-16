@@ -168,6 +168,19 @@ func (r *Repository) IsInstanceAdmin(ctx context.Context, userID string) (bool, 
 	return count > 0, nil
 }
 
+func (r *Repository) GetLedgerAccess(ctx context.Context, ledgerID string, userID string) (Role, LedgerStatus, int64, error) {
+	var role Role
+	var status LedgerStatus
+	var version int64
+	err := r.db.QueryRowContext(ctx, `
+		SELECT m.role, l.status, l.version
+		FROM ledger_members m
+		JOIN ledgers l ON l.id = m.ledger_id
+		WHERE m.ledger_id = ? AND m.user_id = ?
+	`, ledgerID, userID).Scan(&role, &status, &version)
+	return role, status, version, err
+}
+
 func (r *Repository) ClaimLedgerVersion(ctx context.Context, tx *sql.Tx, ledgerID string, expectedVersion int64) (bool, error) {
 	var executor ledgerExecutor = r.db
 	if tx != nil {

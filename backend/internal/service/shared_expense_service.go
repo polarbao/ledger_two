@@ -5,6 +5,8 @@ import (
 	"errors"
 
 	"ledger_two/internal/db/repo"
+	appErrors "ledger_two/internal/errors"
+	ledgerctx "ledger_two/internal/ledger"
 )
 
 type SharedExpenseService struct {
@@ -16,7 +18,14 @@ func NewSharedExpenseService(r *repo.SharedExpenseRepo) *SharedExpenseService {
 }
 
 func (s *SharedExpenseService) GetUserLedgerID(ctx context.Context, userID string) (string, error) {
-	return s.repo.GetUserLedgerID(ctx, userID)
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, userID)
+	if err != nil {
+		if errors.Is(err, ledgerctx.ErrLedgerContextMismatch) {
+			return "", appErrors.NewAppError(403, appErrors.ErrCodeLedgerAccessDenied, "账本上下文与当前用户不匹配")
+		}
+		return "", appErrors.NewAppError(400, appErrors.ErrCodeLedgerRequired, "请选择账本后再继续")
+	}
+	return lc.LedgerID, nil
 }
 
 type CreateSharedExpenseReq struct {

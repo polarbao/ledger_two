@@ -12,5 +12,5 @@ export interface HealthStatus {
 }
 
 export const systemApi = {
-  getHealth: async (): Promise<HealthStatus> => api.get('/api/healthz'),
+	getHealth: async (): Promise<HealthStatus> => api.get('/api/healthz', { ledgerScope: 'none' }),
 };

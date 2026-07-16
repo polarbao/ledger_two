@@ -12,7 +12,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/service"
 	"ledger_two/internal/settlement"
@@ -47,7 +46,7 @@ func TestSettlementFlow(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Get("/", txHandler.HandleList)
 			r.Delete("/{id}", txHandler.HandleDelete)
@@ -85,6 +84,7 @@ func TestSettlementFlow(t *testing.T) {
 
 	reqInvalidMonth, _ := http.NewRequest("GET", "/api/settlements/balance?month=2026-13", nil)
 	reqInvalidMonth.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqInvalidMonth, "Test Ledger")
 	rrInvalidMonth := httptest.NewRecorder()
 	r.ServeHTTP(rrInvalidMonth, reqInvalidMonth)
 	if rrInvalidMonth.Code != http.StatusBadRequest {
@@ -123,6 +123,7 @@ func TestSettlementFlow(t *testing.T) {
 	body1, _ := json.Marshal(payload1)
 	req1, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(body1))
 	req1.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req1, "Test Ledger")
 	rr1 := httptest.NewRecorder()
 	r.ServeHTTP(rr1, req1)
 	if rr1.Code != http.StatusCreated {
@@ -144,6 +145,7 @@ func TestSettlementFlow(t *testing.T) {
 	body2, _ := json.Marshal(payload2)
 	req2, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(body2))
 	req2.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, req2, "Test Ledger")
 	rr2 := httptest.NewRecorder()
 	r.ServeHTTP(rr2, req2)
 	if rr2.Code != http.StatusCreated {
@@ -155,6 +157,7 @@ func TestSettlementFlow(t *testing.T) {
 	// ----------------------------------------------------
 	reqBalance, _ := http.NewRequest("GET", "/api/settlements/balance", nil)
 	reqBalance.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqBalance, "Test Ledger")
 	rrBalance := httptest.NewRecorder()
 	r.ServeHTTP(rrBalance, reqBalance)
 	if rrBalance.Code != http.StatusOK {
@@ -205,6 +208,7 @@ func TestSettlementFlow(t *testing.T) {
 	bodySettle, _ := json.Marshal(payloadSettle)
 	reqSettle, _ := http.NewRequest("POST", "/api/settlements", bytes.NewBuffer(bodySettle))
 	reqSettle.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqSettle, "Test Ledger")
 	rrSettle := httptest.NewRecorder()
 	r.ServeHTTP(rrSettle, reqSettle)
 	if rrSettle.Code != http.StatusCreated {
@@ -257,6 +261,7 @@ func TestSettlementFlow(t *testing.T) {
 	currentMonth := time.Now().Format("2006-01")
 	reqHistory, _ := http.NewRequest("GET", "/api/settlements?month="+currentMonth, nil)
 	reqHistory.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqHistory, "Test Ledger")
 	rrHistory := httptest.NewRecorder()
 	r.ServeHTTP(rrHistory, reqHistory)
 	if rrHistory.Code != http.StatusOK {
@@ -285,6 +290,7 @@ func TestSettlementFlow(t *testing.T) {
 	bodyOdd, _ := json.Marshal(payloadOdd)
 	reqOdd, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(bodyOdd))
 	reqOdd.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqOdd, "Test Ledger")
 	rrOdd := httptest.NewRecorder()
 	r.ServeHTTP(rrOdd, reqOdd)
 	if rrOdd.Code != http.StatusCreated {
@@ -341,6 +347,7 @@ func TestSettlementFlow(t *testing.T) {
 	bodyTemp, _ := json.Marshal(payloadTemp)
 	reqTemp, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(bodyTemp))
 	reqTemp.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqTemp, "Test Ledger")
 	rrTemp := httptest.NewRecorder()
 	r.ServeHTTP(rrTemp, reqTemp)
 	if rrTemp.Code != http.StatusCreated {
@@ -365,6 +372,7 @@ func TestSettlementFlow(t *testing.T) {
 	// 软删除该临时交易
 	reqDel, _ := http.NewRequest("DELETE", "/api/transactions/"+tempTxID, nil)
 	reqDel.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDel, "Test Ledger")
 	rrDel := httptest.NewRecorder()
 	r.ServeHTTP(rrDel, reqDel)
 	if rrDel.Code != http.StatusOK {

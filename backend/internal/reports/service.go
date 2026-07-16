@@ -3,12 +3,11 @@ package reports
 import (
 	"context"
 	"database/sql"
-	"net/http"
+	stderrors "errors"
 	"sort"
 
 	"ledger_two/internal/dashboard"
 	"ledger_two/internal/errors"
-	"ledger_two/internal/http/middleware"
 	ledgerctx "ledger_two/internal/ledger"
 	"ledger_two/internal/settlement"
 )
@@ -62,27 +61,21 @@ type MemberStatItem struct {
 
 // getUserLedgerID 辅助获取 Ledger ID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
-	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
-		return lc.LedgerID, nil
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, userID)
+	if err != nil {
+		if stderrors.Is(err, ledgerctx.ErrLedgerContextMismatch) {
+			return "", errors.NewAppError(403, errors.ErrCodeLedgerAccessDenied, "账本上下文与当前用户不匹配")
+		}
+		return "", errors.NewAppError(400, errors.ErrCodeLedgerRequired, "请选择账本后再继续")
 	}
-
-	var id string
-
-	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
-	if headerLedgerID != "" {
-		err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
-		return id, err
-	}
-
-	err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
-	return id, err
+	return lc.LedgerID, nil
 }
 
 // GetMonthlySummary 获取月度汇总
 func (s *Service) GetMonthlySummary(ctx context.Context, currentUserID string, month string) (*MonthlySummaryResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "获取系统账本失败")
+		return nil, err
 	}
 
 	// 拉取结算中心轧差 (全局)
@@ -128,7 +121,7 @@ func (s *Service) GetMonthlySummary(ctx context.Context, currentUserID string, m
 func (s *Service) GetCategorySummary(ctx context.Context, currentUserID string, month string) ([]CategorySummaryItem, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "获取系统账本失败")
+		return nil, err
 	}
 
 	list, _, _, categoryMap, _, err := s.dashboardRepo.GetDashboardRawData(ctx, ledgerID, currentUserID, month)
@@ -179,7 +172,7 @@ func (s *Service) GetCategorySummary(ctx context.Context, currentUserID string, 
 func (s *Service) GetTagSummary(ctx context.Context, currentUserID string, month string) ([]TagSummaryItem, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "获取系统账本失败")
+		return nil, err
 	}
 
 	list, tagsMap, _, _, _, err := s.dashboardRepo.GetDashboardRawData(ctx, ledgerID, currentUserID, month)
@@ -225,7 +218,7 @@ func (s *Service) GetTagSummary(ctx context.Context, currentUserID string, month
 func (s *Service) GetMemberSummary(ctx context.Context, currentUserID string, month string) ([]MemberStatItem, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "获取系统账本失败")
+		return nil, err
 	}
 
 	list, _, splitsMap, _, userMap, err := s.dashboardRepo.GetDashboardRawData(ctx, ledgerID, currentUserID, month)

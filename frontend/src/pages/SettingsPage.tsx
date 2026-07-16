@@ -185,7 +185,7 @@ export default function SettingsPage() {
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
   const canImportData = useHasLedgerRole(['owner']);
   const canExportData = useHasLedgerRole(['owner', 'editor']);
-  const canManageSafety = useHasLedgerRole(['owner']);
+	const canManageSafety = Boolean(currentUser?.instance_admin);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -231,12 +231,18 @@ export default function SettingsPage() {
     }
   };
 
-  const triggerDownload = async (url: string, defaultFilename: string) => {
+	const triggerDownload = async (url: string, defaultFilename: string, ledgerScoped = false) => {
     setActionLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      const response = await fetch(url, { credentials: 'include' });
+		if (ledgerScoped && !activeLedgerId) {
+			throw new Error('请先选择账本');
+		}
+		const response = await fetch(url, {
+			credentials: 'include',
+			headers: ledgerScoped ? { 'X-Ledger-Id': activeLedgerId as string } : undefined,
+		});
       if (!response.ok) {
         let message = '下载失败';
         try {
@@ -271,7 +277,7 @@ export default function SettingsPage() {
     error: diagnosticsError,
     refetch: refetchDiagnostics,
   } = useQuery({
-    queryKey: queryKeys.safety.diagnostics(activeLedgerId),
+		queryKey: queryKeys.safety.diagnostics,
     queryFn: safetyApi.getDiagnostics,
     enabled: canManageSafety,
   });
@@ -284,12 +290,12 @@ export default function SettingsPage() {
     if (modalType === 'csv') {
       setModalType(null);
       const query = selectedMonth ? `?month=${encodeURIComponent(selectedMonth)}` : '';
-      void triggerDownload(`/api/export/transactions.csv${query}`, `transactions${selectedMonth ? `-${selectedMonth}` : ''}.csv`);
+		void triggerDownload(`/api/export/transactions.csv${query}`, `transactions${selectedMonth ? `-${selectedMonth}` : ''}.csv`, true);
       return;
     }
     if (modalType === 'json') {
       setModalType(null);
-      void triggerDownload('/api/export/full.json', 'ledger-two-full.json');
+		void triggerDownload('/api/export/full.json', 'ledger-two-full.json', true);
     }
   };
 
@@ -479,10 +485,10 @@ export default function SettingsPage() {
             icon={<Database size={20} />}
             title="创建 SQLite 安全备份"
             description="生成当前数据库的只读镜像并写入审计日志，不修改任何现有账单。"
-            badge={<StatusChip tone="danger">Owner 高风险</StatusChip>}
+			badge={<StatusChip tone="danger">实例管理员高风险</StatusChip>}
             tone="danger"
           >
-            <PermissionGate allow={['owner']} fallback={<NoPermissionHint text="只有 Owner 可以创建、下载或准备恢复物理备份。" />}>
+			{canManageSafety ? (
               <Button
                 variant="primary"
                 startIcon={<Database size={16} />}
@@ -492,10 +498,10 @@ export default function SettingsPage() {
               >
                 创建安全备份
               </Button>
-            </PermissionGate>
+			) : <NoPermissionHint text="只有实例管理员可以创建、下载或准备恢复物理备份。" />}
           </SettingsActionCard>
 
-          <PermissionGate allow={['owner']} fallback={null}>
+			{canManageSafety ? (
             <SettingsActionCard
               icon={<HardDrive size={20} />}
               title="历史手动备份"
@@ -544,7 +550,7 @@ export default function SettingsPage() {
                 </div>
               )}
             </SettingsActionCard>
-          </PermissionGate>
+			) : null}
         </div>
       </SettingsSection>
 
@@ -558,10 +564,11 @@ export default function SettingsPage() {
           icon={<Activity size={20} />}
           title="运行与存储诊断"
           description="检查环境、schema、Cookie 策略、数据库和目录可写性。"
-          badge={<StatusChip>Owner</StatusChip>}
+			badge={<StatusChip>实例管理员</StatusChip>}
           wide
         >
-          <PermissionGate allow={['owner']} fallback={<NoPermissionHint text="只有 Owner 可以查看系统诊断。" />}>
+			{canManageSafety ? (
+			<>
             <div className="settings-card__toolbar settings-card__toolbar--end">
               <Button
                 variant="ghost"
@@ -597,7 +604,8 @@ export default function SettingsPage() {
                 </div>
               </div>
             ) : null}
-          </PermissionGate>
+			</>
+			) : <NoPermissionHint text="只有实例管理员可以查看系统诊断。" />}
         </SettingsActionCard>
       </SettingsSection>
 

@@ -34,7 +34,7 @@ func NewRepository(db *sql.DB) *Repository {
 // @return map[string][]string 交易 ID 关联标签 Map
 // @return map[string][]transaction.SplitResponse 交易 ID 关联分摊 Map
 // @return map[string]string 账本内所有分类 Map [category_id] -> name
-// @return map[string]string 系统所有用户显示名 Map [user_id] -> display_name
+// @return map[string]string 当前账本成员显示名 Map [user_id] -> display_name
 // @return error 错误信息
 func (r *Repository) GetDashboardRawData(
 	ctx context.Context,
@@ -63,9 +63,14 @@ func (r *Repository) GetDashboardRawData(
 		}
 	}
 
-	// 2. 查询系统内的所有用户 display_name 映射
+	// 2. 仅查询当前账本成员，避免统计响应暴露实例内其他用户。
 	users := make(map[string]string)
-	userRows, err := r.db.QueryContext(ctx, "SELECT id, display_name FROM users")
+	userRows, err := r.db.QueryContext(ctx, `
+		SELECT users.id, users.display_name
+		FROM ledger_members
+		JOIN users ON users.id = ledger_members.user_id
+		WHERE ledger_members.ledger_id = ?
+	`, ledgerID)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -145,10 +150,14 @@ func (r *Repository) GetDashboardRawData(
 		SELECT tt.transaction_id, t.name
 		FROM tags t
 		JOIN transaction_tags tt ON t.id = tt.tag_id
-		WHERE tt.transaction_id IN (%s)
+		JOIN transactions parent ON parent.id = tt.transaction_id
+		WHERE t.ledger_id = ? AND parent.ledger_id = ? AND tt.transaction_id IN (%s)
 	`, strings.Join(placeholders, ","))
 
-	tagRows, err := r.db.QueryContext(ctx, tagQuery, args...)
+	tagArgs := make([]any, 0, len(args)+2)
+	tagArgs = append(tagArgs, ledgerID, ledgerID)
+	tagArgs = append(tagArgs, args...)
+	tagRows, err := r.db.QueryContext(ctx, tagQuery, tagArgs...)
 	if err == nil {
 		defer tagRows.Close()
 		for tagRows.Next() {
@@ -161,12 +170,16 @@ func (r *Repository) GetDashboardRawData(
 
 	// 5. 批量拉取交易关联的所有 splits 记录 (防 N+1)
 	splitQuery := fmt.Sprintf(`
-		SELECT transaction_id, user_id, share_amount
-		FROM transaction_splits
-		WHERE transaction_id IN (%s)
+		SELECT splits.transaction_id, splits.user_id, splits.share_amount
+		FROM transaction_splits splits
+		JOIN transactions parent ON parent.id = splits.transaction_id
+		WHERE parent.ledger_id = ? AND splits.transaction_id IN (%s)
 	`, strings.Join(placeholders, ","))
 
-	splitRows, err := r.db.QueryContext(ctx, splitQuery, args...)
+	splitArgs := make([]any, 0, len(args)+1)
+	splitArgs = append(splitArgs, ledgerID)
+	splitArgs = append(splitArgs, args...)
+	splitRows, err := r.db.QueryContext(ctx, splitQuery, splitArgs...)
 	if err == nil {
 		defer splitRows.Close()
 		for splitRows.Next() {

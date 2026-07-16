@@ -2,11 +2,11 @@ package dashboard
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"time"
 
 	appErrors "ledger_two/internal/errors"
-	"ledger_two/internal/http/middleware"
 	ledgerctx "ledger_two/internal/ledger"
 	"ledger_two/internal/settlement"
 	"ledger_two/internal/transaction"
@@ -50,7 +50,7 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 	// 2. 获取全局唯一 LedgerID
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	// 3. 获取全局结算净额轧差（跨月份）
@@ -223,20 +223,14 @@ func (s *Service) GetDashboardData(ctx context.Context, currentUserID string, mo
 
 // 辅助方法：查询唯一 LedgerID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
-	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
-		return lc.LedgerID, nil
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, userID)
+	if err != nil {
+		if errors.Is(err, ledgerctx.ErrLedgerContextMismatch) {
+			return "", appErrors.NewAppError(403, appErrors.ErrCodeLedgerAccessDenied, "账本上下文与当前用户不匹配")
+		}
+		return "", appErrors.NewAppError(400, appErrors.ErrCodeLedgerRequired, "请选择账本后再继续")
 	}
-
-	var id string
-
-	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
-	if headerLedgerID != "" {
-		err := s.repo.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
-		return id, err
-	}
-
-	err := s.repo.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
-	return id, err
+	return lc.LedgerID, nil
 }
 
 // 辅助转换

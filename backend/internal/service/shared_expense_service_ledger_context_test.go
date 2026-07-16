@@ -1,4 +1,4 @@
-package reports
+package service
 
 import (
 	"context"
@@ -9,29 +9,26 @@ import (
 	ledgerctx "ledger_two/internal/ledger"
 )
 
-func TestGetUserLedgerIDUsesLedgerContext(t *testing.T) {
-	svc := &Service{}
+func TestSharedExpenseGetUserLedgerIDUsesExplicitContext(t *testing.T) {
+	svc := &SharedExpenseService{}
 	ctx := ledgerctx.ContextWithLedgerContext(context.Background(), ledgerctx.LedgerContext{
 		UserID:     "user-a",
 		LedgerID:   "ledger-a",
-		Role:       ledgerctx.RoleViewer,
+		Role:       ledgerctx.RoleOwner,
 		Status:     ledgerctx.LedgerStatusActive,
 		Version:    1,
 		IsExplicit: true,
 	})
 
-	ledgerID, err := svc.getUserLedgerID(ctx, "user-a")
-	if err != nil {
-		t.Fatalf("get ledger id from context failed: %v", err)
-	}
-	if ledgerID != "ledger-a" {
-		t.Fatalf("expected ledger-a, got %s", ledgerID)
+	ledgerID, err := svc.GetUserLedgerID(ctx, "user-a")
+	if err != nil || ledgerID != "ledger-a" {
+		t.Fatalf("got ledger=%q err=%v", ledgerID, err)
 	}
 }
 
-func TestGetUserLedgerIDRejectsMissingExplicitContext(t *testing.T) {
-	svc := &Service{}
-	_, err := svc.getUserLedgerID(context.Background(), "user-a")
+func TestSharedExpenseGetUserLedgerIDRejectsMissingContext(t *testing.T) {
+	svc := &SharedExpenseService{}
+	_, err := svc.GetUserLedgerID(context.Background(), "user-a")
 	var appErr *appErrors.AppError
 	if !errors.As(err, &appErr) || appErr.Code != appErrors.ErrCodeLedgerRequired {
 		t.Fatalf("expected LEDGER_REQUIRED, got %v", err)

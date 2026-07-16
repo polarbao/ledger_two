@@ -43,7 +43,7 @@ export const queryKeys = {
   recurringRules: (ledgerId?: string | null) => ['recurring-rules', ledgerScope(ledgerId)] as const,
   recurringReminders: (ledgerId?: string | null) => ['recurring-reminders', ledgerScope(ledgerId)] as const,
   safety: {
-    diagnostics: (ledgerId?: string | null) => ['safety', ledgerScope(ledgerId), 'diagnostics'] as const,
+		diagnostics: ['safety', 'diagnostics'] as const,
   },
   settlements: {
     root: (ledgerId?: string | null) => ['settlements', ledgerScope(ledgerId)] as const,

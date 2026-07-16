@@ -2,24 +2,17 @@ package safety
 
 import (
 	"context"
+	stderrors "errors"
 	"testing"
 
-	ledgerctx "ledger_two/internal/ledger"
+	appErrors "ledger_two/internal/errors"
 )
 
-func TestGetUserLedgerIDUsesLedgerContext(t *testing.T) {
+func TestExportJSONRejectsMissingExplicitLedgerContext(t *testing.T) {
 	svc := &Service{}
-	ctx := ledgerctx.ContextWithLedgerContext(context.Background(), ledgerctx.LedgerContext{
-		UserID:   "user-a",
-		LedgerID: "ledger-a",
-		Role:     ledgerctx.RoleOwner,
-	})
-
-	ledgerID, err := svc.getUserLedgerID(ctx, "user-a")
-	if err != nil {
-		t.Fatalf("get ledger id from context failed: %v", err)
-	}
-	if ledgerID != "ledger-a" {
-		t.Fatalf("expected ledger-a, got %s", ledgerID)
+	_, err := svc.ExportJSON(context.Background(), "user-a")
+	var appErr *appErrors.AppError
+	if !stderrors.As(err, &appErr) || appErr.Code != appErrors.ErrCodeLedgerRequired {
+		t.Fatalf("expected LEDGER_REQUIRED, got %v", err)
 	}
 }

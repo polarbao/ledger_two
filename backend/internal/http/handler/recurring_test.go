@@ -12,7 +12,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
 )
@@ -40,7 +39,7 @@ func TestRecurringBilling(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Route("/api/recurring-rules", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreateRecurringRule)
 			r.Get("/", txHandler.HandleListRecurringRules)
@@ -75,6 +74,10 @@ func TestRecurringBilling(t *testing.T) {
 	}
 
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
+	var userAID string
+	if err := db.QueryRow("SELECT id FROM users WHERE username = 'userA'").Scan(&userAID); err != nil {
+		t.Fatalf("query userA id: %v", err)
+	}
 	dueDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	nextDueDate, err := nextMonthlyDate(dueDate)
 	if err != nil {
@@ -92,6 +95,7 @@ func TestRecurringBilling(t *testing.T) {
 	body1, _ := json.Marshal(badPayload1)
 	req1, _ := http.NewRequest("POST", "/api/recurring-rules", bytes.NewBuffer(body1))
 	req1.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req1, "Recurring Test Ledger")
 	rr1 := httptest.NewRecorder()
 	r.ServeHTTP(rr1, req1)
 	if rr1.Code != http.StatusBadRequest {
@@ -108,6 +112,7 @@ func TestRecurringBilling(t *testing.T) {
 	body2, _ := json.Marshal(badPayload2)
 	req2, _ := http.NewRequest("POST", "/api/recurring-rules", bytes.NewBuffer(body2))
 	req2.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req2, "Recurring Test Ledger")
 	rr2 := httptest.NewRecorder()
 	r.ServeHTTP(rr2, req2)
 	if rr2.Code != http.StatusBadRequest {
@@ -123,7 +128,7 @@ func TestRecurringBilling(t *testing.T) {
 		"type":          "shared_expense",
 		"title":         &titleVal,
 		"amount_cents":  &amountVal,
-		"payer_user_id": "userA",
+		"payer_user_id": userAID,
 		"split_method":  "equal",
 		"tag_names":     []string{"住房", "固定支出"},
 		"note":          &noteVal,
@@ -133,6 +138,7 @@ func TestRecurringBilling(t *testing.T) {
 	bodyOk, _ := json.Marshal(okPayload)
 	reqOk, _ := http.NewRequest("POST", "/api/recurring-rules", bytes.NewBuffer(bodyOk))
 	reqOk.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqOk, "Recurring Test Ledger")
 	rrOk := httptest.NewRecorder()
 	r.ServeHTTP(rrOk, reqOk)
 	if rrOk.Code != http.StatusCreated {
@@ -152,6 +158,7 @@ func TestRecurringBilling(t *testing.T) {
 	// 然后 NextDueDate 推进 1 个月；由于推进后的日期大于今天，扫描停止。
 	reqList, _ := http.NewRequest("GET", "/api/recurring-reminders", nil)
 	reqList.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqList, "Recurring Test Ledger")
 	rrList := httptest.NewRecorder()
 	r.ServeHTTP(rrList, reqList)
 	if rrList.Code != http.StatusOK {
@@ -179,6 +186,7 @@ func TestRecurringBilling(t *testing.T) {
 	// 验证规则下次到期日已经被更新到 2026-07-01
 	reqRules, _ := http.NewRequest("GET", "/api/recurring-rules", nil)
 	reqRules.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqRules, "Recurring Test Ledger")
 	rrRules := httptest.NewRecorder()
 	r.ServeHTTP(rrRules, reqRules)
 	var rulesResp struct {
@@ -198,6 +206,7 @@ func TestRecurringBilling(t *testing.T) {
 	reminderID := reminder["id"].(string)
 	reqConfirm, _ := http.NewRequest("POST", "/api/recurring-reminders/"+reminderID+"/confirm", nil)
 	reqConfirm.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqConfirm, "Recurring Test Ledger")
 	rrConfirm := httptest.NewRecorder()
 	r.ServeHTTP(rrConfirm, reqConfirm)
 	if rrConfirm.Code != http.StatusOK {
@@ -207,6 +216,7 @@ func TestRecurringBilling(t *testing.T) {
 	// 5. 校验真实流水是否增加，且数据一致
 	reqTx, _ := http.NewRequest("GET", "/api/transactions", nil)
 	reqTx.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqTx, "Recurring Test Ledger")
 	rrTx := httptest.NewRecorder()
 	r.ServeHTTP(rrTx, reqTx)
 	var txResp struct {
@@ -235,6 +245,7 @@ func TestRecurringBilling(t *testing.T) {
 	// 6. 已确认后无 pending 提醒时应返回空数组，而不是 JSON null。
 	reqListEmpty, _ := http.NewRequest("GET", "/api/recurring-reminders", nil)
 	reqListEmpty.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListEmpty, "Recurring Test Ledger")
 	rrListEmpty := httptest.NewRecorder()
 	r.ServeHTTP(rrListEmpty, reqListEmpty)
 	if rrListEmpty.Code != http.StatusOK {
@@ -256,6 +267,7 @@ func TestRecurringBilling(t *testing.T) {
 	// 7. 测试删除规则
 	reqDel, _ := http.NewRequest("DELETE", "/api/recurring-rules/"+createdRule.Data.ID, nil)
 	reqDel.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDel, "Recurring Test Ledger")
 	rrDel := httptest.NewRecorder()
 	r.ServeHTTP(rrDel, reqDel)
 	if rrDel.Code != http.StatusOK {

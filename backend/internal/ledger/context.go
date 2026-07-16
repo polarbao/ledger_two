@@ -8,12 +8,15 @@ import (
 type ledgerContextKey struct{}
 
 var (
-	ErrLedgerUserRequired = errors.New("ledger user id is required")
-	ErrLedgerIDRequired   = errors.New("ledger id is required")
-	ErrLedgerRoleInvalid  = errors.New("ledger role is invalid")
+	ErrLedgerUserRequired    = errors.New("ledger user id is required")
+	ErrLedgerIDRequired      = errors.New("ledger id is required")
+	ErrLedgerRoleInvalid     = errors.New("ledger role is invalid")
+	ErrLedgerStateInvalid    = errors.New("ledger state is invalid")
+	ErrLedgerContextRequired = errors.New("explicit ledger context is required")
+	ErrLedgerContextMismatch = errors.New("ledger context does not match current user")
 )
 
-type MembershipLookup func(ctx context.Context, ledgerID string, userID string) (Role, error)
+type LedgerAccessLookup func(ctx context.Context, ledgerID string, userID string) (Role, LedgerStatus, int64, error)
 
 func ContextWithLedgerContext(ctx context.Context, lc LedgerContext) context.Context {
 	return context.WithValue(ctx, ledgerContextKey{}, lc)
@@ -24,7 +27,18 @@ func LedgerContextFromContext(ctx context.Context) (LedgerContext, bool) {
 	return lc, ok
 }
 
-func ResolveLedgerContext(ctx context.Context, userID string, ledgerID string, isExplicit bool, lookup MembershipLookup) (LedgerContext, error) {
+func RequireExplicitLedgerContext(ctx context.Context, userID string) (LedgerContext, error) {
+	lc, ok := LedgerContextFromContext(ctx)
+	if !ok || !lc.IsExplicit || lc.LedgerID == "" {
+		return LedgerContext{}, ErrLedgerContextRequired
+	}
+	if lc.UserID != userID {
+		return LedgerContext{}, ErrLedgerContextMismatch
+	}
+	return lc, nil
+}
+
+func ResolveLedgerContext(ctx context.Context, userID string, ledgerID string, isExplicit bool, lookup LedgerAccessLookup) (LedgerContext, error) {
 	if userID == "" {
 		return LedgerContext{}, ErrLedgerUserRequired
 	}
@@ -32,18 +46,23 @@ func ResolveLedgerContext(ctx context.Context, userID string, ledgerID string, i
 		return LedgerContext{}, ErrLedgerIDRequired
 	}
 
-	role, err := lookup(ctx, ledgerID, userID)
+	role, status, version, err := lookup(ctx, ledgerID, userID)
 	if err != nil {
 		return LedgerContext{}, err
 	}
 	if !IsValidRole(role) {
 		return LedgerContext{}, ErrLedgerRoleInvalid
 	}
+	if (status != LedgerStatusActive && status != LedgerStatusArchived) || version < 1 {
+		return LedgerContext{}, ErrLedgerStateInvalid
+	}
 
 	return LedgerContext{
 		UserID:     userID,
 		LedgerID:   ledgerID,
 		Role:       role,
+		Status:     status,
+		Version:    version,
 		IsExplicit: isExplicit,
 	}, nil
 }

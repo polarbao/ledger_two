@@ -14,7 +14,6 @@ import (
 
 	"ledger_two/internal/config"
 	"ledger_two/internal/errors"
-	"ledger_two/internal/http/middleware"
 	ledgerctx "ledger_two/internal/ledger"
 
 	"github.com/google/uuid"
@@ -22,14 +21,16 @@ import (
 )
 
 type Service struct {
-	db  *sql.DB
-	cfg *config.Config
+	db             *sql.DB
+	cfg            *config.Config
+	instancePolicy ledgerctx.InstancePolicy
 }
 
 func NewService(db *sql.DB, cfg *config.Config) *Service {
 	return &Service{
-		db:  db,
-		cfg: cfg,
+		db:             db,
+		cfg:            cfg,
+		instancePolicy: ledgerctx.NewInstancePolicy(ledgerctx.NewRepository(db)),
 	}
 }
 
@@ -75,19 +76,19 @@ func (s *Service) checkBackupDirWritable(dir string) error {
 	return nil
 }
 
-func (s *Service) requireLedgerOwner(ctx context.Context, userID string) error {
-	lc, ok := ledgerctx.LedgerContextFromContext(ctx)
-	if !ok || lc.UserID != userID {
-		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeForbidden, "需要选择账本后才能执行该操作")
+func (s *Service) requireInstanceAdmin(ctx context.Context, userID string) error {
+	allowed, err := s.instancePolicy.Can(ctx, userID)
+	if err != nil {
+		return errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "实例权限校验失败")
 	}
-	if lc.Role != ledgerctx.RoleOwner {
-		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeForbidden, "仅 Owner 可执行该操作")
+	if !allowed {
+		return errors.NewAppError(http.StatusForbidden, errors.ErrCodeInstanceAdminRequired, "需要实例管理员权限")
 	}
 	return nil
 }
 
 func (s *Service) Diagnostics(ctx context.Context, actorUserID string) (*Diagnostics, error) {
-	if err := s.requireLedgerOwner(ctx, actorUserID); err != nil {
+	if err := s.requireInstanceAdmin(ctx, actorUserID); err != nil {
 		return nil, err
 	}
 
@@ -238,7 +239,7 @@ func (s *Service) auditActionCounts(ctx context.Context) map[string]int {
 	if s.db == nil {
 		return counts
 	}
-	rows, err := s.db.QueryContext(ctx, "SELECT action, COUNT(*) FROM audit_logs GROUP BY action")
+	rows, err := s.db.QueryContext(ctx, "SELECT action, COUNT(*) FROM instance_audit_logs GROUP BY action")
 	if err != nil {
 		return counts
 	}
@@ -253,33 +254,19 @@ func (s *Service) auditActionCounts(ctx context.Context) map[string]int {
 	return counts
 }
 
-// getUserLedgerID 获取唯一的账本 ID
-func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
-	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
-		return lc.LedgerID, nil
-	}
-
-	var id string
-
-	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
-	if headerLedgerID != "" {
-		err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
-		if err != nil {
-			return "", err
-		}
-		return id, nil
-	}
-
-	err := s.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
-	if err != nil {
-		return "", err
-	}
-	return id, nil
+func (s *Service) recordInstanceAudit(ctx context.Context, actorUserID string, action string, entityType string, entityID string, afterJSON string, createdAt time.Time) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO instance_audit_logs (
+			id, actor_user_id, action, entity_type, entity_id,
+			before_json, after_json, created_at
+		) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
+	`, uuid.NewString(), actorUserID, action, entityType, entityID, afterJSON, createdAt.Format(time.RFC3339))
+	return err
 }
 
 // ManualBackup 手动备份 SQLite 数据库
 func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string, error) {
-	if err := s.requireLedgerOwner(ctx, actorUserID); err != nil {
+	if err := s.requireInstanceAdmin(ctx, actorUserID); err != nil {
 		return "", err
 	}
 
@@ -308,13 +295,7 @@ func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string,
 		sizeBytes = fi.Size()
 	}
 
-	ledgerID, err := s.getUserLedgerID(ctx, actorUserID)
-	if err != nil {
-		_ = os.Remove(backupPath)
-		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "failed to get default ledger: "+err.Error())
-	}
-
-	// 记录审计日志
+	// 记录实例级审计日志，不伪造账本 ID。
 	afterJSONObj := map[string]interface{}{
 		"filename":   filename,
 		"size_bytes": sizeBytes,
@@ -322,13 +303,7 @@ func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string,
 	}
 	afterBytes, _ := json.Marshal(afterJSONObj)
 
-	auditQuery := `
-		INSERT INTO audit_logs (id, ledger_id, actor_user_id, action, entity_type, entity_id, before_json, after_json, created_at)
-		VALUES (?, ?, ?, 'backup', 'database', ?, NULL, ?, ?)
-	`
-	_, err = s.db.ExecContext(ctx, auditQuery,
-		uuid.NewString(), ledgerID, actorUserID, filename, string(afterBytes), now.Format(time.RFC3339))
-	if err != nil {
+	if err := s.recordInstanceAudit(ctx, actorUserID, "manual_database_backup", "database", filename, string(afterBytes), now); err != nil {
 		_ = os.Remove(backupPath)
 		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "failed to record backup audit log: "+err.Error())
 	}
@@ -338,7 +313,7 @@ func (s *Service) ManualBackup(ctx context.Context, actorUserID string) (string,
 
 // RestoreBackup 准备恢复流程。因操作系统文件锁机制，后端仅执行自动前置备份并返回操作指引。
 func (s *Service) RestoreBackup(ctx context.Context, actorUserID string, targetFilename string) (string, error) {
-	if err := s.requireLedgerOwner(ctx, actorUserID); err != nil {
+	if err := s.requireInstanceAdmin(ctx, actorUserID); err != nil {
 		return "", err
 	}
 
@@ -370,21 +345,15 @@ func (s *Service) RestoreBackup(ctx context.Context, actorUserID string, targetF
 		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "自动前置备份失败，终止恢复流程: "+err.Error())
 	}
 
-	ledgerID, err := s.getUserLedgerID(ctx, actorUserID)
-	if err == nil {
-		afterJSONObj := map[string]interface{}{
-			"action":          "pre_restore_backup",
-			"target_restore":  targetFilename,
-			"pre_backup_file": "manual/" + preFilename,
-		}
-		afterBytes, _ := json.Marshal(afterJSONObj)
-
-		auditQuery := `
-			INSERT INTO audit_logs (id, ledger_id, actor_user_id, action, entity_type, entity_id, before_json, after_json, created_at)
-			VALUES (?, ?, ?, 'restore_prepare', 'database', ?, NULL, ?, ?)
-		`
-		_, _ = s.db.ExecContext(ctx, auditQuery,
-			uuid.NewString(), ledgerID, actorUserID, targetFilename, string(afterBytes), now.Format(time.RFC3339))
+	afterJSONObj := map[string]interface{}{
+		"action":          "pre_restore_backup",
+		"target_restore":  targetFilename,
+		"pre_backup_file": "manual/" + preFilename,
+	}
+	afterBytes, _ := json.Marshal(afterJSONObj)
+	if err := s.recordInstanceAudit(ctx, actorUserID, "prepare_database_restore", "database", targetFilename, string(afterBytes), now); err != nil {
+		_ = os.Remove(preBackupPath)
+		return "", errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeBackupFailed, "记录恢复准备审计失败")
 	}
 
 	// 2. 返回人工覆盖指引（策略 B）
@@ -439,14 +408,20 @@ func (s *Service) GetBackups(ctx context.Context) ([]BackupInfo, error) {
 
 // ExportCSV 导出当前登录用户有权查看的交易流水为 CSV 内容
 func (s *Service) ExportCSV(ctx context.Context, actorUserID string, month string) ([]byte, error) {
-	ledgerID, err := s.getUserLedgerID(ctx, actorUserID)
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, actorUserID)
 	if err != nil {
-		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "failed to get default ledger: "+err.Error())
+		return nil, errors.NewAppError(http.StatusBadRequest, errors.ErrCodeLedgerRequired, "请选择账本后再导出")
 	}
+	ledgerID := lc.LedgerID
 
 	// 1. 查询用户
 	userMap := make(map[string]string) // id -> display_name
-	uRows, err := s.db.QueryContext(ctx, "SELECT id, display_name, username FROM users")
+	uRows, err := s.db.QueryContext(ctx, `
+		SELECT users.id, users.display_name, users.username
+		FROM ledger_members
+		JOIN users ON users.id = ledger_members.user_id
+		WHERE ledger_members.ledger_id = ?
+	`, ledgerID)
 	if err == nil {
 		defer uRows.Close()
 		for uRows.Next() {
@@ -480,8 +455,9 @@ func (s *Service) ExportCSV(ctx context.Context, actorUserID string, month strin
 		SELECT tt.transaction_id, t.name 
 		FROM transaction_tags tt
 		JOIN tags t ON tt.tag_id = t.id
-		WHERE t.ledger_id = ?
-	`, ledgerID)
+		JOIN transactions parent ON parent.id = tt.transaction_id
+		WHERE t.ledger_id = ? AND parent.ledger_id = ?
+	`, ledgerID, ledgerID)
 	if err == nil {
 		defer tRows.Close()
 		for tRows.Next() {
@@ -624,10 +600,11 @@ func escapeCSVField(f string) string {
 
 // ExportJSON 导出当前用户可见的所有数据块并进行脱敏
 func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, error) {
-	ledgerID, err := s.getUserLedgerID(ctx, actorUserID)
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, actorUserID)
 	if err != nil {
-		return nil, errors.NewAppError(http.StatusInternalServerError, errors.ErrCodeInternalError, "failed to get default ledger: "+err.Error())
+		return nil, errors.NewAppError(http.StatusBadRequest, errors.ErrCodeLedgerRequired, "请选择账本后再导出")
 	}
+	ledgerID := lc.LedgerID
 
 	// 1. 导出脱敏的 users
 	type UserDTO struct {
@@ -641,7 +618,14 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		UpdatedAt   string  `json:"updated_at"`
 	}
 	users := make([]UserDTO, 0)
-	uRows, err := s.db.QueryContext(ctx, "SELECT id, username, display_name, avatar_url, role, is_active, created_at, updated_at FROM users")
+	uRows, err := s.db.QueryContext(ctx, `
+		SELECT users.id, users.username, users.display_name, users.avatar_url,
+		       ledger_members.role, users.is_active, users.created_at, users.updated_at
+		FROM ledger_members
+		JOIN users ON users.id = ledger_members.user_id
+		WHERE ledger_members.ledger_id = ?
+		ORDER BY ledger_members.created_at ASC, users.id ASC
+	`, ledgerID)
 	if err == nil {
 		defer uRows.Close()
 		for uRows.Next() {
@@ -831,7 +815,13 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		UpdatedAt     string `json:"updated_at"`
 	}
 	splits := make([]SplitDTO, 0)
-	sRows, err := s.db.QueryContext(ctx, "SELECT id, transaction_id, user_id, share_amount, share_ratio, created_at, updated_at FROM transaction_splits")
+	sRows, err := s.db.QueryContext(ctx, `
+		SELECT splits.id, splits.transaction_id, splits.user_id, splits.share_amount,
+		       splits.share_ratio, splits.created_at, splits.updated_at
+		FROM transaction_splits splits
+		JOIN transactions parent ON parent.id = splits.transaction_id
+		WHERE parent.ledger_id = ?
+	`, ledgerID)
 	if err == nil {
 		defer sRows.Close()
 		for sRows.Next() {
@@ -914,24 +904,6 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		}
 	}
 
-	// 9. 导出 app_settings
-	type AppSettingDTO struct {
-		Key       string `json:"key"`
-		Value     string `json:"value"`
-		UpdatedAt string `json:"updated_at"`
-	}
-	appSettings := make([]AppSettingDTO, 0)
-	setSettingsRows, err := s.db.QueryContext(ctx, "SELECT key, value, updated_at FROM app_settings")
-	if err == nil {
-		defer setSettingsRows.Close()
-		for setSettingsRows.Next() {
-			var as AppSettingDTO
-			if err := setSettingsRows.Scan(&as.Key, &as.Value, &as.UpdatedAt); err == nil {
-				appSettings = append(appSettings, as)
-			}
-		}
-	}
-
 	// 组装最终结果
 	exportData := map[string]interface{}{
 		"users":              users,
@@ -942,7 +914,6 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		"transaction_splits": splits,
 		"settlements":        settlements,
 		"audit_logs":         auditLogs,
-		"app_settings":       appSettings,
 	}
 
 	jsonBytes, err := json.MarshalIndent(exportData, "", "  ")

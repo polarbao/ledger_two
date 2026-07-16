@@ -13,7 +13,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
 )
@@ -65,7 +64,7 @@ func TestCSVImportParse(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Post("/api/transactions/import/parse", txHandler.HandleParseCSV)
 	})
 
@@ -88,6 +87,10 @@ func TestCSVImportParse(t *testing.T) {
 	}
 
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
+	var ledgerID string
+	if err := db.QueryRow("SELECT id FROM ledgers WHERE name = ?", setupPayload["ledger_name"]).Scan(&ledgerID); err != nil {
+		t.Fatalf("query import test ledger: %v", err)
+	}
 
 	t.Run("UTF-8 CSV Parse Success", func(t *testing.T) {
 		csvContent := `交易时间,交易类型,交易对方,商品,金额(元),备注
@@ -96,6 +99,7 @@ func TestCSVImportParse(t *testing.T) {
 `
 		req := constructMultipartRequest(t, "file", "statement.csv", []byte(csvContent))
 		req.AddCookie(cookieA)
+		req.Header.Set("X-Ledger-Id", ledgerID)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -145,6 +149,7 @@ func TestCSVImportParse(t *testing.T) {
 
 		req := constructMultipartRequest(t, "file", "alipay_gbk.csv", gbkContent)
 		req.AddCookie(cookieA)
+		req.Header.Set("X-Ledger-Id", ledgerID)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -174,6 +179,7 @@ func TestCSVImportParse(t *testing.T) {
 	t.Run("Invalid File Type Error (Non-CSV)", func(t *testing.T) {
 		req := constructMultipartRequest(t, "file", "statement.txt", []byte("some normal text data"))
 		req.AddCookie(cookieA)
+		req.Header.Set("X-Ledger-Id", ledgerID)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -207,6 +213,7 @@ func TestCSVImportParse(t *testing.T) {
 `
 		req := constructMultipartRequest(t, "file", "wechat.csv", []byte(mixedContent))
 		req.AddCookie(cookieA)
+		req.Header.Set("X-Ledger-Id", ledgerID)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -259,7 +266,7 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Post("/api/transactions/import/analyze", txHandler.HandleAnalyzeImport)
 		r.Post("/api/transactions/import/commit", txHandler.HandleCommitImport)
 	})
@@ -283,6 +290,10 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 	}
 
 	cookieA := getLoginCookie(t, r, "userA", "pass123")
+	var ledgerID string
+	if err := db.QueryRow("SELECT id FROM ledgers WHERE name = ?", setupPayload["ledger_name"]).Scan(&ledgerID); err != nil {
+		t.Fatalf("query import commit ledger: %v", err)
+	}
 
 	// 获取默认分类 ID
 	var categoryID string
@@ -330,6 +341,7 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 		bodyCommit1, _ := json.Marshal(commitPayload1)
 		reqCommit1, _ := http.NewRequest("POST", "/api/transactions/import/commit", bytes.NewBuffer(bodyCommit1))
 		reqCommit1.AddCookie(cookieA)
+		reqCommit1.Header.Set("X-Ledger-Id", ledgerID)
 		rrCommit1 := httptest.NewRecorder()
 		r.ServeHTTP(rrCommit1, reqCommit1)
 
@@ -377,6 +389,7 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 		bodyAnalyze, _ := json.Marshal(analyzePayload)
 		reqAnalyze, _ := http.NewRequest("POST", "/api/transactions/import/analyze", bytes.NewBuffer(bodyAnalyze))
 		reqAnalyze.AddCookie(cookieA)
+		reqAnalyze.Header.Set("X-Ledger-Id", ledgerID)
 		rrAnalyze := httptest.NewRecorder()
 		r.ServeHTTP(rrAnalyze, reqAnalyze)
 
@@ -385,7 +398,7 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 		}
 
 		var analyzeRes struct {
-			Success bool                             `json:"success"`
+			Success bool                              `json:"success"`
 			Data    transaction.AnalyzeImportResponse `json:"data"`
 		}
 		json.Unmarshal(rrAnalyze.Body.Bytes(), &analyzeRes)
@@ -411,6 +424,7 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 		bodyCommit2, _ := json.Marshal(commitPayload2)
 		reqCommit2, _ := http.NewRequest("POST", "/api/transactions/import/commit", bytes.NewBuffer(bodyCommit2))
 		reqCommit2.AddCookie(cookieA)
+		reqCommit2.Header.Set("X-Ledger-Id", ledgerID)
 		rrCommit2 := httptest.NewRecorder()
 		r.ServeHTTP(rrCommit2, reqCommit2)
 
@@ -433,6 +447,54 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 		}
 		if skippedCount != 1 {
 			t.Errorf("expected 1 skipped items, got %d", skippedCount)
+		}
+	})
+
+	t.Run("Commit Rejects Metadata From Another Ledger", func(t *testing.T) {
+		_, err := db.Exec(`
+			INSERT INTO ledgers (id, name, default_currency, created_at, updated_at)
+			VALUES ('import-ledger-b', 'Import Ledger B', 'CNY', '2026-06-12T00:00:00Z', '2026-06-12T00:00:00Z');
+			INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
+			VALUES ('import-ledger-b', ?, 'owner', '2026-06-12T00:00:00Z', '2026-06-12T00:00:00Z');
+			INSERT INTO categories (id, ledger_id, owner_user_id, name, type, color, is_archived, created_at, updated_at)
+			VALUES ('category-ledger-b', 'import-ledger-b', ?, 'B 账本分类', 'expense', '#22c55e', 0, '2026-06-12T00:00:00Z', '2026-06-12T00:00:00Z');
+		`, userAID, userAID)
+		if err != nil {
+			t.Fatalf("seed second ledger metadata: %v", err)
+		}
+
+		var startTxCount int
+		if err := db.QueryRow("SELECT COUNT(*) FROM transactions").Scan(&startTxCount); err != nil {
+			t.Fatalf("read starting transaction count: %v", err)
+		}
+
+		payload := transaction.CommitImportRequest{
+			Filename: "cross_ledger_category.csv",
+			Items: []transaction.ImportItemRequest{{
+				OccurredAt:  "2026-06-12T18:00:00Z",
+				AmountCents: 1800,
+				Title:       "跨账本分类",
+				CategoryID:  "category-ledger-b",
+				PayerUserID: userAID,
+				Type:        "expense",
+			}},
+		}
+		bodyCommit, _ := json.Marshal(payload)
+		reqCommit, _ := http.NewRequest("POST", "/api/transactions/import/commit", bytes.NewBuffer(bodyCommit))
+		reqCommit.AddCookie(cookieA)
+		reqCommit.Header.Set("X-Ledger-Id", ledgerID)
+		rrCommit := httptest.NewRecorder()
+		r.ServeHTTP(rrCommit, reqCommit)
+
+		if rrCommit.Code != http.StatusBadRequest {
+			t.Fatalf("expected cross-ledger metadata to be rejected with 400, got %d: %s", rrCommit.Code, rrCommit.Body.String())
+		}
+		var endTxCount int
+		if err := db.QueryRow("SELECT COUNT(*) FROM transactions").Scan(&endTxCount); err != nil {
+			t.Fatalf("read ending transaction count: %v", err)
+		}
+		if endTxCount != startTxCount {
+			t.Fatalf("cross-ledger metadata created a transaction: before=%d after=%d", startTxCount, endTxCount)
 		}
 	})
 
@@ -468,6 +530,7 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 		bodyCommit, _ := json.Marshal(commitPayload)
 		reqCommit, _ := http.NewRequest("POST", "/api/transactions/import/commit", bytes.NewBuffer(bodyCommit))
 		reqCommit.AddCookie(cookieA)
+		reqCommit.Header.Set("X-Ledger-Id", ledgerID)
 		rrCommit := httptest.NewRecorder()
 		r.ServeHTTP(rrCommit, reqCommit)
 
@@ -490,4 +553,3 @@ func TestCSVImportDeduplicationAndCommit(t *testing.T) {
 		}
 	})
 }
-

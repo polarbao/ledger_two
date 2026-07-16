@@ -16,9 +16,7 @@ import (
 	"ledger_two/internal/config"
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
-	ledgerctx "ledger_two/internal/ledger"
 	"ledger_two/internal/safety"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
@@ -54,9 +52,6 @@ func TestSafetyFlow(t *testing.T) {
 	txSvc := transaction.NewService(txRepo)
 	txHandler := transaction.NewHandler(txSvc)
 
-	ledgerRepo := ledgerctx.NewRepository(db)
-	ledgerSvc := ledgerctx.NewService(ledgerRepo)
-
 	safetySvc := safety.NewService(db, cfg)
 	safetyHandler := safety.NewHandler(safetySvc)
 
@@ -65,8 +60,7 @@ func TestSafetyFlow(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
-		r.Use(ledgerctx.WithLedgerContext(ledgerSvc))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreate)
 		})
@@ -114,6 +108,13 @@ func TestSafetyFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query userA id failed: %v", err)
 	}
+	const outsiderUserID = "safety-outsider-user"
+	if _, err := db.Exec(`
+		INSERT INTO users (id, username, display_name, password_hash, role, is_active, created_at, updated_at)
+		VALUES (?, 'safety-outsider', 'Safety Outsider', 'hash', 'user', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+	`, outsiderUserID); err != nil {
+		t.Fatalf("insert safety outsider: %v", err)
+	}
 
 	// 3. 拦截未登录测试
 	reqNoAuth, _ := http.NewRequest("POST", "/api/admin/backup", nil)
@@ -126,6 +127,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 4. 手动备份成功测试
 	reqBackup, _ := http.NewRequest("POST", "/api/admin/backup", nil)
 	reqBackup.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqBackup, "Test Ledger")
 	reqBackup.Header.Set("X-Ledger-Id", ledgerID)
 	rrBackup := httptest.NewRecorder()
 	r.ServeHTTP(rrBackup, reqBackup)
@@ -152,7 +154,7 @@ func TestSafetyFlow(t *testing.T) {
 
 	// 验证审计日志记录写入
 	var backupAuditCount int
-	err = db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE action = 'backup' AND entity_type = 'database'").Scan(&backupAuditCount)
+	err = db.QueryRow("SELECT COUNT(*) FROM instance_audit_logs WHERE action = 'manual_database_backup' AND entity_type = 'database'").Scan(&backupAuditCount)
 	if err != nil {
 		t.Fatalf("query backup audit count failed: %v", err)
 	}
@@ -163,6 +165,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 5. 备份列表查询测试
 	reqBackupsList, _ := http.NewRequest("GET", "/api/admin/backups", nil)
 	reqBackupsList.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqBackupsList, "Test Ledger")
 	reqBackupsList.Header.Set("X-Ledger-Id", ledgerID)
 	rrBackupsList := httptest.NewRecorder()
 	r.ServeHTTP(rrBackupsList, reqBackupsList)
@@ -196,6 +199,7 @@ func TestSafetyFlow(t *testing.T) {
 	cfg.BackupDir = invalidBackupRoot
 	reqBackupErr, _ := http.NewRequest("POST", "/api/admin/backup", nil)
 	reqBackupErr.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqBackupErr, "Test Ledger")
 	reqBackupErr.Header.Set("X-Ledger-Id", ledgerID)
 	rrBackupErr := httptest.NewRecorder()
 	r.ServeHTTP(rrBackupErr, reqBackupErr)
@@ -240,6 +244,7 @@ func TestSafetyFlow(t *testing.T) {
 	bodyA, _ := json.Marshal(reqPayload)
 	reqCreateA, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyA))
 	reqCreateA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCreateA, "Test Ledger")
 	rrCreateA := httptest.NewRecorder()
 	r.ServeHTTP(rrCreateA, reqCreateA)
 	if rrCreateA.Code != http.StatusCreated {
@@ -249,6 +254,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 7.2 用户 A 导出 JSON，应当包含该账单，且包含脱敏的用户信息，不含 password_hash
 	reqExportJSONA, _ := http.NewRequest("GET", "/api/export/full.json", nil)
 	reqExportJSONA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqExportJSONA, "Test Ledger")
 	reqExportJSONA.Header.Set("X-Ledger-Id", ledgerID)
 	rrExportJSONA := httptest.NewRecorder()
 	r.ServeHTTP(rrExportJSONA, reqExportJSONA)
@@ -266,6 +272,12 @@ func TestSafetyFlow(t *testing.T) {
 		if _, exists := userMap["password_hash"]; exists {
 			t.Errorf("JSON export contains sensitive password_hash!")
 		}
+		if userMap["id"] == outsiderUserID {
+			t.Errorf("ledger export contains a non-member user")
+		}
+	}
+	if _, exists := exportA["app_settings"]; exists {
+		t.Errorf("ledger export contains instance-level app_settings")
 	}
 
 	// 验证包含 A 自己的私有账单
@@ -284,6 +296,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 7.3 用户 B 导出 JSON，应当绝不包含 A 的 private 账单
 	reqExportJSONB, _ := http.NewRequest("GET", "/api/export/full.json", nil)
 	reqExportJSONB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqExportJSONB, "Test Ledger")
 	reqExportJSONB.Header.Set("X-Ledger-Id", ledgerID)
 	rrExportJSONB := httptest.NewRecorder()
 	r.ServeHTTP(rrExportJSONB, reqExportJSONB)
@@ -309,6 +322,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 7.4 用户 A 导出 CSV，应当包含该账单，且验证 CSV 审计日志写入
 	reqExportCSVA, _ := http.NewRequest("GET", "/api/export/transactions.csv", nil)
 	reqExportCSVA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqExportCSVA, "Test Ledger")
 	reqExportCSVA.Header.Set("X-Ledger-Id", ledgerID)
 	rrExportCSVA := httptest.NewRecorder()
 	r.ServeHTTP(rrExportCSVA, reqExportCSVA)
@@ -324,6 +338,7 @@ func TestSafetyFlow(t *testing.T) {
 	// 7.5 用户 B 导出 CSV，应当不包含 A 的 private 账单
 	reqExportCSVB, _ := http.NewRequest("GET", "/api/export/transactions.csv", nil)
 	reqExportCSVB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqExportCSVB, "Test Ledger")
 	reqExportCSVB.Header.Set("X-Ledger-Id", ledgerID)
 	rrExportCSVB := httptest.NewRecorder()
 	r.ServeHTTP(rrExportCSVB, reqExportCSVB)

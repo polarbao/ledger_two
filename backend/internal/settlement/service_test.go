@@ -10,6 +10,7 @@ import (
 	"github.com/pressly/goose/v3"
 
 	"ledger_two/internal/db/repo"
+	ledgerctx "ledger_two/internal/ledger"
 	"ledger_two/internal/settlement"
 	"ledger_two/migrations"
 )
@@ -62,6 +63,14 @@ func TestSettlementServiceUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query ledger id failed: %v", err)
 	}
+	ctxA := ledgerctx.ContextWithLedgerContext(context.Background(), ledgerctx.LedgerContext{
+		UserID: userAID, LedgerID: ledgerID, Role: ledgerctx.RoleOwner,
+		Status: ledgerctx.LedgerStatusActive, Version: 1, IsExplicit: true,
+	})
+	ctxB := ledgerctx.ContextWithLedgerContext(context.Background(), ledgerctx.LedgerContext{
+		UserID: userBID, LedgerID: ledgerID, Role: ledgerctx.RoleEditor,
+		Status: ledgerctx.LedgerStatusActive, Version: 1, IsExplicit: true,
+	})
 
 	// 查询默认分类 ID
 	var categoryID string
@@ -94,7 +103,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 	}
 
 	// 验证余额：B 欠 A 10000分 (100.00元)
-	balance, err := svc.GetBalance(context.Background(), userAID)
+	balance, err := svc.GetBalance(ctxA, userAID)
 	if err != nil {
 		t.Fatalf("get balance failed: %v", err)
 	}
@@ -125,7 +134,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 	}
 
 	// 验证累计：B 欠 A 6000分 (60.00元)
-	balance2, err := svc.GetBalance(context.Background(), userBID)
+	balance2, err := svc.GetBalance(ctxB, userBID)
 	if err != nil {
 		t.Fatalf("get balance 2 failed: %v", err)
 	}
@@ -151,7 +160,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 	// ----------------------------------------------------
 	// 场景 3: B 发起 6000 分结算。
 	// ----------------------------------------------------
-	_, err = svc.CreateSettlement(context.Background(), userBID, settlement.CreateSettlementRequest{
+	_, err = svc.CreateSettlement(ctxB, userBID, settlement.CreateSettlementRequest{
 		FromUserID:  userBID,
 		ToUserID:    userAID,
 		AmountCents: 6000,
@@ -163,7 +172,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 	}
 
 	// 验证余额：结清 (0分)
-	balance3, err := svc.GetBalance(context.Background(), userAID)
+	balance3, err := svc.GetBalance(ctxA, userAID)
 	if err != nil {
 		t.Fatalf("get balance 3 failed: %v", err)
 	}
@@ -215,7 +224,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 		t.Fatalf("insert scoped transaction splits failed: %v", err)
 	}
 
-	allBalance, err := svc.GetBalance(context.Background(), userAID)
+	allBalance, err := svc.GetBalance(ctxA, userAID)
 	if err != nil {
 		t.Fatalf("get all-time balance failed: %v", err)
 	}
@@ -223,7 +232,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 		t.Errorf("unexpected all-time balance: %+v", allBalance)
 	}
 
-	monthBalance, err := svc.GetBalanceForMonth(context.Background(), userAID, time.Now().Format("2006-01"))
+	monthBalance, err := svc.GetBalanceForMonth(ctxA, userAID, time.Now().Format("2006-01"))
 	if err != nil {
 		t.Fatalf("get current-month balance failed: %v", err)
 	}
@@ -239,7 +248,7 @@ func TestSettlementServiceUnit(t *testing.T) {
 		}
 	}
 
-	if _, err := svc.GetBalanceForMonth(context.Background(), userAID, "2026-13"); err == nil {
+	if _, err := svc.GetBalanceForMonth(ctxA, userAID, "2026-13"); err == nil {
 		t.Error("expected invalid month to be rejected")
 	}
 }

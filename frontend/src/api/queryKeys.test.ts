@@ -27,5 +27,6 @@ describe('queryKeys', () => {
 
   it('keeps ledger list outside ledger scoped data', () => {
     expect(queryKeys.ledgers.all).toEqual(['ledgers']);
+		expect(queryKeys.safety.diagnostics).toEqual(['safety', 'diagnostics']);
   });
 });

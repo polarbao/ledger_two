@@ -13,7 +13,6 @@ import (
 	"ledger_two/internal/dashboard"
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/reports"
 	"ledger_two/internal/service"
@@ -56,7 +55,7 @@ func TestReportsFlow(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Get("/api/dashboard", dashHandler.HandleGetDashboard)
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreate)
@@ -127,6 +126,7 @@ func TestReportsFlow(t *testing.T) {
 	body1, _ := json.Marshal(payload1)
 	req1, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(body1))
 	req1.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req1, "Test Ledger")
 	rr1 := httptest.NewRecorder()
 	r.ServeHTTP(rr1, req1)
 	if rr1.Code != http.StatusCreated {
@@ -146,6 +146,7 @@ func TestReportsFlow(t *testing.T) {
 	body2, _ := json.Marshal(payload2)
 	req2, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(body2))
 	req2.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, req2, "Test Ledger")
 	rr2 := httptest.NewRecorder()
 	r.ServeHTTP(rr2, req2)
 	if rr2.Code != http.StatusCreated {
@@ -156,6 +157,7 @@ func TestReportsFlow(t *testing.T) {
 	// A 视角拉取月度汇总，预期 A 只能看到共同支出 20000 分
 	reqSummaryA, _ := http.NewRequest("GET", "/api/reports/monthly-summary", nil)
 	reqSummaryA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqSummaryA, "Test Ledger")
 	rrSummaryA := httptest.NewRecorder()
 	r.ServeHTTP(rrSummaryA, reqSummaryA)
 	if rrSummaryA.Code != http.StatusOK {
@@ -175,6 +177,7 @@ func TestReportsFlow(t *testing.T) {
 	// B 视角拉取月度汇总，预期 B 能看到共同支出 20000 分 + 个人私有 5000 分 = 25000 分
 	reqSummaryB, _ := http.NewRequest("GET", "/api/reports/monthly-summary", nil)
 	reqSummaryB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqSummaryB, "Test Ledger")
 	rrSummaryB := httptest.NewRecorder()
 	r.ServeHTTP(rrSummaryB, reqSummaryB)
 	if rrSummaryB.Code != http.StatusOK {
@@ -191,6 +194,7 @@ func TestReportsFlow(t *testing.T) {
 	// 验证与 Dashboard 是否绝对一致
 	reqDashB, _ := http.NewRequest("GET", "/api/dashboard", nil)
 	reqDashB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqDashB, "Test Ledger")
 	rrDashB := httptest.NewRecorder()
 	r.ServeHTTP(rrDashB, reqDashB)
 	var respDashB response.SuccessResponse
@@ -205,6 +209,7 @@ func TestReportsFlow(t *testing.T) {
 	// B: paid = 5000 (个人), share = 15000 (B平摊的10000 + 个人5000)
 	reqMemberB, _ := http.NewRequest("GET", "/api/reports/member-summary", nil)
 	reqMemberB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqMemberB, "Test Ledger")
 	rrMemberB := httptest.NewRecorder()
 	r.ServeHTTP(rrMemberB, reqMemberB)
 	if rrMemberB.Code != http.StatusOK {
@@ -253,6 +258,7 @@ func TestReportsFlow(t *testing.T) {
 
 	reqDel, _ := http.NewRequest("DELETE", "/api/transactions/"+txID, nil)
 	reqDel.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDel, "Test Ledger")
 	rrDel := httptest.NewRecorder()
 	r.ServeHTTP(rrDel, reqDel)
 	if rrDel.Code != http.StatusOK {

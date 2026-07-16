@@ -37,6 +37,8 @@ describe('UI-FL-10 global experience contract', () => {
     expect(login).toContain('aria-pressed={showPassword}');
     expect(login).not.toContain('tabIndex={-1}');
     expect(login).toContain('role="alert"');
+    expect(login).toContain('await authApi.login');
+    expect(login).toContain('await authApi.getMe');
     expect(setup).toContain('htmlFor="setup-ledger-name"');
     expect(setup).toContain('aria-invalid={Boolean(errors.user_b_password)}');
   });

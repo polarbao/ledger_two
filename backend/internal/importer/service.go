@@ -105,7 +105,7 @@ func (s *Service) GetPreviewBatch(ctx context.Context, lc ledger.LedgerContext, 
 	batch, err := s.repo.GetPreviewBatch(ctx, lc.LedgerID, batchID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入批次不存在")
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
 	}
@@ -130,7 +130,7 @@ func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*
 	batch, row, err := s.repo.GetPreviewRow(ctx, cmd.LedgerContext.LedgerID, cmd.BatchID, cmd.RowID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入预览行不存在")
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入预览行不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入预览行失败")
 	}
@@ -184,6 +184,18 @@ func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*
 	if updated.RowStatus == RowStatusAdjusted && updated.TargetTransactionType == TargetTransactionSkipped {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "调整为待导入时必须选择有效的目标类型")
 	}
+	if err := s.repo.ValidateMetadataSelections(
+		ctx,
+		cmd.LedgerContext.LedgerID,
+		updated.SelectedCategoryID,
+		updated.SelectedAccountID,
+		updated.SelectedTagIDs,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "分类、账户或标签不存在或不属于当前账本")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "校验导入元数据失败")
+	}
 
 	for i := range batch.Rows {
 		if batch.Rows[i].ID == updated.ID {
@@ -196,7 +208,7 @@ func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*
 	updatedBatch, err := s.repo.UpdatePreviewRow(ctx, batch, updated, adjustment)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入预览行不存在")
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入预览行不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "保存导入预览行失败")
 	}
@@ -214,12 +226,23 @@ func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContex
 	batch, err := s.repo.GetPreviewBatch(ctx, lc.LedgerID, batchID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeImportBatchNotFound, "导入批次不存在")
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
 	}
 	if batch.Status != "ready" {
 		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "当前导入批次状态不允许提交")
+	}
+	for _, row := range batch.Rows {
+		if row.RowStatus == RowStatusSkipped || row.TargetTransactionType == TargetTransactionSkipped {
+			continue
+		}
+		if err := s.repo.ValidateMetadataSelections(ctx, lc.LedgerID, row.SelectedCategoryID, row.SelectedAccountID, row.SelectedTagIDs); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入行分类、账户或标签不存在或不属于当前账本")
+			}
+			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "校验导入元数据失败")
+		}
 	}
 	if err := validateRowsForCommit(batch.Rows); err != nil {
 		if markErr := s.repo.MarkPreviewBatchFailed(ctx, lc.LedgerID, batch.ID); markErr != nil && markErr != sql.ErrNoRows {
@@ -234,7 +257,7 @@ func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContex
 			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "记录导入失败状态失败")
 		}
 		if err == sql.ErrNoRows {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeImportBatchNotFound, "导入批次不存在")
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "导入提交失败，可能存在重复数据或批次状态变化")
 	}
@@ -266,7 +289,7 @@ func (s *Service) UpdateImportRule(ctx context.Context, lc ledger.LedgerContext,
 	rule, err := s.repo.UpdateImportRule(ctx, lc.LedgerID, ruleID, req)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入规则不存在")
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入规则不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "更新导入规则失败")
 	}
@@ -308,7 +331,7 @@ func (s *Service) setImportRuleStatus(ctx context.Context, lc ledger.LedgerConte
 	rule, err := s.repo.SetImportRuleStatus(ctx, lc.LedgerID, ruleID, status)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "导入规则不存在")
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入规则不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "更新导入规则状态失败")
 	}

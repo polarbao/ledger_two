@@ -3,9 +3,9 @@ import type { User } from '../types/auth';
 
 export const authApi = {
   login: (username: string, password: string) =>
-    api.post<User>('/api/auth/login', { username, password }),
+		api.post<{ status: string }>('/api/auth/login', { username, password }, { ledgerScope: 'none' }),
   logout: () =>
-    api.post<void>('/api/auth/logout'),
+		api.post<void>('/api/auth/logout', undefined, { ledgerScope: 'none' }),
   getMe: () =>
-    api.get<User>('/api/auth/me'),
+		api.get<User>('/api/auth/me', { ledgerScope: 'none' }),
 };

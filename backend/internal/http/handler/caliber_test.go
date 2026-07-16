@@ -13,7 +13,6 @@ import (
 	"ledger_two/internal/dashboard"
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/reports"
 	"ledger_two/internal/service"
@@ -57,7 +56,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Get("/api/dashboard", dashHandler.HandleGetDashboard)
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreate)
@@ -121,6 +120,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	badBody, _ := json.Marshal(badPayload)
 	reqBad, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(badBody))
 	reqBad.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqBad, "Caliber Test Ledger")
 	rrBad := httptest.NewRecorder()
 	r.ServeHTTP(rrBad, reqBad)
 
@@ -153,6 +153,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	bodyPrivA, _ := json.Marshal(payloadPrivA)
 	reqPrivA, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyPrivA))
 	reqPrivA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqPrivA, "Caliber Test Ledger")
 	rrPrivA := httptest.NewRecorder()
 	r.ServeHTTP(rrPrivA, reqPrivA)
 	if rrPrivA.Code != http.StatusCreated {
@@ -166,6 +167,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	// B 视角拉取 summary，应当为 0
 	reqSummaryB, _ := http.NewRequest("GET", "/api/reports/monthly-summary", nil)
 	reqSummaryB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqSummaryB, "Caliber Test Ledger")
 	rrSummaryB := httptest.NewRecorder()
 	r.ServeHTTP(rrSummaryB, reqSummaryB)
 	var respSummaryB response.SuccessResponse
@@ -180,6 +182,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	bodyUpdate, _ := json.Marshal(updatePayload)
 	reqUpdateB, _ := http.NewRequest("PATCH", "/api/transactions/"+privTxID, bytes.NewBuffer(bodyUpdate))
 	reqUpdateB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqUpdateB, "Caliber Test Ledger")
 	rrUpdateB := httptest.NewRecorder()
 	r.ServeHTTP(rrUpdateB, reqUpdateB)
 	if rrUpdateB.Code != http.StatusForbidden && rrUpdateB.Code != http.StatusNotFound {
@@ -204,6 +207,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	bodySharedA, _ := json.Marshal(payloadSharedA)
 	reqSharedA, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(bodySharedA))
 	reqSharedA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqSharedA, "Caliber Test Ledger")
 	rrSharedA := httptest.NewRecorder()
 	r.ServeHTTP(rrSharedA, reqSharedA)
 	if rrSharedA.Code != http.StatusCreated {
@@ -222,6 +226,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	bodySharedB, _ := json.Marshal(payloadSharedB)
 	reqSharedB, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(bodySharedB))
 	reqSharedB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqSharedB, "Caliber Test Ledger")
 	rrSharedB := httptest.NewRecorder()
 	r.ServeHTTP(rrSharedB, reqSharedB)
 	if rrSharedB.Code != http.StatusCreated {
@@ -242,6 +247,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	bodyReadB, _ := json.Marshal(payloadReadB)
 	reqReadB, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyReadB))
 	reqReadB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqReadB, "Caliber Test Ledger")
 	rrReadB := httptest.NewRecorder()
 	r.ServeHTTP(rrReadB, reqReadB)
 	if rrReadB.Code != http.StatusCreated {
@@ -264,6 +270,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	// -------------------------------------------------------------------------
 	reqSummaryA, _ := http.NewRequest("GET", "/api/reports/monthly-summary", nil)
 	reqSummaryA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqSummaryA, "Caliber Test Ledger")
 	rrSummaryA := httptest.NewRecorder()
 	r.ServeHTTP(rrSummaryA, reqSummaryA)
 	var respSummaryA response.SuccessResponse
@@ -275,6 +282,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 
 	reqMemberA, _ := http.NewRequest("GET", "/api/reports/member-summary", nil)
 	reqMemberA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqMemberA, "Caliber Test Ledger")
 	rrMemberA := httptest.NewRecorder()
 	r.ServeHTTP(rrMemberA, reqMemberA)
 	var respMemberA response.SuccessResponse
@@ -321,6 +329,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	bodySettle, _ := json.Marshal(payloadSettle)
 	reqSettle, _ := http.NewRequest("POST", "/api/settlements", bytes.NewBuffer(bodySettle))
 	reqSettle.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqSettle, "Caliber Test Ledger")
 	rrSettle := httptest.NewRecorder()
 	r.ServeHTTP(rrSettle, reqSettle)
 	if rrSettle.Code != http.StatusCreated {
@@ -330,6 +339,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	// 待结算金额变为 0
 	reqBalance, _ := http.NewRequest("GET", "/api/settlements/balance", nil)
 	reqBalance.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqBalance, "Caliber Test Ledger")
 	rrBalance := httptest.NewRecorder()
 	r.ServeHTTP(rrBalance, reqBalance)
 	var respBal response.SuccessResponse
@@ -356,6 +366,7 @@ func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	// -------------------------------------------------------------------------
 	reqDel, _ := http.NewRequest("DELETE", "/api/transactions/"+privTxID, nil)
 	reqDel.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDel, "Caliber Test Ledger")
 	rrDel := httptest.NewRecorder()
 	r.ServeHTTP(rrDel, reqDel)
 	if rrDel.Code != http.StatusOK {
@@ -408,7 +419,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Get("/api/dashboard", dashHandler.HandleGetDashboard)
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Get("/", txHandler.HandleList)
@@ -476,6 +487,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	bodyTx1, _ := json.Marshal(tx1Payload)
 	reqTx1, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx1))
 	reqTx1.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqTx1, "Advanced Filter Ledger")
 	rrTx1 := httptest.NewRecorder()
 	r.ServeHTTP(rrTx1, reqTx1)
 	if rrTx1.Code != http.StatusCreated {
@@ -500,6 +512,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	bodyTx2, _ := json.Marshal(tx2Payload)
 	reqTx2, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx2))
 	reqTx2.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqTx2, "Advanced Filter Ledger")
 	rrTx2 := httptest.NewRecorder()
 	r.ServeHTTP(rrTx2, reqTx2)
 	if rrTx2.Code != http.StatusCreated {
@@ -523,6 +536,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	bodyTx3, _ := json.Marshal(tx3Payload)
 	reqTx3, _ := http.NewRequest("POST", "/api/shared-expenses", bytes.NewBuffer(bodyTx3))
 	reqTx3.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqTx3, "Advanced Filter Ledger")
 	rrTx3 := httptest.NewRecorder()
 	r.ServeHTTP(rrTx3, reqTx3)
 	if rrTx3.Code != http.StatusCreated {
@@ -547,6 +561,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	bodyTx4, _ := json.Marshal(tx4Payload)
 	reqTx4, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx4))
 	reqTx4.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqTx4, "Advanced Filter Ledger")
 	rrTx4 := httptest.NewRecorder()
 	r.ServeHTTP(rrTx4, reqTx4)
 	if rrTx4.Code != http.StatusCreated {
@@ -568,6 +583,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	bodyTx5, _ := json.Marshal(tx5Payload)
 	reqTx5, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx5))
 	reqTx5.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqTx5, "Advanced Filter Ledger")
 	rrTx5 := httptest.NewRecorder()
 	r.ServeHTTP(rrTx5, reqTx5)
 	if rrTx5.Code != http.StatusCreated {
@@ -581,6 +597,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	// (a) A 视角拉取全量，应该看到 1, 2, 3, 5。看不到 4 (B的private)。共 4 笔
 	reqListAllA, _ := http.NewRequest("GET", "/api/transactions", nil)
 	reqListAllA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListAllA, "Advanced Filter Ledger")
 	rrListAllA := httptest.NewRecorder()
 	r.ServeHTTP(rrListAllA, reqListAllA)
 	var resListAllA response.SuccessResponse
@@ -593,6 +610,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	// (b) A 视角筛选金额：min_amount=1500&max_amount=4000。预期得到 2 (2000), 3 (3000)。共 2 笔
 	reqListAmountA, _ := http.NewRequest("GET", "/api/transactions?min_amount=1500&max_amount=4000", nil)
 	reqListAmountA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListAmountA, "Advanced Filter Ledger")
 	rrListAmountA := httptest.NewRecorder()
 	r.ServeHTTP(rrListAmountA, reqListAmountA)
 	var resListAmountA response.SuccessResponse
@@ -605,6 +623,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	// (c) A 视角过滤标签：tag=food。预期得到 1 (food, lunch), 2 (food)。共 2 笔
 	reqListTagA, _ := http.NewRequest("GET", "/api/transactions?tag=food", nil)
 	reqListTagA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListTagA, "Advanced Filter Ledger")
 	rrListTagA := httptest.NewRecorder()
 	r.ServeHTTP(rrListTagA, reqListTagA)
 	var resListTagA response.SuccessResponse
@@ -617,6 +636,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	// (d) A 视角过滤付款人与可见性：payer_user_id=userBID, visibility=shared。预期得到 3 (shared)。共 1 笔
 	reqListMultiA, _ := http.NewRequest("GET", "/api/transactions?payer_user_id="+userBID+"&visibility=shared", nil)
 	reqListMultiA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListMultiA, "Advanced Filter Ledger")
 	rrListMultiA := httptest.NewRecorder()
 	r.ServeHTTP(rrListMultiA, reqListMultiA)
 	var resListMultiA response.SuccessResponse
@@ -629,6 +649,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	// (e) B 视角拉取全量，应该看不到 1 (A的private)。共 4 笔 (2, 3, 4, 5)
 	reqListAllB, _ := http.NewRequest("GET", "/api/transactions", nil)
 	reqListAllB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqListAllB, "Advanced Filter Ledger")
 	rrListAllB := httptest.NewRecorder()
 	r.ServeHTTP(rrListAllB, reqListAllB)
 	var resListAllB response.SuccessResponse
@@ -647,6 +668,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	bodyIllegal, _ := json.Marshal(batchIllegalPayload)
 	reqIllegal, _ := http.NewRequest("POST", "/api/transactions/batch-tag", bytes.NewBuffer(bodyIllegal))
 	reqIllegal.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqIllegal, "Advanced Filter Ledger")
 	rrIllegal := httptest.NewRecorder()
 	r.ServeHTTP(rrIllegal, reqIllegal)
 	if rrIllegal.Code != http.StatusNotFound {
@@ -662,6 +684,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	bodyBatch, _ := json.Marshal(batchPayload)
 	reqBatch, _ := http.NewRequest("POST", "/api/transactions/batch-tag", bytes.NewBuffer(bodyBatch))
 	reqBatch.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqBatch, "Advanced Filter Ledger")
 	rrBatch := httptest.NewRecorder()
 	r.ServeHTTP(rrBatch, reqBatch)
 	if rrBatch.Code != http.StatusOK {
@@ -672,6 +695,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	// 交易 1 应包含：food, lunch, batch1 (去重追加，无重复)
 	reqTx1Detail, _ := http.NewRequest("GET", "/api/transactions/"+tx1ID, nil)
 	reqTx1Detail.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqTx1Detail, "Advanced Filter Ledger")
 	rrTx1Detail := httptest.NewRecorder()
 	r.ServeHTTP(rrTx1Detail, reqTx1Detail)
 	var resTx1Detail response.SuccessResponse
@@ -685,6 +709,7 @@ func TestAdvancedFilterAndBatchTag(t *testing.T) {
 	// 交易 2 应包含：food, batch1 (去重追加，无重复)
 	reqTx2Detail, _ := http.NewRequest("GET", "/api/transactions/"+tx2ID, nil)
 	reqTx2Detail.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqTx2Detail, "Advanced Filter Ledger")
 	rrTx2Detail := httptest.NewRecorder()
 	r.ServeHTTP(rrTx2Detail, reqTx2Detail)
 	var resTx2Detail response.SuccessResponse

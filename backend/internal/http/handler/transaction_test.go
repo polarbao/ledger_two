@@ -12,7 +12,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
@@ -42,7 +41,7 @@ func TestTransactionFlow(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Get("/", txHandler.HandleList)
 			r.Post("/", txHandler.HandleCreate)
@@ -105,6 +104,7 @@ func TestTransactionFlow(t *testing.T) {
 	bodyA, _ := json.Marshal(reqPayload)
 	reqCreate, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyA))
 	reqCreate.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCreate, "Test Ledger")
 	rrCreate := httptest.NewRecorder()
 	r.ServeHTTP(rrCreate, reqCreate)
 
@@ -128,6 +128,7 @@ func TestTransactionFlow(t *testing.T) {
 
 	reqCategoriesActive, _ := http.NewRequest("GET", "/api/categories", nil)
 	reqCategoriesActive.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCategoriesActive, "Test Ledger")
 	rrCategoriesActive := httptest.NewRecorder()
 	r.ServeHTTP(rrCategoriesActive, reqCategoriesActive)
 	if rrCategoriesActive.Code != http.StatusOK {
@@ -144,6 +145,7 @@ func TestTransactionFlow(t *testing.T) {
 
 	reqCategoriesAll, _ := http.NewRequest("GET", "/api/categories?include_archived=true", nil)
 	reqCategoriesAll.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCategoriesAll, "Test Ledger")
 	rrCategoriesAll := httptest.NewRecorder()
 	r.ServeHTTP(rrCategoriesAll, reqCategoriesAll)
 	if rrCategoriesAll.Code != http.StatusOK {
@@ -170,6 +172,7 @@ func TestTransactionFlow(t *testing.T) {
 
 	reqListWithArchivedCategory, _ := http.NewRequest("GET", "/api/transactions", nil)
 	reqListWithArchivedCategory.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListWithArchivedCategory, "Test Ledger")
 	rrListWithArchivedCategory := httptest.NewRecorder()
 	r.ServeHTTP(rrListWithArchivedCategory, reqListWithArchivedCategory)
 	if rrListWithArchivedCategory.Code != http.StatusOK {
@@ -207,6 +210,7 @@ func TestTransactionFlow(t *testing.T) {
 	bodyIncome, _ := json.Marshal(reqPayloadIncome)
 	reqCreateInc, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyIncome))
 	reqCreateInc.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCreateInc, "Test Ledger")
 	rrCreateInc := httptest.NewRecorder()
 	r.ServeHTTP(rrCreateInc, reqCreateInc)
 	if rrCreateInc.Code != http.StatusCreated {
@@ -215,6 +219,7 @@ func TestTransactionFlow(t *testing.T) {
 
 	reqDefaults, _ := http.NewRequest("GET", "/api/transaction-defaults", nil)
 	reqDefaults.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDefaults, "Test Ledger")
 	rrDefaults := httptest.NewRecorder()
 	r.ServeHTTP(rrDefaults, reqDefaults)
 	if rrDefaults.Code != http.StatusOK {
@@ -245,6 +250,7 @@ func TestTransactionFlow(t *testing.T) {
 	bodyErr, _ := json.Marshal(reqPayloadErr)
 	reqCreateErr, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyErr))
 	reqCreateErr.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCreateErr, "Test Ledger")
 	rrCreateErr := httptest.NewRecorder()
 	r.ServeHTTP(rrCreateErr, reqCreateErr)
 
@@ -262,6 +268,7 @@ func TestTransactionFlow(t *testing.T) {
 	// 用户 B 尝试获取用户 A 的那个 private 账单，预期返回 404 Not Found 以防越权探测
 	reqGetB, _ := http.NewRequest("GET", "/api/transactions/"+txID, nil)
 	reqGetB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqGetB, "Test Ledger")
 	rrGetB := httptest.NewRecorder()
 	r.ServeHTTP(rrGetB, reqGetB)
 
@@ -272,6 +279,7 @@ func TestTransactionFlow(t *testing.T) {
 	// 用户 B 拉取列表，预期 private 账单不应该在列表中出现
 	reqListB, _ := http.NewRequest("GET", "/api/transactions", nil)
 	reqListB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqListB, "Test Ledger")
 	rrListB := httptest.NewRecorder()
 	r.ServeHTTP(rrListB, reqListB)
 
@@ -292,6 +300,7 @@ func TestTransactionFlow(t *testing.T) {
 	var listResp response.SuccessResponse
 	reqListA, _ := http.NewRequest("GET", "/api/transactions", nil)
 	reqListA.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListA, "Test Ledger")
 	rrListA := httptest.NewRecorder()
 	r.ServeHTTP(rrListA, reqListA)
 	json.Unmarshal(rrListA.Body.Bytes(), &listResp)
@@ -306,6 +315,7 @@ func TestTransactionFlow(t *testing.T) {
 	// 用户 B 获取 partner_readable 的收入账单详情，预期 200
 	reqGetIncB, _ := http.NewRequest("GET", "/api/transactions/"+incomeID, nil)
 	reqGetIncB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqGetIncB, "Test Ledger")
 	rrGetIncB := httptest.NewRecorder()
 	r.ServeHTTP(rrGetIncB, reqGetIncB)
 	if rrGetIncB.Code != http.StatusOK {
@@ -319,6 +329,7 @@ func TestTransactionFlow(t *testing.T) {
 	bodyUpdate, _ := json.Marshal(updatePayload)
 	reqUpdateB, _ := http.NewRequest("PATCH", "/api/transactions/"+incomeID, bytes.NewBuffer(bodyUpdate))
 	reqUpdateB.AddCookie(cookieB)
+	setTestLedgerHeader(t, db, reqUpdateB, "Test Ledger")
 	rrUpdateB := httptest.NewRecorder()
 	r.ServeHTTP(rrUpdateB, reqUpdateB)
 	if rrUpdateB.Code != http.StatusForbidden {
@@ -329,6 +340,7 @@ func TestTransactionFlow(t *testing.T) {
 	// 用户 A 删除自己创建的账单
 	reqDelete, _ := http.NewRequest("DELETE", "/api/transactions/"+txID, nil)
 	reqDelete.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDelete, "Test Ledger")
 	rrDelete := httptest.NewRecorder()
 	r.ServeHTTP(rrDelete, reqDelete)
 	if rrDelete.Code != http.StatusOK {
@@ -338,6 +350,7 @@ func TestTransactionFlow(t *testing.T) {
 	// 用户 A 再次拉取列表，预期该账单不显示
 	reqListAAfter, _ := http.NewRequest("GET", "/api/transactions", nil)
 	reqListAAfter.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListAAfter, "Test Ledger")
 	rrListAAfter := httptest.NewRecorder()
 	r.ServeHTTP(rrListAAfter, reqListAAfter)
 	var listAAfterResp response.SuccessResponse

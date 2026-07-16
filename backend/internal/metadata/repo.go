@@ -16,19 +16,6 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) GetMemberRole(ctx context.Context, ledgerID string, userID string) (string, error) {
-	var role string
-	err := r.db.QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
-	return role, err
-}
-
-func (r *Repository) GetFirstLedgerRole(ctx context.Context, userID string) (string, string, error) {
-	var ledgerID string
-	var role string
-	err := r.db.QueryRowContext(ctx, "SELECT ledger_id, role FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&ledgerID, &role)
-	return ledgerID, role, err
-}
-
 func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, includeArchived bool) ([]Item, error) {
 	switch kind {
 	case KindCategory:

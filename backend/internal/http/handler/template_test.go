@@ -12,7 +12,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
 )
@@ -42,7 +41,7 @@ func TestTransactionTemplates(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Route("/api/transaction-templates", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreateTemplate)
 			r.Get("/", txHandler.HandleListTemplates)
@@ -90,6 +89,7 @@ func TestTransactionTemplates(t *testing.T) {
 	body1, _ := json.Marshal(badPayload1)
 	req1, _ := http.NewRequest("POST", "/api/transaction-templates", bytes.NewBuffer(body1))
 	req1.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req1, "Template Test Ledger")
 	rr1 := httptest.NewRecorder()
 	r.ServeHTTP(rr1, req1)
 	if rr1.Code != http.StatusBadRequest {
@@ -104,6 +104,7 @@ func TestTransactionTemplates(t *testing.T) {
 	body2, _ := json.Marshal(badPayload2)
 	req2, _ := http.NewRequest("POST", "/api/transaction-templates", bytes.NewBuffer(body2))
 	req2.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req2, "Template Test Ledger")
 	rr2 := httptest.NewRecorder()
 	r.ServeHTTP(rr2, req2)
 	if rr2.Code != http.StatusBadRequest {
@@ -120,6 +121,7 @@ func TestTransactionTemplates(t *testing.T) {
 	body3, _ := json.Marshal(badPayload3)
 	req3, _ := http.NewRequest("POST", "/api/transaction-templates", bytes.NewBuffer(body3))
 	req3.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, req3, "Template Test Ledger")
 	rr3 := httptest.NewRecorder()
 	r.ServeHTTP(rr3, req3)
 	if rr3.Code != http.StatusBadRequest {
@@ -141,6 +143,7 @@ func TestTransactionTemplates(t *testing.T) {
 	bodyOk, _ := json.Marshal(okPayload)
 	reqOk, _ := http.NewRequest("POST", "/api/transaction-templates", bytes.NewBuffer(bodyOk))
 	reqOk.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqOk, "Template Test Ledger")
 	rrOk := httptest.NewRecorder()
 	r.ServeHTTP(rrOk, reqOk)
 	if rrOk.Code != http.StatusCreated {
@@ -158,6 +161,7 @@ func TestTransactionTemplates(t *testing.T) {
 	// 3. 测试获取模板列表
 	reqList, _ := http.NewRequest("GET", "/api/transaction-templates", nil)
 	reqList.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqList, "Template Test Ledger")
 	rrList := httptest.NewRecorder()
 	r.ServeHTTP(rrList, reqList)
 	if rrList.Code != http.StatusOK {
@@ -186,6 +190,7 @@ func TestTransactionTemplates(t *testing.T) {
 	bodyUpdate, _ := json.Marshal(updatePayload)
 	reqUpdate, _ := http.NewRequest("PUT", "/api/transaction-templates/"+createdTmpl.Data.ID, bytes.NewBuffer(bodyUpdate))
 	reqUpdate.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqUpdate, "Template Test Ledger")
 	rrUpdate := httptest.NewRecorder()
 	r.ServeHTTP(rrUpdate, reqUpdate)
 	if rrUpdate.Code != http.StatusOK {
@@ -205,6 +210,7 @@ func TestTransactionTemplates(t *testing.T) {
 	bodyTx, _ := json.Marshal(txPayload)
 	reqTx, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyTx))
 	reqTx.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqTx, "Template Test Ledger")
 	rrTx := httptest.NewRecorder()
 	r.ServeHTTP(rrTx, reqTx)
 	if rrTx.Code != http.StatusCreated {
@@ -214,6 +220,7 @@ func TestTransactionTemplates(t *testing.T) {
 	// 6. 测试 DELETE 兼容旧调用，但实际执行软归档
 	reqDel, _ := http.NewRequest("DELETE", "/api/transaction-templates/"+createdTmpl.Data.ID, nil)
 	reqDel.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqDel, "Template Test Ledger")
 	rrDel := httptest.NewRecorder()
 	r.ServeHTTP(rrDel, reqDel)
 	if rrDel.Code != http.StatusOK {
@@ -223,6 +230,7 @@ func TestTransactionTemplates(t *testing.T) {
 	// 默认列表不返回已归档模板
 	reqList2, _ := http.NewRequest("GET", "/api/transaction-templates", nil)
 	reqList2.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqList2, "Template Test Ledger")
 	rrList2 := httptest.NewRecorder()
 	r.ServeHTTP(rrList2, reqList2)
 	var listResp2 struct {
@@ -237,6 +245,7 @@ func TestTransactionTemplates(t *testing.T) {
 	// 管理列表可以显式包含已归档模板
 	reqListArchived, _ := http.NewRequest("GET", "/api/transaction-templates?include_archived=true", nil)
 	reqListArchived.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqListArchived, "Template Test Ledger")
 	rrListArchived := httptest.NewRecorder()
 	r.ServeHTTP(rrListArchived, reqListArchived)
 	var archivedResp struct {
@@ -250,6 +259,7 @@ func TestTransactionTemplates(t *testing.T) {
 	// 恢复后默认列表重新可见
 	reqRestore, _ := http.NewRequest("POST", "/api/transaction-templates/"+createdTmpl.Data.ID+"/restore", nil)
 	reqRestore.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqRestore, "Template Test Ledger")
 	rrRestore := httptest.NewRecorder()
 	r.ServeHTTP(rrRestore, reqRestore)
 	if rrRestore.Code != http.StatusOK {
@@ -258,6 +268,7 @@ func TestTransactionTemplates(t *testing.T) {
 
 	reqList3, _ := http.NewRequest("GET", "/api/transaction-templates", nil)
 	reqList3.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqList3, "Template Test Ledger")
 	rrList3 := httptest.NewRecorder()
 	r.ServeHTTP(rrList3, reqList3)
 	var listResp3 struct {

@@ -26,14 +26,21 @@ func NewAppErrorWithDetails(status int, code string, message string, details any
 
 const (
 	// 通用错误码
-	ErrCodeBadRequest         = "BAD_REQUEST"
-	ErrCodeValidationError    = "VALIDATION_ERROR"
-	ErrCodeUnauthorized       = "UNAUTHORIZED"
-	ErrCodeForbidden          = "FORBIDDEN"
-	ErrCodeNotFound           = "NOT_FOUND"
-	ErrCodeConflict           = "CONFLICT"
-	ErrCodeInternalError      = "INTERNAL_ERROR"
-	ErrCodeServiceUnavailable = "SERVICE_UNAVAILABLE"
+	ErrCodeBadRequest            = "BAD_REQUEST"
+	ErrCodeValidationError       = "VALIDATION_ERROR"
+	ErrCodeUnauthorized          = "UNAUTHORIZED"
+	ErrCodeForbidden             = "FORBIDDEN"
+	ErrCodeNotFound              = "NOT_FOUND"
+	ErrCodeConflict              = "CONFLICT"
+	ErrCodeInternalError         = "INTERNAL_ERROR"
+	ErrCodeServiceUnavailable    = "SERVICE_UNAVAILABLE"
+	ErrCodeLedgerRequired        = "LEDGER_REQUIRED"
+	ErrCodeLedgerContextMismatch = "LEDGER_CONTEXT_MISMATCH"
+	ErrCodeLedgerAccessDenied    = "LEDGER_ACCESS_DENIED"
+	ErrCodeLedgerObjectNotFound  = "LEDGER_OBJECT_NOT_FOUND"
+	ErrCodeLedgerArchived        = "LEDGER_ARCHIVED"
+	ErrCodeLedgerInvalidState    = "LEDGER_INVALID_STATE"
+	ErrCodeInstanceAdminRequired = "INSTANCE_ADMIN_REQUIRED"
 
 	// 初始化与认证
 	ErrCodeAppAlreadyInitialized = "APP_ALREADY_INITIALIZED"

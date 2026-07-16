@@ -19,23 +19,23 @@ export interface LedgerMember {
 
 export const ledgerApi = {
   // 获取当前用户的所有账本
-  listUserLedgers: () => api.get<LedgerWithRole[]>('/api/ledgers'),
+	listUserLedgers: () => api.get<LedgerWithRole[]>('/api/ledgers', { ledgerScope: 'none' }),
 
   // 创建账本
-  createLedger: (data: { name: string }) => api.post<Ledger>('/api/ledgers', data),
+	createLedger: (data: { name: string }) => api.post<Ledger>('/api/ledgers', data, { ledgerScope: 'none' }),
 
   // 获取特定账本成员
-  getLedgerMembers: (ledgerId: string) => api.get<LedgerMember[]>(`/api/ledgers/${ledgerId}/members`),
+	getLedgerMembers: (ledgerId: string) => api.get<LedgerMember[]>(`/api/ledgers/${ledgerId}/members`, { ledgerId }),
 
   // 添加成员
   addMember: (ledgerId: string, data: { username: string; role: string }) => 
-    api.post<null>(`/api/ledgers/${ledgerId}/members`, data),
+		api.post<null>(`/api/ledgers/${ledgerId}/members`, data, { ledgerId }),
 
   // 更新成员角色
   updateMemberRole: (ledgerId: string, userId: string, data: { role: string }) => 
-    api.put<null>(`/api/ledgers/${ledgerId}/members/${userId}`, data),
+		api.put<null>(`/api/ledgers/${ledgerId}/members/${userId}`, data, { ledgerId }),
 
   // 移除成员
   removeMember: (ledgerId: string, userId: string) => 
-    api.delete<null>(`/api/ledgers/${ledgerId}/members/${userId}`),
+		api.delete<null>(`/api/ledgers/${ledgerId}/members/${userId}`, { ledgerId }),
 };

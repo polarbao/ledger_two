@@ -120,14 +120,18 @@ func TestAuthFlow(t *testing.T) {
 	var meResp struct {
 		Success bool `json:"success"`
 		Data    struct {
-			Username    string `json:"username"`
-			DisplayName string `json:"display_name"`
-			LedgerID    string `json:"ledger_id"`
+			Username      string `json:"username"`
+			DisplayName   string `json:"display_name"`
+			InstanceAdmin bool   `json:"instance_admin"`
+			LedgerID      string `json:"ledger_id"`
 		} `json:"data"`
 	}
 	json.NewDecoder(rrMeSuccess.Body).Decode(&meResp)
 	if !meResp.Success || meResp.Data.Username != "userA" || meResp.Data.DisplayName != "User A" {
 		t.Errorf("expected userA info, got %+v", meResp.Data)
+	}
+	if !meResp.Data.InstanceAdmin || meResp.Data.LedgerID != "" {
+		t.Errorf("expected instance admin without current ledger, got %+v", meResp.Data)
 	}
 
 	// 6. 测试登出清理 Session

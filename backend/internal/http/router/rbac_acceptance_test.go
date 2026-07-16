@@ -54,6 +54,15 @@ func TestRBACAcceptanceViewerCannotCreateTransaction(t *testing.T) {
 	if afterCount := countTransactions(t, database); afterCount != beforeCount {
 		t.Fatalf("viewer write should not create transactions, before=%d after=%d", beforeCount, afterCount)
 	}
+
+	readReq := httptest.NewRequest(http.MethodGet, "/api/transactions", nil)
+	readReq.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	readReq.AddCookie(authCookie(t, fixture.UserBID))
+	readRecorder := httptest.NewRecorder()
+	router.ServeHTTP(readRecorder, readReq)
+	if readRecorder.Code != http.StatusOK {
+		t.Fatalf("viewer should retain read-only transaction history, got %d body: %s", readRecorder.Code, readRecorder.Body.String())
+	}
 }
 
 func TestRBACAcceptanceImportManagementOwnerOnly(t *testing.T) {

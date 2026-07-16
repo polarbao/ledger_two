@@ -39,7 +39,8 @@ export default function LoginPage() {
     setErrorMsg(null);
     setLoading(true);
     try {
-      const user = await authApi.login(data.username, data.password);
+			await authApi.login(data.username, data.password);
+			const user = await authApi.getMe();
       setUser(user);
       navigate('/');
     } catch (err: unknown) {

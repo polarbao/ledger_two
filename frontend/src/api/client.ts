@@ -24,26 +24,50 @@ interface ApiResponse<T = unknown> {
   };
 }
 
+export type LedgerScope = 'required' | 'none';
+
+export interface ApiRequestOptions extends RequestInit {
+  ledgerScope?: LedgerScope;
+  ledgerId?: string;
+}
+
 export async function request<T>(
   url: string,
-  options: RequestInit = {}
+  options: ApiRequestOptions = {}
 ): Promise<T> {
-  const isFormData = options.body instanceof FormData;
+	const {
+		ledgerScope = 'required',
+		ledgerId,
+		...fetchOptions
+	} = options;
+	const isFormData = fetchOptions.body instanceof FormData;
   const headers: Record<string, string> = {};
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
   }
-  if (options.headers) {
-    Object.assign(headers, options.headers);
+	if (fetchOptions.headers) {
+		new Headers(fetchOptions.headers).forEach((value, key) => {
+			headers[key] = value;
+		});
   }
 
-  const { activeLedgerId } = useLedgerStore.getState();
-  if (activeLedgerId) {
-    headers['X-Ledger-Id'] = activeLedgerId;
+	for (const key of Object.keys(headers)) {
+		if (key.toLowerCase() === 'x-ledger-id') {
+			delete headers[key];
+		}
+	}
+
+	if (ledgerScope !== 'none') {
+		const { activeLedgerId } = useLedgerStore.getState();
+		const explicitLedgerId = ledgerId?.trim() || activeLedgerId;
+		if (!explicitLedgerId) {
+			throw new ApiError('LEDGER_REQUIRED', '请先选择账本', 400);
+		}
+		headers['X-Ledger-Id'] = explicitLedgerId;
   }
 
   const mergedOptions: RequestInit = {
-    ...options,
+		...fetchOptions,
     credentials: 'include',
     headers,
   };
@@ -76,26 +100,26 @@ export async function request<T>(
 }
 
 export const api = {
-  get: <T>(url: string, options?: RequestInit) =>
+	get: <T>(url: string, options?: ApiRequestOptions) =>
     request<T>(url, { ...options, method: 'GET' }),
-  post: <T>(url: string, body?: unknown, options?: RequestInit) =>
+	post: <T>(url: string, body?: unknown, options?: ApiRequestOptions) =>
     request<T>(url, {
       ...options,
       method: 'POST',
       body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
     }),
-  put: <T>(url: string, body?: unknown, options?: RequestInit) =>
+	put: <T>(url: string, body?: unknown, options?: ApiRequestOptions) =>
     request<T>(url, {
       ...options,
       method: 'PUT',
       body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
     }),
-  patch: <T>(url: string, body?: unknown, options?: RequestInit) =>
+	patch: <T>(url: string, body?: unknown, options?: ApiRequestOptions) =>
     request<T>(url, {
       ...options,
       method: 'PATCH',
       body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
     }),
-  delete: <T>(url: string, options?: RequestInit) =>
+	delete: <T>(url: string, options?: ApiRequestOptions) =>
     request<T>(url, { ...options, method: 'DELETE' }),
 };

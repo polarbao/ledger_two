@@ -80,7 +80,7 @@ func (r *Repository) CreateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 // @return *Transaction 交易实体
 // @return []string 标签名称列表
 // @return error 错误信息
-func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []string, error) {
+func (r *Repository) GetByID(ctx context.Context, ledgerID string, id string) (*Transaction, []string, error) {
 	var tx Transaction
 	var accountID, categoryID, categoryName, splitMethod, note, attachmentPaths sql.NullString
 	var categoryArchived sql.NullBool
@@ -95,8 +95,8 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []st
 			t.visibility, t.split_method, t.note, t.attachment_paths, t.status, t.created_at, t.updated_at, t.deleted_at
 		FROM transactions t
 		LEFT JOIN categories c ON c.id = t.category_id AND c.ledger_id = t.ledger_id
-		WHERE t.id = ?
-	`, id).Scan(
+		WHERE t.ledger_id = ? AND t.id = ?
+	`, ledgerID, id).Scan(
 		&tx.ID, &tx.LedgerID, &tx.Type, &tx.Title, &tx.Amount, &tx.Currency, &occurredAtStr,
 		&tx.OwnerUserID, &tx.CreatedByUserID, &tx.PayerUserID, &accountID, &categoryID,
 		&categoryName, &categoryArchived,
@@ -104,7 +104,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []st
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, errors.New("transaction not found")
+			return nil, nil, sql.ErrNoRows
 		}
 		return nil, nil, err
 	}
@@ -128,11 +128,12 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Transaction, []st
 
 	// 查询标签名
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT t.name 
-		FROM tags t
-		JOIN transaction_tags tt ON t.id = tt.tag_id
+		SELECT tag.name
+		FROM transaction_tags tt
+		JOIN transactions parent ON parent.id = tt.transaction_id AND parent.ledger_id = ?
+		JOIN tags tag ON tag.id = tt.tag_id AND tag.ledger_id = parent.ledger_id
 		WHERE tt.transaction_id = ?
-	`, id)
+	`, ledgerID, id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -189,7 +190,7 @@ func (r *Repository) FindByAttachmentPath(ctx context.Context, ledgerID string, 
 		return nil, err
 	}
 	if matchedTransactionID != "" {
-		tx, _, err := r.GetByID(ctx, matchedTransactionID)
+		tx, _, err := r.GetByID(ctx, ledgerID, matchedTransactionID)
 		return tx, err
 	}
 	return nil, sql.ErrNoRows
@@ -207,19 +208,25 @@ func (r *Repository) UpdateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 	executor := r.getExecutor(tx)
 	now := time.Now().Format(time.RFC3339)
 
-	_, err := executor.ExecContext(ctx, `
+	result, err := executor.ExecContext(ctx, `
 		UPDATE transactions
 		SET type = ?, title = ?, amount = ?, occurred_at = ?,
 			payer_user_id = ?, account_id = ?, category_id = ?,
 			visibility = ?, note = ?, attachment_paths = ?, updated_at = ?
-		WHERE id = ?
+		WHERE id = ? AND ledger_id = ?
 	`,
 		transaction.Type, transaction.Title, transaction.Amount, transaction.OccurredAt.Format(time.RFC3339),
 		transaction.PayerUserID, r.nullString(transaction.AccountID), r.nullString(transaction.CategoryID),
-		transaction.Visibility, r.nullString(transaction.Note), r.nullString(transaction.AttachmentPaths), now, transaction.ID,
+		transaction.Visibility, r.nullString(transaction.Note), r.nullString(transaction.AttachmentPaths), now, transaction.ID, transaction.LedgerID,
 	)
 	if err != nil {
 		return err
+	}
+	if rows, err := result.RowsAffected(); err != nil || rows == 0 {
+		if err != nil {
+			return err
+		}
+		return sql.ErrNoRows
 	}
 
 	if !replaceTags {
@@ -227,7 +234,14 @@ func (r *Repository) UpdateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 	}
 
 	// 仅在请求显式修改标签时重构关系，避免普通字段编辑恢复已归档标签。
-	_, err = executor.ExecContext(ctx, "DELETE FROM transaction_tags WHERE transaction_id = ?", transaction.ID)
+	_, err = executor.ExecContext(ctx, `
+		DELETE FROM transaction_tags
+		WHERE transaction_id = ?
+			AND EXISTS (
+				SELECT 1 FROM transactions parent
+				WHERE parent.id = transaction_tags.transaction_id AND parent.ledger_id = ?
+			)
+	`, transaction.ID, transaction.LedgerID)
 	if err != nil {
 		return err
 	}
@@ -249,16 +263,25 @@ func (r *Repository) UpdateWithTx(ctx context.Context, tx *sql.Tx, transaction *
 // @param id string 交易 ID
 // @param deletedAt time.Time 删除时间
 // @return error 错误信息
-func (r *Repository) SoftDeleteWithTx(ctx context.Context, tx *sql.Tx, id string, deletedAt time.Time) error {
+func (r *Repository) SoftDeleteWithTx(ctx context.Context, tx *sql.Tx, ledgerID string, id string, deletedAt time.Time) error {
 	executor := r.getExecutor(tx)
 	now := deletedAt.Format(time.RFC3339)
 
-	_, err := executor.ExecContext(ctx, `
+	result, err := executor.ExecContext(ctx, `
 		UPDATE transactions
 		SET status = 'deleted', deleted_at = ?, updated_at = ?
-		WHERE id = ?
-	`, now, now, id)
-	return err
+		WHERE ledger_id = ? AND id = ?
+	`, now, now, ledgerID, id)
+	if err != nil {
+		return err
+	}
+	if rows, err := result.RowsAffected(); err != nil || rows == 0 {
+		if err != nil {
+			return err
+		}
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // TransactionFilter 查询过滤参数
@@ -681,17 +704,26 @@ func (r *Repository) associateTags(ctx context.Context, executor dbExecutor, tra
 // @param tx *sql.Tx 事务句柄
 // @param splits []TransactionSplit 分摊实体列表
 // @return error 错误信息
-func (r *Repository) CreateSplitsWithTx(ctx context.Context, tx *sql.Tx, splits []TransactionSplit) error {
+func (r *Repository) CreateSplitsWithTx(ctx context.Context, tx *sql.Tx, ledgerID string, splits []TransactionSplit) error {
 	executor := r.getExecutor(tx)
 	now := time.Now().Format(time.RFC3339)
 
 	for _, split := range splits {
-		_, err := executor.ExecContext(ctx, `
+		result, err := executor.ExecContext(ctx, `
 			INSERT INTO transaction_splits (id, transaction_id, user_id, share_amount, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`, split.ID, split.TransactionID, split.UserID, split.ShareAmount, now, now)
+			SELECT ?, ?, ?, ?, ?, ?
+			WHERE EXISTS (SELECT 1 FROM transactions WHERE id = ? AND ledger_id = ?)
+				AND EXISTS (SELECT 1 FROM ledger_members WHERE ledger_id = ? AND user_id = ?)
+		`, split.ID, split.TransactionID, split.UserID, split.ShareAmount, now, now,
+			split.TransactionID, ledgerID, ledgerID, split.UserID)
 		if err != nil {
 			return fmt.Errorf("insert transaction split failed: %w", err)
+		}
+		if rows, err := result.RowsAffected(); err != nil || rows == 0 {
+			if err != nil {
+				return err
+			}
+			return sql.ErrNoRows
 		}
 	}
 	return nil
@@ -703,12 +735,13 @@ func (r *Repository) CreateSplitsWithTx(ctx context.Context, tx *sql.Tx, splits 
 // @param txID string 交易 ID
 // @return []SplitResponse 分摊详情 DTO 列表
 // @return error 错误信息
-func (r *Repository) GetSplitsByTxID(ctx context.Context, txID string) ([]SplitResponse, error) {
+func (r *Repository) GetSplitsByTxID(ctx context.Context, ledgerID string, txID string) ([]SplitResponse, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT user_id, share_amount 
-		FROM transaction_splits 
-		WHERE transaction_id = ?
-	`, txID)
+		SELECT split.user_id, split.share_amount
+		FROM transaction_splits split
+		JOIN transactions parent ON parent.id = split.transaction_id AND parent.ledger_id = ?
+		WHERE split.transaction_id = ?
+	`, ledgerID, txID)
 	if err != nil {
 		return nil, err
 	}
@@ -730,23 +763,25 @@ func (r *Repository) GetSplitsByTxID(ctx context.Context, txID string) ([]SplitR
 // @param txIDs []string 交易 ID 列表
 // @return map[string][]SplitResponse 关联分摊 Map [transaction_id] -> []SplitResponse
 // @return error 错误信息
-func (r *Repository) GetSplitsByTxIDs(ctx context.Context, txIDs []string) (map[string][]SplitResponse, error) {
+func (r *Repository) GetSplitsByTxIDs(ctx context.Context, ledgerID string, txIDs []string) (map[string][]SplitResponse, error) {
 	splitMap := make(map[string][]SplitResponse)
 	if len(txIDs) == 0 {
 		return splitMap, nil
 	}
 
 	placeholders := make([]string, len(txIDs))
-	args := make([]interface{}, len(txIDs))
+	args := make([]interface{}, 0, len(txIDs)+1)
+	args = append(args, ledgerID)
 	for i, id := range txIDs {
 		placeholders[i] = "?"
-		args[i] = id
+		args = append(args, id)
 	}
 
 	query := fmt.Sprintf(`
-		SELECT transaction_id, user_id, share_amount
-		FROM transaction_splits
-		WHERE transaction_id IN (%s)
+		SELECT split.transaction_id, split.user_id, split.share_amount
+		FROM transaction_splits split
+		JOIN transactions parent ON parent.id = split.transaction_id AND parent.ledger_id = ?
+		WHERE split.transaction_id IN (%s)
 	`, strings.Join(placeholders, ","))
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -825,7 +860,7 @@ func (r *Repository) CreateTemplate(ctx context.Context, tmpl *TransactionTempla
 }
 
 // GetTemplateByID 根据 ID 查询单个账单模板
-func (r *Repository) GetTemplateByID(ctx context.Context, id string) (*TransactionTemplate, error) {
+func (r *Repository) GetTemplateByID(ctx context.Context, ledgerID string, id string) (*TransactionTemplate, error) {
 	var tmpl TransactionTemplate
 	var createdAtStr, updatedAtStr string
 	var archivedAtStr sql.NullString
@@ -836,8 +871,8 @@ func (r *Repository) GetTemplateByID(ctx context.Context, id string) (*Transacti
 			category_id, account_id, payer_user_id, split_method,
 			tag_names, note, created_by_user_id, is_archived, created_at, updated_at, archived_at
 		FROM transaction_templates
-		WHERE id = ?
-	`, id).Scan(
+		WHERE ledger_id = ? AND id = ?
+	`, ledgerID, id).Scan(
 		&tmpl.ID, &tmpl.LedgerID, &tmpl.Name, &tmpl.Type, &tmpl.Title, &tmpl.AmountCents,
 		&tmpl.CategoryID, &tmpl.AccountID, &tmpl.PayerUserID, &tmpl.SplitMethod,
 		&tmpl.TagNames, &tmpl.Note, &tmpl.CreatedByUserID, &isArchivedInt, &createdAtStr, &updatedAtStr, &archivedAtStr,
@@ -960,7 +995,7 @@ func (r *Repository) CreateRecurringRule(ctx context.Context, rule *RecurringRul
 }
 
 // GetRecurringRuleByID 根据 ID 获取周期账单规则
-func (r *Repository) GetRecurringRuleByID(ctx context.Context, id string) (*RecurringRule, error) {
+func (r *Repository) GetRecurringRuleByID(ctx context.Context, ledgerID string, id string) (*RecurringRule, error) {
 	var rule RecurringRule
 	var createdAtStr, updatedAtStr string
 	err := r.db.QueryRowContext(ctx, `
@@ -970,8 +1005,8 @@ func (r *Repository) GetRecurringRuleByID(ctx context.Context, id string) (*Recu
 			note, frequency, next_due_date, created_by_user_id,
 			created_at, updated_at
 		FROM recurring_rules
-		WHERE id = ?
-	`, id).Scan(
+		WHERE ledger_id = ? AND id = ?
+	`, ledgerID, id).Scan(
 		&rule.ID, &rule.LedgerID, &rule.Name, &rule.Type, &rule.Title, &rule.AmountCents,
 		&rule.CategoryID, &rule.PayerUserID, &rule.SplitMethod, &rule.TagNames,
 		&rule.Note, &rule.Frequency, &rule.NextDueDate, &rule.CreatedByUserID,
@@ -1046,7 +1081,7 @@ func (r *Repository) CreateRecurringReminder(ctx context.Context, tx *sql.Tx, re
 }
 
 // GetRecurringReminderByID 查询单条周期提醒
-func (r *Repository) GetRecurringReminderByID(ctx context.Context, id string) (*RecurringReminder, error) {
+func (r *Repository) GetRecurringReminderByID(ctx context.Context, ledgerID string, id string) (*RecurringReminder, error) {
 	var reminder RecurringReminder
 	var createdAtStr, updatedAtStr string
 	err := r.db.QueryRowContext(ctx, `
@@ -1054,8 +1089,8 @@ func (r *Repository) GetRecurringReminderByID(ctx context.Context, id string) (*
 			id, ledger_id, rule_id, due_date, status,
 			transaction_id, created_at, updated_at
 		FROM recurring_reminders
-		WHERE id = ?
-	`, id).Scan(
+		WHERE ledger_id = ? AND id = ?
+	`, ledgerID, id).Scan(
 		&reminder.ID, &reminder.LedgerID, &reminder.RuleID, &reminder.DueDate,
 		&reminder.Status, &reminder.TransactionID, &createdAtStr, &updatedAtStr,
 	)
@@ -1121,33 +1156,34 @@ func (r *Repository) UpdateRecurringReminderStatusWithTx(ctx context.Context, tx
 }
 
 // UpdateRecurringRuleNextDueDateWithTx 更新规则的下一次触发时间
-func (r *Repository) UpdateRecurringRuleNextDueDateWithTx(ctx context.Context, tx *sql.Tx, id string, nextDueDate string) error {
+func (r *Repository) UpdateRecurringRuleNextDueDateWithTx(ctx context.Context, tx *sql.Tx, ledgerID string, id string, nextDueDate string) error {
 	executor := r.getExecutor(tx)
 	now := time.Now().Format(time.RFC3339)
 	_, err := executor.ExecContext(ctx, `
 		UPDATE recurring_rules
 		SET next_due_date = ?, updated_at = ?
-		WHERE id = ?
-	`, nextDueDate, now, id)
+		WHERE ledger_id = ? AND id = ?
+	`, nextDueDate, now, ledgerID, id)
 	return err
 }
 
 // FilterExistingHashes 批量筛选已存在的去重哈希
-func (r *Repository) FilterExistingHashes(ctx context.Context, hashes []string) (map[string]bool, error) {
+func (r *Repository) FilterExistingHashes(ctx context.Context, ledgerID string, hashes []string) (map[string]bool, error) {
 	existing := make(map[string]bool)
 	if len(hashes) == 0 {
 		return existing, nil
 	}
 
 	// 构造 IN (?, ?, ...) 占位符
-	query := "SELECT import_hash FROM import_items WHERE status = 'imported' AND import_hash IN ("
-	args := make([]interface{}, len(hashes))
+	query := "SELECT item.import_hash FROM import_items item JOIN import_batches batch ON batch.id = item.batch_id WHERE batch.ledger_id = ? AND item.status = 'imported' AND item.import_hash IN ("
+	args := make([]interface{}, 0, len(hashes)+1)
+	args = append(args, ledgerID)
 	for i, h := range hashes {
 		if i > 0 {
 			query += ","
 		}
 		query += "?"
-		args[i] = h
+		args = append(args, h)
 	}
 	query += ")"
 

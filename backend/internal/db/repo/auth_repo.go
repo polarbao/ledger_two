@@ -32,17 +32,25 @@ func (r *AuthRepo) GetUserByUsername(ctx context.Context, username string) (*Aut
 }
 
 type MeData struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url"`
-	LedgerID    string `json:"ledger_id"`
+	ID            string `json:"id"`
+	Username      string `json:"username"`
+	DisplayName   string `json:"display_name"`
+	AvatarURL     string `json:"avatar_url"`
+	InstanceAdmin bool   `json:"instance_admin"`
 }
 
 func (r *AuthRepo) GetMe(ctx context.Context, userID string) (*MeData, error) {
 	var me MeData
 	var avatar sql.NullString
-	err := r.db.QueryRowContext(ctx, "SELECT id, username, display_name, avatar_url FROM users WHERE id = ?", userID).Scan(&me.ID, &me.Username, &me.DisplayName, &avatar)
+	err := r.db.QueryRowContext(ctx, `
+		SELECT u.id,
+		       u.username,
+		       u.display_name,
+		       u.avatar_url,
+		       EXISTS(SELECT 1 FROM instance_admins ia WHERE ia.user_id = u.id)
+		FROM users u
+		WHERE u.id = ?
+	`, userID).Scan(&me.ID, &me.Username, &me.DisplayName, &avatar, &me.InstanceAdmin)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("user not found")
@@ -51,12 +59,6 @@ func (r *AuthRepo) GetMe(ctx context.Context, userID string) (*MeData, error) {
 	}
 	if avatar.Valid {
 		me.AvatarURL = avatar.String
-	}
-
-	// 注入系统获取用户所绑定的 Ledger 以方便后续鉴权
-	err = r.db.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&me.LedgerID)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
 	}
 
 	return &me, nil

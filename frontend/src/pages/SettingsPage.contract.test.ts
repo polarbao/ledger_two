@@ -17,7 +17,7 @@ describe('UI-FL-07 settings page contract', () => {
     expect(source).toContain("import ConfirmDialog from '../components/ui/ConfirmDialog'");
     expect(source).toContain("const canImportData = useHasLedgerRole(['owner'])");
     expect(source).toContain("const canExportData = useHasLedgerRole(['owner', 'editor'])");
-    expect(source).toContain("const canManageSafety = useHasLedgerRole(['owner'])");
+		expect(source).toContain('const canManageSafety = Boolean(currentUser?.instance_admin)');
     expect(source).toContain('preview 不会写入正式账单');
     expect(source).toContain('不会在线替换运行中的数据库');
     expect(source).toContain('不展示密码、Cookie、密钥、DSN 或服务器绝对路径');

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { request, ApiError } from './client';
+import { useLedgerStore } from '../stores/ledger.store';
 
 describe('API Client Error Parsing', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+	useLedgerStore.getState().clearActiveLedger();
   });
 
   it('should parse success response correctly', async () => {
@@ -18,7 +20,7 @@ describe('API Client Error Parsing', () => {
       json: () => Promise.resolve(mockResponse),
     }));
 
-    const data = await request<{ id: string; name: string }>('/api/test');
+	const data = await request<{ id: string; name: string }>('/api/test', { ledgerScope: 'none' });
     expect(data).toEqual({ id: '123', name: 'Test' });
   });
 
@@ -39,7 +41,7 @@ describe('API Client Error Parsing', () => {
     }));
 
     try {
-      await request('/api/test');
+		await request('/api/test', { ledgerScope: 'none' });
       expect.fail('Expected request to throw ApiError');
     } catch (err) {
       expect(err).toBeInstanceOf(ApiError);
@@ -76,7 +78,7 @@ describe('API Client Error Parsing', () => {
     });
 
     try {
-      await request('/api/test');
+		await request('/api/test', { ledgerScope: 'none' });
       expect.fail('Expected request to throw ApiError');
     } catch (err) {
       expect(err).toBeInstanceOf(ApiError);
@@ -86,4 +88,73 @@ describe('API Client Error Parsing', () => {
       expect(apiErr.details).toBeNull();
     }
   });
+
+	it('rejects ledger-scoped requests before fetch when no ledger is active', async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(request('/api/transactions')).rejects.toMatchObject({
+			code: 'LEDGER_REQUIRED',
+			status: 400,
+		});
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('sends the active ledger for ledger-scoped requests', async () => {
+		useLedgerStore.getState().setActiveLedger('ledger-active', 'owner');
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: () => Promise.resolve({ success: true, data: null }),
+		}));
+
+		await request('/api/transactions');
+		expect(fetch).toHaveBeenCalledWith('/api/transactions', expect.objectContaining({
+			headers: expect.objectContaining({ 'X-Ledger-Id': 'ledger-active' }),
+		}));
+	});
+
+	it('never sends a ledger header for global requests', async () => {
+		useLedgerStore.getState().setActiveLedger('ledger-active', 'owner');
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: () => Promise.resolve({ success: true, data: null }),
+		}));
+
+		await request('/api/auth/me', { ledgerScope: 'none' });
+		const options = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+		expect(options.headers).not.toHaveProperty('X-Ledger-Id');
+	});
+
+	it('uses the path ledger as the explicit header for ledger member routes', async () => {
+		useLedgerStore.getState().setActiveLedger('ledger-active', 'owner');
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: () => Promise.resolve({ success: true, data: null }),
+		}));
+
+		await request('/api/ledgers/ledger-path/members', { ledgerId: 'ledger-path' });
+		expect(fetch).toHaveBeenCalledWith('/api/ledgers/ledger-path/members', expect.objectContaining({
+			headers: expect.objectContaining({ 'X-Ledger-Id': 'ledger-path' }),
+		}));
+	});
+
+	it('replaces caller-provided ledger headers with the resolved ledger scope', async () => {
+		useLedgerStore.getState().setActiveLedger('ledger-active', 'owner');
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: () => Promise.resolve({ success: true, data: null }),
+		}));
+
+		await request('/api/ledgers/ledger-path/members', {
+			ledgerId: 'ledger-path',
+			headers: { 'x-ledger-id': 'ledger-wrong' },
+		});
+		const options = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+		expect(options.headers).toEqual(expect.objectContaining({ 'X-Ledger-Id': 'ledger-path' }));
+		expect(options.headers).not.toHaveProperty('x-ledger-id');
+	});
 });

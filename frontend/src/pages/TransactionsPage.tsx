@@ -250,9 +250,12 @@ export default function TransactionsPage() {
     setExporting(true);
     setPageMessage(null);
     try {
+		if (!activeLedgerId) {
+			throw new Error('请先选择账本');
+		}
       const response = await fetch(`/api/export/transactions.csv?month=${encodeURIComponent(month)}`, {
         credentials: 'include',
-        headers: activeLedgerId ? { 'X-Ledger-Id': activeLedgerId } : undefined,
+			headers: { 'X-Ledger-Id': activeLedgerId },
       });
       if (!response.ok) throw new Error('导出失败，请稍后重试');
       const blobUrl = window.URL.createObjectURL(await response.blob());

@@ -13,7 +13,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
@@ -43,7 +42,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Post("/api/attachments", txHandler.HandleUploadAttachment)
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreate)
@@ -99,6 +98,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	reqUpload, _ := http.NewRequest("POST", "/api/attachments", &uploadBuf)
 	reqUpload.Header.Set("Content-Type", mpWriter.FormDataContentType())
 	reqUpload.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqUpload, "Test Ledger")
 
 	rrUpload := httptest.NewRecorder()
 	r.ServeHTTP(rrUpload, reqUpload)
@@ -129,6 +129,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	reqOver, _ := http.NewRequest("POST", "/api/attachments", &overLimitBuf)
 	reqOver.Header.Set("Content-Type", mpWriterOver.FormDataContentType())
 	reqOver.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqOver, "Test Ledger")
 
 	rrOver := httptest.NewRecorder()
 	r.ServeHTTP(rrOver, reqOver)
@@ -151,6 +152,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	bodyErrPath, _ := json.Marshal(reqPayloadErrPath)
 	reqCreateErrPath, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyErrPath))
 	reqCreateErrPath.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCreateErrPath, "Test Ledger")
 	rrCreateErrPath := httptest.NewRecorder()
 	r.ServeHTTP(rrCreateErrPath, reqCreateErrPath)
 	if rrCreateErrPath.Code != http.StatusBadRequest {
@@ -178,6 +180,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	bodyErrCount, _ := json.Marshal(reqPayloadErrCount)
 	reqCreateErrCount, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyErrCount))
 	reqCreateErrCount.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCreateErrCount, "Test Ledger")
 	rrCreateErrCount := httptest.NewRecorder()
 	r.ServeHTTP(rrCreateErrCount, reqCreateErrCount)
 	if rrCreateErrCount.Code != http.StatusBadRequest {
@@ -198,6 +201,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	bodyOk, _ := json.Marshal(reqPayloadOk)
 	reqCreateOk, _ := http.NewRequest("POST", "/api/transactions", bytes.NewBuffer(bodyOk))
 	reqCreateOk.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqCreateOk, "Test Ledger")
 	rrCreateOk := httptest.NewRecorder()
 	r.ServeHTTP(rrCreateOk, reqCreateOk)
 	if rrCreateOk.Code != http.StatusCreated {
@@ -230,6 +234,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	bodyUpdateErr, _ := json.Marshal(reqPayloadUpdateErr)
 	reqUpdateErr, _ := http.NewRequest("PATCH", "/api/transactions/"+txID, bytes.NewBuffer(bodyUpdateErr))
 	reqUpdateErr.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqUpdateErr, "Test Ledger")
 	rrUpdateErr := httptest.NewRecorder()
 	r.ServeHTTP(rrUpdateErr, reqUpdateErr)
 	if rrUpdateErr.Code != http.StatusBadRequest {
@@ -244,6 +249,7 @@ func TestAttachmentUploadAndValidation(t *testing.T) {
 	bodyUpdateOk, _ := json.Marshal(reqPayloadUpdateOk)
 	reqUpdateOk, _ := http.NewRequest("PATCH", "/api/transactions/"+txID, bytes.NewBuffer(bodyUpdateOk))
 	reqUpdateOk.AddCookie(cookieA)
+	setTestLedgerHeader(t, db, reqUpdateOk, "Test Ledger")
 	rrUpdateOk := httptest.NewRecorder()
 	r.ServeHTTP(rrUpdateOk, reqUpdateOk)
 	if rrUpdateOk.Code != http.StatusOK {

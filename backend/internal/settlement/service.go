@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 
 	appErrors "ledger_two/internal/errors"
-	"ledger_two/internal/http/middleware"
 	ledgerctx "ledger_two/internal/ledger"
 )
 
@@ -52,7 +52,7 @@ func (s *Service) getBalance(ctx context.Context, currentUserID, month string) (
 	// 1. 获取全局唯一 LedgerID
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	// 2. 获取账单内所有的用户 ID
@@ -206,7 +206,7 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	// 验证用户在系统中是否存在
@@ -312,7 +312,7 @@ func (s *Service) CreateSettlement(ctx context.Context, currentUserID string, re
 func (s *Service) List(ctx context.Context, currentUserID string, month string) ([]*SettlementResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	list, err := s.repo.List(ctx, ledgerID, month)
@@ -348,46 +348,29 @@ func (s *Service) toDTO(m *Settlement) *SettlementResponse {
 
 // 辅助方法：查询唯一 LedgerID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
-	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
-		return lc.LedgerID, nil
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, userID)
+	if err != nil {
+		if errors.Is(err, ledgerctx.ErrLedgerContextMismatch) {
+			return "", appErrors.NewAppError(403, appErrors.ErrCodeLedgerAccessDenied, "账本上下文与当前用户不匹配")
+		}
+		return "", appErrors.NewAppError(400, appErrors.ErrCodeLedgerRequired, "请选择账本后再继续")
 	}
-
-	var id string
-	dbConn := s.repo.GetDB()
-
-	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
-	if headerLedgerID != "" {
-		err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
-		return id, err
-	}
-
-	err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
-	return id, err
+	return lc.LedgerID, nil
 }
 
 // 辅助方法：校验用户在账本中的角色
 func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string, allowedRoles ...string) error {
-	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID && lc.LedgerID == ledgerID {
-		for _, r := range allowedRoles {
-			if lc.Role == ledgerctx.Role(r) {
-				return nil
-			}
-		}
-		return appErrors.NewAppError(403, "FORBIDDEN", "当前角色无权执行此操作")
-	}
-
-	var role string
-	err := s.repo.GetDB().QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
-	if err != nil {
-		return appErrors.NewAppError(403, "FORBIDDEN", "您不是该账本的成员")
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, userID)
+	if err != nil || lc.LedgerID != ledgerID {
+		return appErrors.NewAppError(403, appErrors.ErrCodeLedgerAccessDenied, "账本访问权限不足")
 	}
 
 	for _, r := range allowedRoles {
-		if role == r {
+		if lc.Role == ledgerctx.Role(r) {
 			return nil
 		}
 	}
-	return appErrors.NewAppError(403, "FORBIDDEN", "当前角色无权执行此操作")
+	return appErrors.NewAppError(403, appErrors.ErrCodeLedgerAccessDenied, "当前角色无权执行此操作")
 }
 
 // 辅助方法：查询所有账本成员 ID

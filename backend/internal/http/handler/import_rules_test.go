@@ -11,7 +11,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
 )
@@ -39,7 +38,7 @@ func TestImportRulesCRUD(t *testing.T) {
 	r.Post("/api/auth/login", authHandler.HandleLogin)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(db, jwtSecret))
 		r.Get("/api/accounts", txHandler.HandleListAccounts)
 		r.Route("/api/import-rules", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreateImportRule)
@@ -79,6 +78,7 @@ func TestImportRulesCRUD(t *testing.T) {
 	t.Run("List Accounts", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/accounts", nil)
 		req.AddCookie(cookieA)
+		setTestLedgerHeader(t, db, req, "Import Rules Test Ledger")
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -123,6 +123,7 @@ func TestImportRulesCRUD(t *testing.T) {
 		body, _ := json.Marshal(rulePayload)
 		req, _ := http.NewRequest("POST", "/api/import-rules", bytes.NewBuffer(body))
 		req.AddCookie(cookieA)
+		setTestLedgerHeader(t, db, req, "Import Rules Test Ledger")
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -157,6 +158,7 @@ func TestImportRulesCRUD(t *testing.T) {
 		body, _ := json.Marshal(rulePayload)
 		req, _ := http.NewRequest("POST", "/api/import-rules", bytes.NewBuffer(body))
 		req.AddCookie(cookieA)
+		setTestLedgerHeader(t, db, req, "Import Rules Test Ledger")
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -169,6 +171,7 @@ func TestImportRulesCRUD(t *testing.T) {
 	t.Run("List Import Rules", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/import-rules", nil)
 		req.AddCookie(cookieA)
+		setTestLedgerHeader(t, db, req, "Import Rules Test Ledger")
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -193,6 +196,7 @@ func TestImportRulesCRUD(t *testing.T) {
 	t.Run("Delete Import Rule Non-Existent", func(t *testing.T) {
 		req, _ := http.NewRequest("DELETE", "/api/import-rules/non-existent-id", nil)
 		req.AddCookie(cookieA)
+		setTestLedgerHeader(t, db, req, "Import Rules Test Ledger")
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -205,6 +209,7 @@ func TestImportRulesCRUD(t *testing.T) {
 	t.Run("Delete Import Rule Success", func(t *testing.T) {
 		req, _ := http.NewRequest("DELETE", "/api/import-rules/"+createdRuleID, nil)
 		req.AddCookie(cookieA)
+		setTestLedgerHeader(t, db, req, "Import Rules Test Ledger")
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
@@ -215,6 +220,7 @@ func TestImportRulesCRUD(t *testing.T) {
 		// 再次拉取规则，应当为空
 		reqList, _ := http.NewRequest("GET", "/api/import-rules", nil)
 		reqList.AddCookie(cookieA)
+		setTestLedgerHeader(t, db, reqList, "Import Rules Test Ledger")
 		rrList := httptest.NewRecorder()
 		r.ServeHTTP(rrList, reqList)
 

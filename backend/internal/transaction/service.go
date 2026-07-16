@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 
 	appErrors "ledger_two/internal/errors"
-	"ledger_two/internal/http/middleware"
 	ledgerctx "ledger_two/internal/ledger"
 )
 
@@ -65,7 +64,7 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 	// 5. 获取全局唯一 LedgerID
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
 		return nil, err
@@ -87,7 +86,7 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 	title := req.Title
 	if title == "" {
 		if req.CategoryID != nil && *req.CategoryID != "" {
-			title = s.getCategoryName(ctx, strings.TrimSpace(*req.CategoryID))
+			title = s.getCategoryName(ctx, ledgerID, strings.TrimSpace(*req.CategoryID))
 		}
 		if title == "" {
 			title = "未分类流水"
@@ -180,19 +179,23 @@ func (s *Service) Create(ctx context.Context, currentUserID string, req CreateTr
 // @return *TransactionResponse 账单明细数据
 // @return error 异常对象
 func (s *Service) GetByID(ctx context.Context, currentUserID string, id string) (*TransactionResponse, error) {
-	tx, tags, err := s.repo.GetByID(ctx, id)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到或已删除")
+		return nil, err
+	}
+	tx, tags, err := s.repo.GetByID(ctx, ledgerID, id)
+	if err != nil {
+		return nil, appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单未找到或不属于当前账本")
 	}
 
 	// 校验查看权限
 	if !s.CanViewTransaction(currentUserID, tx) {
-		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到或已删除")
+		return nil, appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单未找到或不属于当前账本")
 	}
 
 	dto := s.toDTO(tx, tags)
 	if tx.Type == "shared_expense" {
-		splits, err := s.repo.GetSplitsByTxID(ctx, id)
+		splits, err := s.repo.GetSplitsByTxID(ctx, ledgerID, id)
 		if err == nil {
 			dto.SplitMethod = &tx.SplitMethod.String
 			dto.Participants = splits
@@ -211,9 +214,13 @@ func (s *Service) GetByID(ctx context.Context, currentUserID string, id string) 
 // @return *TransactionResponse 更新后的账单 DTO
 // @return error 异常对象
 func (s *Service) Update(ctx context.Context, currentUserID string, id string, req UpdateTransactionRequest) (*TransactionResponse, error) {
-	tx, oldTags, err := s.repo.GetByID(ctx, id)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
+		return nil, err
+	}
+	tx, oldTags, err := s.repo.GetByID(ctx, ledgerID, id)
+	if err != nil {
+		return nil, appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单未找到或不属于当前账本")
 	}
 
 	if err := s.checkRole(ctx, tx.LedgerID, currentUserID, "owner", "editor"); err != nil {
@@ -222,7 +229,7 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 
 	// 校验查看权限以防越权探测
 	if !s.CanViewTransaction(currentUserID, tx) {
-		return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
+		return nil, appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单未找到或不属于当前账本")
 	}
 
 	// 校验编辑权限：谁创建谁编辑，被删除的拒绝编辑
@@ -239,7 +246,7 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 	}
 	var oldSplits []SplitResponse
 	if isShared {
-		oldSplits, _ = s.repo.GetSplitsByTxID(ctx, id)
+		oldSplits, _ = s.repo.GetSplitsByTxID(ctx, ledgerID, id)
 	}
 
 	oldDTO := s.toDTO(tx, oldTags)
@@ -411,12 +418,19 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 
 	if recalculateSplits {
 		// 删除旧分摊
-		_, err = dbTx.ExecContext(ctx, "DELETE FROM transaction_splits WHERE transaction_id = ?", tx.ID)
+		_, err = dbTx.ExecContext(ctx, `
+			DELETE FROM transaction_splits
+			WHERE transaction_id = ?
+				AND EXISTS (
+					SELECT 1 FROM transactions parent
+					WHERE parent.id = transaction_splits.transaction_id AND parent.ledger_id = ?
+				)
+		`, tx.ID, ledgerID)
 		if err != nil {
 			return nil, err
 		}
 		// 写入新分摊
-		err = s.repo.CreateSplitsWithTx(ctx, dbTx, newSplits)
+		err = s.repo.CreateSplitsWithTx(ctx, dbTx, ledgerID, newSplits)
 		if err != nil {
 			return nil, err
 		}
@@ -470,9 +484,13 @@ func (s *Service) Update(ctx context.Context, currentUserID string, id string, r
 // @param id string 交易账单 ID
 // @return error 异常对象
 func (s *Service) Delete(ctx context.Context, currentUserID string, id string) error {
-	tx, tags, err := s.repo.GetByID(ctx, id)
+	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
+		return err
+	}
+	tx, tags, err := s.repo.GetByID(ctx, ledgerID, id)
+	if err != nil {
+		return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单未找到或不属于当前账本")
 	}
 
 	if err := s.checkRole(ctx, tx.LedgerID, currentUserID, "owner", "editor"); err != nil {
@@ -481,7 +499,7 @@ func (s *Service) Delete(ctx context.Context, currentUserID string, id string) e
 
 	// 校验查看权限以防越权探测
 	if !s.CanViewTransaction(currentUserID, tx) {
-		return appErrors.NewAppError(404, "NOT_FOUND", "账单未找到")
+		return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单未找到或不属于当前账本")
 	}
 
 	// 校验编辑/删除权限：谁创建谁删除
@@ -491,7 +509,7 @@ func (s *Service) Delete(ctx context.Context, currentUserID string, id string) e
 
 	beforeDTO := s.toDTO(tx, tags)
 	if tx.Type == "shared_expense" {
-		splits, _ := s.repo.GetSplitsByTxID(ctx, id)
+		splits, _ := s.repo.GetSplitsByTxID(ctx, ledgerID, id)
 		beforeDTO.SplitMethod = &tx.SplitMethod.String
 		beforeDTO.Participants = splits
 	}
@@ -505,7 +523,7 @@ func (s *Service) Delete(ctx context.Context, currentUserID string, id string) e
 	defer dbTx.Rollback()
 
 	now := time.Now()
-	err = s.repo.SoftDeleteWithTx(ctx, dbTx, id, now)
+	err = s.repo.SoftDeleteWithTx(ctx, dbTx, ledgerID, id, now)
 	if err != nil {
 		return err
 	}
@@ -538,9 +556,9 @@ func (s *Service) Delete(ctx context.Context, currentUserID string, id string) e
 func (s *Service) List(ctx context.Context, currentUserID string, filter TransactionFilter) ([]*TransactionResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
-	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
+	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor", "viewer"); err != nil {
 		return nil, err
 	}
 
@@ -558,7 +576,7 @@ func (s *Service) List(ctx context.Context, currentUserID string, filter Transac
 
 	var splitMap map[string][]SplitResponse
 	if len(sharedTxIDs) > 0 {
-		splitMap, _ = s.repo.GetSplitsByTxIDs(ctx, sharedTxIDs)
+		splitMap, _ = s.repo.GetSplitsByTxIDs(ctx, ledgerID, sharedTxIDs)
 	}
 
 	var res []*TransactionResponse
@@ -599,18 +617,18 @@ func (s *Service) CanViewTransaction(currentUserID string, tx *Transaction) bool
 func (s *Service) CanViewAttachment(ctx context.Context, currentUserID string, attachmentPath string) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 
 	tx, err := s.repo.FindByAttachmentPath(ctx, ledgerID, attachmentPath)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "附件未找到")
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "附件未找到或不属于当前账本")
 		}
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取附件关联账单失败")
 	}
 	if !s.CanViewTransaction(currentUserID, tx) {
-		return appErrors.NewAppError(404, "NOT_FOUND", "附件未找到")
+		return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "附件未找到或不属于当前账本")
 	}
 	return nil
 }
@@ -678,53 +696,36 @@ func (s *Service) toDTO(tx *Transaction, tags []string) *TransactionResponse {
 
 // 辅助方法：查询唯一 LedgerID
 func (s *Service) getUserLedgerID(ctx context.Context, userID string) (string, error) {
-	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
-		return lc.LedgerID, nil
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, userID)
+	if err != nil {
+		if errors.Is(err, ledgerctx.ErrLedgerContextMismatch) {
+			return "", appErrors.NewAppError(403, appErrors.ErrCodeLedgerAccessDenied, "账本上下文与当前用户不匹配")
+		}
+		return "", appErrors.NewAppError(400, appErrors.ErrCodeLedgerRequired, "请选择账本后再继续")
 	}
-
-	var id string
-	dbConn := s.repo.GetDB()
-
-	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
-	if headerLedgerID != "" {
-		err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE ledger_id = ? AND user_id = ?", headerLedgerID, userID).Scan(&id)
-		return id, err
-	}
-
-	err := dbConn.QueryRowContext(ctx, "SELECT ledger_id FROM ledger_members WHERE user_id = ? LIMIT 1", userID).Scan(&id)
-	return id, err
+	return lc.LedgerID, nil
 }
 
 // 辅助方法：校验用户在账本中的角色
 func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string, allowedRoles ...string) error {
-	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID && lc.LedgerID == ledgerID {
-		for _, r := range allowedRoles {
-			if lc.Role == ledgerctx.Role(r) {
-				return nil
-			}
-		}
-		return appErrors.NewAppError(403, "FORBIDDEN", "当前角色无权执行此操作")
-	}
-
-	var role string
-	err := s.repo.GetDB().QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
-	if err != nil {
-		return appErrors.NewAppError(403, "FORBIDDEN", "您不是该账本的成员")
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, userID)
+	if err != nil || lc.LedgerID != ledgerID {
+		return appErrors.NewAppError(403, appErrors.ErrCodeLedgerAccessDenied, "账本访问权限不足")
 	}
 
 	for _, r := range allowedRoles {
-		if role == r {
+		if lc.Role == ledgerctx.Role(r) {
 			return nil
 		}
 	}
-	return appErrors.NewAppError(403, "FORBIDDEN", "当前角色无权执行此操作")
+	return appErrors.NewAppError(403, appErrors.ErrCodeLedgerAccessDenied, "当前角色无权执行此操作")
 }
 
 // 辅助方法：查询分类名称
-func (s *Service) getCategoryName(ctx context.Context, catID string) string {
+func (s *Service) getCategoryName(ctx context.Context, ledgerID string, catID string) string {
 	var name string
 	dbConn := s.repo.GetDB()
-	err := dbConn.QueryRowContext(ctx, "SELECT name FROM categories WHERE id = ?", catID).Scan(&name)
+	err := dbConn.QueryRowContext(ctx, "SELECT name FROM categories WHERE id = ? AND ledger_id = ?", catID, ledgerID).Scan(&name)
 	if err != nil {
 		return ""
 	}
@@ -834,7 +835,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	// 5. 获取全局唯一 LedgerID
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
 		return nil, err
@@ -872,7 +873,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	title := req.Title
 	if title == "" {
 		if req.CategoryID != nil && *req.CategoryID != "" {
-			title = s.getCategoryName(ctx, strings.TrimSpace(*req.CategoryID))
+			title = s.getCategoryName(ctx, ledgerID, strings.TrimSpace(*req.CategoryID))
 		}
 		if title == "" {
 			title = "未分类共同支出"
@@ -936,7 +937,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 	}
 
 	// 写入 transaction_splits
-	err = s.repo.CreateSplitsWithTx(ctx, dbTx, splitEntities)
+	err = s.repo.CreateSplitsWithTx(ctx, dbTx, ledgerID, splitEntities)
 	if err != nil {
 		return nil, err
 	}
@@ -968,7 +969,7 @@ func (s *Service) CreateSharedExpense(ctx context.Context, currentUserID string,
 func (s *Service) ListCategories(ctx context.Context, currentUserID string, includeArchived bool) ([]Category, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 	return s.repo.ListCategories(ctx, ledgerID, includeArchived)
 }
@@ -1023,7 +1024,7 @@ func (s *Service) CreateTemplate(ctx context.Context, currentUserID string, req 
 
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 	if err := s.validateTemplateRequest(ctx, ledgerID, currentUserID, req); err != nil {
 		return nil, err
@@ -1104,19 +1105,15 @@ func (s *Service) CreateTemplate(ctx context.Context, currentUserID string, req 
 func (s *Service) GetTemplate(ctx context.Context, currentUserID string, id string) (*TemplateResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
-	tmpl, err := s.repo.GetTemplateByID(ctx, id)
+	tmpl, err := s.repo.GetTemplateByID(ctx, ledgerID, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, appErrors.NewAppError(404, "NOT_FOUND", "账单模板未找到")
+			return nil, appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单模板未找到或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
-	}
-
-	if tmpl.LedgerID != ledgerID {
-		return nil, appErrors.NewAppError(403, "FORBIDDEN", "无权查看该模板")
 	}
 
 	return s.toTemplateResponse(tmpl), nil
@@ -1126,7 +1123,7 @@ func (s *Service) GetTemplate(ctx context.Context, currentUserID string, id stri
 func (s *Service) ListTemplates(ctx context.Context, currentUserID string, includeArchived bool) ([]*TemplateResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	templates, err := s.repo.ListTemplates(ctx, ledgerID, includeArchived)
@@ -1158,21 +1155,18 @@ func (s *Service) UpdateTemplate(ctx context.Context, currentUserID string, id s
 
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	// 1. 先读取并校验越权
-	tmpl, err := s.repo.GetTemplateByID(ctx, id)
+	tmpl, err := s.repo.GetTemplateByID(ctx, ledgerID, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, appErrors.NewAppError(404, "NOT_FOUND", "欲更新的模板不存在")
+			return nil, appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "欲更新的模板不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
 	}
 
-	if tmpl.LedgerID != ledgerID {
-		return nil, appErrors.NewAppError(403, "FORBIDDEN", "无权更新该模板")
-	}
 	if err := s.validateTemplateRequest(ctx, ledgerID, currentUserID, req); err != nil {
 		return nil, err
 	}
@@ -1327,22 +1321,18 @@ func nullTimeToString(value sql.NullTime) string {
 func (s *Service) ArchiveTemplate(ctx context.Context, currentUserID string, id string) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
 		return err
 	}
 
-	tmpl, err := s.repo.GetTemplateByID(ctx, id)
+	_, err = s.repo.GetTemplateByID(ctx, ledgerID, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "欲归档的模板不存在")
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "欲归档的模板不存在或不属于当前账本")
 		}
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
-	}
-
-	if tmpl.LedgerID != ledgerID {
-		return appErrors.NewAppError(403, "FORBIDDEN", "无权归档该模板")
 	}
 
 	if err := s.repo.ArchiveTemplate(ctx, id, ledgerID); err != nil {
@@ -1361,23 +1351,19 @@ func (s *Service) DeleteTemplate(ctx context.Context, currentUserID string, id s
 func (s *Service) RestoreTemplate(ctx context.Context, currentUserID string, id string) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
 		return err
 	}
 
-	tmpl, err := s.repo.GetTemplateByID(ctx, id)
+	_, err = s.repo.GetTemplateByID(ctx, ledgerID, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "欲恢复的模板不存在")
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "欲恢复的模板不存在或不属于当前账本")
 		}
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取模板失败")
 	}
-	if tmpl.LedgerID != ledgerID {
-		return appErrors.NewAppError(403, "FORBIDDEN", "无权恢复该模板")
-	}
-
 	if err := s.repo.RestoreTemplate(ctx, id, ledgerID); err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "恢复模板失败")
 	}
@@ -1405,7 +1391,15 @@ func (s *Service) CreateRecurringRule(ctx context.Context, currentUserID string,
 
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
+	}
+	if err := s.validateActiveCategoryReference(ctx, ledgerID, req.CategoryID); err != nil {
+		return nil, err
+	}
+	if req.PayerUserID != nil && strings.TrimSpace(*req.PayerUserID) != "" {
+		if err := s.validateLedgerMember(ctx, ledgerID, strings.TrimSpace(*req.PayerUserID), "付款人用户不在当前账本成员中"); err != nil {
+			return nil, err
+		}
 	}
 
 	ruleID := uuid.NewString()
@@ -1472,7 +1466,7 @@ func (s *Service) CreateRecurringRule(ctx context.Context, currentUserID string,
 func (s *Service) ListRecurringRules(ctx context.Context, currentUserID string) ([]*RecurringRuleResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	rules, err := s.repo.ListRecurringRules(ctx, ledgerID)
@@ -1491,19 +1485,15 @@ func (s *Service) ListRecurringRules(ctx context.Context, currentUserID string) 
 func (s *Service) DeleteRecurringRule(ctx context.Context, currentUserID string, id string) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 
-	rule, err := s.repo.GetRecurringRuleByID(ctx, id)
+	_, err = s.repo.GetRecurringRuleByID(ctx, ledgerID, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "欲删除的周期规则不存在")
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "欲删除的周期规则不存在或不属于当前账本")
 		}
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取周期规则失败")
-	}
-
-	if rule.LedgerID != ledgerID {
-		return appErrors.NewAppError(403, "FORBIDDEN", "无权删除该周期规则")
 	}
 
 	if err := s.repo.DeleteRecurringRule(ctx, id, ledgerID); err != nil {
@@ -1517,12 +1507,18 @@ func (s *Service) DeleteRecurringRule(ctx context.Context, currentUserID string,
 func (s *Service) ListRecurringReminders(ctx context.Context, currentUserID string) ([]*RecurringReminderResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
+	}
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, currentUserID)
+	if err != nil || lc.LedgerID != ledgerID {
+		return nil, appErrors.NewAppError(400, appErrors.ErrCodeLedgerRequired, "请选择账本后再继续")
 	}
 
-	// 1. 懒加载检测：生成因时间流逝而过期的提醒实例
-	if err := s.checkAndGenerateReminders(ctx, ledgerID); err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "生成到期提醒发生异常")
+	// 归档账本只读取既有提醒，不执行懒生成或推进规则日期。
+	if lc.Status == ledgerctx.LedgerStatusActive {
+		if err := s.checkAndGenerateReminders(ctx, ledgerID); err != nil {
+			return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "生成到期提醒发生异常")
+		}
 	}
 
 	// 2. 从数据库拉取
@@ -1542,26 +1538,22 @@ func (s *Service) ListRecurringReminders(ctx context.Context, currentUserID stri
 func (s *Service) ConfirmReminder(ctx context.Context, currentUserID string, reminderID string) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 
-	reminder, err := s.repo.GetRecurringReminderByID(ctx, reminderID)
+	reminder, err := s.repo.GetRecurringReminderByID(ctx, ledgerID, reminderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "欲确认的提醒不存在")
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "欲确认的提醒不存在或不属于当前账本")
 		}
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取到期提醒失败")
-	}
-
-	if reminder.LedgerID != ledgerID {
-		return appErrors.NewAppError(403, "FORBIDDEN", "无权确认该到期提醒")
 	}
 
 	if reminder.Status != "pending" {
 		return appErrors.NewAppError(400, "VALIDATION_ERROR", "该周期提醒已非 pending 待确认状态")
 	}
 
-	rule, err := s.repo.GetRecurringRuleByID(ctx, reminder.RuleID)
+	rule, err := s.repo.GetRecurringRuleByID(ctx, ledgerID, reminder.RuleID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取关联周期规则失败")
 	}
@@ -1648,7 +1640,7 @@ func (s *Service) ConfirmReminder(ctx context.Context, currentUserID string, rem
 			return appErrors.NewAppError(500, "INTERNAL_ERROR", "生成真实交易失败")
 		}
 
-		err = s.repo.CreateSplitsWithTx(ctx, tx, splits)
+		err = s.repo.CreateSplitsWithTx(ctx, tx, ledgerID, splits)
 		if err != nil {
 			return appErrors.NewAppError(500, "INTERNAL_ERROR", "生成账单分摊数据失败: "+err.Error())
 		}
@@ -1701,19 +1693,15 @@ func (s *Service) ConfirmReminder(ctx context.Context, currentUserID string, rem
 func (s *Service) IgnoreReminder(ctx context.Context, currentUserID string, reminderID string) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 
-	reminder, err := s.repo.GetRecurringReminderByID(ctx, reminderID)
+	reminder, err := s.repo.GetRecurringReminderByID(ctx, ledgerID, reminderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "欲忽略的周期提醒不存在")
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "欲忽略的周期提醒不存在或不属于当前账本")
 		}
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "读取到期提醒失败")
-	}
-
-	if reminder.LedgerID != ledgerID {
-		return appErrors.NewAppError(403, "FORBIDDEN", "无权忽略该到期提醒")
 	}
 
 	if reminder.Status != "pending" {
@@ -1756,7 +1744,11 @@ func (s *Service) generateSingleReminderTx(ctx context.Context, ledgerID string,
 	defer tx.Rollback()
 
 	var count int
-	err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM recurring_reminders WHERE rule_id = ? AND due_date = ?", rule.ID, rule.NextDueDate).Scan(&count)
+	err = tx.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM recurring_reminders
+		WHERE ledger_id = ? AND rule_id = ? AND due_date = ?
+	`, ledgerID, rule.ID, rule.NextDueDate).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -1779,7 +1771,7 @@ func (s *Service) generateSingleReminderTx(ctx context.Context, ledgerID string,
 		return err
 	}
 
-	err = s.repo.UpdateRecurringRuleNextDueDateWithTx(ctx, tx, rule.ID, nextDueDate)
+	err = s.repo.UpdateRecurringRuleNextDueDateWithTx(ctx, tx, ledgerID, rule.ID, nextDueDate)
 	if err != nil {
 		return err
 	}
@@ -1887,19 +1879,19 @@ func (s *Service) BatchTag(ctx context.Context, currentUserID string, req BatchT
 
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 
 	// 1. 预先校验所有交易的存在性及编辑权限，防止在事务内部查询触发 CGO sqlite 内存数据库连接池问题
 	txModels := make([]*Transaction, 0, len(req.TransactionIDs))
 	for _, txID := range req.TransactionIDs {
-		txModel, _, err := s.repo.GetByID(ctx, txID)
+		txModel, _, err := s.repo.GetByID(ctx, ledgerID, txID)
 		if err != nil {
-			return appErrors.NewAppError(404, "NOT_FOUND", "账单交易未找到: "+txID)
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单交易未找到或不属于当前账本: "+txID)
 		}
 		// 校验可见性，不可见直接返回 404 NOT_FOUND 避免越权探测
 		if !s.CanViewTransaction(currentUserID, txModel) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "账单交易未找到: "+txID)
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "账单交易未找到或不属于当前账本: "+txID)
 		}
 		if txModel.LedgerID != ledgerID {
 			return appErrors.NewAppError(403, "FORBIDDEN", "无权操作该账单交易")
@@ -1966,7 +1958,7 @@ func calculateImportHash(ledgerID string, item ImportItemRequest) string {
 func (s *Service) AnalyzeImport(ctx context.Context, currentUserID string, req AnalyzeImportRequest) (*AnalyzeImportResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	hashes := make([]string, len(req.Items))
@@ -1974,7 +1966,7 @@ func (s *Service) AnalyzeImport(ctx context.Context, currentUserID string, req A
 		hashes[i] = calculateImportHash(ledgerID, item)
 	}
 
-	existing, err := s.repo.FilterExistingHashes(ctx, hashes)
+	existing, err := s.repo.FilterExistingHashes(ctx, ledgerID, hashes)
 	if err != nil {
 		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", fmt.Sprintf("分析去重数据失败: %v", err))
 	}
@@ -1997,12 +1989,27 @@ func (s *Service) AnalyzeImport(ctx context.Context, currentUserID string, req A
 func (s *Service) CommitImport(ctx context.Context, currentUserID string, req CommitImportRequest) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 
 	users, err := s.getLedgerUsers(ctx, ledgerID)
 	if err != nil {
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取账本成员失败")
+	}
+	for _, item := range req.Items {
+		var categoryID *string
+		if strings.TrimSpace(item.CategoryID) != "" {
+			value := strings.TrimSpace(item.CategoryID)
+			categoryID = &value
+		}
+		var accountID *string
+		if strings.TrimSpace(item.AccountID) != "" {
+			value := strings.TrimSpace(item.AccountID)
+			accountID = &value
+		}
+		if err := s.validateCreateTransactionReferences(ctx, ledgerID, item.PayerUserID, categoryID, accountID); err != nil {
+			return err
+		}
 	}
 
 	dbConn := s.repo.GetDB()
@@ -2030,7 +2037,14 @@ func (s *Service) CommitImport(ctx context.Context, currentUserID string, req Co
 
 		// 检查哈希去重
 		var exists bool
-		err = dbTx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM import_items WHERE status = 'imported' AND import_hash = ?)", hash).Scan(&exists)
+		err = dbTx.QueryRowContext(ctx, `
+			SELECT EXISTS(
+				SELECT 1
+				FROM import_items item
+				JOIN import_batches batch ON batch.id = item.batch_id
+				WHERE batch.ledger_id = ? AND item.status = 'imported' AND item.import_hash = ?
+			)
+		`, ledgerID, hash).Scan(&exists)
 		if err != nil {
 			return fmt.Errorf("failed to check import hash: %w", err)
 		}
@@ -2091,7 +2105,7 @@ func (s *Service) CommitImport(ctx context.Context, currentUserID string, req Co
 		title := item.Title
 		if title == "" {
 			if item.CategoryID != "" {
-				title = s.getCategoryName(ctx, item.CategoryID)
+				title = s.getCategoryName(ctx, ledgerID, item.CategoryID)
 			}
 			if title == "" {
 				if item.Type == "shared_expense" {
@@ -2169,7 +2183,7 @@ func (s *Service) CommitImport(ctx context.Context, currentUserID string, req Co
 				},
 			}
 
-			err = s.repo.CreateSplitsWithTx(ctx, dbTx, splits)
+			err = s.repo.CreateSplitsWithTx(ctx, dbTx, ledgerID, splits)
 			if err != nil {
 				return fmt.Errorf("failed to create import splits: %w", err)
 			}
@@ -2215,7 +2229,7 @@ func (s *Service) CommitImport(ctx context.Context, currentUserID string, req Co
 func (s *Service) ListAccounts(ctx context.Context, currentUserID string) ([]Account, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 	return s.repo.ListAccounts(ctx, ledgerID)
 }
@@ -2224,7 +2238,7 @@ func (s *Service) ListAccounts(ctx context.Context, currentUserID string) ([]Acc
 func (s *Service) GetTransactionDefault(ctx context.Context, currentUserID string) (*TransactionDefaultResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 	if err := s.checkRole(ctx, ledgerID, currentUserID, "owner", "editor"); err != nil {
 		return nil, err
@@ -2378,7 +2392,7 @@ func (s *Service) CreateImportRule(ctx context.Context, currentUserID string, re
 
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	// 2. 检查分类和账户是否存在以确保关联的合法性
@@ -2458,7 +2472,7 @@ func (s *Service) CreateImportRule(ctx context.Context, currentUserID string, re
 func (s *Service) ListImportRules(ctx context.Context, currentUserID string) ([]*ImportRuleResponse, error) {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return nil, appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return nil, err
 	}
 
 	rules, err := s.repo.ListImportRules(ctx, ledgerID)
@@ -2489,13 +2503,13 @@ func (s *Service) ListImportRules(ctx context.Context, currentUserID string) ([]
 func (s *Service) DeleteImportRule(ctx context.Context, currentUserID string, id string) error {
 	ledgerID, err := s.getUserLedgerID(ctx, currentUserID)
 	if err != nil {
-		return appErrors.NewAppError(500, "INTERNAL_ERROR", "获取系统账本失败")
+		return err
 	}
 
 	err = s.repo.DeleteImportRule(ctx, id, ledgerID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return appErrors.NewAppError(404, "NOT_FOUND", "指定的规则 ID 不存在或无操作权限")
+			return appErrors.NewAppError(404, appErrors.ErrCodeLedgerObjectNotFound, "指定的规则 ID 不存在或不属于当前账本")
 		}
 		return appErrors.NewAppError(500, "INTERNAL_ERROR", "删除导入分类规则失败: "+err.Error())
 	}

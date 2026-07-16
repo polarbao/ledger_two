@@ -12,7 +12,6 @@ import (
 
 	"ledger_two/internal/db/repo"
 	"ledger_two/internal/http/handler"
-	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
 	"ledger_two/internal/service"
 	"ledger_two/internal/transaction"
@@ -31,7 +30,7 @@ func TestTransactionUpdateContractPreservesArchivedTagsAndUnchangedSplits(t *tes
 	router.Post("/api/init/setup", initHandler.HandleSetup)
 	router.Post("/api/auth/login", authHandler.HandleLogin)
 	router.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(jwtSecret))
+		r.Use(testAuthenticatedLedgerContext(database, jwtSecret))
 		r.Route("/api/transactions", func(r chi.Router) {
 			r.Post("/", txHandler.HandleCreate)
 			r.Patch("/{id}", txHandler.HandleUpdate)
@@ -72,6 +71,7 @@ func TestTransactionUpdateContractPreservesArchivedTagsAndUnchangedSplits(t *tes
 		body, _ := json.Marshal(payload)
 		request, _ := http.NewRequest(http.MethodPost, path, bytes.NewReader(body))
 		request.AddCookie(cookie)
+		setTestLedgerHeader(t, database, request, "Update Contract Ledger")
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 		if recorder.Code != http.StatusCreated {
@@ -105,6 +105,7 @@ func TestTransactionUpdateContractPreservesArchivedTagsAndUnchangedSplits(t *tes
 		body, _ := json.Marshal(payload)
 		request, _ := http.NewRequest(http.MethodPatch, path, bytes.NewReader(body))
 		request.AddCookie(cookie)
+		setTestLedgerHeader(t, database, request, "Update Contract Ledger")
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 		return recorder

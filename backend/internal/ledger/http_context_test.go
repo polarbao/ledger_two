@@ -2,10 +2,13 @@ package ledger
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 
 	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
@@ -29,14 +32,9 @@ func (f fakeContextResolver) ResolveLedgerContext(ctx context.Context, currentUs
 	return f.lc, f.err
 }
 
-func TestWithLedgerContextSkipsWhenLedgerHeaderMissing(t *testing.T) {
-	called := false
-	handler := WithLedgerContext(fakeContextResolver{})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		if _, ok := LedgerContextFromContext(r.Context()); ok {
-			t.Fatalf("ledger context should not be injected without ledger header")
-		}
-		w.WriteHeader(http.StatusNoContent)
+func TestWithRequiredLedgerContextRejectsMissingLedgerID(t *testing.T) {
+	handler := WithRequiredLedgerContext(fakeContextResolver{}, "")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("next handler should not be called")
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/transactions", nil)
@@ -44,17 +42,17 @@ func TestWithLedgerContextSkipsWhenLedgerHeaderMissing(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
-	if !called {
-		t.Fatalf("expected next handler to be called")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", rr.Code)
 	}
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected status 204, got %d", rr.Code)
+	if code := responseErrorCode(t, rr); code != appErrors.ErrCodeLedgerRequired {
+		t.Fatalf("expected %s, got %s", appErrors.ErrCodeLedgerRequired, code)
 	}
 }
 
 func TestWithLedgerContextInjectsResolvedContext(t *testing.T) {
 	expected := LedgerContext{UserID: "user-a", LedgerID: "ledger-a", Role: RoleOwner, IsExplicit: true}
-	handler := WithLedgerContext(fakeContextResolver{lc: expected})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := WithRequiredLedgerContext(fakeContextResolver{lc: expected}, "")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lc, ok := LedgerContextFromContext(r.Context())
 		if !ok {
 			t.Fatalf("expected ledger context")
@@ -77,9 +75,9 @@ func TestWithLedgerContextInjectsResolvedContext(t *testing.T) {
 }
 
 func TestWithLedgerContextStopsOnResolverError(t *testing.T) {
-	handler := WithLedgerContext(fakeContextResolver{
+	handler := WithRequiredLedgerContext(fakeContextResolver{
 		err: appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "您不是该账本的成员"),
-	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}, "")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatalf("next handler should not be called")
 	}))
 
@@ -92,4 +90,70 @@ func TestWithLedgerContextStopsOnResolverError(t *testing.T) {
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("expected status 403, got %d", rr.Code)
 	}
+}
+
+func TestWithRequiredLedgerContextRejectsPathHeaderMismatch(t *testing.T) {
+	router := chi.NewRouter()
+	router.Route("/api/ledgers/{ledgerId}", func(r chi.Router) {
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := context.WithValue(r.Context(), middleware.UserIDKey, "user-a")
+				next.ServeHTTP(w, r.WithContext(ctx))
+			})
+		})
+		r.Use(WithRequiredLedgerContext(fakeContextResolver{}, "ledgerId"))
+		r.Get("/members", func(w http.ResponseWriter, r *http.Request) {
+			t.Fatalf("next handler should not be called")
+		})
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/ledgers/ledger-a/members", nil)
+	req.Header.Set("X-Ledger-Id", "ledger-b")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", rr.Code)
+	}
+	if code := responseErrorCode(t, rr); code != appErrors.ErrCodeLedgerContextMismatch {
+		t.Fatalf("expected %s, got %s", appErrors.ErrCodeLedgerContextMismatch, code)
+	}
+}
+
+func TestRequireWritableLedgerRejectsArchivedLedger(t *testing.T) {
+	handler := RequireWritableLedger(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("next handler should not be called")
+	}))
+	ctx := ContextWithLedgerContext(context.Background(), LedgerContext{
+		UserID:     "user-a",
+		LedgerID:   "ledger-a",
+		Role:       RoleOwner,
+		Status:     LedgerStatusArchived,
+		Version:    2,
+		IsExplicit: true,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/transactions", nil).WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d", rr.Code)
+	}
+	if code := responseErrorCode(t, rr); code != appErrors.ErrCodeLedgerArchived {
+		t.Fatalf("expected %s, got %s", appErrors.ErrCodeLedgerArchived, code)
+	}
+}
+
+func responseErrorCode(t *testing.T, rr *httptest.ResponseRecorder) string {
+	t.Helper()
+	var payload struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	return payload.Error.Code
 }

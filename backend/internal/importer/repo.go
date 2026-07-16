@@ -128,8 +128,14 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 		       selected_category_id, selected_account_id, selected_tag_ids_json, visibility, import_hash
 		FROM import_items
 		WHERE batch_id = ?
+		  AND EXISTS (
+			  SELECT 1
+			  FROM import_batches
+			  WHERE import_batches.id = import_items.batch_id
+			    AND import_batches.ledger_id = ?
+		  )
 		ORDER BY row_number ASC
-	`, batchID)
+	`, batchID, ledgerID)
 	if err != nil {
 		return nil, err
 	}
@@ -218,6 +224,56 @@ func (r *Repository) ExistingImportedHashes(ctx context.Context, ledgerID string
 	return existing, rows.Err()
 }
 
+func (r *Repository) ValidateMetadataSelections(ctx context.Context, ledgerID string, categoryID string, accountID string, tagIDs []string) error {
+	if strings.TrimSpace(categoryID) != "" {
+		var exists bool
+		if err := r.db.QueryRowContext(ctx, `
+			SELECT EXISTS(SELECT 1 FROM categories WHERE id = ? AND ledger_id = ?)
+		`, strings.TrimSpace(categoryID), ledgerID).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return sql.ErrNoRows
+		}
+	}
+
+	if strings.TrimSpace(accountID) != "" {
+		var exists bool
+		if err := r.db.QueryRowContext(ctx, `
+			SELECT EXISTS(SELECT 1 FROM accounts WHERE id = ? AND ledger_id = ?)
+		`, strings.TrimSpace(accountID), ledgerID).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return sql.ErrNoRows
+		}
+	}
+
+	seenTagIDs := make(map[string]struct{}, len(tagIDs))
+	for _, rawTagID := range tagIDs {
+		tagID := strings.TrimSpace(rawTagID)
+		if tagID == "" {
+			continue
+		}
+		if _, exists := seenTagIDs[tagID]; exists {
+			continue
+		}
+		seenTagIDs[tagID] = struct{}{}
+
+		var exists bool
+		if err := r.db.QueryRowContext(ctx, `
+			SELECT EXISTS(SELECT 1 FROM tags WHERE id = ? AND ledger_id = ?)
+		`, tagID, ledgerID).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return sql.ErrNoRows
+		}
+	}
+
+	return nil
+}
+
 func (r *Repository) GetPreviewRow(ctx context.Context, ledgerID string, batchID string, rowID string) (*PreviewBatch, *PreviewRow, error) {
 	batch, err := r.GetPreviewBatch(ctx, ledgerID, batchID)
 	if err != nil {
@@ -255,6 +311,12 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 		    visibility = ?,
 		    user_adjustment_json = ?
 		WHERE id = ? AND batch_id = ?
+		  AND EXISTS (
+			  SELECT 1
+			  FROM import_batches
+			  WHERE import_batches.id = import_items.batch_id
+			    AND import_batches.ledger_id = ?
+		  )
 	`,
 		row.TargetTransactionType,
 		row.RowStatus,
@@ -266,6 +328,7 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 		string(adjustmentJSON),
 		row.ID,
 		batch.ID,
+		batch.LedgerID,
 	)
 	if err != nil {
 		return nil, err
@@ -291,7 +354,7 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 		    skipped_rows = ?,
 		    failed_rows = ?,
 		    updated_at = ?
-		WHERE id = ?
+		WHERE id = ? AND ledger_id = ?
 	`,
 		batchStatusReady,
 		batch.TotalRows,
@@ -304,6 +367,7 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 		batch.FailedRows,
 		now,
 		batch.ID,
+		batch.LedgerID,
 	)
 	if err != nil {
 		return nil, err
@@ -367,7 +431,7 @@ func (r *Repository) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerCon
 
 	for _, row := range batch.Rows {
 		if row.RowStatus == RowStatusSkipped || row.TargetTransactionType == TargetTransactionSkipped {
-			if err := markRowSkipped(ctx, dbTx, row.ID, batch.ID); err != nil {
+			if err := markRowSkipped(ctx, dbTx, lc.LedgerID, row.ID, batch.ID); err != nil {
 				return nil, err
 			}
 			result.SkippedRows++
@@ -381,7 +445,7 @@ func (r *Repository) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerCon
 		if err := insertTransactionImportRef(ctx, dbTx, lc.LedgerID, txID, batch.ID, batch.SourceType, row, now); err != nil {
 			return nil, err
 		}
-		if err := markRowImported(ctx, dbTx, row.ID, batch.ID, txID); err != nil {
+		if err := markRowImported(ctx, dbTx, lc.LedgerID, row.ID, batch.ID, txID); err != nil {
 			return nil, err
 		}
 
@@ -457,20 +521,29 @@ func insertImportedTransaction(ctx context.Context, tx *sql.Tx, lc ledger.Ledger
 		return err
 	}
 
-	return attachSelectedTagIDs(ctx, tx, transactionID, row.SelectedTagIDs)
+	return attachSelectedTagIDs(ctx, tx, lc.LedgerID, transactionID, row.SelectedTagIDs)
 }
 
-func attachSelectedTagIDs(ctx context.Context, tx *sql.Tx, transactionID string, tagIDs []string) error {
+func attachSelectedTagIDs(ctx context.Context, tx *sql.Tx, ledgerID string, transactionID string, tagIDs []string) error {
 	for _, tagID := range tagIDs {
 		if strings.TrimSpace(tagID) == "" {
 			continue
 		}
-		_, err := tx.ExecContext(ctx, `
+		result, err := tx.ExecContext(ctx, `
 			INSERT INTO transaction_tags (transaction_id, tag_id)
-			VALUES (?, ?)
-		`, transactionID, tagID)
+			SELECT ?, id
+			FROM tags
+			WHERE id = ? AND ledger_id = ?
+		`, transactionID, tagID, ledgerID)
 		if err != nil {
 			return err
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected == 0 {
+			return sql.ErrNoRows
 		}
 	}
 	return nil
@@ -486,27 +559,59 @@ func insertTransactionImportRef(ctx context.Context, tx *sql.Tx, ledgerID string
 	return err
 }
 
-func markRowImported(ctx context.Context, tx *sql.Tx, rowID string, batchID string, transactionID string) error {
-	_, err := tx.ExecContext(ctx, `
+func markRowImported(ctx context.Context, tx *sql.Tx, ledgerID string, rowID string, batchID string, transactionID string) error {
+	result, err := tx.ExecContext(ctx, `
 		UPDATE import_items
 		SET transaction_id = ?,
 		    generated_transaction_id = ?,
 		    status = ?,
 		    row_status = ?
 		WHERE id = ? AND batch_id = ?
-	`, transactionID, transactionID, RowStatusImported, RowStatusImported, rowID, batchID)
-	return err
+		  AND EXISTS (
+			  SELECT 1
+			  FROM import_batches
+			  WHERE import_batches.id = import_items.batch_id
+			    AND import_batches.ledger_id = ?
+		  )
+	`, transactionID, transactionID, RowStatusImported, RowStatusImported, rowID, batchID, ledgerID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
-func markRowSkipped(ctx context.Context, tx *sql.Tx, rowID string, batchID string) error {
-	_, err := tx.ExecContext(ctx, `
+func markRowSkipped(ctx context.Context, tx *sql.Tx, ledgerID string, rowID string, batchID string) error {
+	result, err := tx.ExecContext(ctx, `
 		UPDATE import_items
 		SET status = ?,
 		    row_status = ?,
 		    target_transaction_type = ?
 		WHERE id = ? AND batch_id = ?
-	`, RowStatusSkipped, RowStatusSkipped, TargetTransactionSkipped, rowID, batchID)
-	return err
+		  AND EXISTS (
+			  SELECT 1
+			  FROM import_batches
+			  WHERE import_batches.id = import_items.batch_id
+			    AND import_batches.ledger_id = ?
+		  )
+	`, RowStatusSkipped, RowStatusSkipped, TargetTransactionSkipped, rowID, batchID, ledgerID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (r *Repository) CreateImportRule(ctx context.Context, ledgerID string, userID string, ruleID string, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {

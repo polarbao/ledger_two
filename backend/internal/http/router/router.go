@@ -77,6 +77,8 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	ledgerRepo := ledger.NewRepository(dbConn)
 	ledgerSvc := ledger.NewService(ledgerRepo)
 	ledgerHandler := ledger.NewHandler(ledgerSvc)
+	rolePolicy := ledger.NewRolePolicy()
+	instancePolicy := ledger.NewInstancePolicy(ledgerRepo)
 
 	metadataRepo := metadata.NewRepository(dbConn)
 	metadataSvc := metadata.NewService(metadataRepo)
@@ -140,101 +142,108 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 			r.Route("/ledgers", func(r chi.Router) {
 				r.Post("/", ledgerHandler.CreateLedger)
 				r.Get("/", ledgerHandler.ListUserLedgers)
-				r.Get("/{id}/members", ledgerHandler.GetLedgerMembers)
-				r.Post("/{id}/members", ledgerHandler.AddMember)
-				r.Put("/{id}/members/{userId}", ledgerHandler.UpdateMemberRole)
-				r.Delete("/{id}/members/{userId}", ledgerHandler.RemoveMember)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Use(ledger.WithRequiredLedgerContext(ledgerSvc, "id"))
+					r.Use(ledger.RequireLedgerContext)
+					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationViewMembers)).Get("/members", ledgerHandler.GetLedgerMembers)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Post("/members", ledgerHandler.AddMember)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Put("/members/{userId}", ledgerHandler.UpdateMemberRole)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Delete("/members/{userId}", ledgerHandler.RemoveMember)
+				})
+			})
+
+			// 实例运维是全局能力，不读取或伪造账本上下文。
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(ledger.RequireInstanceAdmin(instancePolicy))
+				r.Get("/diagnostics", safetyHandler.HandleDiagnostics)
+				r.Post("/backup", safetyHandler.HandleManualBackup)
+				r.Post("/restore", safetyHandler.HandleRestoreBackup)
+				r.Get("/backups", safetyHandler.HandleGetBackups)
+				r.Get("/backups/{filename}", safetyHandler.HandleDownloadBackup)
+				r.Get("/backups/*", safetyHandler.HandleDownloadBackup)
 			})
 
 			r.Group(func(r chi.Router) {
-				r.Use(ledger.WithLedgerContext(ledgerSvc))
+				r.Use(ledger.WithRequiredLedgerContext(ledgerSvc, ""))
+				r.Use(ledger.RequireLedgerContext)
 
 				r.Get("/categories", transactionHandler.HandleListCategories)
 				r.Get("/accounts", transactionHandler.HandleListAccounts)
 				r.Get("/transaction-defaults", transactionHandler.HandleGetTransactionDefault)
 				r.Route("/metadata/{kind}", func(r chi.Router) {
 					r.Get("/", metadataHandler.List)
-					r.Post("/", metadataHandler.Create)
-					r.Post("/reorder", metadataHandler.Reorder)
-					r.Patch("/{id}", metadataHandler.Update)
-					r.Post("/{id}/archive", metadataHandler.Archive)
-					r.Post("/{id}/restore", metadataHandler.Restore)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMetadata)).Post("/", metadataHandler.Create)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMetadata)).Post("/reorder", metadataHandler.Reorder)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMetadata)).Patch("/{id}", metadataHandler.Update)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMetadata)).Post("/{id}/archive", metadataHandler.Archive)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMetadata)).Post("/{id}/restore", metadataHandler.Restore)
 				})
 				r.Route("/transactions", func(r chi.Router) {
 					r.Get("/", transactionHandler.HandleList)
-					r.Post("/", transactionHandler.HandleCreate)
-					r.Post("/batch-tag", transactionHandler.HandleBatchTag)
-					r.Post("/import/parse", transactionHandler.HandleParseCSV)
-					r.Post("/import/analyze", transactionHandler.HandleAnalyzeImport)
-					r.Post("/import/commit", transactionHandler.HandleCommitImport)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/", transactionHandler.HandleCreate)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/batch-tag", transactionHandler.HandleBatchTag)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/import/parse", transactionHandler.HandleParseCSV)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/import/analyze", transactionHandler.HandleAnalyzeImport)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/import/commit", transactionHandler.HandleCommitImport)
 					r.Get("/{id}", transactionHandler.HandleGetByID)
-					r.Patch("/{id}", transactionHandler.HandleUpdate)
-					r.Delete("/{id}", transactionHandler.HandleDelete)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationEditOwnTransaction)).Patch("/{id}", transactionHandler.HandleUpdate)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationDeleteOwnTransaction)).Delete("/{id}", transactionHandler.HandleDelete)
 				})
 
 				r.Route("/imports", func(r chi.Router) {
-					r.Post("/preview", importHandler.HandlePreview)
-					r.Get("/{batchID}", importHandler.HandleGetBatch)
-					r.Patch("/{batchID}/rows/{rowID}", importHandler.HandleUpdateRow)
-					r.Post("/{batchID}/commit", importHandler.HandleCommit)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/preview", importHandler.HandlePreview)
+					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Get("/{batchID}", importHandler.HandleGetBatch)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Patch("/{batchID}/rows/{rowID}", importHandler.HandleUpdateRow)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/commit", importHandler.HandleCommit)
 				})
 
 				r.Route("/import-rules", func(r chi.Router) {
-					r.Post("/", importHandler.HandleCreateRule)
-					r.Get("/", importHandler.HandleListRules)
-					r.Patch("/{ruleID}", importHandler.HandleUpdateRule)
-					r.Post("/{ruleID}/archive", importHandler.HandleArchiveRule)
-					r.Post("/{ruleID}/restore", importHandler.HandleRestoreRule)
-					r.Delete("/{ruleID}", importHandler.HandleArchiveRule)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/", importHandler.HandleCreateRule)
+					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Get("/", importHandler.HandleListRules)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Patch("/{ruleID}", importHandler.HandleUpdateRule)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{ruleID}/archive", importHandler.HandleArchiveRule)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{ruleID}/restore", importHandler.HandleRestoreRule)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Delete("/{ruleID}", importHandler.HandleArchiveRule)
 				})
 
 				r.Route("/transaction-templates", func(r chi.Router) {
-					r.Post("/", transactionHandler.HandleCreateTemplate)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/", transactionHandler.HandleCreateTemplate)
 					r.Get("/", transactionHandler.HandleListTemplates)
 					r.Get("/{id}", transactionHandler.HandleGetTemplate)
-					r.Put("/{id}", transactionHandler.HandleUpdateTemplate)
-					r.Post("/{id}/archive", transactionHandler.HandleArchiveTemplate)
-					r.Post("/{id}/restore", transactionHandler.HandleRestoreTemplate)
-					r.Delete("/{id}", transactionHandler.HandleDeleteTemplate)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Put("/{id}", transactionHandler.HandleUpdateTemplate)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/{id}/archive", transactionHandler.HandleArchiveTemplate)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/{id}/restore", transactionHandler.HandleRestoreTemplate)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Delete("/{id}", transactionHandler.HandleDeleteTemplate)
 				})
 
 				r.Route("/recurring-rules", func(r chi.Router) {
-					r.Post("/", transactionHandler.HandleCreateRecurringRule)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/", transactionHandler.HandleCreateRecurringRule)
 					r.Get("/", transactionHandler.HandleListRecurringRules)
-					r.Delete("/{id}", transactionHandler.HandleDeleteRecurringRule)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Delete("/{id}", transactionHandler.HandleDeleteRecurringRule)
 				})
 
 				r.Route("/recurring-reminders", func(r chi.Router) {
 					r.Get("/", transactionHandler.HandleListRecurringReminders)
-					r.Post("/{id}/confirm", transactionHandler.HandleConfirmReminder)
-					r.Post("/{id}/skip", transactionHandler.HandleIgnoreReminder)
-					r.Post("/{id}/ignore", transactionHandler.HandleIgnoreReminder)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/{id}/confirm", transactionHandler.HandleConfirmReminder)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/{id}/skip", transactionHandler.HandleIgnoreReminder)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/{id}/ignore", transactionHandler.HandleIgnoreReminder)
 				})
 
 				r.Route("/shared-expenses", func(r chi.Router) {
-					r.Post("/", transactionHandler.HandleCreateSharedExpense)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateSharedExpense)).Post("/", transactionHandler.HandleCreateSharedExpense)
 					r.Get("/{id}", transactionHandler.HandleGetSharedExpenseByID)
-					r.Patch("/{id}", transactionHandler.HandleUpdateSharedExpense)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationEditOwnTransaction)).Patch("/{id}", transactionHandler.HandleUpdateSharedExpense)
 				})
 
 				r.Route("/settlements", func(r chi.Router) {
 					r.Get("/balance", settlementHandler.HandleGetBalance)
 					r.Get("/", settlementHandler.HandleList)
-					r.Post("/", settlementHandler.HandleCreate)
-				})
-
-				// 备份与数据安全管理
-				r.Route("/admin", func(r chi.Router) {
-					r.Get("/diagnostics", safetyHandler.HandleDiagnostics)
-					r.Post("/backup", safetyHandler.HandleManualBackup)
-					r.Post("/restore", safetyHandler.HandleRestoreBackup)
-					r.Get("/backups", safetyHandler.HandleGetBackups)
-					r.Get("/backups/{filename}", safetyHandler.HandleDownloadBackup)
-					r.Get("/backups/*", safetyHandler.HandleDownloadBackup)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateSettlement)).Post("/", settlementHandler.HandleCreate)
 				})
 
 				// 导出管理
 				r.Route("/export", func(r chi.Router) {
+					r.Use(ledger.RequireOperation(rolePolicy, ledger.OperationExportData))
 					r.Get("/transactions.csv", safetyHandler.HandleExportCSV)
 					r.Get("/full.json", safetyHandler.HandleExportJSON)
 				})
@@ -247,7 +256,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 					r.Get("/member-summary", reportsHandler.HandleGetMemberSummary)
 				})
 
-				r.Post("/attachments", transactionHandler.HandleUploadAttachment)
+				r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationCreateTransaction)).Post("/attachments", transactionHandler.HandleUploadAttachment)
 				r.Get("/attachments/{filename}", transactionHandler.HandleGetAttachment)
 				r.Get("/dashboard", dashboardHandler.HandleGetDashboard)
 			})

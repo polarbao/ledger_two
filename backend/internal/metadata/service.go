@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	appErrors "ledger_two/internal/errors"
-	"ledger_two/internal/http/middleware"
 	ledgerctx "ledger_two/internal/ledger"
 )
 
@@ -141,22 +140,14 @@ func (s *Service) resolveLedger(ctx context.Context, userID string) (string, str
 	if userID == "" {
 		return "", "", appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统")
 	}
-	if lc, ok := ledgerctx.LedgerContextFromContext(ctx); ok && lc.UserID == userID {
-		return lc.LedgerID, string(lc.Role), nil
-	}
-	headerLedgerID := middleware.GetHeaderLedgerIDFromContext(ctx)
-	if headerLedgerID != "" {
-		role, err := s.repo.GetMemberRole(ctx, headerLedgerID, userID)
-		if err != nil {
-			return "", "", appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "您不是该账本的成员")
-		}
-		return headerLedgerID, role, nil
-	}
-	ledgerID, role, err := s.repo.GetFirstLedgerRole(ctx, userID)
+	lc, err := ledgerctx.RequireExplicitLedgerContext(ctx, userID)
 	if err != nil {
-		return "", "", appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "获取系统账本失败")
+		if errors.Is(err, ledgerctx.ErrLedgerContextMismatch) {
+			return "", "", appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeLedgerAccessDenied, "账本上下文与当前用户不匹配")
+		}
+		return "", "", appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeLedgerRequired, "请选择账本后再继续")
 	}
-	return ledgerID, role, nil
+	return lc.LedgerID, string(lc.Role), nil
 }
 
 func validate(kind Kind, req UpsertRequest) error {
@@ -194,12 +185,12 @@ func mapNotFound(err error, kind Kind) error {
 	}
 	switch kind {
 	case KindCategory:
-		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeCategoryNotFound, "分类不存在")
+		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "分类不存在或不属于当前账本")
 	case KindTag:
-		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeTagNotFound, "标签不存在")
+		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "标签不存在或不属于当前账本")
 	case KindAccount:
-		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeAccountNotFound, "账户不存在")
+		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "账户不存在或不属于当前账本")
 	default:
-		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "元数据不存在")
+		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "元数据不存在或不属于当前账本")
 	}
 }

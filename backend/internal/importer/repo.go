@@ -14,10 +14,12 @@ import (
 )
 
 const (
-	batchStatusReady        = "ready"
-	batchStatusCommitted    = "committed"
-	batchStatusFailed       = "failed"
-	auditActionImportCommit = "import_commit"
+	batchStatusReady         = "ready"
+	batchStatusCommitted     = "committed"
+	batchStatusFailed        = "failed"
+	batchStatusExpired       = "expired"
+	auditActionImportCommit  = "import_commit"
+	auditActionImportDiscard = "import_batch_discard"
 )
 
 type Repository struct {
@@ -179,6 +181,16 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 	}
 
 	return &batch, nil
+}
+
+func (r *Repository) GetPreviewBatchStatus(ctx context.Context, ledgerID, batchID string) (string, error) {
+	var status string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT status
+		FROM import_batches
+		WHERE id = ? AND ledger_id = ?
+	`, batchID, ledgerID).Scan(&status)
+	return status, err
 }
 
 func (r *Repository) ExistingImportedHashes(ctx context.Context, ledgerID string, hashes []string) (map[string]bool, error) {
@@ -483,6 +495,59 @@ func (r *Repository) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerCon
 		return nil, err
 	}
 	return result, nil
+}
+
+func (r *Repository) DiscardPreviewBatch(ctx context.Context, lc ledger.LedgerContext, batchID, reason string) (*DiscardImportBatchResult, error) {
+	dbTx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer dbTx.Rollback()
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	result, err := dbTx.ExecContext(ctx, `
+		UPDATE import_batches
+		SET status = ?, updated_at = ?, expires_at = ?
+		WHERE id = ? AND ledger_id = ? AND status = ?
+	`, batchStatusExpired, now, now, batchID, lc.LedgerID, batchStatusReady)
+	if err != nil {
+		return nil, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if affected != 1 {
+		return nil, sql.ErrNoRows
+	}
+
+	discarded := &DiscardImportBatchResult{
+		BatchID:       batchID,
+		Status:        batchStatusExpired,
+		DiscardReason: reason,
+	}
+	beforeJSON, err := json.Marshal(map[string]string{"status": batchStatusReady})
+	if err != nil {
+		return nil, err
+	}
+	afterJSON, err := json.Marshal(discarded)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := dbTx.ExecContext(ctx, `
+		INSERT INTO audit_logs (
+			id, ledger_id, actor_user_id, actor_role, action, entity_type,
+			entity_id, before_json, after_json, created_at
+		) VALUES (?, ?, ?, ?, ?, 'import_batch', ?, ?, ?, ?)
+	`, uuid.NewString(), lc.LedgerID, lc.UserID, lc.Role, auditActionImportDiscard,
+		batchID, string(beforeJSON), string(afterJSON), now); err != nil {
+		return nil, err
+	}
+
+	if err := dbTx.Commit(); err != nil {
+		return nil, err
+	}
+	return discarded, nil
 }
 
 func insertImportedTransaction(ctx context.Context, tx *sql.Tx, lc ledger.LedgerContext, transactionID string, row PreviewRow, now string) error {

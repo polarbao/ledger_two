@@ -130,7 +130,7 @@ export default function AppShell() {
   const pageRef = useRef<HTMLDivElement>(null);
   const { data: ledgers = [] } = useQuery({
     queryKey: queryKeys.ledgers.all,
-    queryFn: ledgerApi.listUserLedgers,
+    queryFn: () => ledgerApi.listUserLedgers(),
     enabled: !!user,
   });
 

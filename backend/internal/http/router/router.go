@@ -75,7 +75,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 	dashboardHandler := dashboard.NewHandler(dashboardSvc)
 
 	ledgerRepo := ledger.NewRepository(dbConn)
-	ledgerSvc := ledger.NewService(ledgerRepo)
+	ledgerSvc := ledger.NewService(ledgerRepo, settlementSvc)
 	ledgerHandler := ledger.NewHandler(ledgerSvc)
 	rolePolicy := ledger.NewRolePolicy()
 	instancePolicy := ledger.NewInstancePolicy(ledgerRepo)
@@ -145,6 +145,11 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Route("/{id}", func(r chi.Router) {
 					r.Use(ledger.WithRequiredLedgerContext(ledgerSvc, "id"))
 					r.Use(ledger.RequireLedgerContext)
+					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationViewLedger)).Get("/", ledgerHandler.GetLedger)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationRenameLedger)).Patch("/", ledgerHandler.RenameLedger)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationArchiveLedger)).Get("/archive-preflight", ledgerHandler.GetArchivePreflight)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationArchiveLedger)).Post("/archive", ledgerHandler.ArchiveLedger)
+					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationRestoreLedger)).Post("/restore", ledgerHandler.RestoreLedger)
 					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationViewMembers)).Get("/members", ledgerHandler.GetLedgerMembers)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Post("/members", ledgerHandler.AddMember)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Put("/members/{userId}", ledgerHandler.UpdateMemberRole)
@@ -195,6 +200,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Get("/{batchID}", importHandler.HandleGetBatch)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Patch("/{batchID}/rows/{rowID}", importHandler.HandleUpdateRow)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/commit", importHandler.HandleCommit)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationDiscardImportBatch)).Post("/{batchID}/discard", importHandler.HandleDiscardBatch)
 				})
 
 				r.Route("/import-rules", func(r chi.Router) {

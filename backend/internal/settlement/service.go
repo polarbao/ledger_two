@@ -66,7 +66,33 @@ func (s *Service) getBalance(ctx context.Context, currentUserID, month string) (
 	if err != nil {
 		return nil, err
 	}
+	return buildBalanceResponse(users, paidMap, shareMap, settledOutMap, settledInMap), nil
+}
 
+// GetUnsettledBalance provides the lifecycle module with the same trusted
+// balance calculation, optionally inside the caller's mutation transaction.
+func (s *Service) GetUnsettledBalance(ctx context.Context, tx *sql.Tx, lc ledgerctx.LedgerContext) (ledgerctx.UnsettledBalanceSnapshot, error) {
+	users, err := s.repo.ListLedgerUserIDs(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return ledgerctx.UnsettledBalanceSnapshot{}, err
+	}
+	paidMap, shareMap, settledOutMap, settledInMap, err := s.repo.GetSharedExpensesNetStatsWithTx(ctx, tx, lc.LedgerID, "")
+	if err != nil {
+		return ledgerctx.UnsettledBalanceSnapshot{}, err
+	}
+	balance := buildBalanceResponse(users, paidMap, shareMap, settledOutMap, settledInMap)
+	snapshot := ledgerctx.UnsettledBalanceSnapshot{AmountCents: balance.AmountCents}
+	if balance.AmountCents > 0 {
+		snapshot.FromUserID = stringPointer(balance.FromUserID)
+		snapshot.ToUserID = stringPointer(balance.ToUserID)
+	}
+	return snapshot, nil
+}
+
+func buildBalanceResponse(
+	users []string,
+	paidMap, shareMap, settledOutMap, settledInMap map[string]int64,
+) *BalanceResponse {
 	var userBalances []UserBalance
 	// 记录债务人与债权人用于贪心算法
 	type userNet struct {
@@ -180,7 +206,7 @@ func (s *Service) getBalance(ctx context.Context, currentUserID, month string) (
 		resp.AmountCents = suggestedTransfers[0].AmountCents
 	}
 
-	return resp, nil
+	return resp
 }
 
 // CreateSettlement 执行补款结算记账
@@ -375,19 +401,9 @@ func (s *Service) checkRole(ctx context.Context, ledgerID string, userID string,
 
 // 辅助方法：查询所有账本成员 ID
 func (s *Service) getLedgerUsers(ctx context.Context, ledgerID string) ([]string, error) {
-	dbConn := s.repo.GetDB()
-	rows, err := dbConn.QueryContext(ctx, "SELECT lm.user_id FROM ledger_members lm JOIN users u ON lm.user_id = u.id WHERE lm.ledger_id = ? ORDER BY u.username ASC", ledgerID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	return s.repo.ListLedgerUserIDs(ctx, nil, ledgerID)
+}
 
-	var users []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err == nil {
-			users = append(users, id)
-		}
-	}
-	return users, nil
+func stringPointer(value string) *string {
+	return &value
 }

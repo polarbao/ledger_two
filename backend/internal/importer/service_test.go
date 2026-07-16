@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pressly/goose/v3"
@@ -908,6 +909,93 @@ func TestHandlePreviewAcceptsMultipartCSV(t *testing.T) {
 	}
 }
 
+func TestTask503ADiscardReadyBatchPreservesRowsHashesAndTransactions(t *testing.T) {
+	database := openImporterTestDB(t)
+	if _, err := database.Exec(`
+		INSERT INTO import_batches (
+			id, ledger_id, filename, created_by_user_id, status, created_at,
+			updated_at, expires_at
+		) VALUES (
+			'discard-ready', 'ledger-one', 'fixture.csv', 'owner-user', 'ready',
+			'2026-07-01T00:00:00Z', '2026-07-01T00:00:00Z', '2099-01-01T00:00:00Z'
+		);
+		INSERT INTO import_items (id, batch_id, import_hash, status, created_at)
+		VALUES ('discard-row', 'discard-ready', 'hash-unchanged', 'pending', '2026-07-01T00:00:00Z');
+	`); err != nil {
+		t.Fatalf("seed discard batch: %v", err)
+	}
+
+	service := NewService(NewRepository(database))
+	result, err := service.DiscardPreviewBatch(context.Background(), ownerLedgerContext(), "discard-ready", DiscardImportBatchRequest{Reason: "user_requested"})
+	if err != nil {
+		t.Fatalf("discard ready batch: %v", err)
+	}
+	if result.BatchID != "discard-ready" || result.Status != "expired" || result.DiscardReason != "user_requested" {
+		t.Fatalf("unexpected discard result: %+v", result)
+	}
+
+	var status, importHash string
+	if err := database.QueryRow(`
+		SELECT b.status, i.import_hash
+		FROM import_batches b
+		JOIN import_items i ON i.batch_id = b.id
+		WHERE b.id = 'discard-ready'
+	`).Scan(&status, &importHash); err != nil {
+		t.Fatalf("read discarded batch: %v", err)
+	}
+	if status != "expired" || importHash != "hash-unchanged" {
+		t.Fatalf("discard changed protected data: status=%s hash=%s", status, importHash)
+	}
+	var transactionCount int
+	if err := database.QueryRow("SELECT COUNT(*) FROM transactions WHERE ledger_id = 'ledger-one'").Scan(&transactionCount); err != nil {
+		t.Fatalf("count transactions: %v", err)
+	}
+	if transactionCount != 0 {
+		t.Fatalf("discard created %d transactions", transactionCount)
+	}
+
+	var actorRole, afterJSON string
+	if err := database.QueryRow(`
+		SELECT actor_role, after_json
+		FROM audit_logs
+		WHERE ledger_id = 'ledger-one' AND action = 'import_batch_discard'
+	`).Scan(&actorRole, &afterJSON); err != nil {
+		t.Fatalf("read discard audit: %v", err)
+	}
+	if actorRole != "owner" || !strings.Contains(afterJSON, `"discard_reason":"user_requested"`) {
+		t.Fatalf("unexpected discard audit: role=%s after=%s", actorRole, afterJSON)
+	}
+}
+
+func TestTask503ADiscardBatchValidatesReasonRoleLedgerAndReadyState(t *testing.T) {
+	database := openImporterTestDB(t)
+	if _, err := database.Exec(`
+		INSERT INTO import_batches (id, ledger_id, filename, created_by_user_id, status, created_at)
+		VALUES
+			('ready-one', 'ledger-one', 'one.csv', 'owner-user', 'ready', '2026-07-01T00:00:00Z'),
+			('committed-one', 'ledger-one', 'done.csv', 'owner-user', 'committed', '2026-07-01T00:00:00Z'),
+			('ready-two', 'ledger-two', 'two.csv', 'owner-user', 'ready', '2026-07-01T00:00:00Z');
+	`); err != nil {
+		t.Fatalf("seed discard validation batches: %v", err)
+	}
+	service := NewService(NewRepository(database))
+
+	_, err := service.DiscardPreviewBatch(context.Background(), ownerLedgerContext(), "ready-one", DiscardImportBatchRequest{Reason: "other"})
+	assertAppError(t, err, http.StatusBadRequest, appErrors.ErrCodeValidationError)
+
+	editorContext := ownerLedgerContext()
+	editorContext.UserID = "editor-user"
+	editorContext.Role = ledger.RoleEditor
+	_, err = service.DiscardPreviewBatch(context.Background(), editorContext, "ready-one", DiscardImportBatchRequest{Reason: "user_requested"})
+	assertAppError(t, err, http.StatusForbidden, appErrors.ErrCodeLedgerAccessDenied)
+
+	_, err = service.DiscardPreviewBatch(context.Background(), ownerLedgerContext(), "committed-one", DiscardImportBatchRequest{Reason: "user_requested"})
+	assertAppError(t, err, http.StatusConflict, appErrors.ErrCodeImportCommitConflict)
+
+	_, err = service.DiscardPreviewBatch(context.Background(), ownerLedgerContext(), "ready-two", DiscardImportBatchRequest{Reason: "user_requested"})
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
+}
+
 func findPreviewRow(t *testing.T, batch *PreviewBatch, rowID string) PreviewRow {
 	t.Helper()
 
@@ -918,6 +1006,20 @@ func findPreviewRow(t *testing.T, batch *PreviewBatch, rowID string) PreviewRow 
 	}
 	t.Fatalf("row %s not found", rowID)
 	return PreviewRow{}
+}
+
+func assertAppError(t *testing.T, err error, status int, code string) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected %s", code)
+	}
+	var appErr *appErrors.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected AppError, got %T: %v", err, err)
+	}
+	if appErr.Status != status || appErr.Code != code {
+		t.Fatalf("expected %d/%s, got %d/%s", status, code, appErr.Status, appErr.Code)
+	}
 }
 
 func openImporterTestDB(t *testing.T) *sql.DB {

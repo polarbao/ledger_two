@@ -264,6 +264,38 @@ func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContex
 	return result, nil
 }
 
+func (s *Service) DiscardPreviewBatch(ctx context.Context, lc ledger.LedgerContext, batchID string, req DiscardImportBatchRequest) (*DiscardImportBatchResult, error) {
+	if lc.Role != ledger.RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeLedgerAccessDenied, "仅账本 Owner 可放弃导入批次")
+	}
+	if strings.TrimSpace(batchID) == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 不能为空")
+	}
+	if req.Reason != "user_requested" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "放弃原因无效")
+	}
+
+	status, err := s.repo.GetPreviewBatchStatus(ctx, lc.LedgerID, batchID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
+	}
+	if status != batchStatusReady {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "仅待确认导入批次可以放弃")
+	}
+
+	result, err := s.repo.DiscardPreviewBatch(ctx, lc, batchID, req.Reason)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "导入批次状态已变化，请刷新后重试")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "放弃导入批次失败")
+	}
+	return result, nil
+}
+
 func (s *Service) CreateImportRule(ctx context.Context, lc ledger.LedgerContext, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {
 	if err := s.validateRuleWrite(ctx, lc, &req); err != nil {
 		return nil, err

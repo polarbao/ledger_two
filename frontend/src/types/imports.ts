@@ -92,6 +92,12 @@ export interface ImportCommitResult {
   generated_transaction_ids: string[];
 }
 
+export interface ImportDiscardResult {
+  batch_id: string;
+  status: 'expired';
+  discard_reason: 'user_requested';
+}
+
 export interface ImportRuleResult {
   category_id?: string;
   account_id?: string;

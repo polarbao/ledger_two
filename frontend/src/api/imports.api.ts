@@ -1,6 +1,7 @@
 import { api } from './client';
 import type {
   ImportCommitResult,
+  ImportDiscardResult,
   ImportPreviewBatch,
   ImportRule,
   ImportRuleUpsertPayload,
@@ -24,6 +25,9 @@ export const importsApi = {
 
   commit: (batchId: string) =>
     api.post<ImportCommitResult>(`/api/imports/${batchId}/commit`, {}),
+
+  discard: (batchId: string) =>
+    api.post<ImportDiscardResult>(`/api/imports/${batchId}/discard`, { reason: 'user_requested' }),
 
   listRules: (status: 'active' | 'archived' | 'all' = 'all') =>
     api.get<ImportRule[]>(`/api/import-rules/?status=${status}`),

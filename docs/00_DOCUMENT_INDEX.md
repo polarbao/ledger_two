@@ -2,7 +2,7 @@
 
 > 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝当前仍只导出 CSV，不再等待支付宝 XLSX。剩余发布门禁为 NAS schema 19 staging、production 一致性备份与逐批导入确认。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 >
-> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-10 于 2026-07-15 全部关闭，Fresh Light 已成为无偏好新会话默认体验，Dark Glass 保留显式回退，28 个路由视口组合与全局可访问性验收通过。Task50P.1-P.6、Task50.1 与 Task50.2 已完成，schema 21 数据基础、显式 LedgerContext、统一生命周期/RBAC/实例 Guard、跨账本对象隔离和前端 fail-closed 已通过自动化验收；Task50.3-Task50.6 的开发/验收准备度和后续 Task51P/Task52 边界已复核，下一实现任务为 Task50.3A 生命周期 API。该结论不代表部署准入：WSL staging 仍为 schema 19，NAS 未执行 migration 020/021。本地预览不代表线上 Figma 已完整同步。
+> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-10 于 2026-07-15 全部关闭，Fresh Light 已成为无偏好新会话默认体验，Dark Glass 保留显式回退，28 个路由视口组合与全局可访问性验收通过。Task50P.1-P.6、Task50.1、Task50.2 与 Task50.3A 已完成：schema 21 数据基础、显式 LedgerContext、统一 Guard、跨账本隔离、账本生命周期/ETag、归档预检与显式放弃 ready 导入批次已通过自动化验收；Task50.3B/3C 的准备依据已复核，下一实现任务为 Task50.3B 成员与 Owner 不变量。Task50.4 仍需等待 Task50.3 整体收口。该结论不代表部署准入：WSL staging 仍为 schema 19，NAS 未执行 migration 020/021。本地预览不代表线上 Figma 已完整同步。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -74,6 +74,7 @@ docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md
 docs/project_analysis/2026-07-15-task50-current-state-gap-matrix.md
 docs/project_analysis/2026-07-15-task50-p6-development-readiness.md
 docs/project_analysis/2026-07-16-task50-2-ledger-context-acceptance.md
+docs/project_analysis/2026-07-16-task50-3a-lifecycle-acceptance.md
 ```
 
 ### 1.2 历史 v0.3 结论

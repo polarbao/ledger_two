@@ -252,3 +252,64 @@ func TestSettlementServiceUnit(t *testing.T) {
 		t.Error("expected invalid month to be rejected")
 	}
 }
+
+func TestTask503AUnsettledBalanceSnapshotUsesCallerTransaction(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	initRepo := repo.NewInitRepo(db)
+	if err := initRepo.ExecuteSetupTx(context.Background(), "Lifecycle Ledger", "CNY", []repo.UserPayload{
+		{Username: "owner", DisplayName: "Owner", PasswordHash: "hash1"},
+		{Username: "partner", DisplayName: "Partner", PasswordHash: "hash2"},
+	}); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	var ledgerID, ownerID, partnerID, categoryID string
+	for query, target := range map[string]*string{
+		"SELECT id FROM ledgers LIMIT 1":                        &ledgerID,
+		"SELECT id FROM users WHERE username = 'owner'":         &ownerID,
+		"SELECT id FROM users WHERE username = 'partner'":       &partnerID,
+		"SELECT id FROM categories ORDER BY created_at LIMIT 1": &categoryID,
+	} {
+		if err := db.QueryRow(query).Scan(target); err != nil {
+			t.Fatalf("load fixture with %q: %v", query, err)
+		}
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := db.Exec(`
+		INSERT INTO transactions (
+			id, ledger_id, type, title, amount, occurred_at, owner_user_id,
+			created_by_user_id, payer_user_id, category_id, visibility,
+			split_method, status, created_at, updated_at
+		) VALUES ('lifecycle-shared', ?, 'shared_expense', 'Lifecycle', 2400, ?, ?, ?, ?, ?, 'shared', 'equal', 'normal', ?, ?)
+	`, ledgerID, now, ownerID, ownerID, ownerID, categoryID, now, now); err != nil {
+		t.Fatalf("insert shared expense: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO transaction_splits (id, transaction_id, user_id, share_amount, created_at, updated_at)
+		VALUES ('lifecycle-owner', 'lifecycle-shared', ?, 1200, ?, ?),
+		       ('lifecycle-partner', 'lifecycle-shared', ?, 1200, ?, ?)
+	`, ownerID, now, now, partnerID, now, now); err != nil {
+		t.Fatalf("insert shared splits: %v", err)
+	}
+
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("begin lifecycle transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	service := settlement.NewService(settlement.NewRepository(db))
+	snapshot, err := service.GetUnsettledBalance(context.Background(), tx, ledgerctx.LedgerContext{
+		UserID: ownerID, LedgerID: ledgerID, Role: ledgerctx.RoleOwner,
+		Status: ledgerctx.LedgerStatusActive, Version: 1, IsExplicit: true,
+	})
+	if err != nil {
+		t.Fatalf("get transaction-scoped balance: %v", err)
+	}
+	if snapshot.AmountCents != 1200 || snapshot.FromUserID == nil || *snapshot.FromUserID != partnerID || snapshot.ToUserID == nil || *snapshot.ToUserID != ownerID {
+		t.Fatalf("unexpected lifecycle balance snapshot: %+v", snapshot)
+	}
+}

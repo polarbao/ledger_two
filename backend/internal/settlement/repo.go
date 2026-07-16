@@ -130,6 +130,14 @@ func (r *Repository) List(ctx context.Context, ledgerID string, month string) ([
 // @return map[string]int64 各自收到的结算补款总和 Map [user_id] -> cents
 // @return error 错误信息
 func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID, month string) (map[string]int64, map[string]int64, map[string]int64, map[string]int64, error) {
+	return r.GetSharedExpensesNetStatsWithTx(ctx, nil, ledgerID, month)
+}
+
+func (r *Repository) GetSharedExpensesNetStatsWithTx(ctx context.Context, tx *sql.Tx, ledgerID, month string) (map[string]int64, map[string]int64, map[string]int64, map[string]int64, error) {
+	var executor dbQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
 	paidMap := make(map[string]int64)
 	shareMap := make(map[string]int64)
 	settledOutMap := make(map[string]int64)
@@ -137,7 +145,7 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID, mo
 	monthPattern := month + "%"
 
 	// 1. 汇总统计各自实际支付的共同支出（排除软删除）
-	paidRows, err := r.db.QueryContext(ctx, `
+	err := querySettlementAmounts(ctx, executor, paidMap, `
 		SELECT payer_user_id, SUM(amount)
 		FROM transactions
 		WHERE ledger_id = ? AND type = 'shared_expense' AND status != 'deleted'
@@ -147,18 +155,9 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID, mo
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	defer paidRows.Close()
-
-	for paidRows.Next() {
-		var userID string
-		var amount int64
-		if err := paidRows.Scan(&userID, &amount); err == nil {
-			paidMap[userID] = amount
-		}
-	}
 
 	// 2. 汇总统计各自实际应该分摊的共同支出（排除软删除交易）
-	shareRows, err := r.db.QueryContext(ctx, `
+	err = querySettlementAmounts(ctx, executor, shareMap, `
 		SELECT ts.user_id, SUM(ts.share_amount)
 		FROM transaction_splits ts
 		JOIN transactions t ON ts.transaction_id = t.id
@@ -169,18 +168,9 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID, mo
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	defer shareRows.Close()
-
-	for shareRows.Next() {
-		var userID string
-		var shareAmount int64
-		if err := shareRows.Scan(&userID, &shareAmount); err == nil {
-			shareMap[userID] = shareAmount
-		}
-	}
 
 	// 3. 汇总统计各自作为付款人向对方发起的结算补款总额
-	settleOutRows, err := r.db.QueryContext(ctx, `
+	err = querySettlementAmounts(ctx, executor, settledOutMap, `
 		SELECT from_user_id, SUM(amount)
 		FROM settlements
 		WHERE ledger_id = ? AND (? = '' OR occurred_at LIKE ?)
@@ -189,18 +179,9 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID, mo
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	defer settleOutRows.Close()
-
-	for settleOutRows.Next() {
-		var userID string
-		var amount int64
-		if err := settleOutRows.Scan(&userID, &amount); err == nil {
-			settledOutMap[userID] = amount
-		}
-	}
 
 	// 4. 汇总统计各自作为收款人收到的结算补款总额
-	settleInRows, err := r.db.QueryContext(ctx, `
+	err = querySettlementAmounts(ctx, executor, settledInMap, `
 		SELECT to_user_id, SUM(amount)
 		FROM settlements
 		WHERE ledger_id = ? AND (? = '' OR occurred_at LIKE ?)
@@ -209,17 +190,56 @@ func (r *Repository) GetSharedExpensesNetStats(ctx context.Context, ledgerID, mo
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	defer settleInRows.Close()
-
-	for settleInRows.Next() {
-		var userID string
-		var amount int64
-		if err := settleInRows.Scan(&userID, &amount); err == nil {
-			settledInMap[userID] = amount
-		}
-	}
 
 	return paidMap, shareMap, settledOutMap, settledInMap, nil
+}
+
+func (r *Repository) ListLedgerUserIDs(ctx context.Context, tx *sql.Tx, ledgerID string) ([]string, error) {
+	var executor dbQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+	rows, err := executor.QueryContext(ctx, `
+		SELECT lm.user_id
+		FROM ledger_members lm
+		JOIN users u ON lm.user_id = u.id
+		WHERE lm.ledger_id = ?
+		ORDER BY u.username ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []string
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		users = append(users, userID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func querySettlementAmounts(ctx context.Context, executor dbQueryExecutor, target map[string]int64, query string, args ...any) error {
+	rows, err := executor.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID string
+		var amount int64
+		if err := rows.Scan(&userID, &amount); err != nil {
+			return err
+		}
+		target[userID] = amount
+	}
+	return rows.Err()
 }
 
 // CreateAuditLogWithTx 在事务内物理写入单笔审计日志
@@ -262,4 +282,8 @@ func (r *Repository) CreateAuditLogWithTx(ctx context.Context, tx *sql.Tx, ledge
 type dbExecutor interface {
 	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
 	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
+}
+
+type dbQueryExecutor interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }

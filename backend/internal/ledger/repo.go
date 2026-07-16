@@ -3,6 +3,7 @@ package ledger
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -18,9 +19,9 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 // CreateLedger 创建新账本并同时将会话用户设为 owner
-func (r *Repository) CreateLedger(ctx context.Context, name string, userID string) (*Ledger, error) {
+func (r *Repository) CreateLedger(ctx context.Context, name string, userID string) (*LedgerWithRole, error) {
 	ledgerID := uuid.NewString()
-	now := time.Now()
+	now := time.Now().UTC()
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -42,19 +43,31 @@ func (r *Repository) CreateLedger(ctx context.Context, name string, userID strin
 		return nil, err
 	}
 
+	created := &LedgerWithRole{
+		Ledger: Ledger{
+			ID:          ledgerID,
+			Name:        name,
+			Status:      LedgerStatusActive,
+			Version:     1,
+			MemberCount: 1,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		},
+		Role: string(RoleOwner),
+	}
+	afterJSON, err := json.Marshal(created)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.CreateLedgerAuditWithTx(ctx, tx, ledgerID, userID, RoleOwner, "ledger_create", nil, afterJSON); err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
-	return &Ledger{
-		ID:          ledgerID,
-		Name:        name,
-		Status:      LedgerStatusActive,
-		Version:     1,
-		MemberCount: 1,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}, nil
+	return created, nil
 }
 
 // ListUserLedgers 获取用户加入的所有账本及对应角色
@@ -135,6 +148,38 @@ func (r *Repository) GetLedgerByID(ctx context.Context, ledgerID string) (*Ledge
 	return &ledgerModel, nil
 }
 
+func (r *Repository) GetLedgerWithRole(ctx context.Context, tx *sql.Tx, ledgerID, userID string) (*LedgerWithRole, error) {
+	var executor ledgerQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+	row := executor.QueryRowContext(ctx, `
+		SELECT l.id,
+		       l.name,
+		       l.status,
+		       l.archived_at,
+		       l.archived_by_user_id,
+		       l.version,
+		       (
+		           SELECT COUNT(*)
+		           FROM ledger_members member_count
+		           WHERE member_count.ledger_id = l.id
+		       ),
+		       l.created_at,
+		       l.updated_at,
+		       m.role
+		FROM ledgers l
+		JOIN ledger_members m ON m.ledger_id = l.id
+		WHERE l.id = ? AND m.user_id = ?
+	`, ledgerID, userID)
+
+	ledgerWithRole, err := scanLedgerWithRole(row)
+	if err != nil {
+		return nil, err
+	}
+	return &ledgerWithRole, nil
+}
+
 func (r *Repository) CountMembers(ctx context.Context, ledgerID string) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(
@@ -169,16 +214,28 @@ func (r *Repository) IsInstanceAdmin(ctx context.Context, userID string) (bool, 
 }
 
 func (r *Repository) GetLedgerAccess(ctx context.Context, ledgerID string, userID string) (Role, LedgerStatus, int64, error) {
+	return r.GetLedgerAccessWithTx(ctx, nil, ledgerID, userID)
+}
+
+func (r *Repository) GetLedgerAccessWithTx(ctx context.Context, tx *sql.Tx, ledgerID string, userID string) (Role, LedgerStatus, int64, error) {
+	var executor ledgerQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
 	var role Role
 	var status LedgerStatus
 	var version int64
-	err := r.db.QueryRowContext(ctx, `
+	err := executor.QueryRowContext(ctx, `
 		SELECT m.role, l.status, l.version
 		FROM ledger_members m
 		JOIN ledgers l ON l.id = m.ledger_id
 		WHERE m.ledger_id = ? AND m.user_id = ?
 	`, ledgerID, userID).Scan(&role, &status, &version)
 	return role, status, version, err
+}
+
+func (r *Repository) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return r.db.BeginTx(ctx, nil)
 }
 
 func (r *Repository) ClaimLedgerVersion(ctx context.Context, tx *sql.Tx, ledgerID string, expectedVersion int64) (bool, error) {
@@ -201,6 +258,84 @@ func (r *Repository) ClaimLedgerVersion(ctx context.Context, tx *sql.Tx, ledgerI
 		return false, err
 	}
 	return rowsAffected == 1, nil
+}
+
+func (r *Repository) RenameLedgerWithTx(ctx context.Context, tx *sql.Tx, ledgerID, name string) error {
+	_, err := tx.ExecContext(ctx, "UPDATE ledgers SET name = ? WHERE id = ?", name, ledgerID)
+	return err
+}
+
+func (r *Repository) ArchiveLedgerWithTx(ctx context.Context, tx *sql.Tx, ledgerID, userID string, archivedAt time.Time) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE ledgers
+		SET status = 'archived', archived_at = ?, archived_by_user_id = ?
+		WHERE id = ?
+	`, archivedAt.UTC().Format(time.RFC3339Nano), userID, ledgerID)
+	return err
+}
+
+func (r *Repository) RestoreLedgerWithTx(ctx context.Context, tx *sql.Tx, ledgerID string) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE ledgers
+		SET status = 'active', archived_at = NULL, archived_by_user_id = NULL
+		WHERE id = ?
+	`, ledgerID)
+	return err
+}
+
+func (r *Repository) CountBlockingReadyImportBatches(ctx context.Context, tx *sql.Tx, ledgerID string, now time.Time) (int, error) {
+	var executor ledgerQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+	var count int
+	err := executor.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM import_batches
+		WHERE ledger_id = ?
+		  AND status = 'ready'
+		  AND (expires_at IS NULL OR julianday(expires_at) > julianday(?))
+	`, ledgerID, now.UTC().Format(time.RFC3339Nano)).Scan(&count)
+	return count, err
+}
+
+func (r *Repository) ExpireReadyImportBatchesWithTx(ctx context.Context, tx *sql.Tx, ledgerID string, now time.Time) error {
+	formattedNow := now.UTC().Format(time.RFC3339Nano)
+	_, err := tx.ExecContext(ctx, `
+		UPDATE import_batches
+		SET status = 'expired', updated_at = ?
+		WHERE ledger_id = ?
+		  AND status = 'ready'
+		  AND expires_at IS NOT NULL
+		  AND julianday(expires_at) <= julianday(?)
+	`, formattedNow, ledgerID, formattedNow)
+	return err
+}
+
+func (r *Repository) CreateLedgerAuditWithTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	ledgerID, actorUserID string,
+	actorRole Role,
+	action string,
+	beforeJSON, afterJSON []byte,
+) error {
+	var beforeValue any
+	if len(beforeJSON) > 0 {
+		beforeValue = string(beforeJSON)
+	}
+	var afterValue any
+	if len(afterJSON) > 0 {
+		afterValue = string(afterJSON)
+	}
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO audit_logs (
+			id, ledger_id, actor_user_id, actor_role, action, entity_type,
+			entity_id, before_json, after_json, created_at
+		) VALUES (?, ?, ?, ?, ?, 'ledger', ?, ?, ?, ?)
+	`, uuid.NewString(), ledgerID, actorUserID, actorRole, action, ledgerID,
+		beforeValue, afterValue, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
 }
 
 // GetLedgerMembers 获取某账本下的所有成员
@@ -293,6 +428,10 @@ type ledgerScanner interface {
 
 type ledgerExecutor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+type ledgerQueryExecutor interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 func scanLedger(scanner ledgerScanner) (Ledger, error) {

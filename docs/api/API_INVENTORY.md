@@ -1,10 +1,10 @@
 # API Inventory
 
-状态：Task34.1 现状盘点  
+状态：Task50.3A 增量同步；Task50.3C 将执行全表双向复核
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
-更新时间：2026-07-09
+更新时间：2026-07-16
 
 ## 1. 总体约定
 
@@ -37,7 +37,7 @@
 账本要求：
 
 - `none`：不需要账本上下文。
-- `optional`：当前兼容未传 `X-Ledger-Id`，服务层 fallback 到用户第一个账本；v1.1 冻结前应逐步收紧。
+- `optional`：历史盘点标签；Task50.2 后生产账本路由已统一 fail closed，不再允许首账本 fallback，Task50.3C 将把下表遗留标签统一改写为 `required`。
 - `required`：请求必须明确账本或路径内账本，且必须校验 membership。
 - `path`：账本 ID 来自 URL path。
 
@@ -62,14 +62,19 @@
 |---|---|---:|---|---|---|---|
 | POST | `/api/auth/login` | no | none | stable | `auth.HandleLogin` | 登录并写入 Cookie token。 |
 | POST | `/api/auth/logout` | no | none | stable | `auth.HandleLogout` | 清理 Cookie token。 |
-| GET | `/api/auth/me` | yes | none | stable | `auth.HandleMe` | 当前用户信息，可能包含默认 ledger id。 |
+| GET | `/api/auth/me` | yes | none | stable | `auth.HandleMe` | 当前用户与 `instance_admin` 能力；不返回或推断当前账本。 |
 
 ## 4. Ledgers 与成员
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| POST | `/api/ledgers/` | yes | none | stable | `ledger.CreateLedger` | 创建账本，并将创建者设为 owner。 |
-| GET | `/api/ledgers/` | yes | none | stable | `ledger.ListUserLedgers` | 列出当前用户加入的账本。 |
+| POST | `/api/ledgers/` | yes | none | stable | `ledger.CreateLedger` | 创建 active/version 1 账本，创建者为唯一 Owner；返回 201 与 ETag。 |
+| GET | `/api/ledgers/` | yes | none | stable | `ledger.ListUserLedgers` | 按 `status=active/archived/all` 列表；默认 active。 |
+| GET | `/api/ledgers/{id}` | yes | path | stable | `ledger.GetLedger` | 成员读取 active/archived 详情；返回 ETag。 |
+| PATCH | `/api/ledgers/{id}` | yes | path | stable | `ledger.RenameLedger` | active Owner + If-Match 重命名。 |
+| GET | `/api/ledgers/{id}/archive-preflight` | yes | path | stable | `ledger.GetArchivePreflight` | active Owner 只读预检未结清净额和未过期 ready 批次；不写审计。 |
+| POST | `/api/ledgers/{id}/archive` | yes | path | stable | `ledger.ArchiveLedger` | active Owner + If-Match 归档；ready 阻断，未结清需显式确认。 |
+| POST | `/api/ledgers/{id}/restore` | yes | path | stable | `ledger.RestoreLedger` | archived Owner + If-Match 恢复。 |
 | GET | `/api/ledgers/{id}/members` | yes | path | transitional | `ledger.GetLedgerMembers` | 查看账本成员，当前 path 账本权限由 service 校验。 |
 | POST | `/api/ledgers/{id}/members` | yes | path | transitional | `ledger.AddMember` | 添加成员，仅 owner。 |
 | PUT | `/api/ledgers/{id}/members/{userId}` | yes | path | transitional | `ledger.UpdateMemberRole` | 修改成员角色，仅 owner。 |
@@ -113,6 +118,7 @@
 | GET | `/api/imports/{batchID}` | yes | required | stable | `importer.HandleGetBatch` | v1.2 Owner 读取导入批次和行级预览。 |
 | PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | stable | `importer.HandleUpdateRow` | v1.2 Owner 调整导入行状态、目标类型、分类、账户、标签和可见性。 |
 | POST | `/api/imports/{batchID}/commit` | yes | required | stable | `importer.HandleCommit` | v1.2 Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
+| POST | `/api/imports/{batchID}/discard` | yes | required | stable | `importer.HandleDiscardBatch` | Owner 显式放弃 ready 批次；收敛为 expired，保留行/hash，不创建 transaction。 |
 | POST | `/api/import-rules/` | yes | required | stable | `importer.HandleCreateRule` | v1.2 Owner 创建导入规则，规则只产生建议。 |
 | GET | `/api/import-rules/` | yes | required | stable | `importer.HandleListRules` | v1.2 Owner 列出导入规则，支持 `status=active/archived/all`。 |
 | PATCH | `/api/import-rules/{ruleID}` | yes | required | stable | `importer.HandleUpdateRule` | v1.2 Owner 更新导入规则。 |

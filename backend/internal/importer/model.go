@@ -128,6 +128,16 @@ type CommitResult struct {
 	GeneratedTransactionIDs []string `json:"generated_transaction_ids"`
 }
 
+type DiscardImportBatchRequest struct {
+	Reason string `json:"reason"`
+}
+
+type DiscardImportBatchResult struct {
+	BatchID       string `json:"batch_id"`
+	Status        string `json:"status"`
+	DiscardReason string `json:"discard_reason"`
+}
+
 type ImportRuleResult struct {
 	CategoryID string   `json:"category_id,omitempty"`
 	AccountID  string   `json:"account_id,omitempty"`

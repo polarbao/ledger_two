@@ -44,6 +44,20 @@ type LedgerWithRole struct {
 	Role string `json:"role"`
 }
 
+type UnsettledBalanceSnapshot struct {
+	FromUserID  *string `json:"from_user_id"`
+	ToUserID    *string `json:"to_user_id"`
+	AmountCents int64   `json:"amount_cents"`
+}
+
+type ArchivePreflight struct {
+	Ledger                           LedgerWithRole           `json:"ledger"`
+	UnsettledBalance                 UnsettledBalanceSnapshot `json:"unsettled_balance"`
+	ReadyImportBatchCount            int                      `json:"ready_import_batch_count"`
+	CanArchive                       bool                     `json:"can_archive"`
+	RequiresUnsettledAcknowledgement bool                     `json:"requires_unsettled_acknowledgement"`
+}
+
 type MemberDetail struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`

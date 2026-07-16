@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-16）：Task41-Task49 已完成。Task49X 已按真实格式冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；核心开发与本机验收完成，剩余 NAS/production 发布门禁。Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task50P.1-P.6、Task50.1 和 Task50.2 已完成，下一实现任务为 Task50.3A；Task51 仍处于路线待准备状态，Task52 仍为延后调研。
+> 执行更新（2026-07-16）：Task41-Task49 已完成。Task49X 已按真实格式冻结为微信 CSV/XLSX、支付宝 CSV、通用 CSV；核心开发与本机验收完成，剩余 NAS/production 发布门禁。Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task50P.1-P.6、Task50.1、Task50.2 和 Task50.3A 已完成，下一实现任务为 Task50.3B；Task51 仅允许开展不具约束力的 Task51P.1 场景证据准备，正式冻结仍等待 Task50.6，Task52 仍为延后调研。
 
 ## 1. 使用说明
 
@@ -183,7 +183,7 @@
 
 ### Task50：多账本正式化
 
-状态：Task50.1、Task50.2 已完成；Task50.3 已准入，Task50.4/50.5 条件准入，Task50.6 验收框架已具备。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
+状态：Task50.1、Task50.2、Task50.3A 已完成；Task50.3B/3C 已具备开发前依据，Task50.4/50.5 条件准入，Task50.6 验收框架已具备。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
 
 目标：
 

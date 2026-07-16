@@ -1,6 +1,6 @@
 # API Inventory
 
-状态：Task50.3A 增量同步；Task50.3C 将执行全表双向复核
+状态：Task50.3B 增量同步；Task50.3C 将执行全表双向复核
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
@@ -77,10 +77,13 @@
 | GET | `/api/ledgers/{id}/archive-preflight` | yes | path | stable | `ledger.GetArchivePreflight` | active Owner 只读预检未结清净额和未过期 ready 批次；不写审计。 |
 | POST | `/api/ledgers/{id}/archive` | yes | path | stable | `ledger.ArchiveLedger` | active Owner + If-Match 归档；ready 阻断，未结清需显式确认。 |
 | POST | `/api/ledgers/{id}/restore` | yes | path | stable | `ledger.RestoreLedger` | archived Owner + If-Match 恢复。 |
-| GET | `/api/ledgers/{id}/members` | yes | path | transitional | `ledger.GetLedgerMembers` | 查看账本成员，当前 path 账本权限由 service 校验。 |
-| POST | `/api/ledgers/{id}/members` | yes | path | transitional | `ledger.AddMember` | 添加成员，仅 owner。 |
-| PUT | `/api/ledgers/{id}/members/{userId}` | yes | path | transitional | `ledger.UpdateMemberRole` | 修改成员角色，仅 owner。 |
-| DELETE | `/api/ledgers/{id}/members/{userId}` | yes | path | transitional | `ledger.RemoveMember` | 移除成员，仅 owner。 |
+| GET | `/api/ledgers/{id}/members` | yes | path | stable | `ledger.GetLedgerMembers` | active/archived 成员读取；返回 ledger + members、joined_at 与 ETag。 |
+| POST | `/api/ledgers/{id}/members` | yes | path | stable | `ledger.AddMember` | active Owner + If-Match 添加第二成员；必须确认历史可见性，返回 201、成员快照与新 ETag。 |
+| PATCH | `/api/ledgers/{id}/members/{userId}` | yes | path | stable | `ledger.UpdateMemberRole` | active Owner + If-Match 在 editor/viewer 间调整；通用接口不接受 owner。 |
+| PUT | `/api/ledgers/{id}/members/{userId}` | yes | path | deprecated | `ledger.UpdateMemberRole` | Task50.3B 兼容旧客户端；与 PATCH 调用同一 handler/service，后续删除需独立评审。 |
+| DELETE | `/api/ledgers/{id}/members/{userId}` | yes | path | stable | `ledger.RemoveMember` | active Owner + If-Match 移除非 Owner；历史账务对象不改写。 |
+| POST | `/api/ledgers/{id}/members/{userId}/transfer-owner` | yes | path | stable | `ledger.TransferOwner` | 当前 Owner 确认权限变化后原子移交；原 Owner 成为 Editor，只写一个审计事件。 |
+| POST | `/api/ledgers/{id}/leave` | yes | path | stable | `ledger.LeaveLedger` | Editor/Viewer + If-Match 主动离开并返回提交后的 ETag；Owner 必须先移交。 |
 
 ## 5. Metadata 基础查询
 

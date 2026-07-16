@@ -181,8 +181,16 @@ func (r *Repository) GetLedgerWithRole(ctx context.Context, tx *sql.Tx, ledgerID
 }
 
 func (r *Repository) CountMembers(ctx context.Context, ledgerID string) (int, error) {
+	return r.CountMembersWithTx(ctx, nil, ledgerID)
+}
+
+func (r *Repository) CountMembersWithTx(ctx context.Context, tx *sql.Tx, ledgerID string) (int, error) {
+	var executor ledgerQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
 	var count int
-	err := r.db.QueryRowContext(
+	err := executor.QueryRowContext(
 		ctx,
 		"SELECT COUNT(*) FROM ledger_members WHERE ledger_id = ?",
 		ledgerID,
@@ -191,8 +199,16 @@ func (r *Repository) CountMembers(ctx context.Context, ledgerID string) (int, er
 }
 
 func (r *Repository) CountOwners(ctx context.Context, ledgerID string) (int, error) {
+	return r.CountOwnersWithTx(ctx, nil, ledgerID)
+}
+
+func (r *Repository) CountOwnersWithTx(ctx context.Context, tx *sql.Tx, ledgerID string) (int, error) {
+	var executor ledgerQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
 	var count int
-	err := r.db.QueryRowContext(
+	err := executor.QueryRowContext(
 		ctx,
 		"SELECT COUNT(*) FROM ledger_members WHERE ledger_id = ? AND role = 'owner'",
 		ledgerID,
@@ -338,14 +354,17 @@ func (r *Repository) CreateLedgerAuditWithTx(
 	return err
 }
 
-// GetLedgerMembers 获取某账本下的所有成员
-func (r *Repository) GetLedgerMembers(ctx context.Context, ledgerID string) ([]MemberDetail, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT u.id, u.username, m.role
+func (r *Repository) GetLedgerMembersWithTx(ctx context.Context, tx *sql.Tx, ledgerID string) ([]MemberDetail, error) {
+	var executor ledgerRowsQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+	rows, err := executor.QueryContext(ctx, `
+		SELECT u.id, u.username, m.role, m.created_at
 		FROM users u
 		JOIN ledger_members m ON u.id = m.user_id
 		WHERE m.ledger_id = ?
-		ORDER BY m.created_at ASC
+		ORDER BY m.created_at ASC, u.id ASC
 	`, ledgerID)
 	if err != nil {
 		return nil, err
@@ -355,71 +374,96 @@ func (r *Repository) GetLedgerMembers(ctx context.Context, ledgerID string) ([]M
 	var result []MemberDetail
 	for rows.Next() {
 		var m MemberDetail
-		if err := rows.Scan(&m.UserID, &m.Username, &m.Role); err != nil {
+		var joinedAt string
+		if err := rows.Scan(&m.UserID, &m.Username, &m.Role, &joinedAt); err != nil {
 			return nil, err
 		}
+		parsed, err := parseLedgerTime(joinedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse member joined_at for %s: %w", m.UserID, err)
+		}
+		m.JoinedAt = parsed
 		result = append(result, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
 
-// FindUserByUsername 按用户名查找用户ID
-func (r *Repository) FindUserByUsername(ctx context.Context, username string) (string, error) {
+func (r *Repository) FindActiveUserByUsernameWithTx(ctx context.Context, tx *sql.Tx, username string) (string, error) {
 	var userID string
-	err := r.db.QueryRowContext(ctx, "SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	err := tx.QueryRowContext(ctx, `
+		SELECT id
+		FROM users
+		WHERE username = ? AND is_active = 1
+	`, username).Scan(&userID)
 	return userID, err
 }
 
-// AddMember 添加成员
-func (r *Repository) AddMember(ctx context.Context, ledgerID, userID, role string) error {
-	now := time.Now().Format(time.RFC3339)
-	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at) 
+func (r *Repository) AddMemberWithTx(ctx context.Context, tx *sql.Tx, ledgerID, userID string, role Role) error {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?)
 	`, ledgerID, userID, role, now, now)
 	return err
 }
 
-// UpdateMemberRole 修改成员角色
-func (r *Repository) UpdateMemberRole(ctx context.Context, ledgerID, userID, role string) error {
-	now := time.Now().Format(time.RFC3339)
-	_, err := r.db.ExecContext(ctx, `
-		UPDATE ledger_members SET role = ?, updated_at = ?
+func (r *Repository) UpdateMemberRoleWithTx(ctx context.Context, tx *sql.Tx, ledgerID, userID string, role Role) error {
+	result, err := tx.ExecContext(ctx, `
+		UPDATE ledger_members
+		SET role = ?, updated_at = ?
 		WHERE ledger_id = ? AND user_id = ?
-	`, role, now, ledgerID, userID)
-	return err
+	`, role, time.Now().UTC().Format(time.RFC3339Nano), ledgerID, userID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
-// RemoveMember 移除成员
-func (r *Repository) RemoveMember(ctx context.Context, ledgerID, userID string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID)
-	return err
+func (r *Repository) RemoveMemberWithTx(ctx context.Context, tx *sql.Tx, ledgerID, userID string) error {
+	result, err := tx.ExecContext(ctx, `
+		DELETE FROM ledger_members
+		WHERE ledger_id = ? AND user_id = ?
+	`, ledgerID, userID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // GetMemberRole 查询用户在指定账本中的角色
 func (r *Repository) GetMemberRole(ctx context.Context, ledgerID, userID string) (Role, error) {
+	return r.GetMemberRoleWithTx(ctx, nil, ledgerID, userID)
+}
+
+func (r *Repository) GetMemberRoleWithTx(ctx context.Context, tx *sql.Tx, ledgerID, userID string) (Role, error) {
+	var executor ledgerQueryExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
 	var role string
-	err := r.db.QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
+	err := executor.QueryRowContext(ctx, "SELECT role FROM ledger_members WHERE ledger_id = ? AND user_id = ?", ledgerID, userID).Scan(&role)
 	if err != nil {
 		return "", err
 	}
 
 	return Role(role), nil
-}
-
-// CheckRole 校验角色
-func (r *Repository) CheckRole(ctx context.Context, ledgerID, userID string, allowedRoles ...string) error {
-	role, err := r.GetMemberRole(ctx, ledgerID, userID)
-	if err != nil {
-		return sql.ErrNoRows
-	}
-
-	for _, allowed := range allowedRoles {
-		if role == Role(allowed) {
-			return nil
-		}
-	}
-	return sql.ErrNoRows // 表示不符合要求的角色
 }
 
 type ledgerScanner interface {
@@ -432,6 +476,10 @@ type ledgerExecutor interface {
 
 type ledgerQueryExecutor interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+type ledgerRowsQueryExecutor interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
 
 func scanLedger(scanner ledgerScanner) (Ledger, error) {

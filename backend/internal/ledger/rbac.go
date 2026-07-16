@@ -89,6 +89,7 @@ func NewRolePolicy() RolePolicy {
 				OperationViewLedger:  true,
 				OperationViewMembers: true,
 				OperationViewReports: true,
+				OperationLeaveLedger: true,
 			},
 		},
 	}

@@ -76,3 +76,73 @@ describe('Task50.3A ledger lifecycle API', () => {
     }));
   });
 });
+
+describe('Task50.3B ledger member API', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    useLedgerStore.getState().clearActiveLedger();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true, data: {} }),
+    }));
+  });
+
+  it('uses PATCH and the ledger ETag for every member mutation', async () => {
+    await ledgerApi.addMember('ledger-a', 3, {
+      username: 'partner',
+      role: 'editor',
+      acknowledge_history_visibility: true,
+    });
+    await ledgerApi.updateMemberRole('ledger-a', 4, 'user-b', { role: 'viewer' });
+    await ledgerApi.removeMember('ledger-a', 5, 'user-b');
+    await ledgerApi.transferOwner('ledger-a', 6, 'user-b', {
+      acknowledge_permission_change: true,
+    });
+    await ledgerApi.leaveLedger('ledger-a', 7);
+
+    const calls = vi.mocked(fetch).mock.calls;
+    expect(calls[0]).toEqual([
+      '/api/ledgers/ledger-a/members',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          username: 'partner',
+          role: 'editor',
+          acknowledge_history_visibility: true,
+        }),
+        headers: expect.objectContaining({ 'if-match': '"ledger:ledger-a:v3"' }),
+      }),
+    ]);
+    expect(calls[1]).toEqual([
+      '/api/ledgers/ledger-a/members/user-b',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ role: 'viewer' }),
+        headers: expect.objectContaining({ 'if-match': '"ledger:ledger-a:v4"' }),
+      }),
+    ]);
+    expect(calls[2]).toEqual([
+      '/api/ledgers/ledger-a/members/user-b',
+      expect.objectContaining({
+        method: 'DELETE',
+        headers: expect.objectContaining({ 'if-match': '"ledger:ledger-a:v5"' }),
+      }),
+    ]);
+    expect(calls[3]).toEqual([
+      '/api/ledgers/ledger-a/members/user-b/transfer-owner',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ acknowledge_permission_change: true }),
+        headers: expect.objectContaining({ 'if-match': '"ledger:ledger-a:v6"' }),
+      }),
+    ]);
+    expect(calls[4]).toEqual([
+      '/api/ledgers/ledger-a/leave',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'if-match': '"ledger:ledger-a:v7"' }),
+      }),
+    ]);
+  });
+});

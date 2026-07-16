@@ -90,6 +90,7 @@ func TestRolePolicyViewerPermissions(t *testing.T) {
 		OperationViewLedger,
 		OperationViewMembers,
 		OperationViewReports,
+		OperationLeaveLedger,
 	}
 	for _, operation := range allowed {
 		if !policy.Can(RoleViewer, operation) {

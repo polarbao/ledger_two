@@ -253,6 +253,78 @@ func TestSettlementServiceUnit(t *testing.T) {
 	}
 }
 
+func TestTask503BSettlementKeepsHistoricalParticipantBalanceAfterMembershipRemoval(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	initRepo := repo.NewInitRepo(db)
+	if err := initRepo.ExecuteSetupTx(context.Background(), "History Balance", "CNY", []repo.UserPayload{
+		{Username: "owner", DisplayName: "Owner", PasswordHash: "hash1"},
+		{Username: "former", DisplayName: "Former Member", PasswordHash: "hash2"},
+	}); err != nil {
+		t.Fatalf("setup history balance: %v", err)
+	}
+
+	var ledgerID, ownerID, formerID string
+	if err := db.QueryRow("SELECT id FROM ledgers LIMIT 1").Scan(&ledgerID); err != nil {
+		t.Fatalf("query history ledger: %v", err)
+	}
+	if err := db.QueryRow("SELECT id FROM users WHERE username = 'owner'").Scan(&ownerID); err != nil {
+		t.Fatalf("query history owner: %v", err)
+	}
+	if err := db.QueryRow("SELECT id FROM users WHERE username = 'former'").Scan(&formerID); err != nil {
+		t.Fatalf("query former member: %v", err)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := db.Exec(`
+		INSERT INTO transactions (
+			id, ledger_id, type, title, amount, occurred_at,
+			owner_user_id, created_by_user_id, payer_user_id,
+			visibility, split_method, status, created_at, updated_at
+		) VALUES (
+			'history-shared', ?, 'shared_expense', 'Historical shared expense', 10000, ?,
+			?, ?, ?, 'shared', 'equal', 'normal', ?, ?
+		)
+	`, ledgerID, now, ownerID, ownerID, ownerID, now, now); err != nil {
+		t.Fatalf("insert historical shared expense: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO transaction_splits (
+			id, transaction_id, user_id, share_amount, created_at, updated_at
+		) VALUES
+			('history-owner-split', 'history-shared', ?, 5000, ?, ?),
+			('history-former-split', 'history-shared', ?, 5000, ?, ?)
+	`, ownerID, now, now, formerID, now, now); err != nil {
+		t.Fatalf("insert historical splits: %v", err)
+	}
+	if _, err := db.Exec(`
+		DELETE FROM ledger_members
+		WHERE ledger_id = ? AND user_id = ?
+	`, ledgerID, formerID); err != nil {
+		t.Fatalf("remove former membership fixture: %v", err)
+	}
+
+	ctx := ledgerctx.ContextWithLedgerContext(context.Background(), ledgerctx.LedgerContext{
+		UserID:     ownerID,
+		LedgerID:   ledgerID,
+		Role:       ledgerctx.RoleOwner,
+		Status:     ledgerctx.LedgerStatusActive,
+		Version:    2,
+		IsExplicit: true,
+	})
+	balance, err := settlement.NewService(settlement.NewRepository(db)).GetBalance(ctx, ownerID)
+	if err != nil {
+		t.Fatalf("get historical participant balance: %v", err)
+	}
+	if balance.AmountCents != 5000 || balance.FromUserID != formerID || balance.ToUserID != ownerID {
+		t.Fatalf("historical balance lost after membership removal: %+v", balance)
+	}
+	if len(balance.UserBalances) != 2 {
+		t.Fatalf("expected current and historical participant balances, got %+v", balance.UserBalances)
+	}
+}
+
 func TestTask503AUnsettledBalanceSnapshotUsesCallerTransaction(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

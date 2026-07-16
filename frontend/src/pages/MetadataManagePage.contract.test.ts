@@ -23,6 +23,8 @@ describe('UI-FL-07 metadata management contract', () => {
     expect(source).not.toContain('style={{');
     expect(ledgerSettings).toContain('所有成员可以查看名单');
     expect(ledgerSettings).toContain('历史账单不会被删除');
+    expect(ledgerSettings).toContain('acknowledgeHistoryVisibility');
+    expect(ledgerSettings).toContain('新成员将按可见性规则读取当前账本的既有历史');
     expect(ledgerSettings).not.toContain('window.confirm');
     expect(ledgerSettings).not.toContain('style={{');
   });

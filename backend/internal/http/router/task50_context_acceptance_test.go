@@ -73,6 +73,10 @@ func TestTask50ArchivedLedgerRejectsBusinessWritesBeforeHandlers(t *testing.T) {
 		{name: "legacy import", method: http.MethodPost, path: "/api/transactions/import/commit"},
 		{name: "attachment upload", method: http.MethodPost, path: "/api/attachments"},
 		{name: "member mutation", method: http.MethodPost, path: "/api/ledgers/" + fixture.LedgerID + "/members"},
+		{name: "member role", method: http.MethodPatch, path: "/api/ledgers/" + fixture.LedgerID + "/members/" + fixture.UserBID},
+		{name: "member remove", method: http.MethodDelete, path: "/api/ledgers/" + fixture.LedgerID + "/members/" + fixture.UserBID},
+		{name: "owner transfer", method: http.MethodPost, path: "/api/ledgers/" + fixture.LedgerID + "/members/" + fixture.UserBID + "/transfer-owner"},
+		{name: "member leave", method: http.MethodPost, path: "/api/ledgers/" + fixture.LedgerID + "/leave"},
 	}
 
 	for _, tc := range cases {

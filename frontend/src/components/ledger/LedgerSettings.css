@@ -220,6 +220,23 @@
   font-weight: 650;
 }
 
+.ledger-settings__form-panel .ledger-settings__acknowledgement {
+  min-height: 44px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--lt-space-2);
+  color: var(--lt-text-secondary);
+  font-size: var(--lt-font-size-caption);
+  line-height: var(--lt-line-height-normal);
+}
+
+.ledger-settings__acknowledgement input {
+  width: 18px;
+  min-height: 18px;
+  flex: 0 0 18px;
+  margin: 2px 0 0;
+}
+
 @media (max-width: 768px) {
   .ledger-settings__management-grid {
     grid-template-columns: 1fr;

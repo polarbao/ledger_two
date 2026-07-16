@@ -200,12 +200,51 @@ func (r *Repository) ListLedgerUserIDs(ctx context.Context, tx *sql.Tx, ledgerID
 		executor = tx
 	}
 	rows, err := executor.QueryContext(ctx, `
-		SELECT lm.user_id
-		FROM ledger_members lm
-		JOIN users u ON lm.user_id = u.id
-		WHERE lm.ledger_id = ?
-		ORDER BY u.username ASC
-	`, ledgerID)
+		SELECT users.id
+		FROM users
+		JOIN (
+			SELECT user_id
+			FROM ledger_members
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT owner_user_id
+			FROM transactions
+			WHERE ledger_id = ? AND type = 'shared_expense'
+
+			UNION
+			SELECT created_by_user_id
+			FROM transactions
+			WHERE ledger_id = ? AND type = 'shared_expense'
+
+			UNION
+			SELECT payer_user_id
+			FROM transactions
+			WHERE ledger_id = ? AND type = 'shared_expense' AND payer_user_id IS NOT NULL
+
+			UNION
+			SELECT transaction_splits.user_id
+			FROM transaction_splits
+			JOIN transactions ON transactions.id = transaction_splits.transaction_id
+			WHERE transactions.ledger_id = ?
+
+			UNION
+			SELECT from_user_id
+			FROM settlements
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT to_user_id
+			FROM settlements
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT created_by_user_id
+			FROM settlements
+			WHERE ledger_id = ?
+		) referenced_users ON referenced_users.user_id = users.id
+		ORDER BY users.username ASC, users.id ASC
+	`, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID)
 	if err != nil {
 		return nil, err
 	}

@@ -59,7 +59,18 @@ type ArchivePreflight struct {
 }
 
 type MemberDetail struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	UserID   string    `json:"user_id"`
+	Username string    `json:"username"`
+	Role     string    `json:"role"`
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+type MemberListData struct {
+	Ledger  LedgerWithRole `json:"ledger"`
+	Members []MemberDetail `json:"members"`
+}
+
+type LeaveLedgerResult struct {
+	LedgerID string `json:"ledger_id"`
+	Version  int64  `json:"version"`
 }

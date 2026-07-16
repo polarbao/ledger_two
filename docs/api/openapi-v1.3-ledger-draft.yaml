@@ -139,6 +139,8 @@ paths:
           $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
 
@@ -315,6 +317,44 @@ paths:
           $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+    put:
+      deprecated: true
+      tags: [ledger-members]
+      summary: Deprecated compatibility alias for changing Editor and Viewer role
+      description: Task50.3B 兼容入口；与 PATCH 调用同一 handler/service。删除版本需独立评审。
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerMemberRoleRequest"
+      responses:
+        "200":
+          description: Role updated through deprecated compatibility method
+          headers:
+            ETag:
+              $ref: "#/components/headers/LedgerETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerMemberMutationResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
     delete:
@@ -338,7 +378,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LedgerMemberMutationResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "403":
+          $ref: "#/components/responses/Error"
+        "404":
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
@@ -375,6 +419,8 @@ paths:
           $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
 
@@ -399,6 +445,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessEmptyResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
         "409":
@@ -1024,6 +1072,8 @@ components:
               enum:
                 - VALIDATION_ERROR
                 - UNAUTHORIZED
+                - NOT_FOUND
+                - CONFLICT
                 - LEDGER_REQUIRED
                 - LEDGER_CONTEXT_MISMATCH
                 - LEDGER_ACCESS_DENIED

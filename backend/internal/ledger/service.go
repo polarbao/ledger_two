@@ -316,74 +316,380 @@ func (s *Service) ResolveLedgerContext(ctx context.Context, currentUserID string
 	return LedgerContext{}, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "解析账本成员身份失败")
 }
 
-func (s *Service) GetLedgerMembers(ctx context.Context, currentUserID, ledgerID string) ([]MemberDetail, error) {
-	// Require membership
-	if err := s.repo.CheckRole(ctx, ledgerID, currentUserID, "owner", "editor", "viewer"); err != nil {
-		return nil, appErrors.NewAppError(403, "FORBIDDEN", "您无权查看该账本成员")
+func (s *Service) GetMemberList(ctx context.Context, lc LedgerContext) (*MemberListData, error) {
+	result, err := s.getMemberListWithTx(ctx, nil, lc.LedgerID, lc.UserID)
+	if err != nil {
+		return nil, mapLedgerAccessError(err)
 	}
-	return s.repo.GetLedgerMembers(ctx, ledgerID)
+	return result, nil
 }
 
 type AddMemberReq struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	Username                     string `json:"username"`
+	Role                         string `json:"role"`
+	AcknowledgeHistoryVisibility bool   `json:"acknowledge_history_visibility"`
 }
 
-func (s *Service) AddMember(ctx context.Context, currentUserID, ledgerID string, req AddMemberReq) error {
-	if req.Role != "editor" && req.Role != "viewer" {
-		return appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的角色")
+func (s *Service) AddMemberVersioned(
+	ctx context.Context,
+	lc LedgerContext,
+	expectedVersion int64,
+	req AddMemberReq,
+) (*MemberListData, error) {
+	if req.Username == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "用户名不能为空")
 	}
-	// Only owner can add
-	if err := s.repo.CheckRole(ctx, ledgerID, currentUserID, "owner"); err != nil {
-		return appErrors.NewAppError(403, "FORBIDDEN", "仅 Owner 可管理成员")
+	role := Role(req.Role)
+	if role != RoleEditor && role != RoleViewer {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "成员角色必须是 editor 或 viewer")
+	}
+	if !req.AcknowledgeHistoryVisibility {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "添加成员前必须确认历史可见性")
 	}
 
-	targetUserID, err := s.repo.FindUserByUsername(ctx, req.Username)
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	beforeLedger, err := s.requireLifecycleOwner(ctx, tx, lc, LedgerStatusActive)
+	if err != nil {
+		return nil, err
+	}
+	beforeMembers, err := s.repo.GetLedgerMembersWithTx(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.claimLifecycleVersion(ctx, tx, lc.LedgerID, expectedVersion); err != nil {
+		return nil, err
+	}
+
+	memberCount, err := s.repo.CountMembersWithTx(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	if memberCount >= 2 {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerMemberLimitReached, "账本最多只能有两名成员")
+	}
+
+	targetUserID, err := s.repo.FindActiveUserByUsernameWithTx(ctx, tx, req.Username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return appErrors.NewAppError(404, "NOT_FOUND", "邀请的用户不存在")
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeNotFound, "用户不存在或不可用")
 		}
-		return err
+		return nil, err
 	}
-
-	// check if already a member
-	members, err := s.repo.GetLedgerMembers(ctx, ledgerID)
-	if err == nil {
-		for _, m := range members {
-			if m.UserID == targetUserID {
-				return appErrors.NewAppError(400, "VALIDATION_ERROR", "该用户已是账本成员")
-			}
+	for _, member := range beforeMembers {
+		if member.UserID == targetUserID {
+			return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeConflict, "该用户已是账本成员")
 		}
 	}
+	if err := s.repo.AddMemberWithTx(ctx, tx, lc.LedgerID, targetUserID, role); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "ledger member limit reached") {
+			return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerMemberLimitReached, "账本最多只能有两名成员")
+		}
+		return nil, err
+	}
 
-	return s.repo.AddMember(ctx, ledgerID, targetUserID, req.Role)
+	after, err := s.getMemberListWithTx(ctx, tx, lc.LedgerID, lc.UserID)
+	if err != nil {
+		return nil, err
+	}
+	before := MemberListData{Ledger: *beforeLedger, Members: beforeMembers}
+	if err := s.writeLedgerAudit(ctx, tx, lc.LedgerID, lc.UserID, RoleOwner, "ledger_member_add", before, after); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return after, nil
 }
 
 type UpdateMemberReq struct {
 	Role string `json:"role"`
 }
 
-func (s *Service) UpdateMemberRole(ctx context.Context, currentUserID, ledgerID, targetUserID string, req UpdateMemberReq) error {
-	if req.Role != "editor" && req.Role != "viewer" {
-		return appErrors.NewAppError(400, "VALIDATION_ERROR", "无效的角色")
-	}
-	if currentUserID == targetUserID {
-		return appErrors.NewAppError(400, "VALIDATION_ERROR", "不能修改自己的角色")
-	}
-	// Only owner can update
-	if err := s.repo.CheckRole(ctx, ledgerID, currentUserID, "owner"); err != nil {
-		return appErrors.NewAppError(403, "FORBIDDEN", "仅 Owner 可管理成员")
-	}
-	return s.repo.UpdateMemberRole(ctx, ledgerID, targetUserID, req.Role)
+type TransferOwnerReq struct {
+	AcknowledgePermissionChange bool `json:"acknowledge_permission_change"`
 }
 
-func (s *Service) RemoveMember(ctx context.Context, currentUserID, ledgerID, targetUserID string) error {
-	if currentUserID == targetUserID {
-		return appErrors.NewAppError(400, "VALIDATION_ERROR", "不能移除自己")
+func (s *Service) UpdateMemberRoleVersioned(
+	ctx context.Context,
+	lc LedgerContext,
+	expectedVersion int64,
+	targetUserID string,
+	req UpdateMemberReq,
+) (*MemberListData, error) {
+	role := Role(req.Role)
+	if role != RoleEditor && role != RoleViewer {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "成员角色必须是 editor 或 viewer")
 	}
-	// Only owner can remove
-	if err := s.repo.CheckRole(ctx, ledgerID, currentUserID, "owner"); err != nil {
-		return appErrors.NewAppError(403, "FORBIDDEN", "仅 Owner 可管理成员")
+	if targetUserID == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "成员 ID 不能为空")
 	}
-	return s.repo.RemoveMember(ctx, ledgerID, targetUserID)
+
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	beforeLedger, err := s.requireLifecycleOwner(ctx, tx, lc, LedgerStatusActive)
+	if err != nil {
+		return nil, err
+	}
+	beforeMembers, err := s.repo.GetLedgerMembersWithTx(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.claimLifecycleVersion(ctx, tx, lc.LedgerID, expectedVersion); err != nil {
+		return nil, err
+	}
+	currentRole, err := s.repo.GetMemberRoleWithTx(ctx, tx, lc.LedgerID, targetUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "账本成员不存在")
+		}
+		return nil, err
+	}
+	if currentRole == RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerOwnerTransferRequired, "Owner 角色只能通过所有权移交变更")
+	}
+	if err := s.repo.UpdateMemberRoleWithTx(ctx, tx, lc.LedgerID, targetUserID, role); err != nil {
+		return nil, err
+	}
+
+	after, err := s.getMemberListWithTx(ctx, tx, lc.LedgerID, lc.UserID)
+	if err != nil {
+		return nil, err
+	}
+	before := MemberListData{Ledger: *beforeLedger, Members: beforeMembers}
+	if err := s.writeLedgerAudit(ctx, tx, lc.LedgerID, lc.UserID, RoleOwner, "ledger_member_role_update", before, after); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return after, nil
+}
+
+func (s *Service) TransferOwnerVersioned(
+	ctx context.Context,
+	lc LedgerContext,
+	expectedVersion int64,
+	targetUserID string,
+	req TransferOwnerReq,
+) (*MemberListData, error) {
+	if !req.AcknowledgePermissionChange {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "必须确认移交后的权限变化")
+	}
+	if targetUserID == "" || targetUserID == lc.UserID {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "请选择另一名账本成员作为新 Owner")
+	}
+
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	beforeLedger, err := s.requireLifecycleOwner(ctx, tx, lc, LedgerStatusActive)
+	if err != nil {
+		return nil, err
+	}
+	beforeMembers, err := s.repo.GetLedgerMembersWithTx(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.claimLifecycleVersion(ctx, tx, lc.LedgerID, expectedVersion); err != nil {
+		return nil, err
+	}
+	targetRole, err := s.repo.GetMemberRoleWithTx(ctx, tx, lc.LedgerID, targetUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "目标成员不存在")
+		}
+		return nil, err
+	}
+	if targetRole != RoleEditor && targetRole != RoleViewer {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "目标成员角色不允许接收所有权")
+	}
+
+	if err := s.repo.UpdateMemberRoleWithTx(ctx, tx, lc.LedgerID, lc.UserID, RoleEditor); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateMemberRoleWithTx(ctx, tx, lc.LedgerID, targetUserID, RoleOwner); err != nil {
+		return nil, err
+	}
+	ownerCount, err := s.repo.CountOwnersWithTx(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	if ownerCount != 1 {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerOwnerInvariantViolation, "账本必须且只能有一名 Owner")
+	}
+
+	after, err := s.getMemberListWithTx(ctx, tx, lc.LedgerID, lc.UserID)
+	if err != nil {
+		return nil, err
+	}
+	before := MemberListData{Ledger: *beforeLedger, Members: beforeMembers}
+	if err := s.writeLedgerAudit(ctx, tx, lc.LedgerID, lc.UserID, RoleOwner, "ledger_owner_transfer", before, after); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return after, nil
+}
+
+func (s *Service) RemoveMemberVersioned(
+	ctx context.Context,
+	lc LedgerContext,
+	expectedVersion int64,
+	targetUserID string,
+) (*MemberListData, error) {
+	if targetUserID == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "成员 ID 不能为空")
+	}
+
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	beforeLedger, err := s.requireLifecycleOwner(ctx, tx, lc, LedgerStatusActive)
+	if err != nil {
+		return nil, err
+	}
+	beforeMembers, err := s.repo.GetLedgerMembersWithTx(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.claimLifecycleVersion(ctx, tx, lc.LedgerID, expectedVersion); err != nil {
+		return nil, err
+	}
+	targetRole, err := s.repo.GetMemberRoleWithTx(ctx, tx, lc.LedgerID, targetUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "账本成员不存在")
+		}
+		return nil, err
+	}
+	if targetRole == RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerOwnerTransferRequired, "Owner 必须先移交所有权")
+	}
+	if err := s.repo.RemoveMemberWithTx(ctx, tx, lc.LedgerID, targetUserID); err != nil {
+		return nil, err
+	}
+
+	after, err := s.getMemberListWithTx(ctx, tx, lc.LedgerID, lc.UserID)
+	if err != nil {
+		return nil, err
+	}
+	before := MemberListData{Ledger: *beforeLedger, Members: beforeMembers}
+	if err := s.writeLedgerAudit(ctx, tx, lc.LedgerID, lc.UserID, RoleOwner, "ledger_member_remove", before, after); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return after, nil
+}
+
+func (s *Service) LeaveLedgerVersioned(
+	ctx context.Context,
+	lc LedgerContext,
+	expectedVersion int64,
+) (*LeaveLedgerResult, error) {
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	beforeLedger, err := s.repo.GetLedgerWithRole(ctx, tx, lc.LedgerID, lc.UserID)
+	if err != nil {
+		return nil, mapLedgerAccessError(err)
+	}
+	if beforeLedger.Status == LedgerStatusArchived {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerArchived, "归档账本为只读状态")
+	}
+	if beforeLedger.Status != LedgerStatusActive {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerInvalidState, "账本状态不允许此操作")
+	}
+	actorRole := Role(beforeLedger.Role)
+	if actorRole == RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerOwnerTransferRequired, "Owner 必须先移交所有权")
+	}
+	if actorRole != RoleEditor && actorRole != RoleViewer {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeLedgerAccessDenied, "当前成员角色不允许离开账本")
+	}
+	beforeMembers, err := s.repo.GetLedgerMembersWithTx(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.claimLifecycleVersion(ctx, tx, lc.LedgerID, expectedVersion); err != nil {
+		return nil, err
+	}
+	if err := s.repo.RemoveMemberWithTx(ctx, tx, lc.LedgerID, lc.UserID); err != nil {
+		return nil, err
+	}
+	ownerCount, err := s.repo.CountOwnersWithTx(ctx, tx, lc.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	if ownerCount != 1 {
+		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeLedgerOwnerInvariantViolation, "账本必须且只能有一名 Owner")
+	}
+
+	result := &LeaveLedgerResult{LedgerID: lc.LedgerID, Version: expectedVersion + 1}
+	before := MemberListData{Ledger: *beforeLedger, Members: beforeMembers}
+	if err := s.writeLedgerAudit(ctx, tx, lc.LedgerID, lc.UserID, actorRole, "ledger_member_leave", before, result); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Service) getMemberListWithTx(ctx context.Context, tx *sql.Tx, ledgerID, userID string) (*MemberListData, error) {
+	ledgerModel, err := s.repo.GetLedgerWithRole(ctx, tx, ledgerID, userID)
+	if err != nil {
+		return nil, err
+	}
+	members, err := s.repo.GetLedgerMembersWithTx(ctx, tx, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	return &MemberListData{Ledger: *ledgerModel, Members: members}, nil
+}
+
+func (s *Service) writeLedgerAudit(
+	ctx context.Context,
+	tx *sql.Tx,
+	ledgerID, actorUserID string,
+	actorRole Role,
+	action string,
+	before, after any,
+) error {
+	var beforeJSON []byte
+	var err error
+	if before != nil {
+		beforeJSON, err = json.Marshal(before)
+		if err != nil {
+			return err
+		}
+	}
+	var afterJSON []byte
+	if after != nil {
+		afterJSON, err = json.Marshal(after)
+		if err != nil {
+			return err
+		}
+	}
+	return s.repo.CreateLedgerAuditWithTx(ctx, tx, ledgerID, actorUserID, actorRole, action, beforeJSON, afterJSON)
 }

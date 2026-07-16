@@ -28,6 +28,7 @@ export default function LedgerSettings() {
   const canManage = activeRole === 'owner';
   const [memberUsername, setMemberUsername] = useState('');
   const [memberRole, setMemberRole] = useState<'editor' | 'viewer'>('viewer');
+  const [acknowledgeHistoryVisibility, setAcknowledgeHistoryVisibility] = useState(false);
   const [newLedgerName, setNewLedgerName] = useState('');
   const [roleChange, setRoleChange] = useState<RoleChange | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<LedgerMember | null>(null);
@@ -38,10 +39,6 @@ export default function LedgerSettings() {
     queryKey: queryKeys.ledgers.members(activeLedgerId),
     queryFn: () => ledgerApi.getLedgerMembers(activeLedgerId || ''),
     enabled: Boolean(activeLedgerId),
-  });
-
-  const invalidateMembers = () => queryClient.invalidateQueries({
-    queryKey: queryKeys.ledgers.members(activeLedgerId),
   });
 
   const createLedgerMutation = useMutation({
@@ -61,13 +58,21 @@ export default function LedgerSettings() {
   });
 
   const addMemberMutation = useMutation({
-    mutationFn: (payload: { username: string; role: 'editor' | 'viewer' }) =>
-      ledgerApi.addMember(activeLedgerId || '', payload),
-    onSuccess: () => {
+    mutationFn: (payload: { username: string; role: 'editor' | 'viewer' }) => {
+      if (!activeLedgerId || !membersQuery.data) {
+        throw new Error('账本成员信息尚未加载');
+      }
+      return ledgerApi.addMember(activeLedgerId, membersQuery.data.ledger.version, {
+        ...payload,
+        acknowledge_history_visibility: true,
+      });
+    },
+    onSuccess: (data) => {
       setMemberUsername('');
+      setAcknowledgeHistoryVisibility(false);
       setErrorMsg(null);
       setSuccessMsg('成员已添加');
-      void invalidateMembers();
+      queryClient.setQueryData(queryKeys.ledgers.members(activeLedgerId), data);
     },
     onError: (error: unknown) => {
       setSuccessMsg(null);
@@ -76,13 +81,22 @@ export default function LedgerSettings() {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: (change: RoleChange) =>
-      ledgerApi.updateMemberRole(activeLedgerId || '', change.member.user_id, { role: change.nextRole }),
-    onSuccess: (_, change) => {
+    mutationFn: (change: RoleChange) => {
+      if (!activeLedgerId || !membersQuery.data) {
+        throw new Error('账本成员信息尚未加载');
+      }
+      return ledgerApi.updateMemberRole(
+        activeLedgerId,
+        membersQuery.data.ledger.version,
+        change.member.user_id,
+        { role: change.nextRole },
+      );
+    },
+    onSuccess: (data, change) => {
       setRoleChange(null);
       setErrorMsg(null);
       setSuccessMsg(`${change.member.username} 的角色已调整为 ${roleLabels[change.nextRole]}`);
-      void invalidateMembers();
+      queryClient.setQueryData(queryKeys.ledgers.members(activeLedgerId), data);
     },
     onError: (error: unknown) => {
       setErrorMsg(error instanceof ApiError ? error.message : '角色调整失败，请稍后重试');
@@ -90,12 +104,17 @@ export default function LedgerSettings() {
   });
 
   const removeMemberMutation = useMutation({
-    mutationFn: (member: LedgerMember) => ledgerApi.removeMember(activeLedgerId || '', member.user_id),
-    onSuccess: (_, member) => {
+    mutationFn: (member: LedgerMember) => {
+      if (!activeLedgerId || !membersQuery.data) {
+        throw new Error('账本成员信息尚未加载');
+      }
+      return ledgerApi.removeMember(activeLedgerId, membersQuery.data.ledger.version, member.user_id);
+    },
+    onSuccess: (data, member) => {
       setMemberToRemove(null);
       setErrorMsg(null);
       setSuccessMsg(`已将 ${member.username} 移出当前账本`);
-      void invalidateMembers();
+      queryClient.setQueryData(queryKeys.ledgers.members(activeLedgerId), data);
     },
     onError: (error: unknown) => {
       setErrorMsg(error instanceof ApiError ? error.message : '移除成员失败，请稍后重试');
@@ -111,7 +130,9 @@ export default function LedgerSettings() {
   const handleAddMember = (event: FormEvent) => {
     event.preventDefault();
     const username = memberUsername.trim();
-    if (username) addMemberMutation.mutate({ username, role: memberRole });
+    if (username && acknowledgeHistoryVisibility) {
+      addMemberMutation.mutate({ username, role: memberRole });
+    }
   };
 
   return (
@@ -136,14 +157,14 @@ export default function LedgerSettings() {
         <PageState
           isLoading={membersQuery.isLoading}
           isError={membersQuery.isError}
-          isEmpty={!membersQuery.isLoading && (membersQuery.data?.length || 0) === 0}
+          isEmpty={!membersQuery.isLoading && (membersQuery.data?.members.length || 0) === 0}
           emptyMessage="当前账本暂无可展示成员。"
           errorMsg={membersQuery.error instanceof ApiError ? membersQuery.error.message : '成员列表加载失败'}
           onRetry={() => void membersQuery.refetch()}
           skeletonType="card"
         >
           <div className="ledger-settings__member-list">
-            {(membersQuery.data || []).map((member) => (
+            {(membersQuery.data?.members || []).map((member) => (
               <article key={member.user_id} className="ledger-settings__member">
                 <div className="ledger-settings__member-identity">
                   <span aria-hidden="true">{member.username.slice(0, 1).toUpperCase()}</span>
@@ -219,7 +240,22 @@ export default function LedgerSettings() {
                   <option value="viewer">Viewer 观察者</option>
                 </select>
               </label>
-              <Button type="submit" variant="primary" isLoading={addMemberMutation.isPending} fullWidth startIcon={<UserPlus size={16} />}>
+              <label className="ledger-settings__acknowledgement">
+                <input
+                  type="checkbox"
+                  checked={acknowledgeHistoryVisibility}
+                  onChange={(event) => setAcknowledgeHistoryVisibility(event.target.checked)}
+                />
+                <span>新成员将按可见性规则读取当前账本的既有历史</span>
+              </label>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={addMemberMutation.isPending}
+                disabled={!acknowledgeHistoryVisibility}
+                fullWidth
+                startIcon={<UserPlus size={16} />}
+              >
                 添加成员
               </Button>
             </form>

@@ -152,8 +152,11 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationRestoreLedger)).Post("/restore", ledgerHandler.RestoreLedger)
 					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationViewMembers)).Get("/members", ledgerHandler.GetLedgerMembers)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Post("/members", ledgerHandler.AddMember)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Patch("/members/{userId}", ledgerHandler.UpdateMemberRole)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Put("/members/{userId}", ledgerHandler.UpdateMemberRole)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMembers)).Delete("/members/{userId}", ledgerHandler.RemoveMember)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationTransferLedgerOwner)).Post("/members/{userId}/transfer-owner", ledgerHandler.TransferOwner)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationLeaveLedger)).Post("/leave", ledgerHandler.LeaveLedger)
 				})
 			})
 

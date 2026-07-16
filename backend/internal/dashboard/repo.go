@@ -34,7 +34,7 @@ func NewRepository(db *sql.DB) *Repository {
 // @return map[string][]string 交易 ID 关联标签 Map
 // @return map[string][]transaction.SplitResponse 交易 ID 关联分摊 Map
 // @return map[string]string 账本内所有分类 Map [category_id] -> name
-// @return map[string]string 当前账本成员显示名 Map [user_id] -> display_name
+// @return map[string]string 当前账本成员及账本对象引用的历史参与者显示名 Map [user_id] -> display_name
 // @return error 错误信息
 func (r *Repository) GetDashboardRawData(
 	ctx context.Context,
@@ -63,14 +63,60 @@ func (r *Repository) GetDashboardRawData(
 		}
 	}
 
-	// 2. 仅查询当前账本成员，避免统计响应暴露实例内其他用户。
+	// 2. 查询当前成员与当前账本对象实际引用的历史参与者。成员离开后仍可
+	// 解释历史账务，但不能借此返回未被该账本引用的全局用户目录。
 	users := make(map[string]string)
 	userRows, err := r.db.QueryContext(ctx, `
 		SELECT users.id, users.display_name
-		FROM ledger_members
-		JOIN users ON users.id = ledger_members.user_id
-		WHERE ledger_members.ledger_id = ?
-	`, ledgerID)
+		FROM users
+		JOIN (
+			SELECT user_id
+			FROM ledger_members
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT owner_user_id
+			FROM transactions
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT created_by_user_id
+			FROM transactions
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT payer_user_id
+			FROM transactions
+			WHERE ledger_id = ? AND payer_user_id IS NOT NULL
+
+			UNION
+			SELECT transaction_splits.user_id
+			FROM transaction_splits
+			JOIN transactions ON transactions.id = transaction_splits.transaction_id
+			WHERE transactions.ledger_id = ?
+
+			UNION
+			SELECT from_user_id
+			FROM settlements
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT to_user_id
+			FROM settlements
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT created_by_user_id
+			FROM settlements
+			WHERE ledger_id = ?
+
+			UNION
+			SELECT actor_user_id
+			FROM audit_logs
+			WHERE ledger_id = ?
+		) referenced_users ON referenced_users.user_id = users.id
+		ORDER BY users.username ASC, users.id ASC
+	`, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID, ledgerID)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}

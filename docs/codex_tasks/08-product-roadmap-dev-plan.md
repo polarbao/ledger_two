@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-16）：Task41-Task49 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53P.1-P.6 分类标签专项准备包已经形成，代码实现暂缓且无需重复准备。当前恢复 Task50，Task50.1、Task50.2 和 Task50.3A 已完成，下一实现任务为 Task50.3B；Task51 正式冻结仍等待 Task50.6，Task52 保持延后调研。
+> 执行更新（2026-07-16）：Task41-Task49 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53P.1-P.6 分类标签专项准备包已经形成并暂缓实现。Task50.1、Task50.2、Task50.3A 与 Task50.3B 已完成，下一实现任务为 Task50.3C；Task51 正式冻结仍等待 Task50.6，Task52 保持延后调研。
 
 ## 1. 使用说明
 
@@ -183,7 +183,7 @@
 
 ### Task50：多账本正式化
 
-状态：Task50.1、Task50.2、Task50.3A 已完成；Task50.3B 现已恢复并作为下一实现任务，Task50.3C 串行等待，Task50.4/50.5 条件准入，Task50.6 验收框架已具备。Task53 实现暂缓，不与当前 ledger/router/shared frontend 文件并行。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
+状态：Task50.1、Task50.2、Task50.3A 与 Task50.3B 已完成；Task50.3C 现为下一实现任务，Task50.4/50.5 条件准入，Task50.6 验收框架已具备。Task53 实现暂缓。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
 
 目标：
 

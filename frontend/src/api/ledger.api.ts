@@ -23,6 +23,26 @@ export interface LedgerMember {
   user_id: string;
   username: string;
   role: LedgerRole;
+  joined_at: string;
+}
+
+export interface LedgerMemberList {
+  ledger: Ledger;
+  members: LedgerMember[];
+}
+
+export interface AddLedgerMemberRequest {
+  username: string;
+  role: Exclude<LedgerRole, 'owner'>;
+  acknowledge_history_visibility: true;
+}
+
+export interface UpdateLedgerMemberRoleRequest {
+  role: Exclude<LedgerRole, 'owner'>;
+}
+
+export interface TransferLedgerOwnerRequest {
+  acknowledge_permission_change: true;
 }
 
 export interface UnsettledBalanceSnapshot {
@@ -77,14 +97,49 @@ export const ledgerApi = {
     api.post<Ledger>(`/api/ledgers/${ledgerId}/restore`, undefined, lifecycleMutationOptions(ledgerId, version)),
 
   getLedgerMembers: (ledgerId: string) =>
-    api.get<LedgerMember[]>(`/api/ledgers/${ledgerId}/members`, { ledgerId }),
+    api.get<LedgerMemberList>(`/api/ledgers/${ledgerId}/members`, { ledgerId }),
 
-  addMember: (ledgerId: string, data: { username: string; role: LedgerRole }) =>
-    api.post<null>(`/api/ledgers/${ledgerId}/members`, data, { ledgerId }),
+  addMember: (ledgerId: string, version: number, data: AddLedgerMemberRequest) =>
+    api.post<LedgerMemberList>(
+      `/api/ledgers/${ledgerId}/members`,
+      data,
+      lifecycleMutationOptions(ledgerId, version),
+    ),
 
-  updateMemberRole: (ledgerId: string, userId: string, data: { role: LedgerRole }) =>
-    api.put<null>(`/api/ledgers/${ledgerId}/members/${userId}`, data, { ledgerId }),
+  updateMemberRole: (
+    ledgerId: string,
+    version: number,
+    userId: string,
+    data: UpdateLedgerMemberRoleRequest,
+  ) =>
+    api.patch<LedgerMemberList>(
+      `/api/ledgers/${ledgerId}/members/${userId}`,
+      data,
+      lifecycleMutationOptions(ledgerId, version),
+    ),
 
-  removeMember: (ledgerId: string, userId: string) =>
-    api.delete<null>(`/api/ledgers/${ledgerId}/members/${userId}`, { ledgerId }),
+  removeMember: (ledgerId: string, version: number, userId: string) =>
+    api.delete<LedgerMemberList>(
+      `/api/ledgers/${ledgerId}/members/${userId}`,
+      lifecycleMutationOptions(ledgerId, version),
+    ),
+
+  transferOwner: (
+    ledgerId: string,
+    version: number,
+    userId: string,
+    data: TransferLedgerOwnerRequest,
+  ) =>
+    api.post<LedgerMemberList>(
+      `/api/ledgers/${ledgerId}/members/${userId}/transfer-owner`,
+      data,
+      lifecycleMutationOptions(ledgerId, version),
+    ),
+
+  leaveLedger: (ledgerId: string, version: number) =>
+    api.post<null>(
+      `/api/ledgers/${ledgerId}/leave`,
+      undefined,
+      lifecycleMutationOptions(ledgerId, version),
+    ),
 };

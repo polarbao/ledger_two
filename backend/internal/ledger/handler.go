@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+
 	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/http/middleware"
 	"ledger_two/internal/http/response"
@@ -171,82 +173,109 @@ func decodeLedgerJSON(r *http.Request, target any) error {
 }
 
 func (h *Handler) GetLedgerMembers(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserIDFromContext(r.Context())
-	if userID == "" {
-		response.WriteError(w, appErrors.NewAppError(http.StatusUnauthorized, appErrors.ErrCodeUnauthorized, "请先登录系统"))
+	lc, ok := LedgerContextFromContext(r.Context())
+	if !ok {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeLedgerRequired, "请选择账本后再执行此操作"))
 		return
 	}
-
-	ledgerID := r.PathValue("id")
-	if ledgerID == "" {
-		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "缺少账本 ID"))
-		return
-	}
-
-	members, err := h.svc.GetLedgerMembers(r.Context(), userID, ledgerID)
+	result, err := h.svc.GetMemberList(r.Context(), lc)
 	if err != nil {
 		response.WriteError(w, err)
 		return
 	}
-
-	response.JSON(w, http.StatusOK, members)
+	writeMemberListResponse(w, http.StatusOK, result)
 }
 
 func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserIDFromContext(r.Context())
-	ledgerID := r.PathValue("id")
-	if userID == "" || ledgerID == "" {
-		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "参数不完整"))
+	lc, expectedVersion, ok := lifecycleMutationContext(w, r)
+	if !ok {
 		return
 	}
 
 	var req AddMemberReq
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeLedgerJSON(r, &req); err != nil {
 		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求参数解析失败"))
 		return
 	}
 
-	if err := h.svc.AddMember(r.Context(), userID, ledgerID, req); err != nil {
+	result, err := h.svc.AddMemberVersioned(r.Context(), lc, expectedVersion, req)
+	if err != nil {
 		response.WriteError(w, err)
 		return
 	}
-	response.JSON(w, http.StatusOK, nil)
+	writeMemberListResponse(w, http.StatusCreated, result)
 }
 
 func (h *Handler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserIDFromContext(r.Context())
-	ledgerID := r.PathValue("id")
-	targetUserID := r.PathValue("userId")
-	if userID == "" || ledgerID == "" || targetUserID == "" {
-		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "参数不完整"))
+	lc, expectedVersion, ok := lifecycleMutationContext(w, r)
+	if !ok {
 		return
 	}
+	targetUserID := chi.URLParam(r, "userId")
 
 	var req UpdateMemberReq
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeLedgerJSON(r, &req); err != nil {
 		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求参数解析失败"))
 		return
 	}
 
-	if err := h.svc.UpdateMemberRole(r.Context(), userID, ledgerID, targetUserID, req); err != nil {
+	result, err := h.svc.UpdateMemberRoleVersioned(r.Context(), lc, expectedVersion, targetUserID, req)
+	if err != nil {
 		response.WriteError(w, err)
 		return
 	}
-	response.JSON(w, http.StatusOK, nil)
+	writeMemberListResponse(w, http.StatusOK, result)
 }
 
 func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserIDFromContext(r.Context())
-	ledgerID := r.PathValue("id")
-	targetUserID := r.PathValue("userId")
-	if userID == "" || ledgerID == "" || targetUserID == "" {
-		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "参数不完整"))
+	lc, expectedVersion, ok := lifecycleMutationContext(w, r)
+	if !ok {
 		return
 	}
+	targetUserID := chi.URLParam(r, "userId")
 
-	if err := h.svc.RemoveMember(r.Context(), userID, ledgerID, targetUserID); err != nil {
+	result, err := h.svc.RemoveMemberVersioned(r.Context(), lc, expectedVersion, targetUserID)
+	if err != nil {
 		response.WriteError(w, err)
 		return
 	}
+	writeMemberListResponse(w, http.StatusOK, result)
+}
+
+func (h *Handler) TransferOwner(w http.ResponseWriter, r *http.Request) {
+	lc, expectedVersion, ok := lifecycleMutationContext(w, r)
+	if !ok {
+		return
+	}
+	targetUserID := chi.URLParam(r, "userId")
+	var req TransferOwnerReq
+	if err := decodeLedgerJSON(r, &req); err != nil {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求参数解析失败"))
+		return
+	}
+	result, err := h.svc.TransferOwnerVersioned(r.Context(), lc, expectedVersion, targetUserID, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	writeMemberListResponse(w, http.StatusOK, result)
+}
+
+func (h *Handler) LeaveLedger(w http.ResponseWriter, r *http.Request) {
+	lc, expectedVersion, ok := lifecycleMutationContext(w, r)
+	if !ok {
+		return
+	}
+	result, err := h.svc.LeaveLedgerVersioned(r.Context(), lc, expectedVersion)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	w.Header().Set("ETag", FormatLedgerETag(result.LedgerID, result.Version))
 	response.JSON(w, http.StatusOK, nil)
+}
+
+func writeMemberListResponse(w http.ResponseWriter, status int, result *MemberListData) {
+	w.Header().Set("ETag", FormatLedgerETag(result.Ledger.ID, result.Ledger.Version))
+	response.JSON(w, status, result)
 }

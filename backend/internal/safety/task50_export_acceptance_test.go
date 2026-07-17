@@ -49,7 +49,7 @@ func TestTask506LedgerJSONExportIsCompleteVisibleAndIsolated(t *testing.T) {
 	}
 
 	expectedIDs := map[string][]string{
-		"users":                   {"user-owner", "user-former"},
+		"users":                   {"user-owner", "user-editor", "user-former"},
 		"categories":              {"category-a"},
 		"tags":                    {"tag-a"},
 		"accounts":                {"account-a"},
@@ -65,7 +65,7 @@ func TestTask506LedgerJSONExportIsCompleteVisibleAndIsolated(t *testing.T) {
 		"import_items":            {"item-a"},
 		"transaction_import_refs": {"import-ref-a"},
 		"import_rules":            {"rule-a"},
-		"audit_logs":              {"audit-a"},
+		"audit_logs":              {"audit-a", "audit-import-a"},
 	}
 	for section, ids := range expectedIDs {
 		for _, id := range ids {
@@ -90,6 +90,8 @@ func TestTask506LedgerJSONExportIsCompleteVisibleAndIsolated(t *testing.T) {
 		"private-hidden",
 		"user-private",
 		"user-outsider",
+		"batch-private",
+		"item-private",
 	} {
 		if exportContainsString(exported, forbidden) {
 			t.Fatalf("ledger export leaked forbidden marker %q", forbidden)
@@ -122,6 +124,39 @@ func TestTask506LedgerJSONExportIsCompleteVisibleAndIsolated(t *testing.T) {
 			t.Fatalf("CSV export leaked %q: %s", forbidden, csvText)
 		}
 	}
+
+	editorContext := ledgerctx.ContextWithLedgerContext(context.Background(), ledgerctx.LedgerContext{
+		UserID:     "user-editor",
+		LedgerID:   "ledger-a",
+		Role:       ledgerctx.RoleEditor,
+		Status:     ledgerctx.LedgerStatusActive,
+		Version:    4,
+		IsExplicit: true,
+	})
+	editorPayload, err := NewService(database, nil).ExportJSON(editorContext, "user-editor")
+	if err != nil {
+		t.Fatalf("export editor ledger JSON: %v", err)
+	}
+	var editorExport map[string]any
+	if err := json.Unmarshal(editorPayload, &editorExport); err != nil {
+		t.Fatalf("decode editor ledger JSON export: %v", err)
+	}
+	for _, section := range []string{"import_batches", "import_items", "import_rules"} {
+		if records := requireExportArray(t, editorExport, section); len(records) != 0 {
+			t.Fatalf("editor export included owner-only %s: %+v", section, records)
+		}
+	}
+	if exportSectionContainsID(editorExport, "audit_logs", "audit-import-a") {
+		t.Fatalf("editor export included owner-only import audit: %+v", editorExport["audit_logs"])
+	}
+	if !exportSectionContainsID(editorExport, "transaction_import_refs", "import-ref-a") {
+		t.Fatalf("editor export lost visible transaction import reference: %+v", editorExport["transaction_import_refs"])
+	}
+	for _, forbidden := range []string{"private-hidden", "batch-private", "item-private", "user-private"} {
+		if exportContainsString(editorExport, forbidden) {
+			t.Fatalf("editor export leaked private import marker %q", forbidden)
+		}
+	}
 }
 
 func setupTask506ExportDB(t *testing.T) *sql.DB {
@@ -149,6 +184,7 @@ func seedTask506ExportFixture(t *testing.T, database *sql.DB) {
 	statement := `
 		INSERT INTO users (id, username, display_name, password_hash, role, created_at, updated_at) VALUES
 			('user-owner', 'owner', 'Current Owner', 'hash', 'user', ?, ?),
+			('user-editor', 'editor', 'Current Editor', 'hash', 'user', ?, ?),
 			('user-former', 'former', 'Former Member', 'hash', 'user', ?, ?),
 			('user-private', 'private-user', 'Private Historical User', 'hash', 'user', ?, ?),
 			('user-outsider', 'outsider', 'Global Outsider', 'hash', 'user', ?, ?);
@@ -159,6 +195,7 @@ func seedTask506ExportFixture(t *testing.T, database *sql.DB) {
 
 		INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at) VALUES
 			('ledger-a', 'user-owner', 'owner', ?, ?),
+			('ledger-a', 'user-editor', 'editor', ?, ?),
 			('ledger-b', 'user-owner', 'owner', ?, ?);
 
 		INSERT INTO categories (
@@ -274,6 +311,10 @@ func seedTask506ExportFixture(t *testing.T, database *sql.DB) {
 			(
 				'batch-b', 'ledger-b', 'anonymous-b.csv', 'user-owner', 'completed', 'alipay',
 				'hash-b', 1, 1, 1, 'csv', '{}', ?, ?
+			),
+			(
+				'batch-private', 'ledger-a', 'private.csv', 'user-private', 'completed', 'alipay',
+				'hash-private', 1, 1, 1, 'csv', '{}', ?, ?
 			);
 
 		INSERT INTO import_items (
@@ -288,6 +329,10 @@ func seedTask506ExportFixture(t *testing.T, database *sql.DB) {
 			(
 				'item-b', 'batch-b', 'transaction-b', 'item-hash-b', 'imported', 1, 'alipay',
 				?, 'Imported B', 888, 'out', 'expense', 'new', 'imported', '{}', 'private', ?
+			),
+			(
+				'item-private', 'batch-private', 'private-hidden', 'item-hash-private', 'imported', 1, 'alipay',
+				?, 'Imported Private', 999, 'out', 'expense', 'new', 'imported', '{}', 'private', ?
 			);
 
 		INSERT INTO transaction_import_refs (
@@ -316,6 +361,8 @@ func seedTask506ExportFixture(t *testing.T, database *sql.DB) {
 			after_json, created_at
 		) VALUES
 			('audit-a', 'ledger-a', 'user-former', 'editor', 'transaction_create', 'transaction', 'transaction-a', '{}', ?),
+			('audit-import-a', 'ledger-a', 'user-owner', 'owner', 'import_commit', 'import_batch', 'batch-a', '{"marker":"visible-import"}', ?),
+			('audit-import-private', 'ledger-a', 'user-private', 'owner', 'import_commit', 'import_batch', 'batch-private', '{"marker":"private-import"}', ?),
 			('audit-b', 'ledger-b', 'user-owner', 'owner', 'transaction_create', 'transaction', 'transaction-b', '{}', ?);
 
 		INSERT INTO app_settings (key, value, updated_at)

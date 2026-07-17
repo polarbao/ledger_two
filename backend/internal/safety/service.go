@@ -817,6 +817,7 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		return nil, errors.NewAppError(http.StatusBadRequest, errors.ErrCodeLedgerRequired, "请选择账本后再导出")
 	}
 	ledgerID := lc.LedgerID
+	canManageImports := ledgerctx.NewRolePolicy().Can(lc.Role, ledgerctx.OperationManageImports)
 
 	// 1. 导出脱敏的 users
 	type UserDTO struct {
@@ -841,6 +842,56 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 				OR owner_user_id = ?
 				OR payer_user_id = ?
 				OR visibility IN ('partner_readable', 'shared')
+			  )
+		),
+		visible_import_batches AS (
+			SELECT batch.id, batch.created_by_user_id
+			FROM import_batches batch
+			WHERE batch.ledger_id = ?
+			  AND ? = 'owner'
+			  AND (
+				batch.created_by_user_id = ?
+				OR EXISTS (
+					SELECT 1
+					FROM import_items item
+					JOIN visible_transactions visible
+					  ON visible.id = COALESCE(item.transaction_id, item.generated_transaction_id)
+					WHERE item.batch_id = batch.id
+				)
+			  )
+		),
+		visible_import_rules AS (
+			SELECT id, created_by_user_id
+			FROM import_rules
+			WHERE ledger_id = ?
+			  AND ? = 'owner'
+		),
+		visible_audit_logs AS (
+			SELECT actor_user_id
+			FROM audit_logs log
+			WHERE log.ledger_id = ?
+			  AND (
+				(
+					log.entity_type = 'transaction'
+					AND log.entity_id IN (SELECT id FROM visible_transactions)
+				)
+				OR (
+					log.entity_type = 'import_batch'
+					AND ? = 'owner'
+					AND (
+						log.actor_user_id = ?
+						OR log.entity_id IN (SELECT id FROM visible_import_batches)
+					)
+				)
+				OR (
+					log.entity_type = 'import_rule'
+					AND ? = 'owner'
+					AND (
+						log.actor_user_id = ?
+						OR log.entity_id IN (SELECT id FROM visible_import_rules)
+					)
+				)
+				OR log.entity_type NOT IN ('transaction', 'import_batch', 'import_rule')
 			  )
 		),
 		relevant_user_ids AS (
@@ -868,17 +919,11 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 			UNION
 			SELECT created_by_user_id FROM recurring_rules WHERE ledger_id = ?
 			UNION
-			SELECT created_by_user_id FROM import_batches WHERE ledger_id = ?
+			SELECT created_by_user_id FROM visible_import_batches
 			UNION
-			SELECT created_by_user_id FROM import_rules WHERE ledger_id = ?
+			SELECT created_by_user_id FROM visible_import_rules
 			UNION
-			SELECT actor_user_id
-			FROM audit_logs
-			WHERE ledger_id = ?
-			  AND (
-				entity_type != 'transaction'
-				OR entity_id IN (SELECT id FROM visible_transactions)
-			  )
+			SELECT actor_user_id FROM visible_audit_logs
 		)
 		SELECT users.id, users.username, users.display_name, users.avatar_url,
 		       COALESCE(ledger_members.role, 'historical'),
@@ -898,8 +943,15 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		actorUserID,
 		actorUserID,
 		ledgerID,
+		string(lc.Role),
+		actorUserID,
 		ledgerID,
+		string(lc.Role),
 		ledgerID,
+		string(lc.Role),
+		actorUserID,
+		string(lc.Role),
+		actorUserID,
 		ledgerID,
 		ledgerID,
 		ledgerID,
@@ -1173,7 +1225,89 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		CreatedAt   string  `json:"created_at"`
 	}
 	auditLogs := make([]AuditLogDTO, 0)
-	aRows, err = s.db.QueryContext(ctx, "SELECT id, ledger_id, actor_user_id, actor_role, action, entity_type, entity_id, before_json, after_json, created_at FROM audit_logs WHERE ledger_id = ?", ledgerID)
+	aRows, err = s.db.QueryContext(ctx, `
+		SELECT log.id, log.ledger_id, log.actor_user_id, log.actor_role, log.action,
+		       log.entity_type, log.entity_id, log.before_json, log.after_json, log.created_at
+		FROM audit_logs log
+		WHERE log.ledger_id = ?
+		  AND (
+			(
+				log.entity_type = 'transaction'
+				AND EXISTS (
+					SELECT 1
+					FROM transactions parent
+					WHERE parent.id = log.entity_id
+					  AND parent.ledger_id = log.ledger_id
+					  AND parent.status != 'deleted'
+					  AND (
+						parent.created_by_user_id = ?
+						OR parent.owner_user_id = ?
+						OR parent.payer_user_id = ?
+						OR parent.visibility IN ('partner_readable', 'shared')
+					  )
+				)
+			)
+			OR (
+				log.entity_type = 'import_batch'
+				AND ? = 'owner'
+				AND (
+					log.actor_user_id = ?
+					OR EXISTS (
+						SELECT 1
+						FROM import_batches batch
+						WHERE batch.id = log.entity_id
+						  AND batch.ledger_id = log.ledger_id
+						  AND (
+							batch.created_by_user_id = ?
+							OR EXISTS (
+								SELECT 1
+								FROM import_items item
+								JOIN transactions parent
+								  ON parent.id = COALESCE(item.transaction_id, item.generated_transaction_id)
+								WHERE item.batch_id = batch.id
+								  AND parent.ledger_id = batch.ledger_id
+								  AND parent.status != 'deleted'
+								  AND (
+									parent.created_by_user_id = ?
+									OR parent.owner_user_id = ?
+									OR parent.payer_user_id = ?
+									OR parent.visibility IN ('partner_readable', 'shared')
+								  )
+							)
+						  )
+					)
+				)
+			)
+			OR (
+				log.entity_type = 'import_rule'
+				AND ? = 'owner'
+				AND (
+					log.actor_user_id = ?
+					OR EXISTS (
+						SELECT 1
+						FROM import_rules rule
+						WHERE rule.id = log.entity_id
+						  AND rule.ledger_id = log.ledger_id
+					)
+				)
+			)
+			OR log.entity_type NOT IN ('transaction', 'import_batch', 'import_rule')
+		  )
+		ORDER BY log.created_at ASC, log.id ASC
+	`,
+		ledgerID,
+		actorUserID,
+		actorUserID,
+		actorUserID,
+		string(lc.Role),
+		actorUserID,
+		actorUserID,
+		actorUserID,
+		actorUserID,
+		actorUserID,
+		string(lc.Role),
+		actorUserID,
+	)
 	if err == nil {
 		defer aRows.Close()
 		for aRows.Next() {
@@ -1181,10 +1315,6 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 			var actorRole, before, after sql.NullString
 			err := aRows.Scan(&a.ID, &a.LedgerID, &a.ActorUserID, &actorRole, &a.Action, &a.EntityType, &a.EntityID, &before, &after, &a.CreatedAt)
 			if err == nil {
-				// 权限收拢过滤：若为交易实体审计，且该交易对当前登录人不可见，则安全排除该条审计行
-				if a.EntityType == "transaction" && !visibleTxIDs[a.EntityID] {
-					continue
-				}
 				if before.Valid {
 					a.BeforeJSON = &before.String
 				}
@@ -1285,37 +1415,94 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
-	importBatches, err := loadExportSection("import_batches", `
-		SELECT id, ledger_id, filename, created_by_user_id, status, source_type,
-		       file_sha256, total_rows, new_rows, duplicate_rows, suspicious_rows,
-		       invalid_rows, imported_rows, skipped_rows, failed_rows, file_format,
-		       parser_metadata_json, created_at, updated_at, committed_at, expires_at
-		FROM import_batches
-		WHERE ledger_id = ?
-		ORDER BY created_at ASC, id ASC
-	`, ledgerID)
-	if err != nil {
-		return nil, err
-	}
-	importItems, err := loadExportSection("import_items", `
-		SELECT item.id, item.batch_id, item.transaction_id, item.import_hash,
-		       item.status, item.row_number, item.source_type, item.external_order_id,
-		       item.occurred_at, item.title, item.merchant, item.description,
-		       item.amount_cents, item.direction, item.target_transaction_type,
-		       item.duplicate_status, item.row_status, item.normalized_json,
-		       item.user_adjustment_json, item.error_code, item.error_message,
-		       item.generated_transaction_id, item.suggested_category_id,
-		       item.suggested_account_id, item.suggested_tag_ids_json,
-		       item.selected_category_id, item.selected_account_id,
-		       item.selected_tag_ids_json, item.visibility, item.suggested_rule_id,
-		       item.suggestion_reason, item.created_at
-		FROM import_items item
-		JOIN import_batches batch ON batch.id = item.batch_id
-		WHERE batch.ledger_id = ?
-		ORDER BY batch.created_at ASC, item.row_number ASC, item.id ASC
-	`, ledgerID)
-	if err != nil {
-		return nil, err
+	importBatches := make([]map[string]any, 0)
+	importItems := make([]map[string]any, 0)
+	importRules := make([]map[string]any, 0)
+	if canManageImports {
+		importBatches, err = loadExportSection("import_batches", `
+			SELECT batch.id, batch.ledger_id, batch.filename, batch.created_by_user_id,
+			       batch.status, batch.source_type, batch.file_sha256, batch.total_rows,
+			       batch.new_rows, batch.duplicate_rows, batch.suspicious_rows,
+			       batch.invalid_rows, batch.imported_rows, batch.skipped_rows,
+			       batch.failed_rows, batch.file_format, batch.parser_metadata_json,
+			       batch.created_at, batch.updated_at, batch.committed_at, batch.expires_at
+			FROM import_batches batch
+			WHERE batch.ledger_id = ?
+			  AND (
+				batch.created_by_user_id = ?
+				OR EXISTS (
+					SELECT 1
+					FROM import_items item
+					JOIN transactions parent
+					  ON parent.id = COALESCE(item.transaction_id, item.generated_transaction_id)
+					WHERE item.batch_id = batch.id
+					  AND parent.ledger_id = batch.ledger_id
+					  AND parent.status != 'deleted'
+					  AND (
+						parent.created_by_user_id = ?
+						OR parent.owner_user_id = ?
+						OR parent.payer_user_id = ?
+						OR parent.visibility IN ('partner_readable', 'shared')
+					  )
+				)
+			  )
+			ORDER BY batch.created_at ASC, batch.id ASC
+		`, ledgerID, actorUserID, actorUserID, actorUserID, actorUserID)
+		if err != nil {
+			return nil, err
+		}
+		importItems, err = loadExportSection("import_items", `
+			SELECT item.id, item.batch_id, item.transaction_id, item.import_hash,
+			       item.status, item.row_number, item.source_type, item.external_order_id,
+			       item.occurred_at, item.title, item.merchant, item.description,
+			       item.amount_cents, item.direction, item.target_transaction_type,
+			       item.duplicate_status, item.row_status, item.normalized_json,
+			       item.user_adjustment_json, item.error_code, item.error_message,
+			       item.generated_transaction_id, item.suggested_category_id,
+			       item.suggested_account_id, item.suggested_tag_ids_json,
+			       item.selected_category_id, item.selected_account_id,
+			       item.selected_tag_ids_json, item.visibility, item.suggested_rule_id,
+			       item.suggestion_reason, item.created_at
+			FROM import_items item
+			JOIN import_batches batch ON batch.id = item.batch_id
+			LEFT JOIN transactions parent
+			  ON parent.id = COALESCE(item.transaction_id, item.generated_transaction_id)
+			 AND parent.ledger_id = batch.ledger_id
+			WHERE batch.ledger_id = ?
+			  AND (
+				(
+					batch.created_by_user_id = ?
+					AND item.transaction_id IS NULL
+					AND item.generated_transaction_id IS NULL
+				)
+				OR (
+					parent.id IS NOT NULL
+					AND parent.status != 'deleted'
+					AND (
+						parent.created_by_user_id = ?
+						OR parent.owner_user_id = ?
+						OR parent.payer_user_id = ?
+						OR parent.visibility IN ('partner_readable', 'shared')
+					)
+				)
+			  )
+			ORDER BY batch.created_at ASC, item.row_number ASC, item.id ASC
+		`, ledgerID, actorUserID, actorUserID, actorUserID, actorUserID)
+		if err != nil {
+			return nil, err
+		}
+		importRules, err = loadExportSection("import_rules", `
+			SELECT id, ledger_id, keyword, category_id, tag_names, account_id,
+			       created_by_user_id, name, match_type, pattern, amount_min_cents,
+			       amount_max_cents, priority, result_json, status, archived_at,
+			       created_at, updated_at
+			FROM import_rules
+			WHERE ledger_id = ?
+			ORDER BY priority ASC, created_at ASC, id ASC
+		`, ledgerID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	transactionImportRefs, err := loadExportSection("transaction_import_refs", `
 		SELECT ref.id, ref.ledger_id, ref.transaction_id, ref.import_batch_id,
@@ -1338,18 +1525,6 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		  )
 		ORDER BY ref.created_at ASC, ref.id ASC
 	`, ledgerID, actorUserID, actorUserID, actorUserID)
-	if err != nil {
-		return nil, err
-	}
-	importRules, err := loadExportSection("import_rules", `
-		SELECT id, ledger_id, keyword, category_id, tag_names, account_id,
-		       created_by_user_id, name, match_type, pattern, amount_min_cents,
-		       amount_max_cents, priority, result_json, status, archived_at,
-		       created_at, updated_at
-		FROM import_rules
-		WHERE ledger_id = ?
-		ORDER BY priority ASC, created_at ASC, id ASC
-	`, ledgerID)
 	if err != nil {
 		return nil, err
 	}

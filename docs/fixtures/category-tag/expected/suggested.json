@@ -7,7 +7,7 @@
     "confidence": "medium",
     "source": "builtin",
     "reason_code": "builtin_takeout_merchant",
-    "reason_text": "本地词典识别为外卖消费",
+    "reason_text": "包含通用外卖关键词",
     "matched_rule_ids": [],
     "suggested_category_id": "cat_a_food",
     "suggested_tag_ids": ["tag_a_takeout"]

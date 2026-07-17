@@ -4,6 +4,8 @@
 日期：2026-07-17<br>
 部署状态：未更新 WSL/NAS，未读取或修改真实账单
 
+> 本文件是 Task53.2 完成时的历史快照。当前执行状态见 `2026-07-17-task53-3-completion-and-task53-4-readiness.md`。
+
 ## 1. Task53.2 delivered scope
 
 1. 新增纯 `classifier`：NFKC/小写/trim/空白折叠、规则与 built-in candidate、确定性 resolver、fallback、冲突和 8 标签上限。

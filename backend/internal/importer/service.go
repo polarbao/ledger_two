@@ -85,13 +85,20 @@ func (s *Service) PreviewFile(ctx context.Context, req PreviewFileRequest) (*Pre
 	if len(preview.Rows) > MaxPreviewRows {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, fmt.Sprintf("单批导入最多支持 %d 行", MaxPreviewRows))
 	}
-	if err := s.applyImportRules(ctx, req.LedgerContext.LedgerID, preview.Rows); err != nil {
-		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "应用导入规则失败")
+	if s.classificationMode == ClassificationModeOff {
+		if err := s.applyImportRules(ctx, req.LedgerContext.LedgerID, preview.Rows); err != nil {
+			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "应用导入规则失败")
+		}
 	}
 
 	batch := buildPreviewBatch(req, preview.Rows, doc)
 	if err := s.applyExistingDuplicates(ctx, batch); err != nil {
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "分析导入重复数据失败")
+	}
+	if s.classificationMode != ClassificationModeOff {
+		if err := s.applyClassifications(ctx, batch); err != nil {
+			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "应用导入分类失败")
+		}
 	}
 	recountBatch(batch)
 
@@ -203,6 +210,7 @@ func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "校验导入元数据失败")
 	}
+	markManualClassification(&updated)
 
 	for i := range batch.Rows {
 		if batch.Rows[i].ID == updated.ID {
@@ -462,6 +470,7 @@ func buildPreviewBatch(req PreviewFileRequest, rows []PreviewRow, doc *tabular.D
 	for i, row := range rows {
 		row.ID = uuid.NewString()
 		row.BatchID = batchID
+		normalizeClassification(&row.Classification)
 		normalizedRows[i] = row
 	}
 
@@ -664,6 +673,7 @@ func recountBatch(batch *PreviewBatch) {
 			batch.FailedRows++
 		}
 	}
+	recountClassificationSummary(batch)
 }
 
 func validateRowsForCommit(rows []PreviewRow) error {

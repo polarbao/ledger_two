@@ -63,6 +63,13 @@ func (r *Repository) CreatePreviewBatch(ctx context.Context, batch *PreviewBatch
 		if err != nil {
 			return err
 		}
+		reasonJSON, err := json.Marshal(classificationReasonRecord{
+			Code: row.Classification.ReasonCode,
+			Text: row.Classification.ReasonText,
+		})
+		if err != nil {
+			return err
+		}
 		errorCode := sql.NullString{}
 		errorMessage := sql.NullString{}
 		if row.Error != nil {
@@ -78,8 +85,10 @@ func (r *Repository) CreatePreviewBatch(ctx context.Context, batch *PreviewBatch
 				duplicate_status, row_status, normalized_json, error_code, error_message,
 				suggested_category_id, suggested_account_id, suggested_tag_ids_json,
 				suggested_rule_id, suggestion_reason,
-				selected_category_id, selected_account_id, selected_tag_ids_json, visibility
-			) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				selected_category_id, selected_account_id, selected_tag_ids_json, visibility,
+				classification_status, classification_confidence, classification_source,
+				classification_reason_json, matched_rule_ids_json
+			) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`,
 			row.ID, batch.ID, calculateImportHash(batch.LedgerID, batch.SourceType, row), row.RowStatus, batch.CreatedAt,
 			row.RowNumber, batch.SourceType, nullString(row.ExternalOrderID), nullString(row.OccurredAt), row.Title,
@@ -88,6 +97,8 @@ func (r *Repository) CreatePreviewBatch(ctx context.Context, batch *PreviewBatch
 			nullString(row.SuggestedCategoryID), nullString(row.SuggestedAccountID), jsonString(row.SuggestedTagIDs),
 			nullString(row.SuggestedRuleID), nullString(row.SuggestionReason),
 			nullString(row.SelectedCategoryID), nullString(row.SelectedAccountID), jsonString(row.SelectedTagIDs), defaultVisibility(row.Visibility),
+			row.Classification.Status, row.Classification.Confidence, nullString(row.Classification.Source),
+			string(reasonJSON), jsonString(row.Classification.MatchedRuleIDs),
 		)
 		if err != nil {
 			return err
@@ -124,10 +135,12 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, batch_id, row_number, occurred_at, title, merchant, description,
 		       amount_cents, direction, target_transaction_type, duplicate_status,
-		       row_status, source_type, external_order_id, error_code, error_message,
+		       row_status, normalized_json, external_order_id, error_code, error_message,
 		       suggested_category_id, suggested_account_id, suggested_tag_ids_json,
 		       suggested_rule_id, suggestion_reason,
-		       selected_category_id, selected_account_id, selected_tag_ids_json, visibility, import_hash
+		       selected_category_id, selected_account_id, selected_tag_ids_json, visibility, import_hash,
+		       classification_status, classification_confidence, classification_source,
+		       classification_reason_json, matched_rule_ids_json
 		FROM import_items
 		WHERE batch_id = ?
 		  AND EXISTS (
@@ -145,22 +158,32 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 
 	for rows.Next() {
 		var row PreviewRow
-		var occurredAt, description, sourceAccount, externalOrderID, errorCode, errorMessage sql.NullString
+		var occurredAt, description, normalizedJSON, externalOrderID, errorCode, errorMessage sql.NullString
 		var suggestedCategoryID, suggestedAccountID, suggestedTagIDs, suggestedRuleID, suggestionReason sql.NullString
 		var selectedCategoryID, selectedAccountID, selectedTagIDs, visibility sql.NullString
+		var classificationSource, classificationReasonJSON, matchedRuleIDsJSON sql.NullString
 		err := rows.Scan(
 			&row.ID, &row.BatchID, &row.RowNumber, &occurredAt, &row.Title, &row.Merchant, &description,
 			&row.AmountCents, &row.Direction, &row.TargetTransactionType, &row.DuplicateStatus,
-			&row.RowStatus, &sourceAccount, &externalOrderID, &errorCode, &errorMessage,
+			&row.RowStatus, &normalizedJSON, &externalOrderID, &errorCode, &errorMessage,
 			&suggestedCategoryID, &suggestedAccountID, &suggestedTagIDs, &suggestedRuleID, &suggestionReason,
 			&selectedCategoryID, &selectedAccountID, &selectedTagIDs, &visibility, &row.ImportHash,
+			&row.Classification.Status, &row.Classification.Confidence, &classificationSource,
+			&classificationReasonJSON, &matchedRuleIDsJSON,
 		)
 		if err != nil {
 			return nil, err
 		}
 		row.OccurredAt = valueOf(occurredAt)
 		row.Description = valueOf(description)
-		row.SourceAccount = valueOf(sourceAccount)
+		if normalizedJSON.Valid && normalizedJSON.String != "" {
+			var persisted PreviewRow
+			if err := json.Unmarshal([]byte(normalizedJSON.String), &persisted); err != nil {
+				return nil, err
+			}
+			row.SourceAccount = persisted.SourceAccount
+			row.SuspiciousReason = persisted.SuspiciousReason
+		}
 		row.ExternalOrderID = valueOf(externalOrderID)
 		row.SuggestedCategoryID = valueOf(suggestedCategoryID)
 		row.SuggestedAccountID = valueOf(suggestedAccountID)
@@ -171,6 +194,20 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 		row.SelectedAccountID = valueOf(selectedAccountID)
 		row.SelectedTagIDs = parseStringList(valueOf(selectedTagIDs))
 		row.Visibility = defaultVisibility(valueOf(visibility))
+		row.Classification.Source = valueOf(classificationSource)
+		if classificationReasonJSON.Valid && classificationReasonJSON.String != "" {
+			var reason classificationReasonRecord
+			if err := json.Unmarshal([]byte(classificationReasonJSON.String), &reason); err != nil {
+				return nil, err
+			}
+			row.Classification.ReasonCode = reason.Code
+			row.Classification.ReasonText = reason.Text
+		}
+		row.Classification.MatchedRuleIDs = parseStringList(valueOf(matchedRuleIDsJSON))
+		row.Classification.SuggestedCategoryID = row.SuggestedCategoryID
+		row.Classification.SuggestedAccountID = row.SuggestedAccountID
+		row.Classification.SuggestedTagIDs = copyStrings(row.SuggestedTagIDs)
+		normalizeClassification(&row.Classification)
 		if errorCode.Valid || errorMessage.Valid {
 			row.Error = &RowError{Code: errorCode.String, Message: errorMessage.String}
 		}
@@ -180,6 +217,7 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 		return nil, err
 	}
 
+	recountClassificationSummary(&batch)
 	return &batch, nil
 }
 
@@ -311,6 +349,13 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 	if err != nil {
 		return nil, err
 	}
+	classificationReasonJSON, err := json.Marshal(classificationReasonRecord{
+		Code: row.Classification.ReasonCode,
+		Text: row.Classification.ReasonText,
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	result, err := tx.ExecContext(ctx, `
 		UPDATE import_items
@@ -321,7 +366,12 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 		    selected_account_id = ?,
 		    selected_tag_ids_json = ?,
 		    visibility = ?,
-		    user_adjustment_json = ?
+		    user_adjustment_json = ?,
+		    classification_status = ?,
+		    classification_confidence = ?,
+		    classification_source = ?,
+		    classification_reason_json = ?,
+		    matched_rule_ids_json = ?
 		WHERE id = ? AND batch_id = ?
 		  AND EXISTS (
 			  SELECT 1
@@ -338,6 +388,11 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 		jsonString(row.SelectedTagIDs),
 		defaultVisibility(row.Visibility),
 		string(adjustmentJSON),
+		row.Classification.Status,
+		row.Classification.Confidence,
+		nullString(row.Classification.Source),
+		string(classificationReasonJSON),
+		jsonString(row.Classification.MatchedRuleIDs),
 		row.ID,
 		batch.ID,
 		batch.LedgerID,

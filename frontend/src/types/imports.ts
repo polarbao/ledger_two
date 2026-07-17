@@ -21,13 +21,54 @@ export type ImportRowStatus = 'pending' | 'adjusted' | 'skipped' | 'imported' | 
 
 export type ImportVisibility = 'private' | 'shared' | 'partner_readable';
 
-export type ImportRuleMatchType = 'merchant_contains' | 'description_contains' | 'source_account' | 'amount_range';
+export type ImportRuleMatchType = 'merchant_equals' | 'merchant_contains' | 'description_contains' | 'source_account' | 'amount_range';
 
 export type ImportRuleStatus = 'active' | 'archived';
 
 export interface ImportRowError {
   code: string;
   message: string;
+}
+
+export type ImportClassificationStatus =
+  | 'auto_selected'
+  | 'suggested'
+  | 'fallback'
+  | 'manual'
+  | 'bulk'
+  | 'conflict'
+  | 'unresolved';
+
+export type ImportClassificationConfidence = 'high' | 'medium' | 'low' | 'none';
+
+export type ImportClassificationSource =
+  | 'manual'
+  | 'bulk'
+  | 'user_rule'
+  | 'learned_rule'
+  | 'builtin'
+  | 'fallback';
+
+export interface ImportClassification {
+  status: ImportClassificationStatus;
+  confidence: ImportClassificationConfidence;
+  source?: ImportClassificationSource;
+  reason_code?: string;
+  reason_text?: string;
+  matched_rule_ids: string[];
+  suggested_category_id?: string;
+  suggested_account_id?: string;
+  suggested_tag_ids: string[];
+}
+
+export interface ImportClassificationSummary {
+  auto_selected: number;
+  suggested: number;
+  fallback: number;
+  manual: number;
+  bulk: number;
+  conflict: number;
+  unresolved: number;
 }
 
 export interface ImportPreviewRow {
@@ -55,6 +96,7 @@ export interface ImportPreviewRow {
   selected_account_id?: string;
   selected_tag_ids?: string[];
   visibility?: ImportVisibility;
+  classification: ImportClassification;
   error?: ImportRowError;
 }
 
@@ -80,7 +122,30 @@ export interface ImportPreviewBatch {
   updated_at: string;
   committed_at?: string;
   expires_at?: string;
+  classification_summary: ImportClassificationSummary;
   rows: ImportPreviewRow[];
+}
+
+export interface ImportReclassifyRowChange {
+  row_id: string;
+  old_status: ImportClassificationStatus;
+  new_status: ImportClassificationStatus;
+  old_category_id?: string;
+  new_category_id?: string;
+  old_tag_ids: string[];
+  new_tag_ids: string[];
+}
+
+export interface ImportReclassifyResult {
+  dry_run: boolean;
+  eligible_rows: number;
+  changed_rows: number;
+  unchanged_rows: number;
+  protected_manual_rows: number;
+  protected_bulk_rows: number;
+  conflict_rows: number;
+  summary: ImportClassificationSummary;
+  changes: ImportReclassifyRowChange[];
 }
 
 export interface ImportCommitResult {

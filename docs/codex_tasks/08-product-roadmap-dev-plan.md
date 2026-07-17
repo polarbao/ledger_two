@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-17）：Task41-Task50 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53.1-Task53.2 已完成 schema 22、默认元数据、纯分类器和候选读取，下一实现任务为 Task53.3。Task51P.1 非约束性证据继续收集，但有效真实小组证据为 0；Task52 保持延后调研。
+> 执行更新（2026-07-17）：Task41-Task50 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53.1-Task53.3 已完成 schema 22、默认元数据、确定性分类器、preview 分类快照和 reclassify；Task53.4 准备关闭，下一实现切片为 Task53.4A。Task51P.1 非约束性证据继续收集，但有效真实小组证据为 0；Task52 保持延后调研。
 
 ## 1. 使用说明
 
@@ -193,7 +193,7 @@
 
 ### Task53：分类、标签与导入分级自动化
 
-状态：Task53P.1-P.6 准备包、Task53.1 和 Task53.2 已完成；下一实现任务为 Task53.3，入口为 `docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md`、`docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 和 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。
+状态：Task53P.1-P.6 准备包、Task53.1-Task53.3 已完成；Task53.4 准备关闭，下一实现切片为 Task53.4A，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 和 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。
 
 目标：
 

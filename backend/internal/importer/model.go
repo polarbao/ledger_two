@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"ledger_two/internal/importer/tabular"
+	"ledger_two/internal/ledger"
 )
 
 const (
@@ -35,7 +36,41 @@ const (
 	ErrorCodeAmountInvalid = "IMPORT_ROW_AMOUNT_INVALID"
 	ErrorCodeTimeInvalid   = "IMPORT_ROW_TIME_INVALID"
 	ErrorCodeTitleInvalid  = "IMPORT_ROW_TITLE_INVALID"
+
+	ClassificationModeOff     = "off"
+	ClassificationModeSuggest = "suggest"
+	ClassificationModeGraded  = "graded"
+
+	ClassificationStatusAutoSelected = "auto_selected"
+	ClassificationStatusSuggested    = "suggested"
+	ClassificationStatusFallback     = "fallback"
+	ClassificationStatusManual       = "manual"
+	ClassificationStatusBulk         = "bulk"
+	ClassificationStatusConflict     = "conflict"
+	ClassificationStatusUnresolved   = "unresolved"
 )
+
+type Classification struct {
+	Status              string   `json:"status"`
+	Confidence          string   `json:"confidence"`
+	Source              string   `json:"source,omitempty"`
+	ReasonCode          string   `json:"reason_code,omitempty"`
+	ReasonText          string   `json:"reason_text,omitempty"`
+	MatchedRuleIDs      []string `json:"matched_rule_ids"`
+	SuggestedCategoryID string   `json:"suggested_category_id,omitempty"`
+	SuggestedAccountID  string   `json:"suggested_account_id,omitempty"`
+	SuggestedTagIDs     []string `json:"suggested_tag_ids"`
+}
+
+type ClassificationSummary struct {
+	AutoSelected int `json:"auto_selected"`
+	Suggested    int `json:"suggested"`
+	Fallback     int `json:"fallback"`
+	Manual       int `json:"manual"`
+	Bulk         int `json:"bulk"`
+	Conflict     int `json:"conflict"`
+	Unresolved   int `json:"unresolved"`
+}
 
 type Preview struct {
 	SourceType string       `json:"source_type"`
@@ -43,57 +78,91 @@ type Preview struct {
 }
 
 type PreviewBatch struct {
-	ID              string           `json:"id"`
-	LedgerID        string           `json:"ledger_id"`
-	SourceType      string           `json:"source_type"`
-	FileFormat      string           `json:"file_format"`
-	ParserMetadata  tabular.Metadata `json:"parser_metadata"`
-	Filename        string           `json:"filename"`
-	FileSHA256      string           `json:"file_sha256"`
-	Status          string           `json:"status"`
-	TotalRows       int              `json:"total_rows"`
-	NewRows         int              `json:"new_rows"`
-	DuplicateRows   int              `json:"duplicate_rows"`
-	SuspiciousRows  int              `json:"suspicious_rows"`
-	InvalidRows     int              `json:"invalid_rows"`
-	ImportedRows    int              `json:"imported_rows"`
-	SkippedRows     int              `json:"skipped_rows"`
-	FailedRows      int              `json:"failed_rows"`
-	CreatedByUserID string           `json:"created_by_user_id"`
-	CreatedAt       string           `json:"created_at"`
-	UpdatedAt       string           `json:"updated_at"`
-	CommittedAt     string           `json:"committed_at,omitempty"`
-	ExpiresAt       string           `json:"expires_at,omitempty"`
-	Rows            []PreviewRow     `json:"rows"`
+	ID                    string                `json:"id"`
+	LedgerID              string                `json:"ledger_id"`
+	SourceType            string                `json:"source_type"`
+	FileFormat            string                `json:"file_format"`
+	ParserMetadata        tabular.Metadata      `json:"parser_metadata"`
+	Filename              string                `json:"filename"`
+	FileSHA256            string                `json:"file_sha256"`
+	Status                string                `json:"status"`
+	TotalRows             int                   `json:"total_rows"`
+	NewRows               int                   `json:"new_rows"`
+	DuplicateRows         int                   `json:"duplicate_rows"`
+	SuspiciousRows        int                   `json:"suspicious_rows"`
+	InvalidRows           int                   `json:"invalid_rows"`
+	ImportedRows          int                   `json:"imported_rows"`
+	SkippedRows           int                   `json:"skipped_rows"`
+	FailedRows            int                   `json:"failed_rows"`
+	CreatedByUserID       string                `json:"created_by_user_id"`
+	CreatedAt             string                `json:"created_at"`
+	UpdatedAt             string                `json:"updated_at"`
+	CommittedAt           string                `json:"committed_at,omitempty"`
+	ExpiresAt             string                `json:"expires_at,omitempty"`
+	ClassificationSummary ClassificationSummary `json:"classification_summary"`
+	Rows                  []PreviewRow          `json:"rows"`
 }
 
 type PreviewRow struct {
-	ID                    string    `json:"id,omitempty"`
-	BatchID               string    `json:"batch_id,omitempty"`
-	RowNumber             int       `json:"row_number"`
-	OccurredAt            string    `json:"occurred_at,omitempty"`
-	Title                 string    `json:"title"`
-	Merchant              string    `json:"merchant"`
-	Description           string    `json:"description,omitempty"`
-	AmountCents           int64     `json:"amount_cents"`
-	Direction             string    `json:"direction"`
-	TargetTransactionType string    `json:"target_transaction_type"`
-	DuplicateStatus       string    `json:"duplicate_status"`
-	RowStatus             string    `json:"row_status"`
-	SourceAccount         string    `json:"source_account,omitempty"`
-	ExternalOrderID       string    `json:"external_order_id,omitempty"`
-	SuspiciousReason      string    `json:"suspicious_reason,omitempty"`
-	SuggestedCategoryID   string    `json:"suggested_category_id,omitempty"`
-	SuggestedAccountID    string    `json:"suggested_account_id,omitempty"`
-	SuggestedTagIDs       []string  `json:"suggested_tag_ids,omitempty"`
-	SuggestedRuleID       string    `json:"suggested_rule_id,omitempty"`
-	SuggestionReason      string    `json:"suggestion_reason,omitempty"`
-	SelectedCategoryID    string    `json:"selected_category_id,omitempty"`
-	SelectedAccountID     string    `json:"selected_account_id,omitempty"`
-	SelectedTagIDs        []string  `json:"selected_tag_ids,omitempty"`
-	Visibility            string    `json:"visibility,omitempty"`
-	ImportHash            string    `json:"-"`
-	Error                 *RowError `json:"error,omitempty"`
+	ID                    string         `json:"id,omitempty"`
+	BatchID               string         `json:"batch_id,omitempty"`
+	RowNumber             int            `json:"row_number"`
+	OccurredAt            string         `json:"occurred_at,omitempty"`
+	Title                 string         `json:"title"`
+	Merchant              string         `json:"merchant"`
+	Description           string         `json:"description,omitempty"`
+	AmountCents           int64          `json:"amount_cents"`
+	Direction             string         `json:"direction"`
+	TargetTransactionType string         `json:"target_transaction_type"`
+	DuplicateStatus       string         `json:"duplicate_status"`
+	RowStatus             string         `json:"row_status"`
+	SourceAccount         string         `json:"source_account,omitempty"`
+	ExternalOrderID       string         `json:"external_order_id,omitempty"`
+	SuspiciousReason      string         `json:"suspicious_reason,omitempty"`
+	SuggestedCategoryID   string         `json:"suggested_category_id,omitempty"`
+	SuggestedAccountID    string         `json:"suggested_account_id,omitempty"`
+	SuggestedTagIDs       []string       `json:"suggested_tag_ids,omitempty"`
+	SuggestedRuleID       string         `json:"suggested_rule_id,omitempty"`
+	SuggestionReason      string         `json:"suggestion_reason,omitempty"`
+	SelectedCategoryID    string         `json:"selected_category_id,omitempty"`
+	SelectedAccountID     string         `json:"selected_account_id,omitempty"`
+	SelectedTagIDs        []string       `json:"selected_tag_ids,omitempty"`
+	Visibility            string         `json:"visibility,omitempty"`
+	Classification        Classification `json:"classification"`
+	ImportHash            string         `json:"-"`
+	Error                 *RowError      `json:"error,omitempty"`
+}
+
+type ReclassifyCommand struct {
+	LedgerContext ledger.LedgerContext
+	BatchID       string
+	DryRun        bool
+}
+
+type ReclassifyRequest struct {
+	DryRun *bool `json:"dry_run,omitempty"`
+}
+
+type ReclassifyRowChange struct {
+	RowID         string   `json:"row_id"`
+	OldStatus     string   `json:"old_status"`
+	NewStatus     string   `json:"new_status"`
+	OldCategoryID string   `json:"old_category_id,omitempty"`
+	NewCategoryID string   `json:"new_category_id,omitempty"`
+	OldTagIDs     []string `json:"old_tag_ids"`
+	NewTagIDs     []string `json:"new_tag_ids"`
+}
+
+type ReclassifyResult struct {
+	DryRun              bool                  `json:"dry_run"`
+	EligibleRows        int                   `json:"eligible_rows"`
+	ChangedRows         int                   `json:"changed_rows"`
+	UnchangedRows       int                   `json:"unchanged_rows"`
+	ProtectedManualRows int                   `json:"protected_manual_rows"`
+	ProtectedBulkRows   int                   `json:"protected_bulk_rows"`
+	ConflictRows        int                   `json:"conflict_rows"`
+	Summary             ClassificationSummary `json:"summary"`
+	Changes             []ReclassifyRowChange `json:"changes"`
 }
 
 type RowError struct {

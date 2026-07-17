@@ -706,7 +706,11 @@ paths:
                   format: binary
       responses:
         "201":
-          $ref: "#/components/responses/Success"
+          description: Persisted import preview batch with classification snapshots.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportPreviewBatchResponse"
         "400":
           $ref: "#/components/responses/ValidationError"
   /imports/{batchID}:
@@ -720,7 +724,11 @@ paths:
         - $ref: "#/components/parameters/BatchIdPath"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Persisted import preview batch with server-recomputed summaries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportPreviewBatchResponse"
         "404":
           $ref: "#/components/responses/NotFound"
   /imports/{batchID}/rows/{rowID}:
@@ -742,7 +750,11 @@ paths:
               additionalProperties: true
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Updated import preview batch.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportPreviewBatchResponse"
         "404":
           $ref: "#/components/responses/NotFound"
   /imports/{batchID}/commit:
@@ -782,6 +794,43 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Success"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /imports/{batchID}/reclassify:
+    post:
+      tags: [import]
+      summary: Reclassify eligible rows in a ready preview batch
+      description: |
+        Owner only. Defaults to dry-run. Manual and bulk-adjusted rows are protected,
+        and this operation never creates formal transactions.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dry_run:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: Reclassification projection or persisted change summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportReclassifyResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
 
@@ -1474,7 +1523,7 @@ components:
           enum: [true]
         data:
           type: object
-          required: [status, db, version, schema_version, deployment_channel, import_xlsx_enabled]
+          required: [status, db, version, schema_version, deployment_channel, import_xlsx_enabled, import_classification_mode]
           properties:
             status:
               type: string
@@ -1494,6 +1543,10 @@ components:
             import_xlsx_enabled:
               type: boolean
               description: Whether this runtime accepts XLSX files for WeChat import previews. Alipay and generic remain CSV-only.
+            import_classification_mode:
+              type: string
+              enum: [off, suggest, graded]
+              description: Active Task53 preview classification behavior. The default is off.
     ErrorResponse:
       type: object
       required: [success, error]
@@ -1516,6 +1569,302 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+    ImportParserMetadata:
+      type: object
+      required: [parser_version, header_row_number, parsed_rows, max_columns]
+      properties:
+        parser_version:
+          type: string
+        sheet_name:
+          type: string
+          nullable: true
+        header_row_number:
+          type: integer
+        parsed_rows:
+          type: integer
+        scanned_sheets:
+          type: integer
+        max_columns:
+          type: integer
+    ImportClassification:
+      type: object
+      required: [status, confidence, matched_rule_ids, suggested_tag_ids]
+      description: Explanation projection. Final values remain on the preview row selected_* fields.
+      properties:
+        status:
+          type: string
+          enum: [auto_selected, suggested, fallback, manual, bulk, conflict, unresolved]
+        confidence:
+          type: string
+          enum: [high, medium, low, none]
+        source:
+          type: string
+          nullable: true
+          enum: [manual, bulk, user_rule, learned_rule, builtin, fallback]
+        reason_code:
+          type: string
+          nullable: true
+        reason_text:
+          type: string
+          nullable: true
+        matched_rule_ids:
+          type: array
+          items:
+            type: string
+        suggested_category_id:
+          type: string
+          nullable: true
+        suggested_account_id:
+          type: string
+          nullable: true
+        suggested_tag_ids:
+          type: array
+          items:
+            type: string
+    ImportPreviewRow:
+      type: object
+      required: [id, batch_id, row_number, title, merchant, amount_cents, direction, target_transaction_type, duplicate_status, row_status, classification]
+      properties:
+        id:
+          type: string
+        batch_id:
+          type: string
+        row_number:
+          type: integer
+        occurred_at:
+          type: string
+          nullable: true
+        title:
+          type: string
+        merchant:
+          type: string
+        description:
+          type: string
+          nullable: true
+        amount_cents:
+          type: integer
+          format: int64
+        direction:
+          type: string
+          enum: [expense, income, refund, transfer, unknown]
+        target_transaction_type:
+          type: string
+          enum: [expense, income, skipped]
+        duplicate_status:
+          type: string
+          enum: [new, duplicate, suspicious, invalid]
+        row_status:
+          type: string
+          enum: [pending, adjusted, skipped, imported, failed]
+        source_account:
+          type: string
+          nullable: true
+        external_order_id:
+          type: string
+          nullable: true
+        suspicious_reason:
+          type: string
+          nullable: true
+        suggested_category_id:
+          type: string
+          nullable: true
+        suggested_account_id:
+          type: string
+          nullable: true
+        suggested_tag_ids:
+          type: array
+          items:
+            type: string
+        suggested_rule_id:
+          type: string
+          nullable: true
+        suggestion_reason:
+          type: string
+          nullable: true
+        selected_category_id:
+          type: string
+          nullable: true
+        selected_account_id:
+          type: string
+          nullable: true
+        selected_tag_ids:
+          type: array
+          items:
+            type: string
+        visibility:
+          type: string
+          enum: [private, shared, partner_readable]
+        classification:
+          $ref: "#/components/schemas/ImportClassification"
+        error:
+          type: object
+          nullable: true
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    ImportPreviewBatch:
+      type: object
+      required: [id, ledger_id, source_type, file_format, parser_metadata, filename, file_sha256, status, total_rows, new_rows, duplicate_rows, suspicious_rows, invalid_rows, imported_rows, skipped_rows, failed_rows, created_by_user_id, created_at, updated_at, classification_summary, rows]
+      properties:
+        id:
+          type: string
+        ledger_id:
+          type: string
+        source_type:
+          type: string
+          enum: [wechat, alipay, generic]
+        file_format:
+          type: string
+          enum: [csv, xlsx]
+        parser_metadata:
+          $ref: "#/components/schemas/ImportParserMetadata"
+        filename:
+          type: string
+        file_sha256:
+          type: string
+        status:
+          type: string
+          enum: [previewing, ready, committed, failed, expired]
+        total_rows:
+          type: integer
+        new_rows:
+          type: integer
+        duplicate_rows:
+          type: integer
+        suspicious_rows:
+          type: integer
+        invalid_rows:
+          type: integer
+        imported_rows:
+          type: integer
+        skipped_rows:
+          type: integer
+        failed_rows:
+          type: integer
+        created_by_user_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        committed_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        classification_summary:
+          $ref: "#/components/schemas/ImportClassificationSummary"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportPreviewRow"
+    ImportPreviewBatchResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/ImportPreviewBatch"
+    ImportClassificationSummary:
+      type: object
+      required: [auto_selected, suggested, fallback, manual, bulk, conflict, unresolved]
+      properties:
+        auto_selected:
+          type: integer
+          minimum: 0
+        suggested:
+          type: integer
+          minimum: 0
+        fallback:
+          type: integer
+          minimum: 0
+        manual:
+          type: integer
+          minimum: 0
+        bulk:
+          type: integer
+          minimum: 0
+        conflict:
+          type: integer
+          minimum: 0
+        unresolved:
+          type: integer
+          minimum: 0
+    ImportReclassifyRowChange:
+      type: object
+      required: [row_id, old_status, new_status, old_tag_ids, new_tag_ids]
+      properties:
+        row_id:
+          type: string
+        old_status:
+          type: string
+          enum: [auto_selected, suggested, fallback, manual, bulk, conflict, unresolved]
+        new_status:
+          type: string
+          enum: [auto_selected, suggested, fallback, manual, bulk, conflict, unresolved]
+        old_category_id:
+          type: string
+          nullable: true
+        new_category_id:
+          type: string
+          nullable: true
+        old_tag_ids:
+          type: array
+          items:
+            type: string
+        new_tag_ids:
+          type: array
+          items:
+            type: string
+    ImportReclassifyResult:
+      type: object
+      required: [dry_run, eligible_rows, changed_rows, unchanged_rows, protected_manual_rows, protected_bulk_rows, conflict_rows, summary, changes]
+      properties:
+        dry_run:
+          type: boolean
+        eligible_rows:
+          type: integer
+          minimum: 0
+        changed_rows:
+          type: integer
+          minimum: 0
+        unchanged_rows:
+          type: integer
+          minimum: 0
+        protected_manual_rows:
+          type: integer
+          minimum: 0
+        protected_bulk_rows:
+          type: integer
+          minimum: 0
+        conflict_rows:
+          type: integer
+          minimum: 0
+        summary:
+          $ref: "#/components/schemas/ImportClassificationSummary"
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportReclassifyRowChange"
+    ImportReclassifyResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/ImportReclassifyResult"
     SystemDiagnostics:
       type: object
       required: [env, deployment_channel, app_base_url_set, cookie_secure, cookie_samesite, database, storage, audit_action_count, generated_at]

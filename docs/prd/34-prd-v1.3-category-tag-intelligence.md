@@ -1,6 +1,6 @@
 # PRD：v1.3 分类、标签与导入智能归类专项
 
-状态：产品基线已冻结；Task53.1-Task53.2 已完成，下一实现任务为 Task53.3<br>
+状态：产品基线已冻结；Task53.1-Task53.3 已完成，Task53.4 准备关闭<br>
 任务编号：Task53<br>
 创建日期：2026-07-16<br>
 优先级：Task53.3 预览持久化、解释与重分类<br>
@@ -266,4 +266,4 @@ Task53 不扩大当前导入权限。
 
 ## 11. Release boundary
 
-Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 与 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。Task53.1-Task53.2 已落地 schema 22、默认 profile、纯分类器和候选读取；下一实现任务为 Task53.3。Task53U 仍需等待 Task53.3/53.4 DTO 与错误码冻结以及本地视觉审阅稿。
+Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 与 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。Task53.1-Task53.3 已落地 schema 22、默认 profile、确定性分类器、preview 分类快照和 reclassify；Task53.4 的 bulk/learn/rule/兜底替代契约与 TDD 输入已冻结，下一实现切片为 Task53.4A。Task53U 仍需等待 Task53.4 DTO 与错误码落盘以及本地视觉审阅稿。

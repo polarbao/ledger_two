@@ -102,4 +102,5 @@ const (
 	ErrCodeImportRowInvalid              = "IMPORT_ROW_INVALID"
 	ErrCodeImportRowRequiresConfirmation = "IMPORT_ROW_REQUIRES_CONFIRMATION"
 	ErrCodeImportCommitConflict          = "IMPORT_COMMIT_CONFLICT"
+	ErrCodeImportReclassifyConflict      = "IMPORT_RECLASSIFY_CONFLICT"
 )

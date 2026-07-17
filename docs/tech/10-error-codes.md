@@ -123,6 +123,20 @@ docs/api/API_CONVENTIONS.md
 | IMPORT_ROW_INVALID | 400 | 导入行必需字段缺失、金额或时间无法解析 |
 | IMPORT_ROW_REQUIRES_CONFIRMATION | 409 | suspicious 行尚未由用户确认导入或跳过 |
 | IMPORT_COMMIT_CONFLICT | 409 | 导入批次状态不允许提交、已提交或已过期 |
+| IMPORT_RECLASSIFY_CONFLICT | 409 | 分类器关闭、批次非 ready/已过期或重新分类期间发生并发变化 |
+
+Task53.4 已冻结、尚未实现的错误码如下；只有对应代码提交后才进入运行时事实源：
+
+| 错误码 | HTTP 状态 | 说明 |
+|---|---:|---|
+| IMPORT_BULK_ADJUST_CONFLICT | 409 | 批量调整批次状态或并发快照冲突 |
+| CATEGORY_FALLBACK_REQUIRED | 409 | 归档支出/收入兜底分类时未指定替代分类 |
+| CATEGORY_FALLBACK_REPLACEMENT_INVALID | 409 | 兜底替代分类类型、状态或 system_key 不合法 |
+| CATEGORY_TYPE_MISMATCH | 400 | 分类类型与导入行目标交易类型不兼容 |
+| TAG_LIMIT_EXCEEDED | 400 | 最终标签超过 8 个 |
+| CLASSIFICATION_CONFLICT | 409 | 显式规则或同级分类候选冲突 |
+| CLASSIFICATION_RULE_STALE | 409 | 规则或持久化建议引用不可用元数据 |
+| CLASSIFICATION_MERCHANT_REQUIRED | 400 | 学习规则的规范化商户为空 |
 
 ## 5. 前端展示策略
 

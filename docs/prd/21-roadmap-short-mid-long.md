@@ -3,7 +3,7 @@
 状态：当前路线基线，持续维护<br>
 适用阶段：Task30 后
 
-> 执行更新（2026-07-17）：Foundation、v1.1、Task41-Task50 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成；v1.2/NAS 发布线继续独立维护。Task53.1-Task53.2 已完成 schema 22、默认分类/标签、纯分类器与候选读取，下一实现任务为 Task53.3；显式学习与批量调整仍按 53.4 推进。Task51P.1 有效真实证据为 0，不提前。
+> 执行更新（2026-07-17）：Foundation、v1.1、Task41-Task50 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成；v1.2/NAS 发布线继续独立维护。Task53.1-Task53.3 已完成 schema 22、默认分类/标签、确定性分类器、preview 分类快照与 reclassify；Task53.4 准备关闭，下一实现切片为 bulk-adjust。Task51P.1 有效真实证据为 0，不提前。
 
 ## 1. 路线图总原则
 

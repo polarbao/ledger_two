@@ -21,7 +21,7 @@
 
 ## 当前产品阶段
 
-截至 2026-07-17，Task50.1-Task50.6 已完成，项目具备本机 `v1.3.0-rc/schema 21` 独立 staging 候选。Task53.1-Task53.2 已完成 schema 22、默认分类/标签、纯分类器和候选读取，下一实现任务为 Task53.3；Task51P.1 有效真实小组证据仍为 0。
+截至 2026-07-17，Task50.1-Task50.6 已完成，项目具备本机 `v1.3.0-rc/schema 21` 独立 staging 候选。Task53.1-Task53.3 已完成 schema 22、默认分类/标签、确定性分类器、preview 分类快照和 reclassify；Task53.4 准备已关闭，下一实现切片为 Task53.4A；Task51P.1 有效真实小组证据仍为 0。
 
 当前产品重点：
 

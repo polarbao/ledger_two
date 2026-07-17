@@ -1,12 +1,12 @@
 ﻿# API Inventory
 
-状态：Task50.6 正式契约已冻结；Task53.1 默认元数据接口与 Task53.2 内部分类基础已落地
+状态：Task50.6 正式契约已冻结；Task53.1-Task53.3 已落地，Task53.4 契约已准备但未实现
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
 更新时间：2026-07-17
 
-> Task53.1 已实现 schema 22、默认 profile 查询/预览/应用和初始化/新账本默认元数据。Task53.2 已实现内部纯分类器、规则/元数据候选读取和默认关闭开关，但没有新增业务路径，也没有接入 preview/commit；`openapi-v1.3-category-tag-draft.yaml` 中批量调整、学习和重分类路径仍是 Task53.3-Task53.4 草案，不得描述为已上线。
+> Task53.1-Task53.3 已实现 schema 22、默认 profile、确定性分类器、preview 分类快照/summary 和 reclassify。`bulk-adjust`、`learn`、规则扩展和兜底替代只在 `openapi-v1.3-category-tag-draft.yaml` 完成 Task53.4 冻结，当前不得描述为已上线。
 
 ## 1. 总体约定
 
@@ -54,7 +54,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| GET | `/api/healthz` | no | none | internal | inline | 健康检查，返回服务、数据库、应用版本、schema version、deployment channel 和 XLSX 运行开关。 |
+| GET | `/api/healthz` | no | none | internal | inline | 健康检查，返回服务、数据库、应用版本、schema version、deployment channel、XLSX 开关和 `import_classification_mode`。 |
 | GET | `/api/init/status` | no | none | stable | `init.HandleStatus` | 初始化状态。 |
 | POST | `/api/init/setup` | no | none | stable | `init.HandleSetup` | 原子初始化系统、用户、初始账本、账户与 `basic_cn_v1` 分类/标签。 |
 
@@ -122,9 +122,10 @@
 | POST | `/api/transactions/import/parse` | yes | required | transitional | `transaction.HandleParseCSV` | 解析 CSV 文件。 |
 | POST | `/api/transactions/import/analyze` | yes | required | transitional | `transaction.HandleAnalyzeImport` | 预览、匹配规则和重复检测。 |
 | POST | `/api/transactions/import/commit` | yes | required | transitional | `transaction.HandleCommitImport` | 提交导入批次。 |
-| POST | `/api/imports/preview` | yes | required | stable | `importer.HandlePreview` | v1.2 Owner 上传 CSV 并生成预览批次，不写正式账单。 |
-| GET | `/api/imports/{batchID}` | yes | required | stable | `importer.HandleGetBatch` | v1.2 Owner 读取导入批次和行级预览。 |
+| POST | `/api/imports/preview` | yes | required | stable | `importer.HandlePreview` | Owner 上传 CSV/受支持 XLSX 并生成预览批次，不写正式账单；Task53 模式非 off 时持久化分类解释和 summary。 |
+| GET | `/api/imports/{batchID}` | yes | required | stable | `importer.HandleGetBatch` | Owner 读取导入批次、行级预览、classification 快照和服务端重算 summary。 |
 | PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | stable | `importer.HandleUpdateRow` | v1.2 Owner 调整导入行状态、目标类型、分类、账户、标签和可见性。 |
+| POST | `/api/imports/{batchID}/reclassify` | yes | required | stable | `importer.HandleReclassify` | Owner 对 ready/未过期批次重算 eligible 非 manual/bulk 行；默认 dry-run，执行写脱敏审计但不创建 transaction。 |
 | POST | `/api/imports/{batchID}/commit` | yes | required | stable | `importer.HandleCommit` | v1.2 Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
 | POST | `/api/imports/{batchID}/discard` | yes | required | stable | `importer.HandleDiscardBatch` | Owner 显式放弃 ready 批次；收敛为 expired，保留行/hash，不创建 transaction。 |
 | POST | `/api/import-rules/` | yes | required | stable | `importer.HandleCreateRule` | v1.2 Owner 创建导入规则，规则只产生建议。 |

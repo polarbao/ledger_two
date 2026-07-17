@@ -3,6 +3,7 @@ import type {
   ImportCommitResult,
   ImportDiscardResult,
   ImportPreviewBatch,
+  ImportReclassifyResult,
   ImportRule,
   ImportRuleUpsertPayload,
   ImportSourceType,
@@ -28,6 +29,9 @@ export const importsApi = {
 
   discard: (batchId: string) =>
     api.post<ImportDiscardResult>(`/api/imports/${batchId}/discard`, { reason: 'user_requested' }),
+
+  reclassify: (batchId: string, dryRun = true) =>
+    api.post<ImportReclassifyResult>(`/api/imports/${batchId}/reclassify`, { dry_run: dryRun }),
 
   listRules: (
     status: 'active' | 'archived' | 'all' = 'all',

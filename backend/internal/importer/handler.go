@@ -142,6 +142,40 @@ func (h *Handler) HandleCommit(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, result)
 }
 
+func (h *Handler) HandleReclassify(w http.ResponseWriter, r *http.Request) {
+	lc, ok := h.requireLedgerContext(w, r)
+	if !ok {
+		return
+	}
+
+	req := ReclassifyRequest{}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil && err != io.EOF {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体格式无效"))
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体只能包含一个 JSON 对象"))
+		return
+	}
+	dryRun := true
+	if req.DryRun != nil {
+		dryRun = *req.DryRun
+	}
+
+	result, err := h.service.ReclassifyPreviewBatch(r.Context(), ReclassifyCommand{
+		LedgerContext: lc,
+		BatchID:       chi.URLParam(r, "batchID"),
+		DryRun:        dryRun,
+	})
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, result)
+}
+
 func (h *Handler) HandleDiscardBatch(w http.ResponseWriter, r *http.Request) {
 	lc, ok := h.requireLedgerContext(w, r)
 	if !ok {

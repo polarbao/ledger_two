@@ -4,8 +4,8 @@ info:
   version: 1.3.0-task53-draft
   description: |
     Task53 分类、标签、默认元数据和导入分级自动化增量契约。
-    Task53.1 的 schema 22 与三个 default-profile 路径已经实现；Task53.2 的纯分类器、候选读取和默认关闭开关已经实现。
-    import-classification 下的 preview 持久化、批量调整、学习与重分类契约仍属于 Task53.3-Task53.4 草案；现状仍以 API_INVENTORY.md 为准。
+    Task53.1-Task53.3 的 schema 22、default-profile、分类器、预览持久化和 reclassify 已实现。
+    bulk-adjust、显式学习、规则扩展和兜底替代已完成 Task53.4 契约冻结，但在 Task53.4 提交前仍是草案；现状以 API_INVENTORY.md 为准。
 servers:
   - url: /api
 tags:
@@ -109,6 +109,10 @@ paths:
       tags: [import-classification]
       summary: Apply an explicit classification adjustment to selected preview rows
       operationId: bulkAdjustImportClassifications
+      description: |
+        Owner-only and ready-batch-only. accept_suggestions consumes only persisted
+        suggestions. apply_values uses the explicit category/account/tag values from
+        this request. Neither action creates a learned rule or a transaction.
       security:
         - cookieAuth: []
       parameters:
@@ -143,7 +147,10 @@ paths:
       tags: [import-classification]
       summary: Create or update an explicit learned merchant rule
       operationId: learnImportMerchantRule
-      description: The preview row adjustment is saved separately; learning failure must not roll it back.
+      description: |
+        Uses the already-saved final category and tags on this row. The preview row
+        adjustment is a separate request, so learning failure must not roll it back.
+        Accounts and visibility are never copied into learned rules.
       security:
         - cookieAuth: []
       parameters:
@@ -211,6 +218,207 @@ paths:
         "409":
           $ref: "#/components/responses/Error"
 
+  /import-rules/:
+    get:
+      tags: [import-classification]
+      summary: List import classification rules with lifecycle and committed-hit diagnostics
+      operationId: listImportClassificationRules
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, archived, all]
+            default: all
+      responses:
+        "200":
+          description: Current-ledger rules only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleListResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [import-classification]
+      summary: Create an explicit manual import classification rule
+      operationId: createImportClassificationRule
+      description: origin and confidence are server-owned; this endpoint always creates origin=manual and confidence=high.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportRuleUpsertRequest"
+      responses:
+        "201":
+          description: Manual rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /import-rules/{ruleId}:
+    patch:
+      tags: [import-classification]
+      summary: Update an import classification rule
+      operationId: updateImportClassificationRule
+      description: |
+        origin never changes. For learned rules, merchant_equals, normalized pattern,
+        and source_type are immutable; result, name, priority and apply_mode remain editable.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - $ref: "#/components/parameters/RuleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportRuleUpsertRequest"
+      responses:
+        "200":
+          description: Rule updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /import-rules/{ruleId}/archive:
+    post:
+      tags: [import-classification]
+      summary: Archive an import classification rule
+      operationId: archiveImportClassificationRule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - $ref: "#/components/parameters/RuleId"
+      responses:
+        "200":
+          description: Rule archived idempotently
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /import-rules/{ruleId}/restore:
+    post:
+      tags: [import-classification]
+      summary: Restore a valid archived import classification rule
+      operationId: restoreImportClassificationRule
+      description: Restore is rejected while any result metadata reference is missing or archived.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - $ref: "#/components/parameters/RuleId"
+      responses:
+        "200":
+          description: Rule restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /metadata/categories/{categoryId}/archive:
+    post:
+      tags: [metadata-defaults]
+      summary: Archive a category, replacing a fallback system key when required
+      operationId: archiveCategoryWithFallbackSafeguard
+      description: |
+        This is the concrete categories form of the existing metadata archive route.
+        For expense_other or income_other, replacement_category_id is mandatory and
+        the system_key transfer plus archive is atomic. Historical transactions and
+        rule result_json values are not rewritten.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - $ref: "#/components/parameters/CategoryId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataArchiveRequest"
+      responses:
+        "200":
+          description: Category archived and optional fallback key transferred
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataArchiveResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
+  /metadata/{kind}/:
+    get:
+      tags: [metadata-defaults]
+      summary: List metadata with current-ledger active-rule reference counts
+      operationId: listMetadataWithRuleReferences
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerHeader"
+        - $ref: "#/components/parameters/MetadataKind"
+        - name: include_archived
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Metadata list. rule_reference_count never includes another ledger.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataItemListResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+
 components:
   securitySchemes:
     cookieAuth:
@@ -237,6 +445,25 @@ components:
       required: true
       schema:
         type: string
+    RuleId:
+      name: ruleId
+      in: path
+      required: true
+      schema:
+        type: string
+    CategoryId:
+      name: categoryId
+      in: path
+      required: true
+      schema:
+        type: string
+    MetadataKind:
+      name: kind
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [categories, tags, accounts]
 
   responses:
     Error:
@@ -280,7 +507,9 @@ components:
                 - IMPORT_BATCH_NOT_FOUND
                 - IMPORT_ROW_INVALID
                 - IMPORT_COMMIT_CONFLICT
+                - IMPORT_BULK_ADJUST_CONFLICT
                 - CATEGORY_FALLBACK_REQUIRED
+                - CATEGORY_FALLBACK_REPLACEMENT_INVALID
                 - CATEGORY_TYPE_MISMATCH
                 - TAG_LIMIT_EXCEEDED
                 - CLASSIFICATION_CONFLICT
@@ -416,7 +645,7 @@ components:
     Classification:
       type: object
       description: Additive PreviewRow classification projection. Final selected values remain on the existing PreviewRow selected_* fields.
-      required: [status, confidence, matched_rule_ids]
+      required: [status, confidence, matched_rule_ids, suggested_tag_ids]
       properties:
         status:
           type: string
@@ -478,28 +707,37 @@ components:
     BulkClassificationRequest:
       type: object
       required: [row_ids, action]
+      description: |
+        For action=accept_suggestions, category/account/tag fields must be omitted.
+        For action=apply_values, category_id, account_id and tag_ids are all required;
+        account_id may be null to clear the account.
       properties:
         row_ids:
           type: array
           minItems: 1
+          maxItems: 500
           uniqueItems: true
           items:
             type: string
         action:
           type: string
           enum: [accept_suggestions, apply_values]
-          description: accept_suggestions accepts each row's persisted suggestion; apply_values writes the shared category and tags below.
+          description: accept_suggestions accepts each row's persisted suggestion; apply_values writes the shared category, account and tags below.
         category_id:
           type: string
           nullable: true
           description: Required only when action=apply_values.
+        account_id:
+          type: string
+          nullable: true
+          description: Required when action=apply_values; null clears the account for all successfully updated rows.
         tag_ids:
           type: array
           maxItems: 8
           uniqueItems: true
           items:
             type: string
-          description: Required only when action=apply_values; use an empty array to clear tags.
+          description: Required only when action=apply_values; use an empty array to clear tags. More than 8 tags rejects the whole request.
 
     BulkClassificationResponse:
       allOf:
@@ -508,7 +746,7 @@ components:
           properties:
             data:
               type: object
-              required: [affected_rows, skipped_rows, conflict_rows, updated_row_ids, skipped_row_ids, conflict_row_ids, errors]
+              required: [affected_rows, skipped_rows, conflict_rows, updated_row_ids, skipped_row_ids, conflict_row_ids, errors, summary]
               properties:
                 affected_rows:
                   type: integer
@@ -532,6 +770,8 @@ components:
                   type: array
                   items:
                     $ref: "#/components/schemas/ClassificationRowError"
+                summary:
+                  $ref: "#/components/schemas/ClassificationSummary"
 
     ClassificationRowError:
       type: object
@@ -544,22 +784,230 @@ components:
         message:
           type: string
 
-    LearnMerchantRequest:
+    ImportRuleResult:
       type: object
-      required: [category_id, tag_ids, source_scope]
       properties:
         category_id:
           type: string
+          nullable: true
+        account_id:
+          type: string
+          nullable: true
         tag_ids:
           type: array
           maxItems: 8
           uniqueItems: true
           items:
             type: string
+        visibility:
+          type: string
+          nullable: true
+          deprecated: true
+          description: Legacy Task49 field. The Task53 classifier does not alter visibility.
+
+    ImportRuleUpsertRequest:
+      type: object
+      required: [match_type, pattern, result]
+      properties:
+        name:
+          type: string
+        match_type:
+          type: string
+          enum: [merchant_equals, merchant_contains, description_contains, source_account, amount_range]
+        pattern:
+          type: string
+        amount_min_cents:
+          type: integer
+          format: int64
+          nullable: true
+        amount_max_cents:
+          type: integer
+          format: int64
+          nullable: true
+        priority:
+          type: integer
+          default: 100
+        source_type:
+          type: string
+          nullable: true
+          enum: [wechat, alipay, generic]
+          description: null means all supported sources.
+        apply_mode:
+          type: string
+          enum: [auto, suggest]
+          default: suggest
+        result:
+          $ref: "#/components/schemas/ImportRuleResult"
+
+    ImportRule:
+      type: object
+      required: [id, name, match_type, pattern, priority, status, origin, apply_mode, confidence, result, is_stale, stale_reference_ids, committed_hit_count, created_by_user_id, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        match_type:
+          type: string
+          enum: [merchant_equals, merchant_contains, description_contains, source_account, amount_range]
+        pattern:
+          type: string
+        amount_min_cents:
+          type: integer
+          format: int64
+          nullable: true
+        amount_max_cents:
+          type: integer
+          format: int64
+          nullable: true
+        priority:
+          type: integer
+        status:
+          type: string
+          enum: [active, archived]
+        origin:
+          type: string
+          enum: [manual, learned]
+        source_type:
+          type: string
+          nullable: true
+          enum: [wechat, alipay, generic]
+        apply_mode:
+          type: string
+          enum: [auto, suggest]
+        confidence:
+          type: string
+          enum: [high]
+          description: Manual and learned v1 rules are server-owned high-confidence inputs; apply_mode controls selection versus suggestion.
+        result:
+          $ref: "#/components/schemas/ImportRuleResult"
+        is_stale:
+          type: boolean
+        stale_reference_ids:
+          type: array
+          items:
+            type: string
+        committed_hit_count:
+          type: integer
+          minimum: 0
+          description: Count of imported rows in committed batches whose persisted matched_rule_ids contains this rule.
+        last_committed_hit_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by_user_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ImportRuleResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/ImportRule"
+
+    ImportRuleListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/ImportRule"
+
+    MetadataItem:
+      type: object
+      required: [id, ledger_id, name, sort_order, usage_count, rule_reference_count, is_archived]
+      properties:
+        id:
+          type: string
+        ledger_id:
+          type: string
+        system_key:
+          type: string
+          nullable: true
+        name:
+          type: string
+        type:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        color:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+        usage_count:
+          type: integer
+          minimum: 0
+        rule_reference_count:
+          type: integer
+          minimum: 0
+          description: Number of active current-ledger import rules whose result references this item.
+        is_archived:
+          type: boolean
+
+    MetadataItemListResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/MetadataItem"
+
+    MetadataArchiveRequest:
+      type: object
+      properties:
+        replacement_category_id:
+          type: string
+          nullable: true
+          description: Required only when archiving expense_other or income_other.
+
+    MetadataArchiveResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [archived_id, fallback_replaced]
+              properties:
+                archived_id:
+                  type: string
+                fallback_replaced:
+                  type: boolean
+                transferred_system_key:
+                  type: string
+                  nullable: true
+                  enum: [expense_other, income_other]
+                replacement_category_id:
+                  type: string
+                  nullable: true
+
+    LearnMerchantRequest:
+      type: object
+      required: [source_scope]
+      properties:
         source_scope:
           type: string
           enum: [current_source, all_sources]
           default: current_source
+      description: The server reads category and tags from the saved preview row. Client-supplied classification values are not accepted.
 
     LearnMerchantResponse:
       allOf:
@@ -568,15 +1016,22 @@ components:
           properties:
             data:
               type: object
-              required: [rule_id, action, normalized_merchant]
+              required: [rule_id, action, normalized_merchant, source_scope]
               properties:
                 rule_id:
                   type: string
                 action:
                   type: string
-                  enum: [created, updated]
+                  enum: [created, updated, restored]
                 normalized_merchant:
                   type: string
+                source_scope:
+                  type: string
+                  enum: [current_source, all_sources]
+                source_type:
+                  type: string
+                  nullable: true
+                  enum: [wechat, alipay, generic]
 
     ReclassifyResponse:
       allOf:
@@ -610,14 +1065,16 @@ components:
 
     ReclassifyRowChange:
       type: object
-      required: [row_id, old_status, new_status, old_category_id, new_category_id, old_tag_ids, new_tag_ids]
+      required: [row_id, old_status, new_status, old_tag_ids, new_tag_ids]
       properties:
         row_id:
           type: string
         old_status:
           type: string
+          enum: [auto_selected, suggested, fallback, manual, bulk, conflict, unresolved]
         new_status:
           type: string
+          enum: [auto_selected, suggested, fallback, manual, bulk, conflict, unresolved]
         old_category_id:
           type: string
           nullable: true

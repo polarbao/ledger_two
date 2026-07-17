@@ -2,7 +2,9 @@ package metadata
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -34,6 +36,66 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, http.StatusOK, items)
+}
+
+func (h *Handler) GetDefaultProfile(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r.Context())
+	profile, err := h.service.GetDefaultProfile(r.Context(), userID, strings.TrimSpace(r.URL.Query().Get("profile")))
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, profile)
+}
+
+func (h *Handler) PreviewDefaultProfile(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r.Context())
+	var req ProfilePreviewRequest
+	if err := decodeProfileJSON(r, &req); err != nil {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求参数解析失败"))
+		return
+	}
+	if strings.TrimSpace(req.Profile) == "" {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "默认元数据模板不能为空"))
+		return
+	}
+	result, err := h.service.PreviewDefaultProfile(r.Context(), userID, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) ApplyDefaultProfile(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r.Context())
+	var req ProfileApplyRequest
+	if err := decodeProfileJSON(r, &req); err != nil {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求参数解析失败"))
+		return
+	}
+	if strings.TrimSpace(req.Profile) == "" {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "默认元数据模板不能为空"))
+		return
+	}
+	result, err := h.service.ApplyDefaultProfile(r.Context(), userID, req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, result)
+}
+
+func decodeProfileJSON(r *http.Request, target any) error {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体只能包含一个 JSON 对象")
+	}
+	return nil
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {

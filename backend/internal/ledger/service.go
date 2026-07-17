@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	appErrors "ledger_two/internal/errors"
+	"ledger_two/internal/metadata/defaults"
 )
 
 type Service struct {
@@ -31,7 +32,8 @@ func NewService(repo *Repository, balanceProviders ...UnsettledBalanceProvider) 
 }
 
 type CreateLedgerReq struct {
-	Name string `json:"name"`
+	Name            string `json:"name"`
+	MetadataProfile string `json:"metadata_profile,omitempty"`
 }
 
 type RenameLedgerReq struct {
@@ -47,7 +49,14 @@ func (s *Service) CreateLedger(ctx context.Context, userID string, req CreateLed
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.CreateLedger(ctx, name, userID)
+	profileKey := strings.TrimSpace(req.MetadataProfile)
+	if profileKey == "" {
+		profileKey = defaults.ProfileBasicCNV1
+	}
+	if _, ok := defaults.Get(profileKey); !ok {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "默认元数据模板无效")
+	}
+	return s.repo.CreateLedger(ctx, name, userID, profileKey)
 }
 
 func (s *Service) ListUserLedgers(ctx context.Context, userID string, status LedgerListStatus) ([]LedgerWithRole, error) {

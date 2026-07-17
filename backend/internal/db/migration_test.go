@@ -16,7 +16,7 @@ import (
 	"ledger_two/migrations"
 )
 
-const latestMigrationVersion int64 = 21
+const latestMigrationVersion int64 = 22
 
 func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 	database := openMigrationTestDB(t)
@@ -59,6 +59,7 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"archived_at",
 		"archived_by_user_id",
 		"version",
+		"metadata_profile_version",
 	})
 	assertColumnsExist(t, database, "audit_logs", []string{
 		"actor_role",
@@ -83,12 +84,14 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"owner_user_id",
 		"type",
 		"is_archived",
+		"system_key",
 	})
 	assertColumnsExist(t, database, "tags", []string{
 		"ledger_id",
 		"owner_user_id",
 		"is_archived",
 		"sort_order",
+		"system_key",
 	})
 	assertColumnsExist(t, database, "accounts", []string{
 		"ledger_id",
@@ -155,6 +158,11 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"selected_account_id",
 		"selected_tag_ids_json",
 		"visibility",
+		"classification_status",
+		"classification_confidence",
+		"classification_source",
+		"classification_reason_json",
+		"matched_rule_ids_json",
 	})
 	assertColumnsExist(t, database, "import_rules", []string{
 		"name",
@@ -166,6 +174,10 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"result_json",
 		"status",
 		"archived_at",
+		"origin",
+		"source_type",
+		"apply_mode",
+		"confidence",
 	})
 	assertColumnsExist(t, database, "transaction_import_refs", []string{
 		"ledger_id",
@@ -210,6 +222,9 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 		"idx_ledger_members_one_owner",
 		"idx_audit_logs_ledger_created",
 		"idx_instance_audit_created",
+		"idx_categories_ledger_system_key",
+		"idx_tags_ledger_system_key",
+		"idx_import_rules_ledger_origin_status_priority",
 	})
 	assertTriggersExist(t, database, []string{
 		"trg_ledger_members_max_two_before_insert",
@@ -221,6 +236,222 @@ func TestEmbeddedMigrationsUpgradeEmptyDatabase(t *testing.T) {
 	}
 	if instanceAdminCount != 0 {
 		t.Fatalf("expected empty migration to create no instance administrator, got %d", instanceAdminCount)
+	}
+}
+
+func TestTask531MigrationUpgradesSchema21WithCompatibleDefaultsAndPartialUniqueIndexes(t *testing.T) {
+	database := openMigrationTestDB(t)
+	runMigrationsTo(t, database, 21)
+
+	_, err := database.Exec(`
+		INSERT INTO users (id, username, display_name, password_hash, role, created_at, updated_at)
+		VALUES ('user-53', 'task53', 'Task 53', 'hash', 'user', '2026-07-17T00:00:00Z', '2026-07-17T00:00:00Z');
+		INSERT INTO ledgers (id, name, default_currency, status, version, created_at, updated_at)
+		VALUES ('ledger-53', 'Task53 Ledger', 'CNY', 'active', 1, '2026-07-17T00:00:00Z', '2026-07-17T00:00:00Z');
+		INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at)
+		VALUES ('ledger-53', 'user-53', 'owner', '2026-07-17T00:00:00Z', '2026-07-17T00:00:00Z');
+		INSERT INTO categories (id, ledger_id, owner_user_id, name, type, is_system, created_at, updated_at)
+		VALUES ('cat-53', 'ledger-53', 'user-53', '历史餐饮', 'expense', 0, '2026-07-17T00:00:00Z', '2026-07-17T00:00:00Z');
+		INSERT INTO tags (id, ledger_id, owner_user_id, name, created_at, updated_at)
+		VALUES ('tag-53', 'ledger-53', 'user-53', '历史标签', '2026-07-17T00:00:00Z', '2026-07-17T00:00:00Z');
+		INSERT INTO import_rules (
+			id, ledger_id, keyword, created_by_user_id, created_at, updated_at,
+			name, match_type, pattern, priority, result_json, status
+		) VALUES (
+			'rule-53', 'ledger-53', '咖啡', 'user-53', '2026-07-17T00:00:00Z', '2026-07-17T00:00:00Z',
+			'历史规则', 'merchant_contains', '咖啡', 100, '{"category_id":"cat-53","tag_ids":["tag-53"]}', 'active'
+		);
+		INSERT INTO import_batches (id, ledger_id, filename, created_by_user_id, status, created_at)
+		VALUES ('batch-53', 'ledger-53', 'anonymous.csv', 'user-53', 'ready', '2026-07-17T00:00:00Z');
+		INSERT INTO import_items (
+			id, batch_id, import_hash, status, created_at, suggested_tag_ids_json, selected_tag_ids_json
+		) VALUES (
+			'item-53', 'batch-53', 'hash-53', 'pending', '2026-07-17T00:00:00Z', '["tag-53"]', '["tag-53"]'
+		);
+	`)
+	if err != nil {
+		t.Fatalf("seed schema 21 task53 fixture: %v", err)
+	}
+
+	runMigrations(t, database)
+	assertMigrationVersion(t, database, 22)
+
+	var profileVersion int
+	if err := database.QueryRow("SELECT metadata_profile_version FROM ledgers WHERE id = 'ledger-53'").Scan(&profileVersion); err != nil {
+		t.Fatalf("read metadata profile version: %v", err)
+	}
+	if profileVersion != 0 {
+		t.Fatalf("historical ledger profile version = %d, want 0", profileVersion)
+	}
+
+	var origin, applyMode, confidence string
+	var sourceType sql.NullString
+	if err := database.QueryRow(`
+		SELECT origin, source_type, apply_mode, confidence
+		FROM import_rules WHERE id = 'rule-53'
+	`).Scan(&origin, &sourceType, &applyMode, &confidence); err != nil {
+		t.Fatalf("read migrated rule defaults: %v", err)
+	}
+	if origin != "manual" || sourceType.Valid || applyMode != "suggest" || confidence != "high" {
+		t.Fatalf("unexpected migrated rule defaults: origin=%s source=%v mode=%s confidence=%s", origin, sourceType, applyMode, confidence)
+	}
+
+	var status, itemConfidence, reasonJSON, ruleIDsJSON string
+	var itemSource sql.NullString
+	if err := database.QueryRow(`
+		SELECT classification_status, classification_confidence, classification_source,
+		       classification_reason_json, matched_rule_ids_json
+		FROM import_items WHERE id = 'item-53'
+	`).Scan(&status, &itemConfidence, &itemSource, &reasonJSON, &ruleIDsJSON); err != nil {
+		t.Fatalf("read migrated import item defaults: %v", err)
+	}
+	if status != "unresolved" || itemConfidence != "none" || itemSource.Valid || reasonJSON != "{}" || ruleIDsJSON != "[]" {
+		t.Fatalf("unexpected migrated item defaults: status=%s confidence=%s source=%v reason=%s rules=%s", status, itemConfidence, itemSource, reasonJSON, ruleIDsJSON)
+	}
+
+	if _, err := database.Exec("UPDATE categories SET system_key = 'expense_food' WHERE id = 'cat-53'"); err != nil {
+		t.Fatalf("set first category system key: %v", err)
+	}
+	_, err = database.Exec(`
+		INSERT INTO categories (
+			id, ledger_id, owner_user_id, name, type, system_key, is_system, created_at, updated_at
+		) VALUES (
+			'cat-53-duplicate', 'ledger-53', 'user-53', '重复键', 'expense', 'expense_food', 1,
+			'2026-07-17T00:00:00Z', '2026-07-17T00:00:00Z'
+		)
+	`)
+	if err == nil {
+		t.Fatal("expected partial unique category system key index to reject duplicate key")
+	}
+}
+
+func TestTask531PreflightConservesAnonymousSchema21Data(t *testing.T) {
+	database := openMigrationTestDB(t)
+	runMigrationsTo(t, database, 21)
+	seedTask50PreflightBase(t, database)
+	seedTask506MigrationConservationFixture(t, database)
+
+	snapshot, err := prepareTask53Upgrade(context.Background(), database, 21)
+	if err != nil {
+		t.Fatalf("prepare task53 schema 21 upgrade: %v", err)
+	}
+	runMigrations(t, database)
+	if err := verifyTask53MigrationSnapshot(context.Background(), database, snapshot); err != nil {
+		t.Fatalf("verify task53 migration conservation: %v", err)
+	}
+	assertMigrationVersion(t, database, 22)
+}
+
+func TestTask531PreflightRejectsInvalidJSONAndUnexpectedSourceSchema(t *testing.T) {
+	tests := []struct {
+		name        string
+		mutate      func(*testing.T, *sql.DB)
+		wantMessage string
+	}{
+		{
+			name: "invalid rule result json",
+			mutate: func(t *testing.T, database *sql.DB) {
+				t.Helper()
+				if _, err := database.Exec("UPDATE import_rules SET result_json = '{invalid' WHERE id = 'migration-rule'"); err != nil {
+					t.Fatalf("invalidate rule result json: %v", err)
+				}
+			},
+			wantMessage: "migration-rule",
+		},
+		{
+			name: "non object rule result json",
+			mutate: func(t *testing.T, database *sql.DB) {
+				t.Helper()
+				if _, err := database.Exec("UPDATE import_rules SET result_json = 'null' WHERE id = 'migration-rule'"); err != nil {
+					t.Fatalf("replace rule result json with null: %v", err)
+				}
+			},
+			wantMessage: "migration-rule",
+		},
+		{
+			name: "invalid selected tag json",
+			mutate: func(t *testing.T, database *sql.DB) {
+				t.Helper()
+				if _, err := database.Exec("UPDATE import_items SET selected_tag_ids_json = '[invalid' WHERE id = 'migration-item'"); err != nil {
+					t.Fatalf("invalidate selected tag json: %v", err)
+				}
+			},
+			wantMessage: "migration-item",
+		},
+		{
+			name: "orphan selected tag reference",
+			mutate: func(t *testing.T, database *sql.DB) {
+				t.Helper()
+				if _, err := database.Exec("UPDATE import_items SET selected_tag_ids_json = '[\"missing-tag\"]' WHERE id = 'migration-item'"); err != nil {
+					t.Fatalf("orphan selected tag reference: %v", err)
+				}
+			},
+			wantMessage: "migration-item",
+		},
+		{
+			name: "orphan rule category reference",
+			mutate: func(t *testing.T, database *sql.DB) {
+				t.Helper()
+				if _, err := database.Exec("UPDATE import_rules SET result_json = '{\"category_id\":\"missing-category\",\"tag_ids\":[]}' WHERE id = 'migration-rule'"); err != nil {
+					t.Fatalf("orphan rule category reference: %v", err)
+				}
+			},
+			wantMessage: "migration-rule",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			database := openMigrationTestDB(t)
+			runMigrationsTo(t, database, 21)
+			seedTask50PreflightBase(t, database)
+			seedTask506MigrationConservationFixture(t, database)
+			test.mutate(t, database)
+
+			_, err := prepareTask53Upgrade(context.Background(), database, 21)
+			if err == nil || !strings.Contains(err.Error(), test.wantMessage) {
+				t.Fatalf("expected task53 preflight error containing %q, got %v", test.wantMessage, err)
+			}
+			assertMigrationVersion(t, database, 21)
+		})
+	}
+
+	database := openMigrationTestDB(t)
+	runMigrationsTo(t, database, 19)
+	if _, err := prepareTask53Upgrade(context.Background(), database, 19); err == nil || !strings.Contains(err.Error(), "requires schema version 21") {
+		t.Fatalf("expected task53 schema 19 rejection, got %v", err)
+	}
+	assertMigrationVersion(t, database, 19)
+}
+
+func TestTask531MigrationRollsBackAllAdditiveChangesWhenIndexCreationFails(t *testing.T) {
+	database := openMigrationTestDB(t)
+	runMigrationsTo(t, database, 21)
+	if _, err := database.Exec("CREATE INDEX idx_tags_ledger_system_key ON tags(id)"); err != nil {
+		t.Fatalf("seed conflicting task53 index: %v", err)
+	}
+
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("set goose dialect: %v", err)
+	}
+	if err := goose.Up(database, "."); err == nil {
+		t.Fatal("expected migration 022 index creation failure")
+	}
+
+	assertMigrationVersion(t, database, 21)
+	assertColumnDoesNotExist(t, database, "ledgers", "metadata_profile_version")
+	assertColumnDoesNotExist(t, database, "categories", "system_key")
+	assertColumnDoesNotExist(t, database, "tags", "system_key")
+	var categoryIndexCount int
+	if err := database.QueryRow(`
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'index' AND name = 'idx_categories_ledger_system_key'
+	`).Scan(&categoryIndexCount); err != nil {
+		t.Fatalf("inspect rolled back category index: %v", err)
+	}
+	if categoryIndexCount != 0 {
+		t.Fatalf("expected category system key index rollback, got %d", categoryIndexCount)
 	}
 }
 
@@ -289,7 +520,7 @@ func TestTask50UpgradePreflightAcceptsValidSchema19AndPreservesData(t *testing.T
 		t.Fatalf("preflight valid schema 19: %v", err)
 	}
 
-	runMigrations(t, database)
+	runMigrationsTo(t, database, 21)
 
 	if err := verifyTask50MigrationSnapshot(context.Background(), database, snapshot); err != nil {
 		t.Fatalf("verify migration conservation: %v", err)
@@ -483,7 +714,7 @@ func TestTask50PostMigrationVerificationRejectsForeignKeyDrift(t *testing.T) {
 	}
 }
 
-func TestInitRunsTask50PreflightBackupAndSchema19Upgrade(t *testing.T) {
+func TestInitRejectsDirectSchema19ToTask53Upgrade(t *testing.T) {
 	databasePath := filepath.Join(t.TempDir(), "ledger.db")
 	database, err := sql.Open("sqlite3", databasePath)
 	if err != nil {
@@ -496,15 +727,43 @@ func TestInitRunsTask50PreflightBackupAndSchema19Upgrade(t *testing.T) {
 		t.Fatalf("close schema 19 file: %v", err)
 	}
 
+	opened, err := Init(databasePath)
+	if opened != nil {
+		_ = opened.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), "task53 upgrade requires schema version 21") {
+		t.Fatalf("expected direct schema 19 task53 rejection, got %v", err)
+	}
+
+	unchanged, err := sql.Open("sqlite3", databasePath)
+	if err != nil {
+		t.Fatalf("reopen rejected schema 19 database: %v", err)
+	}
+	defer unchanged.Close()
+	assertMigrationVersion(t, unchanged, 19)
+}
+
+func TestInitRunsTask53PreflightBackupAndSchema21Upgrade(t *testing.T) {
+	databasePath := filepath.Join(t.TempDir(), "ledger.db")
+	database, err := sql.Open("sqlite3", databasePath)
+	if err != nil {
+		t.Fatalf("open schema 21 file: %v", err)
+	}
+	database.SetMaxOpenConns(1)
+	runMigrationsTo(t, database, 21)
+	seedTask50PreflightBase(t, database)
+	if err := database.Close(); err != nil {
+		t.Fatalf("close schema 21 file: %v", err)
+	}
+
 	upgraded, err := Init(databasePath)
 	if err != nil {
-		t.Fatalf("initialize schema 19 database: %v", err)
+		t.Fatalf("initialize schema 21 database: %v", err)
 	}
 	defer upgraded.Close()
-
-	assertMigrationVersion(t, upgraded, 21)
-	if _, err := os.Stat(databasePath + ".pre_migrate_v19.bak"); err != nil {
-		t.Fatalf("expected pre-migration backup: %v", err)
+	assertMigrationVersion(t, upgraded, 22)
+	if _, err := os.Stat(databasePath + ".pre_migrate_v21.bak"); err != nil {
+		t.Fatalf("expected schema 21 pre-migration backup: %v", err)
 	}
 }
 
@@ -538,10 +797,12 @@ func TestTask506AnonymousSchema19UpgradeRestoreAndForwardFixRehearsal(t *testing
 	}
 	backupChecksum := task506FileSHA256(t, backupPath)
 
-	upgraded, err := Init(databasePath)
+	upgraded, err := sql.Open("sqlite3", databasePath)
 	if err != nil {
-		t.Fatalf("upgrade anonymous schema 19 database: %v", err)
+		t.Fatalf("open anonymous schema 19 database for task50 rehearsal: %v", err)
 	}
+	upgraded.SetMaxOpenConns(1)
+	runMigrationsTo(t, upgraded, 21)
 	assertMigrationVersion(t, upgraded, 21)
 	if err := verifyTask50MigrationSnapshot(context.Background(), upgraded, before); err != nil {
 		t.Fatalf("verify anonymous upgrade conservation: %v", err)
@@ -549,9 +810,6 @@ func TestTask506AnonymousSchema19UpgradeRestoreAndForwardFixRehearsal(t *testing
 	assertTask506QuickCheck(t, upgraded)
 	if err := upgraded.Close(); err != nil {
 		t.Fatalf("close upgraded rehearsal database: %v", err)
-	}
-	if _, err := os.Stat(databasePath + ".pre_migrate_v19.bak"); err != nil {
-		t.Fatalf("automatic schema 19 backup missing: %v", err)
 	}
 
 	if err := os.Remove(databasePath); err != nil {
@@ -579,10 +837,12 @@ func TestTask506AnonymousSchema19UpgradeRestoreAndForwardFixRehearsal(t *testing
 		t.Fatalf("close restored schema 19 database: %v", err)
 	}
 
-	forwardFixed, err := Init(databasePath)
+	forwardFixed, err := sql.Open("sqlite3", databasePath)
 	if err != nil {
-		t.Fatalf("forward-fix restored database to schema 21: %v", err)
+		t.Fatalf("open restored database for schema 21 forward-fix: %v", err)
 	}
+	forwardFixed.SetMaxOpenConns(1)
+	runMigrationsTo(t, forwardFixed, 21)
 	defer forwardFixed.Close()
 	assertMigrationVersion(t, forwardFixed, 21)
 	assertTask506QuickCheck(t, forwardFixed)

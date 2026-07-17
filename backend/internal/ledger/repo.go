@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"ledger_two/internal/metadata/defaults"
 )
 
 type Repository struct {
@@ -19,7 +21,7 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 // CreateLedger 创建新账本并同时将会话用户设为 owner
-func (r *Repository) CreateLedger(ctx context.Context, name string, userID string) (*LedgerWithRole, error) {
+func (r *Repository) CreateLedger(ctx context.Context, name string, userID string, profileKey string) (*LedgerWithRole, error) {
 	ledgerID := uuid.NewString()
 	now := time.Now().UTC()
 
@@ -40,6 +42,9 @@ func (r *Repository) CreateLedger(ctx context.Context, name string, userID strin
 	_, err = tx.ExecContext(ctx, "INSERT INTO ledger_members (ledger_id, user_id, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
 		ledgerID, userID, "owner", now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
+		return nil, err
+	}
+	if _, err := defaults.ApplyFresh(ctx, tx, ledgerID, userID, profileKey, now); err != nil {
 		return nil, err
 	}
 

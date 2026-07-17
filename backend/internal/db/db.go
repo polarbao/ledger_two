@@ -40,6 +40,11 @@ func Init(dsn string) (*sql.DB, error) {
 		database.Close()
 		return nil, fmt.Errorf("database migration preflight failed: %w", err)
 	}
+	task53Snapshot, err := prepareTask53Upgrade(context.Background(), database, currentVersion)
+	if err != nil {
+		database.Close()
+		return nil, fmt.Errorf("database migration preflight failed: %w", err)
+	}
 
 	if currentVersion > 0 {
 		// 在执行可能有风险的 Migration 之前进行防破坏自动备份
@@ -69,6 +74,10 @@ func Init(dsn string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 	if err := verifyTask50MigrationSnapshot(context.Background(), database, task50Snapshot); err != nil {
+		database.Close()
+		return nil, fmt.Errorf("database migration conservation check failed: %w", err)
+	}
+	if err := verifyTask53MigrationSnapshot(context.Background(), database, task53Snapshot); err != nil {
 		database.Close()
 		return nil, fmt.Errorf("database migration conservation check failed: %w", err)
 	}

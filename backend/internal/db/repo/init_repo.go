@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"ledger_two/internal/metadata/defaults"
 )
 
 type InitRepo struct {
@@ -45,7 +47,8 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 	// 利用 defer 兜底，只有 Commit 后 err 为 nil 才会跳过
 	defer tx.Rollback()
 
-	now := time.Now().Format(time.RFC3339)
+	nowTime := time.Now().UTC()
+	now := nowTime.Format(time.RFC3339)
 
 	// 1. 创建全局唯一固定账本
 	ledgerID := uuid.NewString()
@@ -58,8 +61,12 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 	}
 
 	// 2. 依次生成两个受控用户，以及各自对应的默认账户
+	var ownerUserID string
 	for i, u := range users {
 		userID := uuid.NewString()
+		if i == 0 {
+			ownerUserID = userID
+		}
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO users (id, username, display_name, password_hash, role, created_at, updated_at)
 			VALUES (?, ?, ?, ?, 'user', ?, ?)
@@ -99,30 +106,12 @@ func (r *InitRepo) ExecuteSetupTx(ctx context.Context, ledgerName, currency stri
 		}
 	}
 
-	// 3. 构建默认系统分类
-	defaultCategories := []string{"餐饮美食", "交通出行", "购物娱乐", "生活缴费", "共同居住"}
-	for i, cname := range defaultCategories {
-		catID := uuid.NewString()
-		_, err = tx.ExecContext(ctx, `
-			INSERT INTO categories (id, ledger_id, name, type, sort_order, is_system, created_at, updated_at)
-			VALUES (?, ?, ?, 'expense', ?, 1, ?, ?)
-		`, catID, ledgerID, cname, i, now, now)
-		if err != nil {
-			return err
-		}
-	}
-
-	// 4. 生成默认的默认通用标签（由于文档提及）
-	tagID := uuid.NewString()
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO tags (id, ledger_id, name, created_at, updated_at)
-		VALUES (?, ?, '系统默认', ?, ?)
-	`, tagID, ledgerID, now, now)
-	if err != nil {
+	// 3. 在同一事务内创建版本化默认分类和标签。
+	if _, err = defaults.ApplyFresh(ctx, tx, ledgerID, ownerUserID, defaults.ProfileBasicCNV1, nowTime); err != nil {
 		return err
 	}
 
-	// 5. 最终锁定系统门阀
+	// 4. 最终锁定系统门阀
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO app_settings (key, value, updated_at)
 		VALUES ('initialized', 'true', ?)

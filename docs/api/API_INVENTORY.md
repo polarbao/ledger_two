@@ -1,12 +1,12 @@
 ﻿# API Inventory
 
-状态：Task50.6 正式 OpenAPI、router 与导出契约复核完成
+状态：Task50.6 正式契约已冻结；Task53.1 默认元数据接口已落地
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
 更新时间：2026-07-17
 
-> Task53 分类标签智能化目前只有 `openapi-v1.3-category-tag-draft.yaml` 开发前草案，尚未实现。草案路径不得加入下方当前实现清单，也不得据此声称 router、migration 022 或客户端 DTO 已存在。
+> Task53.1 已实现 schema 22、默认 profile 查询/预览/应用和初始化/新账本默认元数据。`openapi-v1.3-category-tag-draft.yaml` 中导入归类、批量调整、学习和重分类路径仍是后续 Task53.2-Task53.4 草案，不得描述为已上线。
 
 ## 1. 总体约定
 
@@ -56,7 +56,7 @@
 |---|---|---:|---|---|---|---|
 | GET | `/api/healthz` | no | none | internal | inline | 健康检查，返回服务、数据库、应用版本、schema version、deployment channel 和 XLSX 运行开关。 |
 | GET | `/api/init/status` | no | none | stable | `init.HandleStatus` | 初始化状态。 |
-| POST | `/api/init/setup` | no | none | stable | `init.HandleSetup` | 初始化系统、用户和初始账本。 |
+| POST | `/api/init/setup` | no | none | stable | `init.HandleSetup` | 原子初始化系统、用户、初始账本、账户与 `basic_cn_v1` 分类/标签。 |
 
 ## 3. Auth
 
@@ -70,7 +70,7 @@
 
 | Method | Path | Auth | Ledger | Stability | Handler | 说明 |
 |---|---|---:|---|---|---|---|
-| POST | `/api/ledgers/` | yes | none | stable | `ledger.CreateLedger` | 创建 active/version 1 账本，创建者为唯一 Owner；返回 201 与 ETag。 |
+| POST | `/api/ledgers/` | yes | none | stable | `ledger.CreateLedger` | 原子创建 active/version 1 账本、唯一 Owner、审计与 `metadata_profile`；省略 profile 默认 `basic_cn_v1`，可选 `empty`。返回 201 与 ETag。 |
 | GET | `/api/ledgers/` | yes | none | stable | `ledger.ListUserLedgers` | 按 `status=active/archived/all` 列表；默认 active。 |
 | GET | `/api/ledgers/{id}` | yes | path | stable | `ledger.GetLedger` | 成员读取 active/archived 详情；返回 ETag。 |
 | PATCH | `/api/ledgers/{id}` | yes | path | stable | `ledger.RenameLedger` | active Owner + If-Match 重命名。 |
@@ -91,12 +91,15 @@
 |---|---|---:|---|---|---|---|
 | GET | `/api/categories` | yes | required | transitional | `transaction.HandleListCategories` | 列出当前账本分类；默认仅未归档，`include_archived=true` 用于历史账单展示归档分类名称。 |
 | GET | `/api/accounts` | yes | required | transitional | `transaction.HandleListAccounts` | 列出当前账本支付账户。 |
-| GET | `/api/metadata/{kind}/` | yes | required | transitional | `metadata.List` | 元数据列表，kind 为 categories/tags/accounts，支持 include_archived，返回 `sort_order` 与 `usage_count`。 |
+| GET | `/api/metadata/{kind}/` | yes | required | transitional | `metadata.List` | 元数据列表，kind 为 categories/tags/accounts，支持 include_archived，返回 `sort_order`、`usage_count`；分类/标签可返回 `system_key`。 |
 | POST | `/api/metadata/{kind}/` | yes | required | transitional | `metadata.Create` | 创建分类、标签或账户，仅 owner。 |
 | POST | `/api/metadata/{kind}/reorder` | yes | required | transitional | `metadata.Reorder` | 调整分类、标签或账户排序，仅 owner。 |
 | PATCH | `/api/metadata/{kind}/{id}` | yes | required | transitional | `metadata.Update` | 更新分类、标签或账户，仅 owner。 |
 | POST | `/api/metadata/{kind}/{id}/archive` | yes | required | transitional | `metadata.Archive` | 归档分类、标签或账户，仅 owner。 |
 | POST | `/api/metadata/{kind}/{id}/restore` | yes | required | transitional | `metadata.Restore` | 恢复归档分类、标签或账户，仅 owner。 |
+| GET | `/api/metadata/default-profile` | yes | required | transitional | `metadata.GetDefaultProfile` | 读取 `basic_cn_v1` 或 `empty` 定义及当前账本解析结果；只读。 |
+| POST | `/api/metadata/default-profile/preview` | yes | required | transitional | `metadata.PreviewDefaultProfile` | 预览创建、已存在和同名冲突，不写元数据或绑定 `system_key`。 |
+| POST | `/api/metadata/default-profile/apply` | yes | required | transitional | `metadata.ApplyDefaultProfile` | active Owner 显式解决冲突后原子应用；幂等更新 profile version 并写审计。 |
 
 说明：旧 `/api/categories`、`/api/accounts` 是选择器兼容接口；新增 `/api/metadata/{kind}` 是 Task35 管理基础接口。
 

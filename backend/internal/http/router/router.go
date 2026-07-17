@@ -178,6 +178,11 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				r.Get("/categories", transactionHandler.HandleListCategories)
 				r.Get("/accounts", transactionHandler.HandleListAccounts)
 				r.Get("/transaction-defaults", transactionHandler.HandleGetTransactionDefault)
+				r.Route("/metadata/default-profile", func(r chi.Router) {
+					r.Get("/", metadataHandler.GetDefaultProfile)
+					r.Post("/preview", metadataHandler.PreviewDefaultProfile)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMetadata)).Post("/apply", metadataHandler.ApplyDefaultProfile)
+				})
 				r.Route("/metadata/{kind}", func(r chi.Router) {
 					r.Get("/", metadataHandler.List)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageMetadata)).Post("/", metadataHandler.Create)

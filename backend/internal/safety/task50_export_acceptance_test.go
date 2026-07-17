@@ -40,7 +40,7 @@ func TestTask506LedgerJSONExportIsCompleteVisibleAndIsolated(t *testing.T) {
 	if manifest["format"] != "ledger_two_ledger_export" ||
 		manifest["purpose"] != "portable_read_only_snapshot" ||
 		manifest["restorable"] != false ||
-		manifest["schema_version"] != float64(21) {
+		manifest["schema_version"] != float64(22) {
 		t.Fatalf("unexpected export manifest: %+v", manifest)
 	}
 	ledger := requireExportObject(t, manifest, "ledger")

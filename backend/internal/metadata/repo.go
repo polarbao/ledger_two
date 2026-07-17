@@ -16,11 +16,15 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
+func (r *Repository) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return r.db.BeginTx(ctx, nil)
+}
+
 func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, includeArchived bool) ([]Item, error) {
 	switch kind {
 	case KindCategory:
 		query := `
-			SELECT id, ledger_id, name, type, COALESCE(icon, ''), COALESCE(color, ''), sort_order,
+			SELECT id, ledger_id, COALESCE(system_key, ''), name, type, COALESCE(icon, ''), COALESCE(color, ''), sort_order,
 				(SELECT COUNT(1) FROM transactions tx WHERE tx.ledger_id = categories.ledger_id AND tx.category_id = categories.id AND tx.status <> 'deleted') AS usage_count,
 				is_archived
 			FROM categories
@@ -32,7 +36,7 @@ func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, inclu
 		return r.list(ctx, query, ledgerID)
 	case KindTag:
 		query := `
-			SELECT id, ledger_id, name, '', '', COALESCE(color, ''), sort_order,
+			SELECT id, ledger_id, COALESCE(system_key, ''), name, '', '', COALESCE(color, ''), sort_order,
 				(SELECT COUNT(1) FROM transaction_tags tt JOIN transactions tx ON tx.id = tt.transaction_id WHERE tx.ledger_id = tags.ledger_id AND tt.tag_id = tags.id AND tx.status <> 'deleted') AS usage_count,
 				is_archived
 			FROM tags
@@ -44,7 +48,7 @@ func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, inclu
 		return r.list(ctx, query, ledgerID)
 	case KindAccount:
 		query := `
-			SELECT id, ledger_id, name, type, '', '', sort_order,
+			SELECT id, ledger_id, '', name, type, '', '', sort_order,
 				(SELECT COUNT(1) FROM transactions tx WHERE tx.ledger_id = accounts.ledger_id AND tx.account_id = accounts.id AND tx.status <> 'deleted') AS usage_count,
 				is_archived
 			FROM accounts
@@ -70,7 +74,7 @@ func (r *Repository) list(ctx context.Context, query string, ledgerID string) ([
 	for rows.Next() {
 		var item Item
 		var isArchived int
-		if err := rows.Scan(&item.ID, &item.LedgerID, &item.Name, &item.Type, &item.Icon, &item.Color, &item.SortOrder, &item.UsageCount, &isArchived); err != nil {
+		if err := rows.Scan(&item.ID, &item.LedgerID, &item.SystemKey, &item.Name, &item.Type, &item.Icon, &item.Color, &item.SortOrder, &item.UsageCount, &isArchived); err != nil {
 			return nil, err
 		}
 		item.IsArchived = isArchived == 1
@@ -240,6 +244,83 @@ func (r *Repository) nextSortOrder(ctx context.Context, kind Kind, ledgerID stri
 	return next, err
 }
 
+type profileStateItem struct {
+	ID         string
+	SystemKey  string
+	Name       string
+	Kind       string
+	IsArchived bool
+}
+
+func (r *Repository) profileVersionWithTx(ctx context.Context, tx *sql.Tx, ledgerID string) (int, error) {
+	var version int
+	err := tx.QueryRowContext(ctx, `
+		SELECT metadata_profile_version
+		FROM ledgers
+		WHERE id = ?
+	`, ledgerID).Scan(&version)
+	return version, err
+}
+
+func (r *Repository) listProfileStateWithTx(ctx context.Context, tx *sql.Tx, ledgerID string) ([]profileStateItem, error) {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT id,
+		       COALESCE(system_key, ''),
+		       name,
+		       CASE type WHEN 'expense' THEN 'expense_category' ELSE 'income_category' END,
+		       is_archived
+		FROM categories
+		WHERE ledger_id = ?
+		UNION ALL
+		SELECT id, COALESCE(system_key, ''), name, 'tag', is_archived
+		FROM tags
+		WHERE ledger_id = ?
+	`, ledgerID, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []profileStateItem
+	for rows.Next() {
+		var item profileStateItem
+		var archived int
+		if err := rows.Scan(&item.ID, &item.SystemKey, &item.Name, &item.Kind, &archived); err != nil {
+			return nil, err
+		}
+		item.IsArchived = archived == 1
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (r *Repository) updateProfileVersionWithTx(ctx context.Context, tx *sql.Tx, ledgerID string, version int, now time.Time) error {
+	return execRequireRows(tx.ExecContext(ctx, `
+		UPDATE ledgers
+		SET metadata_profile_version = ?, updated_at = ?
+		WHERE id = ?
+	`, version, now.UTC().Format(time.RFC3339Nano), ledgerID))
+}
+
+func (r *Repository) createProfileAuditWithTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	ledgerID string,
+	actorUserID string,
+	profileKey string,
+	beforeJSON []byte,
+	afterJSON []byte,
+	now time.Time,
+) error {
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO audit_logs (
+			id, ledger_id, actor_user_id, actor_role, action,
+			entity_type, entity_id, before_json, after_json, created_at
+		) VALUES (?, ?, ?, 'owner', 'metadata_profile_apply', 'metadata_profile', ?, ?, ?, ?)
+	`, uuid.NewString(), ledgerID, actorUserID, profileKey, nullBytes(beforeJSON), nullBytes(afterJSON), now.UTC().Format(time.RFC3339Nano))
+	return err
+}
+
 func tableName(kind Kind) (string, error) {
 	switch kind {
 	case KindCategory:
@@ -272,4 +353,11 @@ func nullString(value string) sql.NullString {
 		return sql.NullString{}
 	}
 	return sql.NullString{String: value, Valid: true}
+}
+
+func nullBytes(value []byte) any {
+	if len(value) == 0 {
+		return nil
+	}
+	return string(value)
 }

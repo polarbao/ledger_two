@@ -61,6 +61,110 @@ func TestTask503ACreateLedgerValidatesUnicodeNameAndHasNoArbitraryCountCap(t *te
 	}
 }
 
+func TestTask531CreateLedgerAppliesDefaultOrExplicitEmptyMetadataAtomically(t *testing.T) {
+	database := openLedgerRepositoryTestDB(t)
+	seedLedgerRepositoryFixtures(t, database)
+	service := NewService(NewRepository(database))
+
+	created, err := service.CreateLedger(context.Background(), "user-a", CreateLedgerReq{Name: "默认基础包"})
+	if err != nil {
+		t.Fatalf("create ledger with default metadata: %v", err)
+	}
+	assertLedgerMetadataCounts(t, database, created.ID, 19, 8, 1)
+
+	empty, err := service.CreateLedger(context.Background(), "user-a", CreateLedgerReq{Name: "空基础包", MetadataProfile: "empty"})
+	if err != nil {
+		t.Fatalf("create ledger with empty metadata: %v", err)
+	}
+	assertLedgerMetadataCounts(t, database, empty.ID, 0, 0, 0)
+
+	_, err = service.CreateLedger(context.Background(), "user-a", CreateLedgerReq{Name: "无效基础包", MetadataProfile: "unknown"})
+	assertLedgerAppError(t, err, http.StatusBadRequest, appErrors.ErrCodeValidationError)
+}
+
+func TestTask531CreateLedgerRollsBackLedgerOwnerMetadataAndAuditOnProfileFailure(t *testing.T) {
+	database := openLedgerRepositoryTestDB(t)
+	seedLedgerRepositoryFixtures(t, database)
+	service := NewService(NewRepository(database))
+
+	if _, err := database.Exec(`
+		CREATE TRIGGER task53_fail_new_ledger_profile
+		BEFORE INSERT ON categories
+		FOR EACH ROW WHEN NEW.system_key = 'expense_health'
+		BEGIN
+			SELECT RAISE(ABORT, 'injected new ledger profile failure');
+		END;
+	`); err != nil {
+		t.Fatalf("create new ledger failure trigger: %v", err)
+	}
+
+	var ledgerCountBefore, memberCountBefore, auditCountBefore int
+	if err := database.QueryRow("SELECT COUNT(*) FROM ledgers").Scan(&ledgerCountBefore); err != nil {
+		t.Fatalf("count ledgers before failure: %v", err)
+	}
+	if err := database.QueryRow("SELECT COUNT(*) FROM ledger_members").Scan(&memberCountBefore); err != nil {
+		t.Fatalf("count members before failure: %v", err)
+	}
+	if err := database.QueryRow("SELECT COUNT(*) FROM audit_logs").Scan(&auditCountBefore); err != nil {
+		t.Fatalf("count audits before failure: %v", err)
+	}
+
+	if _, err := service.CreateLedger(context.Background(), "user-a", CreateLedgerReq{Name: "应整体回滚"}); err == nil {
+		t.Fatal("expected injected new ledger profile failure")
+	}
+
+	var ledgerCountAfter, memberCountAfter, metadataCountAfter, auditCountAfter int
+	if err := database.QueryRow("SELECT COUNT(*) FROM ledgers").Scan(&ledgerCountAfter); err != nil {
+		t.Fatalf("count ledgers after failure: %v", err)
+	}
+	if err := database.QueryRow("SELECT COUNT(*) FROM ledger_members").Scan(&memberCountAfter); err != nil {
+		t.Fatalf("count members after failure: %v", err)
+	}
+	if err := database.QueryRow("SELECT COUNT(*) FROM categories WHERE system_key IS NOT NULL").Scan(&metadataCountAfter); err != nil {
+		t.Fatalf("count metadata after failure: %v", err)
+	}
+	if err := database.QueryRow("SELECT COUNT(*) FROM audit_logs").Scan(&auditCountAfter); err != nil {
+		t.Fatalf("count audits after failure: %v", err)
+	}
+	if ledgerCountAfter != ledgerCountBefore || memberCountAfter != memberCountBefore || metadataCountAfter != 0 || auditCountAfter != auditCountBefore {
+		t.Fatalf(
+			"new ledger failure left partial state: ledgers %d->%d members %d->%d metadata=%d audits %d->%d",
+			ledgerCountBefore,
+			ledgerCountAfter,
+			memberCountBefore,
+			memberCountAfter,
+			metadataCountAfter,
+			auditCountBefore,
+			auditCountAfter,
+		)
+	}
+}
+
+func assertLedgerMetadataCounts(t *testing.T, database *sql.DB, ledgerID string, wantCategories, wantTags, wantVersion int) {
+	t.Helper()
+	var categoryCount, tagCount, profileVersion int
+	if err := database.QueryRow("SELECT COUNT(*) FROM categories WHERE ledger_id = ?", ledgerID).Scan(&categoryCount); err != nil {
+		t.Fatalf("count ledger categories: %v", err)
+	}
+	if err := database.QueryRow("SELECT COUNT(*) FROM tags WHERE ledger_id = ?", ledgerID).Scan(&tagCount); err != nil {
+		t.Fatalf("count ledger tags: %v", err)
+	}
+	if err := database.QueryRow("SELECT metadata_profile_version FROM ledgers WHERE id = ?", ledgerID).Scan(&profileVersion); err != nil {
+		t.Fatalf("read ledger profile version: %v", err)
+	}
+	if categoryCount != wantCategories || tagCount != wantTags || profileVersion != wantVersion {
+		t.Fatalf(
+			"unexpected ledger metadata counts: categories=%d/%d tags=%d/%d version=%d/%d",
+			categoryCount,
+			wantCategories,
+			tagCount,
+			wantTags,
+			profileVersion,
+			wantVersion,
+		)
+	}
+}
+
 func TestTask503AListDetailAndRenameUseFrozenStatusAndVersionContract(t *testing.T) {
 	database := openLedgerRepositoryTestDB(t)
 	seedLedgerRepositoryFixtures(t, database)

@@ -34,7 +34,7 @@ func prepareTask50Upgrade(ctx context.Context, database *sql.DB, currentVersion 
 			return nil, fmt.Errorf("task50 upgrade rejected unversioned non-empty database")
 		}
 		return nil, nil
-	case task50TargetSchemaVersion:
+	case task50TargetSchemaVersion, task53TargetSchemaVersion:
 		return nil, nil
 	case task50UpgradeSourceVersion:
 	default:

@@ -142,4 +142,53 @@ func TestInitFlow(t *testing.T) {
 	if adminCount != 1 {
 		t.Errorf("Test 6 failed: expected exactly one instance administrator, got %d", adminCount)
 	}
+
+	var categoryCount, tagCount, profileVersion int
+	if err := db.QueryRow("SELECT COUNT(*) FROM categories").Scan(&categoryCount); err != nil {
+		t.Fatalf("Test 7 failed: count default categories %v", err)
+	}
+	if err := db.QueryRow("SELECT COUNT(*) FROM tags").Scan(&tagCount); err != nil {
+		t.Fatalf("Test 7 failed: count default tags %v", err)
+	}
+	if err := db.QueryRow("SELECT metadata_profile_version FROM ledgers LIMIT 1").Scan(&profileVersion); err != nil {
+		t.Fatalf("Test 7 failed: read metadata profile version %v", err)
+	}
+	if categoryCount != 19 || tagCount != 8 || profileVersion != 1 {
+		t.Errorf("Test 7 failed: categories=%d tags=%d profile_version=%d", categoryCount, tagCount, profileVersion)
+	}
+}
+
+func TestTask531InitSetupRollsBackAllStateWhenDefaultProfileFails(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TRIGGER task53_fail_init_profile
+		BEFORE INSERT ON categories
+		FOR EACH ROW WHEN NEW.system_key = 'expense_health'
+		BEGIN
+			SELECT RAISE(ABORT, 'injected init profile failure');
+		END;
+	`); err != nil {
+		t.Fatalf("create init failure trigger: %v", err)
+	}
+
+	initRepo := repo.NewInitRepo(db)
+	err := initRepo.ExecuteSetupTx(t.Context(), "Rollback Ledger", "CNY", []repo.UserPayload{
+		{Username: "owner", DisplayName: "Owner", PasswordHash: "hash-owner"},
+		{Username: "partner", DisplayName: "Partner", PasswordHash: "hash-partner"},
+	})
+	if err == nil {
+		t.Fatal("expected injected init profile failure")
+	}
+
+	for _, table := range []string{"users", "ledgers", "ledger_members", "accounts", "categories", "tags", "instance_admins", "app_settings"} {
+		var count int
+		if err := db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil {
+			t.Fatalf("count rolled back table %s: %v", table, err)
+		}
+		if count != 0 {
+			t.Fatalf("init failure left %d rows in %s", count, table)
+		}
+	}
 }

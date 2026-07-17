@@ -1,9 +1,9 @@
 # Task53 分类、标签与导入智能归类专项准备计划
 
-状态：Task53P.1-P.6 准备包已完成；Task50 已关闭，Task53.1 已具备下一任务准入<br>
+状态：Task53P.1-P.6 准备包已关闭；Task53.1 已完成，下一任务为 Task53.2<br>
 创建日期：2026-07-16<br>
-当前准入：推荐下一任务从 Task53.1 进入 TDD；尚未修改 Task53 代码、创建 migration 022、升级数据库或部署<br>
-禁止：不得修改代码、创建 migration 022、升级数据库或部署 WSL/NAS
+当前准入：Task53.1 已按 TDD 落地 schema 22 与默认元数据；Task53.2 纯分类器准备完整<br>
+环境边界：只在临时测试数据库执行 migration 022；不得升级现有 WSL/NAS 数据库
 
 ## 1. Goal
 
@@ -16,11 +16,12 @@
 ```text
 Task53P 准备完成
 -> Task50.5-Task50.6 已关闭
--> Task53.1 作为下一推荐实现任务
+-> Task53.1 数据与默认元数据已完成
+-> Task53.2 纯分类器与规则兼容
 -> Task51P.1 继续非约束性证据收集
 ```
 
-说明：Task53 编号晚于 Task51/Task52，但准备工作已提前完成。Task50 已关闭，Task53.1 可在明确开工指令后进入 TDD；Task51 仍只是非约束性证据准备，Task52 仍延后。
+说明：Task53 编号晚于 Task51/Task52，但准备工作已提前完成。Task53.1 已关闭；后续继续按 53.2 -> 53.3 -> 53.4 -> 53U -> 53.5 串行推进。Task51 仍只是非约束性证据准备，Task52 仍延后。
 
 ## 3. Preparation gates
 
@@ -154,12 +155,12 @@ IMAGE_TAG=task53-dev-<commit>
 2. OpenAPI YAML 可解析且 `$ref` 无悬空项。
 3. 默认 profile system_key 唯一、支出/收入兜底各一项。
 4. PRD 与 Tech 对 apply/suggest/fallback/learn 定义一致。
-5. Task50 已关闭、Task53.1 已具备准入、Task51/Task52 门禁保持一致。
+5. Task50 与 Task53.1 已关闭、Task53.2 已具备准入、Task51/Task52 门禁保持一致。
 6. `git diff --check`、真实数据/数据库/密钥审计。
 
 ## 8. Rollback
 
-准备文档可在用户评审后修订或标记 defer，不影响代码和 schema。Task53 代码尚未开始，因此当前回滚只需回退文档提交；不得为“验证设计”连接或修改真实数据库。
+准备文档可在用户评审后修订或标记 defer。Task53.1 已创建只增量的 schema 22；回滚遵循 migration review 的备份恢复和应用前滚策略，不对真实数据库执行 down。
 
 ## 9. Next review
 
@@ -171,4 +172,4 @@ IMAGE_TAG=task53-dev-<commit>
 4. 标签上限 8 个是否接受。
 5. Task53 完成后是否继续 Task51P.1 证据评审，仍由届时证据决定。
 
-详细原子开发计划已经形成，下一任务为 Task53.1；不得跳过 failing tests、migration review 或独立环境边界。
+详细原子开发计划已经形成，下一任务为 Task53.2；不得跳过 classifier failing tests、匿名 Fixture 误命中评审或独立环境边界。

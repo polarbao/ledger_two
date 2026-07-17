@@ -63,7 +63,7 @@ paths:
     post:
       tags: [ledgers]
       summary: Create an active ledger
-      description: 创建者成为唯一 Owner；创建同名账本合法。客户端失败后不得盲目自动重试。
+      description: 创建者成为唯一 Owner；创建同名账本合法。账本、Owner、默认元数据 profile 与审计在同一事务创建；客户端失败后不得盲目自动重试。
       security:
         - cookieAuth: []
       requestBody:
@@ -787,6 +787,11 @@ components:
           type: string
           minLength: 1
           maxLength: 60
+        metadata_profile:
+          type: string
+          enum: [basic_cn_v1, empty]
+          default: basic_cn_v1
+          description: 省略时应用完整基础分类与标签；empty 创建空元数据账本。
 
     LedgerRenameRequest:
       type: object

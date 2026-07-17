@@ -15,12 +15,12 @@
 
 ```text
 Task53P 准备完成
--> Task50.5-Task50.6
--> 重新排序 Task53 implementation 与正式 Task51P
--> 获批任务进入实现与验收
+-> Task50.5-Task50.6 已关闭
+-> Task53.1 作为下一推荐实现任务
+-> Task51P.1 继续非约束性证据收集
 ```
 
-说明：Task53 编号晚于 Task51/Task52，但准备工作已提前完成。当前执行优先级回到 Task50；Task51 仍只是非约束性证据准备，Task52 仍延后。
+说明：Task53 编号晚于 Task51/Task52，但准备工作已提前完成。Task50 已关闭，Task53.1 可在明确开工指令后进入 TDD；Task51 仍只是非约束性证据准备，Task52 仍延后。
 
 ## 3. Preparation gates
 
@@ -119,14 +119,14 @@ Task53P 准备完成
 
 ## 5. File ownership risks
 
-Task53 未来实现与当前 Task50 可能冲突：
+Task53 实现与已冻结 Task50 边界的协调点：
 
 | File/module | Task53 need | Coordination |
 |---|---|---|
-| `backend/internal/ledger/repo.go` | 新账本默认 profile | Task53 独占；Task50 恢复前 rebase/review |
+| `backend/internal/ledger/repo.go` | 新账本默认 profile | Task53.1 独占；不得改写 Task50 账本/成员不变量 |
 | `backend/internal/http/router/router.go` | 新 API | Task50 已关闭；Task53.1 开始时按详细计划登记文件所有权 |
 | `docs/api/openapi-v1.3-ledger-draft.yaml` | LedgerCreate metadata extension | 先保持独立 Task53 draft，最终评审再合并 |
-| `frontend` ledger create UI | profile selector | Task50.4/50.5 先完成，Task53U 后续适配最终契约 |
+| `frontend` ledger create UI | profile selector | Task50.4/50.5 已完成；Task53U 适配现有最终契约 |
 | `frontend/src/pages/ImportPage.tsx` | 分类状态与批量操作 | Task53 所有权 |
 | `backend/internal/importer/*` | classifier 集成 | Task53 所有权 |
 
@@ -143,10 +143,10 @@ IMAGE_TAG=task53-dev-<commit>
 
 规则：
 
-1. 不复用 v1.2 production、NAS staging 或当前 WSL schema 19 数据库。
+1. 不复用 v1.2 production、NAS staging 或当前 38091 Task50 schema 21 staging 数据库。
 2. 不把真实微信/支付宝账单复制为 Fixture。
 3. schema 22 只从匿名 schema 21 副本和独立 development DB 演进。
-4. Task53 大版本验收后再评审是否同步 WSL；NAS 仍需单独维护窗口。
+4. Task53.5 只部署到新的独立 WSL staging 做验收，不覆盖当前 Task50 staging；NAS 仍需单独维护窗口。
 
 ## 7. Validation for preparation
 
@@ -154,7 +154,7 @@ IMAGE_TAG=task53-dev-<commit>
 2. OpenAPI YAML 可解析且 `$ref` 无悬空项。
 3. 默认 profile system_key 唯一、支出/收入兜底各一项。
 4. PRD 与 Tech 对 apply/suggest/fallback/learn 定义一致。
-5. Task50 已恢复、Task53 实现暂缓、Task51/Task52 门禁一致。
+5. Task50 已关闭、Task53.1 已具备准入、Task51/Task52 门禁保持一致。
 6. `git diff --check`、真实数据/数据库/密钥审计。
 
 ## 8. Rollback
@@ -169,6 +169,6 @@ IMAGE_TAG=task53-dev-<commit>
 2. 用户规则历史默认保持“仅建议”是否接受。
 3. 兜底分类是否必须存在且不可无替代归档。
 4. 标签上限 8 个是否接受。
-5. Task53 完成后再恢复 Task50 的执行顺序是否确认。
+5. Task53 完成后是否继续 Task51P.1 证据评审，仍由届时证据决定。
 
 详细原子开发计划已经形成，下一任务为 Task53.1；不得跳过 failing tests、migration review 或独立环境边界。

@@ -5,18 +5,21 @@ info:
   description: |
     Task53P 开发前草案，只描述分类、标签、默认元数据和导入分级自动化新增契约。
     本文件不是当前 router 已实现清单；现状仍以 API_INVENTORY.md 为准。
-    Task53 准备已完成但实现暂缓；当前恢复 Task50，migration 022、接口和 DTO 尚未实现。
+    Task50 已关闭，Task53.1 已具备准入；migration 022、接口和 DTO 尚未实现。
 servers:
   - url: /api
 tags:
   - name: metadata-defaults
+    description: Built-in category/tag profile preview and atomic application.
   - name: import-classification
+    description: Explicit bulk adjustment, learning and reclassification for import previews.
 
 paths:
   /metadata/default-profile:
     get:
       tags: [metadata-defaults]
       summary: Get the built-in metadata profile definition
+      operationId: getMetadataDefaultProfile
       security:
         - cookieAuth: []
       parameters:
@@ -43,6 +46,7 @@ paths:
     post:
       tags: [metadata-defaults]
       summary: Preview applying a metadata profile to the current ledger
+      operationId: previewMetadataDefaultProfile
       description: Read-only. It must not create, rename, archive, or bind system keys.
       security:
         - cookieAuth: []
@@ -72,6 +76,7 @@ paths:
     post:
       tags: [metadata-defaults]
       summary: Apply a metadata profile atomically
+      operationId: applyMetadataDefaultProfile
       description: Owner-only. Conflicts must be resolved explicitly before the transaction starts.
       security:
         - cookieAuth: []
@@ -103,6 +108,7 @@ paths:
     post:
       tags: [import-classification]
       summary: Apply an explicit classification adjustment to selected preview rows
+      operationId: bulkAdjustImportClassifications
       security:
         - cookieAuth: []
       parameters:
@@ -136,6 +142,7 @@ paths:
     post:
       tags: [import-classification]
       summary: Create or update an explicit learned merchant rule
+      operationId: learnImportMerchantRule
       description: The preview row adjustment is saved separately; learning failure must not roll it back.
       security:
         - cookieAuth: []
@@ -171,6 +178,7 @@ paths:
     post:
       tags: [import-classification]
       summary: Re-run current rules for eligible rows in a ready batch
+      operationId: reclassifyImportBatch
       description: Manual and bulk-adjusted rows are never overwritten.
       security:
         - cookieAuth: []
@@ -283,6 +291,8 @@ components:
             message:
               type: string
             details:
+              type: object
+              additionalProperties: true
               nullable: true
 
     MetadataProfileItem:

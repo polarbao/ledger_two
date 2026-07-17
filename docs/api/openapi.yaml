@@ -1205,7 +1205,10 @@ paths:
       description: |
         Owner/Editor only. Contains current-ledger data visible to the actor,
         including historical referenced users, metadata, transactions, splits,
-        attachment references, templates, recurring data, imports and audit.
+        attachment references, templates, recurring data, permitted imports and audit.
+        Owner import rows remain subject to transaction visibility. Editor receives
+        empty import_batches/import_items/import_rules arrays, while visible
+        transaction_import_refs remain available for provenance.
         This package is not a physical SQLite backup and cannot be restored directly.
       security:
         - cookieAuth: []
@@ -1633,15 +1636,25 @@ components:
         recurring_reminders:
           $ref: "#/components/schemas/LedgerExportRecords"
         import_batches:
-          $ref: "#/components/schemas/LedgerExportRecords"
+          description: Owner-only visible import batches; always an empty array for Editor.
+          allOf:
+            - $ref: "#/components/schemas/LedgerExportRecords"
         import_items:
-          $ref: "#/components/schemas/LedgerExportRecords"
+          description: Owner-only uncommitted own rows or rows linked to actor-visible transactions; always empty for Editor.
+          allOf:
+            - $ref: "#/components/schemas/LedgerExportRecords"
         transaction_import_refs:
-          $ref: "#/components/schemas/LedgerExportRecords"
+          description: Import provenance references restricted to actor-visible transactions for Owner and Editor.
+          allOf:
+            - $ref: "#/components/schemas/LedgerExportRecords"
         import_rules:
-          $ref: "#/components/schemas/LedgerExportRecords"
+          description: Owner-only ledger import rules; always an empty array for Editor.
+          allOf:
+            - $ref: "#/components/schemas/LedgerExportRecords"
         audit_logs:
-          $ref: "#/components/schemas/LedgerExportRecords"
+          description: Actor-visible audit rows; import audit rows require import-management permission and visible import scope.
+          allOf:
+            - $ref: "#/components/schemas/LedgerExportRecords"
     LedgerExportManifest:
       type: object
       required: [format, format_version, purpose, restorable, exported_at, schema_version, ledger, actor]

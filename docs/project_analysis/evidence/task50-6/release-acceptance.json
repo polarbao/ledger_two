@@ -1,17 +1,20 @@
 {
   "task": "Task50.6",
-  "accepted_at": "2026-07-17T11:49:22+08:00",
+  "accepted_at": "2026-07-17T12:13:11+08:00",
   "result": "pass",
   "source": {
-    "candidate_commit": "7984013",
-    "image": "ledger-two:1.3.0-rc-task50.6-7984013",
-    "image_id": "sha256:e837af12bc7e631a7f6e666621849316afc057af14a79dfa8541495fe55740f5",
-    "labels": {
-      "org.opencontainers.image.revision": "7984013",
+    "candidate_commit": "d31b27074705cfb2ef594f4d73d523c774c413d8",
+    "image": "ledger-two:1.3.0-rc-task50.6-d31b270",
+    "image_id": "sha256:42d27701d470ebc0b1c4e65d9d2f81099711f613c2df5b1a7ff9089177054631",
+    "image_labels": {
+      "org.opencontainers.image.revision": "d31b27074705cfb2ef594f4d73d523c774c413d8",
       "org.opencontainers.image.version": "1.3.0-rc",
+      "org.opencontainers.image.source": "ledger-two"
+    },
+    "container_labels": {
       "com.ledgertwo.schema": "21"
     },
-    "docker_build_context_bytes": 26160000
+    "docker_build_context_bytes": 26190000
   },
   "runtime": {
     "url": "http://127.0.0.1:38091",
@@ -54,7 +57,7 @@
     "old_image_schema_21_guard": "pass"
   },
   "browser": {
-    "evidence_root": ".runtime/v13-task50-6-staging/evidence/browser-20260717T034831",
+    "evidence_root": ".runtime/v13-task50-6-staging/evidence/browser-20260717T041139",
     "viewports": [375, 390, 430, 1440],
     "themes": ["fresh-light", "dark-glass"],
     "combinations": 8,
@@ -72,6 +75,13 @@
       "1440_dark_glass_settings": "1a9c367b5beaa5838170994d4771db6f1514ce062cea0613c17727c32e139666",
       "1440_dark_glass_ledgers": "125645f721bdbeb43296c855295119f0ee4ca4f4afad5afe23c4740a0a749952"
     }
+  },
+  "export_privacy": {
+    "owner_private_import_rows_excluded": true,
+    "editor_owner_only_import_sections_empty": true,
+    "visible_transaction_import_refs_retained": true,
+    "private_import_audits_and_actor_profiles_excluded": true,
+    "regression_test": "backend/internal/safety/task50_export_acceptance_test.go"
   },
   "automation": {
     "backend_full_tests": "pass",

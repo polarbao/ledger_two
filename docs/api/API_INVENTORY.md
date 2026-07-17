@@ -177,7 +177,7 @@
 | GET | `/api/admin/backups/{filename}` | yes | none | stable | `safety.HandleDownloadBackup` | 下载 basename key；校验规范路径、`.db` 扩展名和目录边界并写 instance audit。 |
 | GET | `/api/admin/backups/*` | yes | none | stable | `safety.HandleDownloadBackup` | 正式支持列表返回的嵌套相对 key，例如 `manual/*.db`；不消费账本 header。 |
 | GET | `/api/export/transactions.csv` | yes | required | stable | `safety.HandleExportCSV` | 导出当前角色可见的当前账本 CSV；历史成员名称仅通过可见账本对象引用解析。 |
-| GET | `/api/export/full.json` | yes | required | stable | `safety.HandleExportJSON` | 导出带 manifest 的只读账本数据包，覆盖当前角色可见成员/历史参与者、元数据、交易/标签/分摊/附件引用、结算、模板、周期、导入引用和审计；不含全局用户、app_settings、实例管理员或其他账本数据，且不能替代 SQLite 物理备份。 |
+| GET | `/api/export/full.json` | yes | required | stable | `safety.HandleExportJSON` | 导出带 manifest 的只读账本数据包；Owner 原始导入行同时受导入权限和交易可见性过滤，Editor 的批次/原始行/规则段为空但保留可见交易来源引用；不含全局用户、app_settings、实例管理员或其他账本数据，且不能替代 SQLite 物理备份。 |
 
 ## 12. Reports 与 Dashboard
 

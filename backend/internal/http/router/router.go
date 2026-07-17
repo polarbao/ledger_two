@@ -27,7 +27,7 @@ import (
 	"ledger_two/internal/transaction"
 )
 
-const appVersion = "1.2.0-rc"
+const appVersion = "1.3.0-rc"
 
 // New 接收数据库与环境配置进行依赖链式组装
 func New(dbConn *sql.DB, cfg *config.Config) http.Handler {

@@ -1,6 +1,6 @@
 # PRD：v1.3 分类、标签与导入智能归类专项
 
-状态：产品基线已冻结；Task53.1-Task53.3 已完成，Task53.4 准备关闭<br>
+状态：产品基线已冻结；Task53.1-Task53.3、Task53.4A 已完成，下一实现切片为 Task53.4B<br>
 任务编号：Task53<br>
 创建日期：2026-07-16<br>
 优先级：Task53.3 预览持久化、解释与重分类<br>
@@ -216,7 +216,7 @@ Task53 不扩大当前导入权限。
 
 1. `auto_selected_rate`：高置信自动选择行 / 可导入行。
 2. `suggestion_accept_rate`：被接受建议 / 建议行。
-3. `auto_correction_rate`：自动选择后被修改行 / 自动选择行。
+3. `auto_correction_rate`：已提交/已导入且保留自动建议快照的行中，最终分类或顺序无关的完整标签集被 manual/bulk 改写的行 / 对应自动选择行；发布门禁只取受控 graded 验收中 high/auto、`origin=learned` 的规则子集，不混入 suggest-mode 样本。
 4. `fallback_rate`：兜底分类行 / 可导入行。
 5. `learned_rule_reuse_count`：学习规则后续命中次数。
 
@@ -227,7 +227,7 @@ Task53 不扩大当前导入权限。
 3. 任一自动结果都可在两次操作内定位原因并修改。
 4. 375px 下可完成建议筛选、接受、编辑和提交，无横向滚动。
 
-指标不足不阻止基础功能发布，但 `auto_correction_rate >= 10%` 时必须默认关闭学习规则自动选择，降级为建议。
+指标不足不阻止基础功能发布，但 learned-rule committed sample 少于 10 时必须保持建议；样本充足且 `auto_correction_rate >= 10%` 时必须关闭学习规则自动选择并降级为建议。零样本不能作为 graded production 的授权证据。
 
 ## 8. Error and empty states
 
@@ -266,4 +266,4 @@ Task53 不扩大当前导入权限。
 
 ## 11. Release boundary
 
-Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 与 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。Task53.1-Task53.3 已落地 schema 22、默认 profile、确定性分类器、preview 分类快照和 reclassify；Task53.4 的 bulk/learn/rule/兜底替代契约与 TDD 输入已冻结，下一实现切片为 Task53.4A。Task53U 仍需等待 Task53.4 DTO 与错误码落盘以及本地视觉审阅稿。
+Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 与 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。Task53.1-Task53.3、Task53.4A 已落地 schema 22、默认 profile、确定性 preview/reclassify 和 bulk-adjust；Task53.4B/C 的 learn/rule/兜底替代契约与 TDD 输入已冻结，下一实现切片为 Task53.4B。Task53U 仍按顺序等待 Task53.4B/C 完成后统一实现。

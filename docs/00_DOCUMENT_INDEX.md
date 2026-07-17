@@ -2,7 +2,7 @@
 
 > 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝当前仍只导出 CSV，不再等待支付宝 XLSX。剩余发布门禁为 NAS schema 19 staging、production 一致性备份与逐批导入确认。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 >
-> Fresh Light 设计规范、本地 29 Frame 审阅包和 UI-FL-01 至 UI-FL-10 已完成。Task50.1-Task50.6 已于 2026-07-17 整体关闭；`1.3.0-rc/schema 21` 固定候选在独立 WSL2 38091 staging 通过全模块隔离、匿名升级、成对回滚和 8 组浏览器验收，NAS 未执行 migration 020/021。Task53.1-Task53.3 已在本地完成 schema 22、默认 profile、确定性分类器、preview 分类快照/summary 和 reclassify，尚未部署 WSL/NAS；Task53.4 准备已关闭，下一实现切片为 bulk-adjust 的 Task53.4A。Task51P.1 继续非约束性证据收集，但有效真实小组证据仍为 0；P2-P6 不自动冻结。
+> Fresh Light 设计规范、本地 29 Frame 审阅包和 UI-FL-01 至 UI-FL-10 已完成。Task50.1-Task50.6 已于 2026-07-17 整体关闭；`1.3.0-rc/schema 21` 固定候选在独立 WSL2 38091 staging 通过全模块隔离、匿名升级、成对回滚和 8 组浏览器验收，NAS 未执行 migration 020/021。Task53.1-Task53.3、Task53.4A 已在本地完成 schema 22、默认 profile、确定性 preview/reclassify 和 bulk-adjust，尚未部署 WSL/NAS；Task53.5 准备资产已齐但未执行，下一实现切片为 Task53.4B。Task51P.1 继续非约束性证据收集，但有效真实小组证据仍为 0；P2-P6 不自动冻结。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -38,6 +38,7 @@ docs/prd/31-prd-v1.3-multi-ledger.md
 docs/prd/32-v1.3-task50-acceptance-fixtures.md
 docs/prd/33-task51-scenario-evidence-and-scope-questions.md
 docs/prd/34-prd-v1.3-category-tag-intelligence.md
+docs/prd/35-competitive-analysis-and-mid-long-plan.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/README.md
@@ -97,6 +98,7 @@ docs/project_analysis/2026-07-16-task50-preparation-completeness-and-task51-p1-k
 docs/project_analysis/task51_p1/README.md
 docs/project_analysis/2026-07-17-task53-2-completion-and-followup-readiness.md
 docs/project_analysis/2026-07-17-task53-3-completion-and-task53-4-readiness.md
+docs/project_analysis/2026-07-17-task53-4a-completion-and-task53-5-readiness.md
 ```
 
 ### 1.2 历史 v0.3 结论
@@ -131,6 +133,7 @@ docs/releases/v1.2.0-rc-checklist.md
 docs/releases/v1.3.0-rc-release-notes.md
 docs/releases/v1.3.0-rc-upgrade-guide.md
 docs/releases/v1.3.0-rc-checklist.md
+docs/releases/v1.3.0-task53-rc-acceptance-template.md
 docs/project_analysis/2026-07-17-task50-6-release-closure.md
 docs/project_analysis/2026-07-12-v1.2-nas-production-upgrade-acceptance.md
 docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md
@@ -150,6 +153,7 @@ docs/prd/29-prd-v1.2-module-business-service-breakdown.md
 docs/prd/30-prd-v1.2-xlsx-import-special.md
 docs/prd/31-prd-v1.3-multi-ledger.md
 docs/prd/32-v1.3-task50-acceptance-fixtures.md
+docs/prd/35-competitive-analysis-and-mid-long-plan.md
 docs/prd/27-acceptance-case-matrix.md
 docs/prd/28-transaction-caliber-supplement.md
 docs/tech/18-short-mid-architecture-slices.md

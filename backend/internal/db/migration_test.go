@@ -2,7 +2,9 @@ package db
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -506,6 +508,89 @@ func TestInitRunsTask50PreflightBackupAndSchema19Upgrade(t *testing.T) {
 	}
 }
 
+func TestTask506AnonymousSchema19UpgradeRestoreAndForwardFixRehearsal(t *testing.T) {
+	runtimeDir := t.TempDir()
+	databasePath := filepath.Join(runtimeDir, "staging", "data", "ledger.db")
+	if err := os.MkdirAll(filepath.Dir(databasePath), 0o755); err != nil {
+		t.Fatalf("create anonymous staging data directory: %v", err)
+	}
+
+	source, err := sql.Open("sqlite3", databasePath)
+	if err != nil {
+		t.Fatalf("open anonymous schema 19 database: %v", err)
+	}
+	source.SetMaxOpenConns(1)
+	runMigrationsTo(t, source, 19)
+	seedTask50PreflightBase(t, source)
+	seedTask506MigrationConservationFixture(t, source)
+
+	before, err := prepareTask50Upgrade(context.Background(), source, 19)
+	if err != nil {
+		t.Fatalf("capture anonymous schema 19 baseline: %v", err)
+	}
+	if err := source.Close(); err != nil {
+		t.Fatalf("close anonymous schema 19 source: %v", err)
+	}
+
+	backupPath := filepath.Join(runtimeDir, "backups", "ledger-schema19.db")
+	if err := copyTask506DatabaseFile(databasePath, backupPath); err != nil {
+		t.Fatalf("create rehearsal backup: %v", err)
+	}
+	backupChecksum := task506FileSHA256(t, backupPath)
+
+	upgraded, err := Init(databasePath)
+	if err != nil {
+		t.Fatalf("upgrade anonymous schema 19 database: %v", err)
+	}
+	assertMigrationVersion(t, upgraded, 21)
+	if err := verifyTask50MigrationSnapshot(context.Background(), upgraded, before); err != nil {
+		t.Fatalf("verify anonymous upgrade conservation: %v", err)
+	}
+	assertTask506QuickCheck(t, upgraded)
+	if err := upgraded.Close(); err != nil {
+		t.Fatalf("close upgraded rehearsal database: %v", err)
+	}
+	if _, err := os.Stat(databasePath + ".pre_migrate_v19.bak"); err != nil {
+		t.Fatalf("automatic schema 19 backup missing: %v", err)
+	}
+
+	if err := os.Remove(databasePath); err != nil {
+		t.Fatalf("remove upgraded rehearsal database before restore: %v", err)
+	}
+	if err := copyTask506DatabaseFile(backupPath, databasePath); err != nil {
+		t.Fatalf("restore schema 19 rehearsal backup: %v", err)
+	}
+	if restoredChecksum := task506FileSHA256(t, databasePath); restoredChecksum != backupChecksum {
+		t.Fatalf("restored backup checksum mismatch: got %s want %s", restoredChecksum, backupChecksum)
+	}
+
+	restored, err := sql.Open("sqlite3", databasePath)
+	if err != nil {
+		t.Fatalf("open restored schema 19 database: %v", err)
+	}
+	restored.SetMaxOpenConns(1)
+	assertMigrationVersion(t, restored, 19)
+	assertTask506QuickCheck(t, restored)
+	restoredSnapshot, err := prepareTask50Upgrade(context.Background(), restored, 19)
+	if err != nil {
+		t.Fatalf("verify restored schema 19 preflight: %v", err)
+	}
+	if err := restored.Close(); err != nil {
+		t.Fatalf("close restored schema 19 database: %v", err)
+	}
+
+	forwardFixed, err := Init(databasePath)
+	if err != nil {
+		t.Fatalf("forward-fix restored database to schema 21: %v", err)
+	}
+	defer forwardFixed.Close()
+	assertMigrationVersion(t, forwardFixed, 21)
+	assertTask506QuickCheck(t, forwardFixed)
+	if err := verifyTask50MigrationSnapshot(context.Background(), forwardFixed, restoredSnapshot); err != nil {
+		t.Fatalf("verify forward-fix conservation: %v", err)
+	}
+}
+
 func TestInitRejectsSchema18WithoutApplyingTask50Migration(t *testing.T) {
 	databasePath := filepath.Join(t.TempDir(), "ledger.db")
 	database, err := sql.Open("sqlite3", databasePath)
@@ -533,6 +618,165 @@ func TestInitRejectsSchema18WithoutApplyingTask50Migration(t *testing.T) {
 	defer unchanged.Close()
 	assertMigrationVersion(t, unchanged, 18)
 	assertColumnDoesNotExist(t, unchanged, "ledgers", "status")
+}
+
+func seedTask506MigrationConservationFixture(t *testing.T, database *sql.DB) {
+	t.Helper()
+	if _, err := database.Exec(`
+		INSERT INTO categories (
+			id, ledger_id, owner_user_id, name, type, color, is_archived, created_at, updated_at
+		) VALUES (
+			'migration-category', 'ledger-a', 'user-a', 'Anonymous Category',
+			'expense', '#16a34a', 0, '2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO tags (
+			id, ledger_id, name, owner_user_id, color, is_archived, created_at, updated_at
+		) VALUES (
+			'migration-tag', 'ledger-a', 'Anonymous Tag', 'user-a',
+			'#16a34a', 0, '2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO accounts (
+			id, ledger_id, owner_user_id, name, type, currency, initial_balance,
+			is_archived, created_at, updated_at
+		) VALUES (
+			'migration-account', 'ledger-a', 'user-a', 'Anonymous Account', 'cash',
+			'CNY', 123, 0, '2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO transaction_defaults (
+			ledger_id, user_id, type, category_id, account_id, payer_user_id,
+			visibility, split_method, tag_names, updated_at
+		) VALUES (
+			'ledger-a', 'user-a', 'expense', 'migration-category', 'migration-account',
+			'user-a', 'partner_readable', 'equal', 'Anonymous Tag', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO transactions (
+			id, ledger_id, type, title, amount, currency, occurred_at,
+			owner_user_id, created_by_user_id, payer_user_id, account_id, category_id,
+			visibility, split_method, attachment_paths, status, created_at, updated_at
+		) VALUES (
+			'migration-transaction', 'ledger-a', 'shared_expense', 'Anonymous Expense',
+			12345, 'CNY', '2026-07-17T08:00:00Z', 'user-a', 'user-a', 'user-a',
+			'migration-account', 'migration-category', 'shared', 'equal',
+			'["/uploads/anonymous.png"]', 'normal',
+			'2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO transaction_tags (transaction_id, tag_id)
+		VALUES ('migration-transaction', 'migration-tag');
+		INSERT INTO transaction_splits (
+			id, transaction_id, user_id, share_amount, share_ratio, created_at, updated_at
+		) VALUES (
+			'migration-split', 'migration-transaction', 'user-a', 12345, 100,
+			'2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO settlements (
+			id, ledger_id, from_user_id, to_user_id, amount, currency, occurred_at,
+			note, created_by_user_id, created_at
+		) VALUES (
+			'migration-settlement', 'ledger-a', 'user-a', 'user-b', 678, 'CNY',
+			'2026-07-17T08:00:00Z', 'Anonymous Settlement', 'user-a',
+			'2026-07-17T08:00:00Z'
+		);
+		INSERT INTO transaction_templates (
+			id, ledger_id, name, type, title, amount_cents, category_id, account_id,
+			payer_user_id, created_by_user_id, created_at, updated_at
+		) VALUES (
+			'migration-template', 'ledger-a', 'Anonymous Template', 'expense',
+			'Anonymous Template', 100, 'migration-category', 'migration-account',
+			'user-a', 'user-a', '2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO recurring_rules (
+			id, ledger_id, name, type, title, amount_cents, category_id,
+			payer_user_id, frequency, next_due_date, created_by_user_id,
+			created_at, updated_at
+		) VALUES (
+			'migration-recurring', 'ledger-a', 'Anonymous Recurring', 'expense',
+			'Anonymous Recurring', 100, 'migration-category', 'user-a',
+			'monthly', '2026-08-01', 'user-a',
+			'2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO recurring_reminders (
+			id, ledger_id, rule_id, due_date, status, created_at, updated_at
+		) VALUES (
+			'migration-reminder', 'ledger-a', 'migration-recurring', '2026-07-17',
+			'pending', '2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO import_batches (
+			id, ledger_id, filename, created_by_user_id, status, source_type,
+			file_sha256, total_rows, new_rows, imported_rows, file_format,
+			parser_metadata_json, created_at, updated_at
+		) VALUES (
+			'migration-batch', 'ledger-a', 'anonymous.csv', 'user-a', 'completed',
+			'alipay', 'anonymous-file-hash', 1, 1, 1, 'csv', '{}',
+			'2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO import_items (
+			id, batch_id, transaction_id, import_hash, status, row_number, source_type,
+			title, merchant, amount_cents, direction, target_transaction_type,
+			duplicate_status, row_status, normalized_json, visibility, created_at
+		) VALUES (
+			'migration-item', 'migration-batch', 'migration-transaction',
+			'anonymous-item-hash', 'imported', 1, 'alipay', 'Anonymous Item',
+			'Anonymous Merchant', 12345, 'out', 'expense', 'new', 'imported',
+			'{}', 'shared', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO transaction_import_refs (
+			id, ledger_id, transaction_id, import_batch_id, import_row_id,
+			import_hash, source_type, created_at
+		) VALUES (
+			'migration-ref', 'ledger-a', 'migration-transaction', 'migration-batch',
+			'migration-item', 'anonymous-item-hash', 'alipay', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO import_rules (
+			id, ledger_id, keyword, category_id, tag_names, account_id,
+			created_by_user_id, name, match_type, pattern, priority, result_json,
+			status, created_at, updated_at
+		) VALUES (
+			'migration-rule', 'ledger-a', 'Anonymous', 'migration-category',
+			'Anonymous Tag', 'migration-account', 'user-a', 'Anonymous Rule',
+			'merchant_contains', 'Anonymous', 100, '{}', 'active',
+			'2026-07-17T08:00:00Z', '2026-07-17T08:00:00Z'
+		);
+		INSERT INTO audit_logs (
+			id, ledger_id, actor_user_id, action, entity_type, entity_id,
+			after_json, created_at
+		) VALUES (
+			'migration-audit', 'ledger-a', 'user-a', 'transaction_create',
+			'transaction', 'migration-transaction', '{}', '2026-07-17T08:00:00Z'
+		)
+	`); err != nil {
+		t.Fatalf("seed Task50.6 migration fixture: %v", err)
+	}
+}
+
+func copyTask506DatabaseFile(sourcePath string, destinationPath string) error {
+	data, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(destinationPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(destinationPath, data, 0o600)
+}
+
+func task506FileSHA256(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read checksum file %s: %v", path, err)
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func assertTask506QuickCheck(t *testing.T, database *sql.DB) {
+	t.Helper()
+	results, err := readQuickCheckResults(context.Background(), database)
+	if err != nil {
+		t.Fatalf("read quick_check results: %v", err)
+	}
+	if err := validateQuickCheckResults(results); err != nil {
+		t.Fatalf("quick_check failed: %v", err)
+	}
 }
 
 func openMigrationTestDB(t *testing.T) *sql.DB {

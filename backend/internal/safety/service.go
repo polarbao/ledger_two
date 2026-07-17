@@ -608,11 +608,32 @@ func (s *Service) ExportCSV(ctx context.Context, actorUserID string, month strin
 	// 1. 查询用户
 	userMap := make(map[string]string) // id -> display_name
 	uRows, err := s.db.QueryContext(ctx, `
+		WITH visible_transactions AS (
+			SELECT owner_user_id, created_by_user_id, payer_user_id
+			FROM transactions
+			WHERE ledger_id = ?
+			  AND status != 'deleted'
+			  AND (
+				created_by_user_id = ?
+				OR owner_user_id = ?
+				OR payer_user_id = ?
+				OR visibility IN ('partner_readable', 'shared')
+			  )
+		),
+		relevant_user_ids AS (
+			SELECT user_id FROM ledger_members WHERE ledger_id = ?
+			UNION
+			SELECT owner_user_id FROM visible_transactions
+			UNION
+			SELECT created_by_user_id FROM visible_transactions
+			UNION
+			SELECT payer_user_id FROM visible_transactions WHERE payer_user_id IS NOT NULL
+		)
 		SELECT users.id, users.display_name, users.username
-		FROM ledger_members
-		JOIN users ON users.id = ledger_members.user_id
-		WHERE ledger_members.ledger_id = ?
-	`, ledgerID)
+		FROM relevant_user_ids relevant
+		JOIN users ON users.id = relevant.user_id
+		ORDER BY users.id ASC
+	`, ledgerID, actorUserID, actorUserID, actorUserID, ledgerID)
 	if err == nil {
 		defer uRows.Close()
 		for uRows.Next() {
@@ -810,13 +831,83 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 	}
 	users := make([]UserDTO, 0)
 	uRows, err := s.db.QueryContext(ctx, `
+		WITH visible_transactions AS (
+			SELECT id, owner_user_id, created_by_user_id, payer_user_id
+			FROM transactions
+			WHERE ledger_id = ?
+			  AND status != 'deleted'
+			  AND (
+				created_by_user_id = ?
+				OR owner_user_id = ?
+				OR payer_user_id = ?
+				OR visibility IN ('partner_readable', 'shared')
+			  )
+		),
+		relevant_user_ids AS (
+			SELECT user_id
+			FROM ledger_members
+			WHERE ledger_id = ?
+			UNION
+			SELECT owner_user_id FROM visible_transactions
+			UNION
+			SELECT created_by_user_id FROM visible_transactions
+			UNION
+			SELECT payer_user_id FROM visible_transactions WHERE payer_user_id IS NOT NULL
+			UNION
+			SELECT splits.user_id
+			FROM transaction_splits splits
+			JOIN visible_transactions visible ON visible.id = splits.transaction_id
+			UNION
+			SELECT from_user_id FROM settlements WHERE ledger_id = ?
+			UNION
+			SELECT to_user_id FROM settlements WHERE ledger_id = ?
+			UNION
+			SELECT created_by_user_id FROM settlements WHERE ledger_id = ?
+			UNION
+			SELECT created_by_user_id FROM transaction_templates WHERE ledger_id = ?
+			UNION
+			SELECT created_by_user_id FROM recurring_rules WHERE ledger_id = ?
+			UNION
+			SELECT created_by_user_id FROM import_batches WHERE ledger_id = ?
+			UNION
+			SELECT created_by_user_id FROM import_rules WHERE ledger_id = ?
+			UNION
+			SELECT actor_user_id
+			FROM audit_logs
+			WHERE ledger_id = ?
+			  AND (
+				entity_type != 'transaction'
+				OR entity_id IN (SELECT id FROM visible_transactions)
+			  )
+		)
 		SELECT users.id, users.username, users.display_name, users.avatar_url,
-		       ledger_members.role, users.is_active, users.created_at, users.updated_at
-		FROM ledger_members
-		JOIN users ON users.id = ledger_members.user_id
-		WHERE ledger_members.ledger_id = ?
-		ORDER BY ledger_members.created_at ASC, users.id ASC
-	`, ledgerID)
+		       COALESCE(ledger_members.role, 'historical'),
+		       users.is_active, users.created_at, users.updated_at
+		FROM relevant_user_ids relevant
+		JOIN users ON users.id = relevant.user_id
+		LEFT JOIN ledger_members
+		  ON ledger_members.ledger_id = ?
+		 AND ledger_members.user_id = users.id
+		ORDER BY
+			CASE WHEN ledger_members.user_id IS NULL THEN 1 ELSE 0 END,
+			ledger_members.created_at ASC,
+			users.id ASC
+	`,
+		ledgerID,
+		actorUserID,
+		actorUserID,
+		actorUserID,
+		ledgerID,
+		ledgerID,
+		ledgerID,
+		ledgerID,
+		ledgerID,
+		ledgerID,
+		ledgerID,
+		ledgerID,
+		ledgerID,
+		ledgerID,
+	)
 	if err == nil {
 		defer uRows.Close()
 		for uRows.Next() {
@@ -843,17 +934,18 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		ParentID    *string `json:"parent_id,omitempty"`
 		SortOrder   int     `json:"sort_order"`
 		IsSystem    int     `json:"is_system"`
+		IsArchived  int     `json:"is_archived"`
 		CreatedAt   string  `json:"created_at"`
 		UpdatedAt   string  `json:"updated_at"`
 	}
 	categories := make([]CategoryDTO, 0)
-	cRows, err := s.db.QueryContext(ctx, "SELECT id, ledger_id, owner_user_id, name, type, icon, color, parent_id, sort_order, is_system, created_at, updated_at FROM categories WHERE ledger_id = ?", ledgerID)
+	cRows, err := s.db.QueryContext(ctx, "SELECT id, ledger_id, owner_user_id, name, type, icon, color, parent_id, sort_order, is_system, is_archived, created_at, updated_at FROM categories WHERE ledger_id = ?", ledgerID)
 	if err == nil {
 		defer cRows.Close()
 		for cRows.Next() {
 			var c CategoryDTO
 			var owner, icon, color, parent sql.NullString
-			err := cRows.Scan(&c.ID, &c.LedgerID, &owner, &c.Name, &c.Type, &icon, &color, &parent, &c.SortOrder, &c.IsSystem, &c.CreatedAt, &c.UpdatedAt)
+			err := cRows.Scan(&c.ID, &c.LedgerID, &owner, &c.Name, &c.Type, &icon, &color, &parent, &c.SortOrder, &c.IsSystem, &c.IsArchived, &c.CreatedAt, &c.UpdatedAt)
 			if err == nil {
 				if owner.Valid {
 					c.OwnerUserID = &owner.String
@@ -879,17 +971,19 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		Name        string  `json:"name"`
 		OwnerUserID *string `json:"owner_user_id,omitempty"`
 		Color       *string `json:"color,omitempty"`
+		SortOrder   int     `json:"sort_order"`
+		IsArchived  int     `json:"is_archived"`
 		CreatedAt   string  `json:"created_at"`
 		UpdatedAt   string  `json:"updated_at"`
 	}
 	tags := make([]TagDTO, 0)
-	tRows, err := s.db.QueryContext(ctx, "SELECT id, ledger_id, name, owner_user_id, color, created_at, updated_at FROM tags WHERE ledger_id = ?", ledgerID)
+	tRows, err := s.db.QueryContext(ctx, "SELECT id, ledger_id, name, owner_user_id, color, sort_order, is_archived, created_at, updated_at FROM tags WHERE ledger_id = ?", ledgerID)
 	if err == nil {
 		defer tRows.Close()
 		for tRows.Next() {
 			var t TagDTO
 			var owner, color sql.NullString
-			if err := tRows.Scan(&t.ID, &t.LedgerID, &t.Name, &owner, &color, &t.CreatedAt, &t.UpdatedAt); err == nil {
+			if err := tRows.Scan(&t.ID, &t.LedgerID, &t.Name, &owner, &color, &t.SortOrder, &t.IsArchived, &t.CreatedAt, &t.UpdatedAt); err == nil {
 				if owner.Valid {
 					t.OwnerUserID = &owner.String
 				}
@@ -910,17 +1004,18 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		Type           string `json:"type"`
 		Currency       string `json:"currency"`
 		InitialBalance int64  `json:"initial_balance"`
+		SortOrder      int    `json:"sort_order"`
 		IsArchived     int    `json:"is_archived"`
 		CreatedAt      string `json:"created_at"`
 		UpdatedAt      string `json:"updated_at"`
 	}
 	accounts := make([]AccountDTO, 0)
-	aRows, err := s.db.QueryContext(ctx, "SELECT id, ledger_id, owner_user_id, name, type, currency, initial_balance, is_archived, created_at, updated_at FROM accounts WHERE ledger_id = ?", ledgerID)
+	aRows, err := s.db.QueryContext(ctx, "SELECT id, ledger_id, owner_user_id, name, type, currency, initial_balance, sort_order, is_archived, created_at, updated_at FROM accounts WHERE ledger_id = ?", ledgerID)
 	if err == nil {
 		defer aRows.Close()
 		for aRows.Next() {
 			var a AccountDTO
-			if err := aRows.Scan(&a.ID, &a.LedgerID, &a.OwnerUserID, &a.Name, &a.Type, &a.Currency, &a.InitialBalance, &a.IsArchived, &a.CreatedAt, &a.UpdatedAt); err == nil {
+			if err := aRows.Scan(&a.ID, &a.LedgerID, &a.OwnerUserID, &a.Name, &a.Type, &a.Currency, &a.InitialBalance, &a.SortOrder, &a.IsArchived, &a.CreatedAt, &a.UpdatedAt); err == nil {
 				accounts = append(accounts, a)
 			}
 		}
@@ -928,24 +1023,25 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 
 	// 5. 查询当前用户可见的 transactions (排除 status = 'deleted')
 	type TransactionDTO struct {
-		ID              string  `json:"id"`
-		LedgerID        string  `json:"ledger_id"`
-		Type            string  `json:"type"`
-		Title           string  `json:"title"`
-		Amount          int64   `json:"amount"`
-		Currency        string  `json:"currency"`
-		OccurredAt      string  `json:"occurred_at"`
-		OwnerUserID     string  `json:"owner_user_id"`
-		CreatedByUserID string  `json:"created_by_user_id"`
-		PayerUserID     *string `json:"payer_user_id,omitempty"`
-		AccountID       *string `json:"account_id,omitempty"`
-		CategoryID      *string `json:"category_id,omitempty"`
-		Visibility      string  `json:"visibility"`
-		SplitMethod     *string `json:"split_method,omitempty"`
-		Note            *string `json:"note,omitempty"`
-		Status          string  `json:"status"`
-		CreatedAt       string  `json:"created_at"`
-		UpdatedAt       string  `json:"updated_at"`
+		ID              string   `json:"id"`
+		LedgerID        string   `json:"ledger_id"`
+		Type            string   `json:"type"`
+		Title           string   `json:"title"`
+		Amount          int64    `json:"amount"`
+		Currency        string   `json:"currency"`
+		OccurredAt      string   `json:"occurred_at"`
+		OwnerUserID     string   `json:"owner_user_id"`
+		CreatedByUserID string   `json:"created_by_user_id"`
+		PayerUserID     *string  `json:"payer_user_id,omitempty"`
+		AccountID       *string  `json:"account_id,omitempty"`
+		CategoryID      *string  `json:"category_id,omitempty"`
+		Visibility      string   `json:"visibility"`
+		SplitMethod     *string  `json:"split_method,omitempty"`
+		Note            *string  `json:"note,omitempty"`
+		AttachmentPaths []string `json:"attachment_paths"`
+		Status          string   `json:"status"`
+		CreatedAt       string   `json:"created_at"`
+		UpdatedAt       string   `json:"updated_at"`
 	}
 	transactions := make([]TransactionDTO, 0)
 	visibleTxIDs := make(map[string]bool)
@@ -954,7 +1050,7 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		SELECT 
 			id, ledger_id, type, title, amount, currency, occurred_at, 
 			owner_user_id, created_by_user_id, payer_user_id, account_id, category_id, 
-			visibility, split_method, note, status, created_at, updated_at 
+			visibility, split_method, note, attachment_paths, status, created_at, updated_at
 		FROM transactions 
 		WHERE ledger_id = ? AND status != 'deleted' 
 		AND (
@@ -969,10 +1065,10 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		defer txRows.Close()
 		for txRows.Next() {
 			var tx TransactionDTO
-			var payer, account, category, split, note sql.NullString
+			var payer, account, category, split, note, attachments sql.NullString
 			err := txRows.Scan(&tx.ID, &tx.LedgerID, &tx.Type, &tx.Title, &tx.Amount, &tx.Currency, &tx.OccurredAt,
 				&tx.OwnerUserID, &tx.CreatedByUserID, &payer, &account, &category,
-				&tx.Visibility, &split, &note, &tx.Status, &tx.CreatedAt, &tx.UpdatedAt)
+				&tx.Visibility, &split, &note, &attachments, &tx.Status, &tx.CreatedAt, &tx.UpdatedAt)
 			if err == nil {
 				if payer.Valid {
 					tx.PayerUserID = &payer.String
@@ -988,6 +1084,10 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 				}
 				if note.Valid {
 					tx.Note = &note.String
+				}
+				tx.AttachmentPaths = make([]string, 0)
+				if attachments.Valid && attachments.String != "" {
+					_ = json.Unmarshal([]byte(attachments.String), &tx.AttachmentPaths)
 				}
 				transactions = append(transactions, tx)
 				visibleTxIDs[tx.ID] = true
@@ -1064,6 +1164,7 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		ID          string  `json:"id"`
 		LedgerID    string  `json:"ledger_id"`
 		ActorUserID string  `json:"actor_user_id"`
+		ActorRole   *string `json:"actor_role,omitempty"`
 		Action      string  `json:"action"`
 		EntityType  string  `json:"entity_type"`
 		EntityID    string  `json:"entity_id"`
@@ -1072,13 +1173,13 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		CreatedAt   string  `json:"created_at"`
 	}
 	auditLogs := make([]AuditLogDTO, 0)
-	aRows, err = s.db.QueryContext(ctx, "SELECT id, ledger_id, actor_user_id, action, entity_type, entity_id, before_json, after_json, created_at FROM audit_logs WHERE ledger_id = ?", ledgerID)
+	aRows, err = s.db.QueryContext(ctx, "SELECT id, ledger_id, actor_user_id, actor_role, action, entity_type, entity_id, before_json, after_json, created_at FROM audit_logs WHERE ledger_id = ?", ledgerID)
 	if err == nil {
 		defer aRows.Close()
 		for aRows.Next() {
 			var a AuditLogDTO
-			var before, after sql.NullString
-			err := aRows.Scan(&a.ID, &a.LedgerID, &a.ActorUserID, &a.Action, &a.EntityType, &a.EntityID, &before, &after, &a.CreatedAt)
+			var actorRole, before, after sql.NullString
+			err := aRows.Scan(&a.ID, &a.LedgerID, &a.ActorUserID, &actorRole, &a.Action, &a.EntityType, &a.EntityID, &before, &after, &a.CreatedAt)
 			if err == nil {
 				// 权限收拢过滤：若为交易实体审计，且该交易对当前登录人不可见，则安全排除该条审计行
 				if a.EntityType == "transaction" && !visibleTxIDs[a.EntityID] {
@@ -1086,6 +1187,9 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 				}
 				if before.Valid {
 					a.BeforeJSON = &before.String
+				}
+				if actorRole.Valid {
+					a.ActorRole = &actorRole.String
 				}
 				if after.Valid {
 					a.AfterJSON = &after.String
@@ -1095,16 +1199,243 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 		}
 	}
 
+	loadExportSection := func(section string, query string, args ...any) ([]map[string]any, error) {
+		rows, queryErr := queryLedgerExportSection(ctx, s.db, section, query, args...)
+		if queryErr != nil {
+			return nil, errors.NewAppError(
+				http.StatusInternalServerError,
+				errors.ErrCodeExportFailed,
+				queryErr.Error(),
+			)
+		}
+		return rows, nil
+	}
+
+	ledgerMembers, err := loadExportSection("ledger_members", `
+		SELECT user_id, role, created_at, updated_at
+		FROM ledger_members
+		WHERE ledger_id = ?
+		ORDER BY created_at ASC, user_id ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	transactionDefaults, err := loadExportSection("transaction_defaults", `
+		SELECT user_id, type, category_id, account_id, payer_user_id, visibility,
+		       split_method, tag_names, updated_at
+		FROM transaction_defaults
+		WHERE ledger_id = ? AND user_id = ?
+		ORDER BY user_id ASC
+	`, ledgerID, actorUserID)
+	if err != nil {
+		return nil, err
+	}
+	transactionTags, err := loadExportSection("transaction_tags", `
+		SELECT links.transaction_id, links.tag_id
+		FROM transaction_tags links
+		JOIN transactions parent ON parent.id = links.transaction_id
+		JOIN tags tag ON tag.id = links.tag_id
+		WHERE parent.ledger_id = ?
+		  AND tag.ledger_id = ?
+		  AND parent.status != 'deleted'
+		  AND (
+			parent.created_by_user_id = ?
+			OR parent.owner_user_id = ?
+			OR parent.payer_user_id = ?
+			OR parent.visibility IN ('partner_readable', 'shared')
+		  )
+		ORDER BY links.transaction_id ASC, links.tag_id ASC
+	`, ledgerID, ledgerID, actorUserID, actorUserID, actorUserID)
+	if err != nil {
+		return nil, err
+	}
+	transactionTemplates, err := loadExportSection("transaction_templates", `
+		SELECT id, ledger_id, name, type, title, amount_cents, category_id, account_id,
+		       payer_user_id, split_method, tag_names, note, created_by_user_id,
+		       is_archived, archived_at, created_at, updated_at
+		FROM transaction_templates
+		WHERE ledger_id = ?
+		ORDER BY created_at ASC, id ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	recurringRules, err := loadExportSection("recurring_rules", `
+		SELECT id, ledger_id, name, type, title, amount_cents, category_id,
+		       payer_user_id, split_method, tag_names, note, frequency,
+		       next_due_date, created_by_user_id, created_at, updated_at
+		FROM recurring_rules
+		WHERE ledger_id = ?
+		ORDER BY created_at ASC, id ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	recurringReminders, err := loadExportSection("recurring_reminders", `
+		SELECT reminder.id, reminder.ledger_id, reminder.rule_id, reminder.due_date,
+		       reminder.status, reminder.transaction_id, reminder.created_at,
+		       reminder.updated_at
+		FROM recurring_reminders reminder
+		JOIN recurring_rules rule
+		  ON rule.id = reminder.rule_id
+		 AND rule.ledger_id = reminder.ledger_id
+		WHERE reminder.ledger_id = ?
+		ORDER BY reminder.due_date ASC, reminder.id ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	importBatches, err := loadExportSection("import_batches", `
+		SELECT id, ledger_id, filename, created_by_user_id, status, source_type,
+		       file_sha256, total_rows, new_rows, duplicate_rows, suspicious_rows,
+		       invalid_rows, imported_rows, skipped_rows, failed_rows, file_format,
+		       parser_metadata_json, created_at, updated_at, committed_at, expires_at
+		FROM import_batches
+		WHERE ledger_id = ?
+		ORDER BY created_at ASC, id ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	importItems, err := loadExportSection("import_items", `
+		SELECT item.id, item.batch_id, item.transaction_id, item.import_hash,
+		       item.status, item.row_number, item.source_type, item.external_order_id,
+		       item.occurred_at, item.title, item.merchant, item.description,
+		       item.amount_cents, item.direction, item.target_transaction_type,
+		       item.duplicate_status, item.row_status, item.normalized_json,
+		       item.user_adjustment_json, item.error_code, item.error_message,
+		       item.generated_transaction_id, item.suggested_category_id,
+		       item.suggested_account_id, item.suggested_tag_ids_json,
+		       item.selected_category_id, item.selected_account_id,
+		       item.selected_tag_ids_json, item.visibility, item.suggested_rule_id,
+		       item.suggestion_reason, item.created_at
+		FROM import_items item
+		JOIN import_batches batch ON batch.id = item.batch_id
+		WHERE batch.ledger_id = ?
+		ORDER BY batch.created_at ASC, item.row_number ASC, item.id ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	transactionImportRefs, err := loadExportSection("transaction_import_refs", `
+		SELECT ref.id, ref.ledger_id, ref.transaction_id, ref.import_batch_id,
+		       ref.import_row_id, ref.import_hash, ref.external_order_id,
+		       ref.source_type, ref.created_at
+		FROM transaction_import_refs ref
+		JOIN transactions parent
+		  ON parent.id = ref.transaction_id
+		 AND parent.ledger_id = ref.ledger_id
+		JOIN import_batches batch
+		  ON batch.id = ref.import_batch_id
+		 AND batch.ledger_id = ref.ledger_id
+		WHERE ref.ledger_id = ?
+		  AND parent.status != 'deleted'
+		  AND (
+			parent.created_by_user_id = ?
+			OR parent.owner_user_id = ?
+			OR parent.payer_user_id = ?
+			OR parent.visibility IN ('partner_readable', 'shared')
+		  )
+		ORDER BY ref.created_at ASC, ref.id ASC
+	`, ledgerID, actorUserID, actorUserID, actorUserID)
+	if err != nil {
+		return nil, err
+	}
+	importRules, err := loadExportSection("import_rules", `
+		SELECT id, ledger_id, keyword, category_id, tag_names, account_id,
+		       created_by_user_id, name, match_type, pattern, amount_min_cents,
+		       amount_max_cents, priority, result_json, status, archived_at,
+		       created_at, updated_at
+		FROM import_rules
+		WHERE ledger_id = ?
+		ORDER BY priority ASC, created_at ASC, id ASC
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+
+	var ledgerName, defaultCurrency, ledgerStatus, ledgerCreatedAt, ledgerUpdatedAt string
+	var ledgerVersion int64
+	var archivedAt, archivedByUserID sql.NullString
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT name, default_currency, status, version, archived_at,
+		       archived_by_user_id, created_at, updated_at
+		FROM ledgers
+		WHERE id = ?
+	`, ledgerID).Scan(
+		&ledgerName,
+		&defaultCurrency,
+		&ledgerStatus,
+		&ledgerVersion,
+		&archivedAt,
+		&archivedByUserID,
+		&ledgerCreatedAt,
+		&ledgerUpdatedAt,
+	); err != nil {
+		return nil, errors.NewAppError(
+			http.StatusInternalServerError,
+			errors.ErrCodeExportFailed,
+			"query export ledger manifest: "+err.Error(),
+		)
+	}
+	schemaVersion, err := goose.GetDBVersion(s.db)
+	if err != nil {
+		return nil, errors.NewAppError(
+			http.StatusInternalServerError,
+			errors.ErrCodeExportFailed,
+			"query export schema version: "+err.Error(),
+		)
+	}
+	ledgerManifest := map[string]any{
+		"id":               ledgerID,
+		"name":             ledgerName,
+		"default_currency": defaultCurrency,
+		"status":           ledgerStatus,
+		"version":          ledgerVersion,
+		"created_at":       ledgerCreatedAt,
+		"updated_at":       ledgerUpdatedAt,
+	}
+	if archivedAt.Valid {
+		ledgerManifest["archived_at"] = archivedAt.String
+	}
+	if archivedByUserID.Valid {
+		ledgerManifest["archived_by_user_id"] = archivedByUserID.String
+	}
+	manifest := map[string]any{
+		"format":         "ledger_two_ledger_export",
+		"format_version": 1,
+		"purpose":        "portable_read_only_snapshot",
+		"restorable":     false,
+		"exported_at":    time.Now().UTC().Format(time.RFC3339),
+		"schema_version": schemaVersion,
+		"ledger":         ledgerManifest,
+		"actor": map[string]any{
+			"user_id": actorUserID,
+			"role":    string(lc.Role),
+		},
+	}
+
 	// 组装最终结果
 	exportData := map[string]interface{}{
-		"users":              users,
-		"categories":         categories,
-		"tags":               tags,
-		"accounts":           accounts,
-		"transactions":       transactions,
-		"transaction_splits": splits,
-		"settlements":        settlements,
-		"audit_logs":         auditLogs,
+		"manifest":                manifest,
+		"ledger_members":          ledgerMembers,
+		"users":                   users,
+		"categories":              categories,
+		"tags":                    tags,
+		"accounts":                accounts,
+		"transaction_defaults":    transactionDefaults,
+		"transactions":            transactions,
+		"transaction_tags":        transactionTags,
+		"transaction_splits":      splits,
+		"settlements":             settlements,
+		"transaction_templates":   transactionTemplates,
+		"recurring_rules":         recurringRules,
+		"recurring_reminders":     recurringReminders,
+		"import_batches":          importBatches,
+		"import_items":            importItems,
+		"transaction_import_refs": transactionImportRefs,
+		"import_rules":            importRules,
+		"audit_logs":              auditLogs,
 	}
 
 	jsonBytes, err := json.MarshalIndent(exportData, "", "  ")
@@ -1114,9 +1445,12 @@ func (s *Service) ExportJSON(ctx context.Context, actorUserID string) ([]byte, e
 
 	// 写入审计日志
 	afterObj := map[string]interface{}{
-		"export_type":  "json",
-		"user_records": len(users),
-		"tx_records":   len(transactions),
+		"export_type":      "json",
+		"format_version":   1,
+		"user_records":     len(users),
+		"tx_records":       len(transactions),
+		"import_records":   len(importItems),
+		"template_records": len(transactionTemplates),
 	}
 	afterBytes, _ := json.Marshal(afterObj)
 

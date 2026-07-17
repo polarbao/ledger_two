@@ -1,16 +1,16 @@
 openapi: 3.0.3
 info:
   title: LedgerTwo API
-  version: 1.2.0-rc
+  version: 1.3.0-rc
   description: |
-    LedgerTwo 当前实现 API 草案。
-
-    当前实际路径为 /api/...。/api/v1 alias 尚未实现，不能作为已上线接口使用。
-    Foundation 阶段 ledger-scoped 接口仍兼容未传 X-Ledger-Id 的历史 fallback，
-    v1.1 冻结前应逐步收紧为显式账本上下文。
+    LedgerTwo v1.3 当前实现正式契约。实际路径为 /api/...；
+    /api/v1 alias 尚未实现，不能作为已上线接口使用。
+    所有账本内业务接口必须使用 X-Ledger-Id 或账本 path 参数建立显式上下文，
+    不再支持首账本 fallback。金额字段均为整数分。
 servers:
   - url: /api
     description: Current compatibility API root
+security: []
 tags:
   - name: health
   - name: init
@@ -106,9 +106,18 @@ paths:
   /ledgers/:
     get:
       tags: [ledgers]
-      summary: List ledgers joined by current user
+      summary: List ledgers visible to current user
+      description: 默认只返回 active；结果不承担当前账本 fallback。
       security:
         - cookieAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, archived, all]
+            default: active
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -116,7 +125,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     post:
       tags: [ledgers]
-      summary: Create ledger
+      summary: Create an active ledger
+      description: 创建者成为唯一 Owner；创建同名账本合法。
       security:
         - cookieAuth: []
       requestBody:
@@ -126,12 +136,115 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateLedgerRequest"
       responses:
-        "200":
+        "201":
           $ref: "#/components/responses/Success"
         "400":
           $ref: "#/components/responses/ValidationError"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /ledgers/{ledgerId}:
+    parameters:
+      - $ref: "#/components/parameters/LedgerIdPath"
+    get:
+      tags: [ledgers]
+      summary: Get one active or archived ledger
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      tags: [ledgers]
+      summary: Rename an active ledger
+      description: Owner only. Repeated stale versions return LEDGER_VERSION_CONFLICT.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /ledgers/{ledgerId}/archive-preflight:
+    parameters:
+      - $ref: "#/components/parameters/LedgerIdPath"
+    get:
+      tags: [ledgers]
+      summary: Preview archive consequences without writing data
+      description: Owner only. Returns unsettled balance and unexpired ready import count.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /ledgers/{ledgerId}/archive:
+    parameters:
+      - $ref: "#/components/parameters/LedgerIdPath"
+    post:
+      tags: [ledgers]
+      summary: Archive an active ledger
+      description: Owner only. Archive is read-only and never creates settlement or rewrites history.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                acknowledge_unsettled_balance:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /ledgers/{ledgerId}/restore:
+    parameters:
+      - $ref: "#/components/parameters/LedgerIdPath"
+    post:
+      tags: [ledgers]
+      summary: Restore an archived ledger
+      description: Owner only. This is the only archived-ledger mutation.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /ledgers/{ledgerId}/members:
     parameters:
       - $ref: "#/components/parameters/LedgerIdPath"
@@ -147,9 +260,12 @@ paths:
           $ref: "#/components/responses/Forbidden"
     post:
       tags: [ledgers]
-      summary: Add ledger member
+      summary: Add the second ledger member
+      description: Owner only. Requires If-Match and explicit history visibility acknowledgement.
       security:
         - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
       requestBody:
         required: true
         content:
@@ -157,7 +273,7 @@ paths:
             schema:
               $ref: "#/components/schemas/AddMemberRequest"
       responses:
-        "200":
+        "201":
           $ref: "#/components/responses/Success"
         "403":
           $ref: "#/components/responses/Forbidden"
@@ -165,11 +281,13 @@ paths:
     parameters:
       - $ref: "#/components/parameters/LedgerIdPath"
       - $ref: "#/components/parameters/UserIdPath"
-    put:
+    patch:
       tags: [ledgers]
       summary: Update ledger member role
       security:
         - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
       requestBody:
         required: true
         content:
@@ -181,16 +299,91 @@ paths:
           $ref: "#/components/responses/Success"
         "403":
           $ref: "#/components/responses/Forbidden"
-    delete:
+        "409":
+          $ref: "#/components/responses/Conflict"
+    put:
       tags: [ledgers]
-      summary: Remove ledger member
+      summary: Update ledger member role (deprecated compatibility alias)
+      deprecated: true
       security:
         - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRequest"
       responses:
         "200":
           $ref: "#/components/responses/Success"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      tags: [ledgers]
+      summary: Remove ledger member
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /ledgers/{ledgerId}/members/{userId}/transfer-owner:
+    parameters:
+      - $ref: "#/components/parameters/LedgerIdPath"
+      - $ref: "#/components/parameters/UserIdPath"
+    post:
+      tags: [ledgers]
+      summary: Transfer unique ledger ownership atomically
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [acknowledge_permission_change]
+              properties:
+                acknowledge_permission_change:
+                  type: boolean
+                  enum: [true]
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /ledgers/{ledgerId}/leave:
+    parameters:
+      - $ref: "#/components/parameters/LedgerIdPath"
+    post:
+      tags: [ledgers]
+      summary: Leave ledger as Editor or Viewer
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IfMatchLedger"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /categories:
     get:
@@ -199,7 +392,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - name: include_archived
           in: query
           required: false
@@ -216,14 +409,14 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
   /metadata/{kind}/:
     parameters:
       - $ref: "#/components/parameters/MetadataKindPath"
-      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      - $ref: "#/components/parameters/LedgerIdHeaderRequired"
     get:
       tags: [metadata]
       summary: List metadata items
@@ -265,7 +458,7 @@ paths:
   /metadata/{kind}/reorder:
     parameters:
       - $ref: "#/components/parameters/MetadataKindPath"
-      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      - $ref: "#/components/parameters/LedgerIdHeaderRequired"
     post:
       tags: [metadata]
       summary: Reorder metadata items
@@ -291,7 +484,7 @@ paths:
     parameters:
       - $ref: "#/components/parameters/MetadataKindPath"
       - $ref: "#/components/parameters/GenericIdPath"
-      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      - $ref: "#/components/parameters/LedgerIdHeaderRequired"
     patch:
       tags: [metadata]
       summary: Update metadata item
@@ -323,7 +516,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/MetadataKindPath"
         - $ref: "#/components/parameters/GenericIdPath"
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -341,7 +534,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/MetadataKindPath"
         - $ref: "#/components/parameters/GenericIdPath"
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -358,7 +551,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -372,7 +565,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - $ref: "#/components/parameters/MonthQuery"
         - $ref: "#/components/parameters/TypeQuery"
       responses:
@@ -384,7 +577,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       requestBody:
         required: true
         content:
@@ -401,7 +594,7 @@ paths:
   /transactions/{transactionId}:
     parameters:
       - $ref: "#/components/parameters/TransactionIdPath"
-      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      - $ref: "#/components/parameters/LedgerIdHeaderRequired"
     get:
       tags: [transactions]
       summary: Get transaction detail
@@ -447,7 +640,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -458,6 +651,8 @@ paths:
       summary: Parse CSV import file
       security:
         - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -470,7 +665,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -481,10 +676,114 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
+
+  /imports/preview:
+    post:
+      tags: [import]
+      summary: Create a CSV or WeChat XLSX preview batch
+      description: Owner only. Preview does not create formal transactions.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [source_type, file]
+              properties:
+                source_type:
+                  type: string
+                  enum: [wechat, alipay, generic]
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+  /imports/{batchID}:
+    get:
+      tags: [import]
+      summary: Get a preview batch and rows
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /imports/{batchID}/rows/{rowID}:
+    patch:
+      tags: [import]
+      summary: Adjust one preview row
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+        - $ref: "#/components/parameters/RowIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /imports/{batchID}/commit:
+    post:
+      tags: [import]
+      summary: Commit a ready preview batch atomically
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /imports/{batchID}/discard:
+    post:
+      tags: [import]
+      summary: Discard a ready preview batch without creating transactions
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [user_requested]
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /import-rules/:
     get:
@@ -493,7 +792,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -503,19 +802,55 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
-        "200":
+        "201":
           $ref: "#/components/responses/Success"
-  /import-rules/{id}:
-    delete:
+  /import-rules/{ruleID}:
+    patch:
       tags: [import]
-      summary: Delete import rule
+      summary: Update an import suggestion rule
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/GenericIdPath"
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/RuleIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+    delete:
+      tags: [import]
+      summary: Archive import rule (deprecated compatibility alias)
+      deprecated: true
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RuleIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /import-rules/{ruleID}/archive:
+    post:
+      tags: [import]
+      summary: Archive an import suggestion rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RuleIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /import-rules/{ruleID}/restore:
+    post:
+      tags: [import]
+      summary: Restore an archived import suggestion rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RuleIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -527,7 +862,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -537,14 +872,14 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
   /transaction-templates/{id}:
     parameters:
       - $ref: "#/components/parameters/GenericIdPath"
-      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      - $ref: "#/components/parameters/LedgerIdHeaderRequired"
     get:
       tags: [templates]
       summary: Get transaction template
@@ -578,7 +913,7 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/GenericIdPath"
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -594,7 +929,7 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/GenericIdPath"
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -610,7 +945,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -620,7 +955,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -632,7 +967,7 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/GenericIdPath"
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -643,7 +978,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -655,19 +990,32 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/GenericIdPath"
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /recurring-reminders/{id}/skip:
+    post:
+      tags: [recurring]
+      summary: Skip the current recurring reminder occurrence
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GenericIdPath"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
   /recurring-reminders/{id}/ignore:
     post:
       tags: [recurring]
-      summary: Ignore recurring reminder
+      summary: Skip recurring reminder (deprecated compatibility alias)
+      deprecated: true
       security:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/GenericIdPath"
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -679,7 +1027,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       requestBody:
         required: true
         content:
@@ -692,7 +1040,7 @@ paths:
   /shared-expenses/{id}:
     parameters:
       - $ref: "#/components/parameters/GenericIdPath"
-      - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+      - $ref: "#/components/parameters/LedgerIdHeaderRequired"
     get:
       tags: [shared-expenses]
       summary: Get shared expense
@@ -727,7 +1075,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
@@ -739,7 +1087,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
@@ -750,7 +1098,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       requestBody:
         required: true
         content:
@@ -767,11 +1115,9 @@ paths:
     get:
       tags: [safety]
       summary: Get sanitized system diagnostics
-      description: Owner-only diagnostics. Response must not include JWT secrets, tokens, password hashes, DSN, or absolute storage paths.
+      description: Instance administrator only. Ignores X-Ledger-Id and writes instance audit.
       security:
         - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           description: Sanitized diagnostics
@@ -791,21 +1137,19 @@ paths:
     post:
       tags: [safety]
       summary: Create manual backup
+      description: Instance administrator only. Creates a whole-instance SQLite backup.
       security:
         - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
       responses:
         "200":
           $ref: "#/components/responses/Success"
   /admin/restore:
     post:
       tags: [safety]
-      summary: Restore from backup
+      summary: Prepare an offline restore
+      description: Instance administrator only. Returns shutdown instructions and does not hot-swap the running database.
       security:
         - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -845,7 +1189,8 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
           description: CSV file
@@ -856,14 +1201,23 @@ paths:
   /export/full.json:
     get:
       tags: [safety]
-      summary: Export full JSON
+      summary: Export a portable read-only ledger JSON package
+      description: |
+        Owner/Editor only. Contains current-ledger data visible to the actor,
+        including historical referenced users, metadata, transactions, splits,
+        attachment references, templates, recurring data, imports and audit.
+        This package is not a physical SQLite backup and cannot be restored directly.
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Raw ledger export package, not wrapped in the success envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerExportPackage"
 
   /reports/monthly-summary:
     get:
@@ -872,7 +1226,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
@@ -884,7 +1238,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
@@ -896,7 +1250,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
@@ -908,7 +1262,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
@@ -920,7 +1274,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
         - $ref: "#/components/parameters/MonthQuery"
       responses:
         "200":
@@ -933,7 +1287,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/LedgerIdHeaderOptional"
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
           $ref: "#/components/responses/Success"
@@ -966,18 +1320,18 @@ components:
       name: token
 
   parameters:
-    LedgerIdHeaderOptional:
-      name: X-Ledger-Id
-      in: header
-      required: false
-      description: Explicit ledger id. Optional during Foundation compatibility; should become required for scoped business APIs before v1.1 freeze.
-      schema:
-        type: string
     LedgerIdHeaderRequired:
       name: X-Ledger-Id
       in: header
       required: true
-      description: Explicit ledger id required for protected attachment access.
+      description: Explicit ledger id required for ledger-scoped business APIs.
+      schema:
+        type: string
+    IfMatchLedger:
+      name: If-Match
+      in: header
+      required: true
+      description: Ledger ETag in the form "ledger:{ledgerId}:v{version}".
       schema:
         type: string
     FilenamePath:
@@ -1011,6 +1365,24 @@ components:
       required: true
       schema:
         type: string
+    BatchIdPath:
+      name: batchID
+      in: path
+      required: true
+      schema:
+        type: string
+    RowIdPath:
+      name: rowID
+      in: path
+      required: true
+      schema:
+        type: string
+    RuleIdPath:
+      name: ruleID
+      in: path
+      required: true
+      schema:
+        type: string
     MetadataKindPath:
       name: kind
       in: path
@@ -1035,6 +1407,12 @@ components:
         enum: [expense, income, shared_expense, settlement]
 
   responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     Success:
       description: Successful response
       content:
@@ -1081,6 +1459,8 @@ components:
           type: boolean
           enum: [true]
         data:
+          type: object
+          additionalProperties: true
           nullable: true
     HealthResponse:
       type: object
@@ -1101,7 +1481,7 @@ components:
               enum: [ok, error, none]
             version:
               type: string
-              example: 1.2.0-rc
+              example: 1.3.0-rc
             schema_version:
               type: integer
               format: int64
@@ -1130,6 +1510,8 @@ components:
         message:
           type: string
         details:
+          type: object
+          additionalProperties: true
           nullable: true
     SystemDiagnostics:
       type: object
@@ -1199,18 +1581,139 @@ components:
         created_at:
           type: string
           format: date-time
+    LedgerExportPackage:
+      type: object
+      required:
+        - manifest
+        - ledger_members
+        - users
+        - categories
+        - tags
+        - accounts
+        - transaction_defaults
+        - transactions
+        - transaction_tags
+        - transaction_splits
+        - settlements
+        - transaction_templates
+        - recurring_rules
+        - recurring_reminders
+        - import_batches
+        - import_items
+        - transaction_import_refs
+        - import_rules
+        - audit_logs
+      properties:
+        manifest:
+          $ref: "#/components/schemas/LedgerExportManifest"
+        ledger_members:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        users:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        categories:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        tags:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        accounts:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        transaction_defaults:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        transactions:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        transaction_tags:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        transaction_splits:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        settlements:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        transaction_templates:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        recurring_rules:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        recurring_reminders:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        import_batches:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        import_items:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        transaction_import_refs:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        import_rules:
+          $ref: "#/components/schemas/LedgerExportRecords"
+        audit_logs:
+          $ref: "#/components/schemas/LedgerExportRecords"
+    LedgerExportManifest:
+      type: object
+      required: [format, format_version, purpose, restorable, exported_at, schema_version, ledger, actor]
+      properties:
+        format:
+          type: string
+          enum: [ledger_two_ledger_export]
+        format_version:
+          type: integer
+          enum: [1]
+        purpose:
+          type: string
+          enum: [portable_read_only_snapshot]
+        restorable:
+          type: boolean
+          enum: [false]
+        exported_at:
+          type: string
+          format: date-time
+        schema_version:
+          type: integer
+          format: int64
+          example: 21
+        ledger:
+          type: object
+          required: [id, name, default_currency, status, version, created_at, updated_at]
+          additionalProperties: true
+        actor:
+          type: object
+          required: [user_id, role]
+          properties:
+            user_id:
+              type: string
+            role:
+              type: string
+              enum: [owner, editor]
+    LedgerExportRecords:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
 
     InitSetupRequest:
       type: object
-      required: [username, password, ledger_name]
+      required:
+        - ledger_name
+        - user_a_username
+        - user_a_display_name
+        - user_a_password
+        - user_b_username
+        - user_b_display_name
+        - user_b_password
       properties:
-        username:
-          type: string
-        password:
-          type: string
-          format: password
         ledger_name:
           type: string
+        default_currency:
+          type: string
+          default: CNY
+        user_a_username:
+          type: string
+        user_a_display_name:
+          type: string
+        user_a_password:
+          type: string
+          format: password
+        user_b_username:
+          type: string
+        user_b_display_name:
+          type: string
+        user_b_password:
+          type: string
+          format: password
     LoginRequest:
       type: object
       required: [username, password]
@@ -1228,12 +1731,16 @@ components:
           type: string
     AddMemberRequest:
       type: object
-      required: [username, role]
+      required: [username, role, acknowledge_history_visibility]
       properties:
         username:
           type: string
         role:
-          $ref: "#/components/schemas/LedgerRole"
+          type: string
+          enum: [editor, viewer]
+        acknowledge_history_visibility:
+          type: boolean
+          enum: [true]
     UpdateMemberRequest:
       type: object
       required: [role]

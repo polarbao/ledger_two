@@ -174,7 +174,7 @@ function confirmationFor(type: Exclude<ModalType, null>, month: string) {
   }
   return {
     title: '导出全量 JSON 数据包？',
-    description: '将下载当前账本的脱敏成员信息、元数据、交易分摊和结算记录。导出不会改变业务数据。',
+    description: '将下载当前角色可见的账本只读数据包，包含历史参与者、元数据、账单、分摊、模板、周期和导入引用。该文件不能替代 SQLite 物理备份或直接恢复。',
     confirmLabel: '确认导出 JSON',
   };
 }
@@ -470,8 +470,8 @@ export default function SettingsPage() {
           <SettingsActionCard
             icon={<FileJson size={20} />}
             title="全量 JSON 数据包"
-            description="包含当前角色可见数据的脱敏成员、元数据、交易分摊和结算记录。"
-            badge={<StatusChip tone="warning">敏感归档</StatusChip>}
+            description="包含当前角色可见的账本快照、历史参与者、模板、周期和导入引用；不可直接恢复。"
+            badge={<StatusChip tone="warning">只读数据包</StatusChip>}
           >
             <PermissionGate allow={['owner', 'editor']} fallback={<NoPermissionHint text="Viewer 不能导出账本数据。" />}>
               <Button

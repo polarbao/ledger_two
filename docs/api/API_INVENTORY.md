@@ -1,10 +1,10 @@
 ﻿# API Inventory
 
-状态：Task50.3C 全表双向复核完成
+状态：Task50.6 正式 OpenAPI、router 与导出契约复核完成
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
-更新时间：2026-07-16
+更新时间：2026-07-17
 
 > Task53 分类标签智能化目前只有 `openapi-v1.3-category-tag-draft.yaml` 开发前草案，尚未实现。草案路径不得加入下方当前实现清单，也不得据此声称 router、migration 022 或客户端 DTO 已存在。
 
@@ -176,8 +176,8 @@
 | GET | `/api/admin/backups` | yes | none | stable | `safety.HandleGetBackups` | 返回受管理目录内的安全相对 key 并写 `list_database_backups` instance audit。 |
 | GET | `/api/admin/backups/{filename}` | yes | none | stable | `safety.HandleDownloadBackup` | 下载 basename key；校验规范路径、`.db` 扩展名和目录边界并写 instance audit。 |
 | GET | `/api/admin/backups/*` | yes | none | stable | `safety.HandleDownloadBackup` | 正式支持列表返回的嵌套相对 key，例如 `manual/*.db`；不消费账本 header。 |
-| GET | `/api/export/transactions.csv` | yes | required | transitional | `safety.HandleExportCSV` | 导出当前账本 CSV。 |
-| GET | `/api/export/full.json` | yes | required | transitional | `safety.HandleExportJSON` | 导出当前账本 JSON。 |
+| GET | `/api/export/transactions.csv` | yes | required | stable | `safety.HandleExportCSV` | 导出当前角色可见的当前账本 CSV；历史成员名称仅通过可见账本对象引用解析。 |
+| GET | `/api/export/full.json` | yes | required | stable | `safety.HandleExportJSON` | 导出带 manifest 的只读账本数据包，覆盖当前角色可见成员/历史参与者、元数据、交易/标签/分摊/附件引用、结算、模板、周期、导入引用和审计；不含全局用户、app_settings、实例管理员或其他账本数据，且不能替代 SQLite 物理备份。 |
 
 ## 12. Reports 与 Dashboard
 
@@ -197,10 +197,11 @@
 | GET | `/api/attachments/{filename}` | yes | required | stable | `transaction.HandleGetAttachment` | 受保护附件读取，根据关联账单可见性校验。 |
 | GET | `/uploads/*` | no | none | disabled | router guard | 裸静态附件路径已关闭，必须通过 `/api/attachments/{filename}` 访问。 |
 
-## 14. Task34 后续治理清单
+## 14. 后续治理清单
 
-1. Task34.2 新增 `docs/api/openapi.yaml`，至少覆盖本清单中核心路径。
-2. Task34.3 已新增 `docs/api/API_CONVENTIONS.md`，后续代码治理必须按该文件执行。
+1. `docs/api/openapi.yaml` 已在 Task50.6 提升为 v1.3.0-rc 正式契约；ledger path、显式 header、实例运维、v1.2 导入和 Task50 导出均需与本清单同步。
+2. `docs/api/API_CONVENTIONS.md` 继续作为错误包络、金额和命名约束；新增接口不得绕过。
 3. Task50.3C 已完成生产账本路由 `required` 收口；后续新增账本 API 不得重新引入 optional/fallback。
 4. 统一 handler 使用 `response.WriteError`，避免手写 `response.Error` 和 `http.Error` 返回不一致。
 5. Task39 已关闭裸 `/uploads/*`，后续前端展示附件时应使用 `/api/attachments/{filename}`，不要直接请求历史兼容路径。
+6. OpenAPI 当前保留与真实 chi router 一致的部分尾斜杠路径；Redocly 校验需跳过 `no-path-trailing-slash` 风格规则，其他结构错误必须为 0。

@@ -19,6 +19,8 @@ describe('UI-FL-07 settings page contract', () => {
     expect(source).toContain("const canExportData = useHasLedgerRole(['owner', 'editor'])");
 		expect(source).toContain('const canManageSafety = Boolean(currentUser?.instance_admin)');
     expect(source).toContain('preview 不会写入正式账单');
+    expect(source).toContain('只读数据包');
+    expect(source).toContain('不能替代 SQLite 物理备份或直接恢复');
     expect(source).toContain('不会在线替换运行中的数据库');
     expect(source).toContain('不展示密码、Cookie、密钥、DSN 或服务器绝对路径');
     expect(source).not.toContain('style={{');

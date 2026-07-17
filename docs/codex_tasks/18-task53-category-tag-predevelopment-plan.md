@@ -1,8 +1,8 @@
 # Task53 分类、标签与导入智能归类专项准备计划
 
-状态：Task53P.1-P.6 准备包已完成；实现暂缓，当前继续 Task50.6<br>
+状态：Task53P.1-P.6 准备包已完成；Task50 已关闭，Task53.1 已具备下一任务准入<br>
 创建日期：2026-07-16<br>
-当前准入：Task50.6 后重新确认排期即可从 Task53.1 进入代码；尚未修改代码、创建 migration 022、升级数据库或部署<br>
+当前准入：推荐下一任务从 Task53.1 进入 TDD；尚未修改 Task53 代码、创建 migration 022、升级数据库或部署<br>
 禁止：不得修改代码、创建 migration 022、升级数据库或部署 WSL/NAS
 
 ## 1. Goal
@@ -124,7 +124,7 @@ Task53 未来实现与当前 Task50 可能冲突：
 | File/module | Task53 need | Coordination |
 |---|---|---|
 | `backend/internal/ledger/repo.go` | 新账本默认 profile | Task53 独占；Task50 恢复前 rebase/review |
-| `backend/internal/http/router/router.go` | 新 API | Task53 暂缓，等待 Task50.6 收口后重新登记文件所有权 |
+| `backend/internal/http/router/router.go` | 新 API | Task50 已关闭；Task53.1 开始时按详细计划登记文件所有权 |
 | `docs/api/openapi-v1.3-ledger-draft.yaml` | LedgerCreate metadata extension | 先保持独立 Task53 draft，最终评审再合并 |
 | `frontend` ledger create UI | profile selector | Task50.4/50.5 先完成，Task53U 后续适配最终契约 |
 | `frontend/src/pages/ImportPage.tsx` | 分类状态与批量操作 | Task53 所有权 |
@@ -171,4 +171,4 @@ IMAGE_TAG=task53-dev-<commit>
 4. 标签上限 8 个是否接受。
 5. Task53 完成后再恢复 Task50 的执行顺序是否确认。
 
-详细原子开发计划已经形成。Task50.6 后确认 Task53 进入开发时，下一任务仍为 Task53.1，不跳过 failing tests、migration review 或独立环境边界。
+详细原子开发计划已经形成，下一任务为 Task53.1；不得跳过 failing tests、migration review 或独立环境边界。

@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-16）：Task41-Task49 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53P.1-P.6 分类标签专项准备包已经形成并暂缓实现。Task50.1-Task50.5 已完成，下一实现任务为 Task50.6；Task51P.1 非约束性准备已放行，正式冻结仍等待 Task50.6，Task52 保持延后调研。
+> 执行更新（2026-07-17）：Task41-Task50 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53P.1-P.6 分类标签专项准备包完整，下一实现任务推荐为 Task53.1。Task51P.1 非约束性证据继续收集，但有效真实小组证据为 0；Task52 保持延后调研。
 
 ## 1. 使用说明
 
@@ -183,7 +183,7 @@
 
 ### Task50：多账本正式化
 
-状态：Task50.1-Task50.5 已完成；Task50.6 已放行。Task53 实现暂缓。详细入口见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md` 和 `docs/codex_tasks/16-v1.3-task50-3-readiness-and-post-task50-entry.md`。
+状态：Task50.1-Task50.6 已完成。最终证据见 `docs/project_analysis/2026-07-17-task50-6-release-closure.md`。
 
 目标：
 
@@ -193,7 +193,7 @@
 
 ### Task53：分类、标签与导入分级自动化
 
-状态：Task53P.1-P.6 准备包完成，代码、migration 022 和部署暂缓；Task50.6 后与 Task51P 重新评审实现顺序。入口为 `docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md` 和 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`。
+状态：Task53P.1-P.6 准备包完成，Task50 已关闭；推荐从 Task53.1 开始 TDD，migration 022 只能在对应任务评审后生成。入口为 `docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md` 和 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`。
 
 目标：
 
@@ -209,11 +209,11 @@
 2. 冻结 OpenAPI、migration 022、错误码、Fixture expected JSON 和 UI/Figma handoff。
 3. 已形成 Task53.1-Task53.5/Task53U 详细开发计划、文件所有权、TDD 清单、环境和回滚门禁。
 
-当前顺序：`Task53P complete -> Task50.6 -> 重新排序 Task53 implementation 与正式 Task51P`。Task51P.1 可并行维护非约束性证据；Task52 不因本次调整而提前。
+当前顺序：`Task50 complete -> Task53.1 implementation`。Task51P.1 可并行维护非约束性证据；只有得出 `continue/narrow` 才进入 P2-P6，Task52 不提前。
 
 ### Task51：多人分摊体验增强
 
-状态：不具备直接开发条件。Task51P.1 的非约束性场景分类、证据模板与问题清单已开始准备；正式 Task51P、范围/版本冻结和代码开发仍等待 Task50.6，不得直接解除 schema 21 的最多两名成员约束。入口为 `../prd/33-task51-scenario-evidence-and-scope-questions.md` 与 `17-task51-predevelopment-plan.md`。
+状态：不具备直接开发条件。Task50 技术门禁已满足，但 Task51P.1 有效真实证据仍为 0；正式 P2-P6、范围/版本冻结和代码开发等待 `continue/narrow` 结论，不得直接解除 schema 21 的最多两名成员约束。入口为 `../prd/33-task51-scenario-evidence-and-scope-questions.md` 与 `17-task51-predevelopment-plan.md`。
 
 目标：
 
@@ -229,7 +229,7 @@
 4. UI 流程、组件归属、本地 Figma handoff、移动端与可访问性矩阵。
 5. 详细开发切片、独立 development/staging 和发布门禁。
 
-Task51 的目标版本在 Task50.6 后重新确认；旧路线中的版本号不作为提前开工依据。
+Task51 的目标版本只在 P1 真实证据形成 `continue/narrow` 后确认；旧路线中的版本号不作为提前开工依据。
 
 ### Task52：通知共同支付调研
 

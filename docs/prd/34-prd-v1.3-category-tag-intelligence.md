@@ -1,9 +1,9 @@
 # PRD：v1.3 分类、标签与导入智能归类专项
 
-状态：Task53P 产品设计基线完成；代码实现暂缓，Task50.6 后复评排期<br>
+状态：Task53P 产品设计基线完成；Task50 已关闭，下一实现任务推荐为 Task53.1<br>
 任务编号：Task53<br>
 创建日期：2026-07-16<br>
-优先级：准备工作已完成；当前继续 Task50.6，Task53 实现不并行<br>
+优先级：准备工作已完成；Task53.1 已具备实现准入<br>
 关联研究：`docs/project_analysis/2026-07-16-category-tag-competitive-research.md`
 
 ## 1. Goal
@@ -266,4 +266,4 @@ Task53 不扩大当前导入权限。
 
 ## 11. Release boundary
 
-Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`。当前不启动代码、migration 或部署；Task50.6 后只需重新确认排期即可从 Task53.1 开始，无需重复准备。
+Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`。下一实现任务可从 Task53.1 开始；migration 022 仍只能在对应 TDD 原子任务中生成，不重复准备。

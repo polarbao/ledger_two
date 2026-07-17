@@ -2,7 +2,7 @@
 
 版本：v1.0-frozen
 
-状态：产品范围与全部开发前契约已冻结；Task50.1-Task50.5 已完成，下一实现任务为 Task50.6
+状态：产品范围、开发前契约和 Task50.1-Task50.6 实现/验收全部完成
 
 冻结日期：2026-07-15
 
@@ -262,6 +262,6 @@ Task50 必须复用 UI-FL-01 至 UI-FL-10 的 Token、Button、Dialog、Sheet、
 2. Task50P.4 OpenAPI、Fixture 与验收矩阵已冻结。
 3. Task50P.5 Fresh Light UI 流程和本地 handoff 已冻结。
 4. UI-FL-01 至 UI-FL-10 已完成，Fresh Light 默认体验与 Dark Glass 回退均已验收。
-5. Task50P.6 已按“仅独立本地 development”有条件关闭；Task50.1-Task50.5 已完成，下一任务只允许 Task50.6，不自动迁移 WSL staging 或 NAS。
+5. Task50.6 已在独立本机 WSL staging 完成 schema 21、回滚和浏览器验收；NAS 未迁移，仍需独立维护窗口。
 
 Task50.5 验收见 `docs/project_analysis/2026-07-16-task50-5-ledger-management-acceptance.md`；详细准入证据见 `docs/project_analysis/2026-07-15-task50-p6-development-readiness.md`，实施顺序见 `docs/codex_tasks/15-v1.3-task50-detailed-implementation-plan.md`。

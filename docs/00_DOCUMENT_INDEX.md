@@ -2,7 +2,7 @@
 
 > 当前事实源提示：Task01-Task49 已完成。Task49X 核心代码、运行开关、本机 schema 19、微信 XLSX/支付宝 CSV 真实 preview、移动端视觉验收和 NAS staging 自动回滚脚本已完成；支付宝当前仍只导出 CSV，不再等待支付宝 XLSX。剩余发布门禁为 NAS schema 19 staging、production 一致性备份与逐批导入确认。后续优先读取 `docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md`、`docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md`、`docs/codex_tasks/12-v1.2-xlsx-import-special-plan.md`、专项 PRD/DEV 和既有 v1.2 导入契约。
 >
-> Fresh Light 设计规范、本地 29 Frame 审阅包和协同开发计划已完成；UI-FL-01 至 UI-FL-10 于 2026-07-15 全部关闭。Task53 分类、标签与导入智能归类专项已完成 P1-P6 产品、技术、API、Migration、Fixture、UI/Figma 和详细任务细化，其代码、migration 022 和部署暂不启动。Task50.1-Task50.5 已完成；生命周期、成员/Owner、实例运维、active-ledger、缓存隔离、无账本 Shell、账本管理和归档只读上下文已通过自动化与本地浏览器验收，下一实现任务为 Task50.6。Task51P.1 非约束性准备已启动，但有效真实小组证据仍为 0；P2-P6 继续等待 Task50.6。WSL staging 仍为 schema 19，NAS 未执行 migration 020/021。
+> Fresh Light 设计规范、本地 29 Frame 审阅包和 UI-FL-01 至 UI-FL-10 已完成。Task50.1-Task50.6 已于 2026-07-17 整体关闭；`1.3.0-rc/schema 21` 固定候选在独立 WSL2 38091 staging 通过全模块隔离、匿名升级、成对回滚和 8 组浏览器验收，NAS 未执行 migration 020/021。Task53 分类、标签与导入智能归类专项的 P1-P6 准备完整，下一实现任务推荐为 Task53.1。Task51P.1 继续非约束性证据收集，但有效真实小组证据仍为 0；P2-P6 不自动冻结。
 
 本文档用于让人类开发者、Codex、Cursor、Copilot 或其他 AI 编码模型快速理解项目并按正确顺序实现代码。
 
@@ -125,6 +125,10 @@ docs/releases/README.md
 docs/releases/v1.2.0-rc-release-notes.md
 docs/releases/v1.2.0-rc-upgrade-guide.md
 docs/releases/v1.2.0-rc-checklist.md
+docs/releases/v1.3.0-rc-release-notes.md
+docs/releases/v1.3.0-rc-upgrade-guide.md
+docs/releases/v1.3.0-rc-checklist.md
+docs/project_analysis/2026-07-17-task50-6-release-closure.md
 docs/project_analysis/2026-07-12-v1.2-nas-production-upgrade-acceptance.md
 docs/project_analysis/2026-07-13-task49x-nas-schema19-readiness.md
 docs/project_analysis/2026-07-12-local-wsl-xlsx-csv-preview-acceptance.md

@@ -2,7 +2,7 @@
 
 状态：进行中，尚无有效真实小组证据<br>
 启动日期：2026-07-16<br>
-正式 Gate：Task50 技术门禁已满足；等待真实证据形成 `continue/narrow/defer`
+正式 Gate：Task50 技术门禁已满足；Task53 完成后重新评审，仍等待真实证据形成 `continue/narrow/defer`
 
 ## Purpose
 

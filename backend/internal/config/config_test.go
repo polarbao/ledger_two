@@ -165,6 +165,37 @@ func TestValidateRuntimeRejectsInvalidXLSXImportGate(t *testing.T) {
 	}
 }
 
+func TestLoadClassificationModeDefaultsOffAndAcceptsFrozenValues(t *testing.T) {
+	for _, testCase := range []struct {
+		raw  string
+		want string
+	}{
+		{raw: "", want: "off"},
+		{raw: "off", want: "off"},
+		{raw: "suggest", want: "suggest"},
+		{raw: "graded", want: "graded"},
+	} {
+		t.Run(testCase.want+"_from_"+testCase.raw, func(t *testing.T) {
+			t.Setenv("IMPORT_CLASSIFICATION_MODE", testCase.raw)
+			cfg := Load()
+			if cfg.ImportClassificationMode != testCase.want {
+				t.Fatalf("classification mode = %q, want %q", cfg.ImportClassificationMode, testCase.want)
+			}
+			if err := cfg.ValidateRuntime(); err != nil {
+				t.Fatalf("valid classification mode rejected: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateRuntimeRejectsInvalidClassificationMode(t *testing.T) {
+	t.Setenv("IMPORT_CLASSIFICATION_MODE", "automatic")
+	cfg := Load()
+	if err := cfg.ValidateRuntime(); err == nil || !strings.Contains(err.Error(), "IMPORT_CLASSIFICATION_MODE") {
+		t.Fatalf("expected classification mode validation error, got %v", err)
+	}
+}
+
 func TestValidateRuntimeRejectsUnknownDeploymentChannel(t *testing.T) {
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("DEPLOYMENT_CHANNEL", "preview")

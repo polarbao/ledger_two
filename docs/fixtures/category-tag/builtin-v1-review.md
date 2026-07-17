@@ -1,6 +1,6 @@
 # Task53.2 Built-in v1 匿名关键词误命中评审
 
-状态：Task53.2 开发前冻结<br>
+状态：Task53.2 已实现并通过正负例回归；后续新增词条仍需重新评审<br>
 日期：2026-07-17<br>
 范围：只为没有高优先级用户/学习规则的 eligible 导入行产生 medium 建议
 
@@ -8,9 +8,9 @@
 
 | Rule key | Direction/type | Match input | Anonymous terms | Category key | Tag keys | Confidence |
 |---|---|---|---|---|---|---|
-| `builtin_takeout_v1` | out/expense | merchant or title contains | `外卖` | `expense_food` | `tag_takeout` | medium |
-| `builtin_salary_v1` | in/income | title contains | `工资` | `income_salary` | none | medium |
-| `builtin_refund_v1` | in/income | title contains | `退款`、`退回` | `income_refund` | none | medium |
+| `builtin_takeout_v1` | expense/expense | merchant or title contains | `外卖` | `expense_food` | `tag_takeout` | medium |
+| `builtin_salary_v1` | income/income | title contains | `工资` | `income_salary` | none | medium |
+| `builtin_refund_v1` | refund/income | title contains | `退款`、`退回` | `income_refund` | none | medium |
 
 首版仅冻结上述三个匿名、通用词条，以覆盖 CT-R03、CT-R05、CT-R06。品牌名、用户真实商户、订单描述和支付渠道名称不得进入内置表。
 
@@ -41,4 +41,4 @@
 3. `IMPORT_CLASSIFICATION_MODE` 默认 `off`；Task53.2 不接入 preview/commit。
 4. 新增词条必须先追加匿名正例、负例、目标 system key 和误命中理由，再修改代码。
 
-结论：Task53.2 的 built-in v1 范围已经收敛，可进入纯 classifier TDD；不需要再次扩展竞品研究或读取真实账单。
+结论：Task53.2 的 built-in v1 已按冻结范围落地；不需要扩展竞品研究或读取真实账单。后续新增词条必须先补匿名正负 Fixture。

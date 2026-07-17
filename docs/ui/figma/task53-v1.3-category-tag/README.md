@@ -1,6 +1,6 @@
 # Task53 v1.3 分类标签智能化 Figma Handoff
 
-状态：本地设计要求已冻结；视觉审阅稿和线上 Figma 同步未验证<br>
+状态：本地设计要求与代码复用证据已冻结；视觉审阅稿和线上 Figma 同步未验证<br>
 冻结日期：2026-07-16<br>
 关联任务：Task53P.5、未来 Task53U
 
@@ -13,6 +13,7 @@
 | `README.md` | requirement | 范围、事实源、Page、组件和同步规则 |
 | `task53-frame-manifest.json` | requirement | required Frame、视口、状态、路由和验收映射 |
 | `component-state-matrix.md` | requirement | 状态变体、文案、可访问性和禁止行为 |
+| `reuse-evidence.md` | requirement / reuse evidence | required Frame 与现有 React/UI foundation 的复用映射 |
 
 未来 PNG/SVG/PDF/HTML 审阅稿放到 `../local-review/task53-v1.3-<date>/`，并标注为 generated review artifact，不能写成“线上 Figma 已同步”。
 

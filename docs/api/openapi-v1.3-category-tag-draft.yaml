@@ -4,8 +4,8 @@ info:
   version: 1.3.0-task53-draft
   description: |
     Task53 分类、标签、默认元数据和导入分级自动化增量契约。
-    Task53.1 的 schema 22 与三个 default-profile 路径已经实现；现状仍以 API_INVENTORY.md 为准。
-    import-classification 下的批量调整、学习与重分类路径仍属于 Task53.2-Task53.4 草案。
+    Task53.1 的 schema 22 与三个 default-profile 路径已经实现；Task53.2 的纯分类器、候选读取和默认关闭开关已经实现。
+    import-classification 下的 preview 持久化、批量调整、学习与重分类契约仍属于 Task53.3-Task53.4 草案；现状仍以 API_INVENTORY.md 为准。
 servers:
   - url: /api
 tags:
@@ -415,7 +415,8 @@ components:
 
     Classification:
       type: object
-      required: [status, confidence]
+      description: Additive PreviewRow classification projection. Final selected values remain on the existing PreviewRow selected_* fields.
+      required: [status, confidence, matched_rule_ids]
       properties:
         status:
           type: string
@@ -440,10 +441,39 @@ components:
         suggested_category_id:
           type: string
           nullable: true
+        suggested_account_id:
+          type: string
+          nullable: true
         suggested_tag_ids:
           type: array
           items:
             type: string
+
+    ClassificationSummary:
+      type: object
+      required: [auto_selected, suggested, fallback, manual, bulk, conflict, unresolved]
+      properties:
+        auto_selected:
+          type: integer
+          minimum: 0
+        suggested:
+          type: integer
+          minimum: 0
+        fallback:
+          type: integer
+          minimum: 0
+        manual:
+          type: integer
+          minimum: 0
+        bulk:
+          type: integer
+          minimum: 0
+        conflict:
+          type: integer
+          minimum: 0
+        unresolved:
+          type: integer
+          minimum: 0
 
     BulkClassificationRequest:
       type: object
@@ -478,7 +508,7 @@ components:
           properties:
             data:
               type: object
-              required: [affected_rows, skipped_rows, conflict_rows]
+              required: [affected_rows, skipped_rows, conflict_rows, updated_row_ids, skipped_row_ids, conflict_row_ids, errors]
               properties:
                 affected_rows:
                   type: integer
@@ -486,6 +516,33 @@ components:
                   type: integer
                 conflict_rows:
                   type: integer
+                updated_row_ids:
+                  type: array
+                  items:
+                    type: string
+                skipped_row_ids:
+                  type: array
+                  items:
+                    type: string
+                conflict_row_ids:
+                  type: array
+                  items:
+                    type: string
+                errors:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ClassificationRowError"
+
+    ClassificationRowError:
+      type: object
+      required: [row_id, code, message]
+      properties:
+        row_id:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
 
     LearnMerchantRequest:
       type: object
@@ -528,7 +585,7 @@ components:
           properties:
             data:
               type: object
-              required: [dry_run, eligible_rows, changed_rows, unchanged_rows, protected_manual_rows]
+              required: [dry_run, eligible_rows, changed_rows, unchanged_rows, protected_manual_rows, protected_bulk_rows, conflict_rows, summary, changes]
               properties:
                 dry_run:
                   type: boolean
@@ -540,6 +597,41 @@ components:
                   type: integer
                 protected_manual_rows:
                   type: integer
+                protected_bulk_rows:
+                  type: integer
+                conflict_rows:
+                  type: integer
+                summary:
+                  $ref: "#/components/schemas/ClassificationSummary"
+                changes:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ReclassifyRowChange"
+
+    ReclassifyRowChange:
+      type: object
+      required: [row_id, old_status, new_status, old_category_id, new_category_id, old_tag_ids, new_tag_ids]
+      properties:
+        row_id:
+          type: string
+        old_status:
+          type: string
+        new_status:
+          type: string
+        old_category_id:
+          type: string
+          nullable: true
+        new_category_id:
+          type: string
+          nullable: true
+        old_tag_ids:
+          type: array
+          items:
+            type: string
+        new_tag_ids:
+          type: array
+          items:
+            type: string
 
     LedgerCreateMetadataExtension:
       type: object

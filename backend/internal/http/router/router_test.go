@@ -32,11 +32,12 @@ func TestHealthz(t *testing.T) {
 	var resp struct {
 		Success bool `json:"success"`
 		Data    struct {
-			Status            string `json:"status"`
-			DB                string `json:"db"`
-			Version           string `json:"version"`
-			SchemaVersion     int64  `json:"schema_version"`
-			DeploymentChannel string `json:"deployment_channel"`
+			Status                   string `json:"status"`
+			DB                       string `json:"db"`
+			Version                  string `json:"version"`
+			SchemaVersion            int64  `json:"schema_version"`
+			DeploymentChannel        string `json:"deployment_channel"`
+			ImportClassificationMode string `json:"import_classification_mode"`
 		} `json:"data"`
 	}
 
@@ -62,12 +63,16 @@ func TestHealthz(t *testing.T) {
 	if resp.Data.DeploymentChannel != "unknown" {
 		t.Errorf("deployment_channel = %q, want unknown", resp.Data.DeploymentChannel)
 	}
+	if resp.Data.ImportClassificationMode != "off" {
+		t.Errorf("import_classification_mode = %q, want off", resp.Data.ImportClassificationMode)
+	}
 }
 
 func TestHealthzReturnsDeploymentChannel(t *testing.T) {
 	r := New(nil, &config.Config{
-		DeploymentChannel: config.DeploymentChannelStaging,
-		ImportXLSXEnabled: true,
+		DeploymentChannel:        config.DeploymentChannelStaging,
+		ImportXLSXEnabled:        true,
+		ImportClassificationMode: "suggest",
 	})
 	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
 	rr := httptest.NewRecorder()
@@ -76,8 +81,9 @@ func TestHealthzReturnsDeploymentChannel(t *testing.T) {
 
 	var resp struct {
 		Data struct {
-			DeploymentChannel string `json:"deployment_channel"`
-			ImportXLSXEnabled bool   `json:"import_xlsx_enabled"`
+			DeploymentChannel        string `json:"deployment_channel"`
+			ImportXLSXEnabled        bool   `json:"import_xlsx_enabled"`
+			ImportClassificationMode string `json:"import_classification_mode"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
@@ -88,5 +94,8 @@ func TestHealthzReturnsDeploymentChannel(t *testing.T) {
 	}
 	if !resp.Data.ImportXLSXEnabled {
 		t.Fatalf("expected import_xlsx_enabled in health response")
+	}
+	if resp.Data.ImportClassificationMode != "suggest" {
+		t.Fatalf("import_classification_mode = %q, want suggest", resp.Data.ImportClassificationMode)
 	}
 }

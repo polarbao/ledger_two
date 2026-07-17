@@ -60,10 +60,18 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 
 	importRepo := importer.NewRepository(dbConn)
 	importXLSXEnabled := true
+	importClassificationMode := "off"
 	if cfg != nil {
 		importXLSXEnabled = cfg.ImportXLSXEnabled
+		if cfg.ImportClassificationMode != "" {
+			importClassificationMode = cfg.ImportClassificationMode
+		}
 	}
-	importSvc := importer.NewService(importRepo, importer.WithXLSXEnabled(importXLSXEnabled))
+	importSvc := importer.NewService(
+		importRepo,
+		importer.WithXLSXEnabled(importXLSXEnabled),
+		importer.WithClassificationMode(importClassificationMode),
+	)
 	importHandler := importer.NewHandler(importSvc)
 
 	settlementRepo := settlement.NewRepository(dbConn)
@@ -96,8 +104,12 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 			var schemaVersion int64 = 0
 			deploymentChannel := "unknown"
 			importXLSXEnabled := true
+			importClassificationMode := "off"
 			if cfg != nil {
 				importXLSXEnabled = cfg.ImportXLSXEnabled
+				if cfg.ImportClassificationMode != "" {
+					importClassificationMode = cfg.ImportClassificationMode
+				}
 				if cfg.DeploymentChannel != "" {
 					deploymentChannel = cfg.DeploymentChannel
 				}
@@ -115,12 +127,13 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				dbStatus = "none"
 			}
 			response.JSON(w, http.StatusOK, map[string]interface{}{
-				"status":              "ok",
-				"db":                  dbStatus,
-				"version":             appVersion,
-				"schema_version":      schemaVersion,
-				"deployment_channel":  deploymentChannel,
-				"import_xlsx_enabled": importXLSXEnabled,
+				"status":                     "ok",
+				"db":                         dbStatus,
+				"version":                    appVersion,
+				"schema_version":             schemaVersion,
+				"deployment_channel":         deploymentChannel,
+				"import_xlsx_enabled":        importXLSXEnabled,
+				"import_classification_mode": importClassificationMode,
 			})
 		})
 

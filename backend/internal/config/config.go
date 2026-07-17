@@ -16,21 +16,22 @@ const (
 )
 
 type Config struct {
-	Env               string
-	DeploymentChannel string
-	Port              string
-	HTTPAddr          string
-	AppBaseURL        string
-	DSN               string
-	JWTSecret         string
-	BackupDir         string
-	UploadDir         string
-	LogDir            string
-	CookieSecure      string
-	CookieSameSite    string
-	ImportXLSXEnabled bool
-	cookieSecureSet   bool
-	importXLSXRaw     string
+	Env                      string
+	DeploymentChannel        string
+	Port                     string
+	HTTPAddr                 string
+	AppBaseURL               string
+	DSN                      string
+	JWTSecret                string
+	BackupDir                string
+	UploadDir                string
+	LogDir                   string
+	CookieSecure             string
+	CookieSameSite           string
+	ImportXLSXEnabled        bool
+	ImportClassificationMode string
+	cookieSecureSet          bool
+	importXLSXRaw            string
 }
 
 func Load() *Config {
@@ -61,23 +62,29 @@ func Load() *Config {
 	cookieSecure, cookieSecureSet := os.LookupEnv("COOKIE_SECURE")
 	importXLSXRaw := strings.ToLower(strings.TrimSpace(os.Getenv("IMPORT_XLSX_ENABLED")))
 	importXLSXEnabled := parseImportXLSXEnabled(deploymentChannel, importXLSXRaw)
+	importClassificationRaw := strings.ToLower(strings.TrimSpace(os.Getenv("IMPORT_CLASSIFICATION_MODE")))
+	importClassificationMode := importClassificationRaw
+	if importClassificationMode == "" {
+		importClassificationMode = "off"
+	}
 
 	return &Config{
-		Env:               env,
-		DeploymentChannel: deploymentChannel,
-		Port:              port,
-		HTTPAddr:          httpAddr,
-		AppBaseURL:        os.Getenv("APP_BASE_URL"),
-		DSN:               dsn,
-		JWTSecret:         jwtSecret,
-		BackupDir:         getenvDefault("BACKUP_DIR", "data/backups"),
-		UploadDir:         getenvDefault("UPLOAD_DIR", "data/uploads"),
-		LogDir:            getenvDefault("LOG_DIR", "data/logs"),
-		CookieSecure:      cookieSecure,
-		CookieSameSite:    getenvDefault("COOKIE_SAMESITE", "Lax"),
-		ImportXLSXEnabled: importXLSXEnabled,
-		cookieSecureSet:   cookieSecureSet,
-		importXLSXRaw:     importXLSXRaw,
+		Env:                      env,
+		DeploymentChannel:        deploymentChannel,
+		Port:                     port,
+		HTTPAddr:                 httpAddr,
+		AppBaseURL:               os.Getenv("APP_BASE_URL"),
+		DSN:                      dsn,
+		JWTSecret:                jwtSecret,
+		BackupDir:                getenvDefault("BACKUP_DIR", "data/backups"),
+		UploadDir:                getenvDefault("UPLOAD_DIR", "data/uploads"),
+		LogDir:                   getenvDefault("LOG_DIR", "data/logs"),
+		CookieSecure:             cookieSecure,
+		CookieSameSite:           getenvDefault("COOKIE_SAMESITE", "Lax"),
+		ImportXLSXEnabled:        importXLSXEnabled,
+		ImportClassificationMode: importClassificationMode,
+		cookieSecureSet:          cookieSecureSet,
+		importXLSXRaw:            importXLSXRaw,
 	}
 }
 
@@ -87,6 +94,9 @@ func (c *Config) ValidateRuntime() error {
 	}
 	if c.importXLSXRaw != "" && c.importXLSXRaw != "true" && c.importXLSXRaw != "false" {
 		return fmt.Errorf("IMPORT_XLSX_ENABLED must be true or false")
+	}
+	if c.ImportClassificationMode != "off" && c.ImportClassificationMode != "suggest" && c.ImportClassificationMode != "graded" {
+		return fmt.Errorf("IMPORT_CLASSIFICATION_MODE must be off, suggest, or graded")
 	}
 	if c.Env != "production" {
 		return nil

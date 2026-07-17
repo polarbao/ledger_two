@@ -22,8 +22,9 @@ import (
 const MaxPreviewRows = tabular.MaxDataRows
 
 type Service struct {
-	repo        *Repository
-	xlsxEnabled bool
+	repo               *Repository
+	xlsxEnabled        bool
+	classificationMode string
 }
 
 type ServiceOption func(*Service)
@@ -34,8 +35,14 @@ func WithXLSXEnabled(enabled bool) ServiceOption {
 	}
 }
 
+func WithClassificationMode(mode string) ServiceOption {
+	return func(service *Service) {
+		service.classificationMode = mode
+	}
+}
+
 func NewService(repo *Repository, options ...ServiceOption) *Service {
-	service := &Service{repo: repo, xlsxEnabled: true}
+	service := &Service{repo: repo, xlsxEnabled: true, classificationMode: "off"}
 	for _, option := range options {
 		option(service)
 	}

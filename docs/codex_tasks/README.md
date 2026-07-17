@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task50 已完成；Task49X/NAS 发布线独立维护；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53.1 已完成，下一实现任务为 Task53.2；Task51P.1 继续非约束性证据收集
+适用阶段：Task01-Task50 已完成；Task49X/NAS 发布线独立维护；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53.1-Task53.2 已完成，下一实现任务为 Task53.3；Task51P.1 继续非约束性证据收集
 
 ## 1. 目标
 
@@ -32,6 +32,7 @@
 17-task51-predevelopment-plan.md Task51P.1-P.6 开发前准备顺序与正式门禁
 18-task53-category-tag-predevelopment-plan.md Task53P 分类、标签、默认元数据与分级自动化准备门禁
 19-v1.3-task53-detailed-implementation-plan.md Task53.1-Task53.5/Task53U 详细实施、TDD、环境、回滚与提交计划
+../tech/28-v1.3-task53-post-classifier-readiness.md Task53.3-Task53.5 flag、DTO、事务、UI 与隔离 staging 准备契约
 ../prd/31-prd-v1.3-multi-ledger.md v1.3 Task50 多账本正式化冻结 PRD
 ../prd/32-v1.3-task50-acceptance-fixtures.md v1.3 Task50 匿名 Fixture 与验收矩阵
 ../prd/33-task51-scenario-evidence-and-scope-questions.md Task51 多人分摊场景证据与范围问题
@@ -61,7 +62,7 @@
 8. 读取 `docs/tech/18-short-mid-architecture-slices.md`、`docs/tech/19-short-mid-implementation-readiness.md` 和 `docs/ui/14-v1.1-v1.2-module-flows.md`。
 9. Fresh Light 或后续业务 Task 涉及 UI 时，读取 `docs/ui/figma/ledger-two-fresh-light-implementation-spec-2026-07-13.md` 和 `docs/codex_tasks/13-fresh-light-ui-interaction-plan.md`，登记共享组件归属和并行冲突。
 10. Task50.1-Task50.6 已关闭，最终证据为 `docs/project_analysis/2026-07-17-task50-6-release-closure.md`；不得重复执行 schema 21 migration 或把本机 staging 误写为 NAS 已部署。
-11. Task53 未来恢复开发时必须依次读取 `docs/prd/34-prd-v1.3-category-tag-intelligence.md`、`docs/tech/26-v1.3-category-tag-intelligence-contract.md`、`docs/tech/27-v1.3-category-tag-migration-review.md`、`docs/api/openapi-v1.3-category-tag-draft.yaml`、`docs/ui/17-v1.3-category-tag-intelligence-flows.md`、`docs/ui/figma/task53-v1.3-category-tag/README.md`、`docs/fixtures/category-tag/README.md`、`docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md` 和 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`；不得重复建立平行准备文档。
+11. Task53 后续开发必须依次读取 `docs/prd/34-prd-v1.3-category-tag-intelligence.md`、`docs/tech/26-v1.3-category-tag-intelligence-contract.md`、`docs/tech/27-v1.3-category-tag-migration-review.md`、`docs/tech/28-v1.3-task53-post-classifier-readiness.md`、`docs/api/openapi-v1.3-category-tag-draft.yaml`、`docs/ui/17-v1.3-category-tag-intelligence-flows.md`、`docs/ui/figma/task53-v1.3-category-tag/README.md`、`docs/ui/figma/task53-v1.3-category-tag/reuse-evidence.md`、`docs/fixtures/category-tag/README.md`、`docs/codex_tasks/18-task53-category-tag-predevelopment-plan.md` 和 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`；不得重复建立平行准备文档。
 12. Task51 准备必须读取 `docs/prd/33-task51-scenario-evidence-and-scope-questions.md`、`docs/codex_tasks/17-task51-predevelopment-plan.md` 与 `docs/project_analysis/task51_p1/README.md`；P1 真实证据未形成 `continue/narrow` 前不得实现代码或解除两人约束。
 13. Foundation 开发读取 `docs/codex_tasks/10-task33-40-detailed-plan.md`。
 14. 读取本目录代码风格文档。

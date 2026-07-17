@@ -9,9 +9,11 @@
   "source_reference": [
     "docs/prd/34-prd-v1.3-category-tag-intelligence.md",
     "docs/tech/26-v1.3-category-tag-intelligence-contract.md",
+    "docs/tech/28-v1.3-task53-post-classifier-readiness.md",
     "docs/api/openapi-v1.3-category-tag-draft.yaml",
     "docs/fixtures/category-tag/README.md",
-    "docs/ui/17-v1.3-category-tag-intelligence-flows.md"
+    "docs/ui/17-v1.3-category-tag-intelligence-flows.md",
+    "docs/ui/figma/task53-v1.3-category-tag/reuse-evidence.md"
   ],
   "figma_page": "08 v1.3 Classification & Metadata",
   "frames": [

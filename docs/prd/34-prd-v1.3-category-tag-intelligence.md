@@ -1,9 +1,9 @@
 # PRD：v1.3 分类、标签与导入智能归类专项
 
-状态：产品基线已冻结；Task53.1 默认元数据已完成，下一实现任务为 Task53.2<br>
+状态：产品基线已冻结；Task53.1-Task53.2 已完成，下一实现任务为 Task53.3<br>
 任务编号：Task53<br>
 创建日期：2026-07-16<br>
-优先级：Task53.2 纯分类器与历史规则兼容<br>
+优先级：Task53.3 预览持久化、解释与重分类<br>
 关联研究：`docs/project_analysis/2026-07-16-category-tag-competitive-research.md`
 
 ## 1. Goal
@@ -161,7 +161,7 @@
 每行展示：
 
 1. 最终分类、标签。
-2. 状态：`自动选择`、`建议`、`兜底`、`手工`。
+2. 状态：`自动选择`、`建议`、`兜底`、`手工`、`批量`、`冲突`。
 3. 来源：用户规则、学习规则、内置词典或系统兜底。
 4. 可读原因，例如“精确匹配商户「滴滴出行」”。
 5. “接受建议”“编辑”“应用到相同商户”“跳过”。
@@ -266,4 +266,4 @@ Task53 不扩大当前导入权限。
 
 ## 11. Release boundary
 
-Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md`。Task53.1 已落地 schema 22、默认 profile 和三类原子应用路径；下一实现任务从 Task53.2 纯分类器开始，Task53U 仍需等待 Task53.3 DTO 冻结。
+Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 与 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。Task53.1-Task53.2 已落地 schema 22、默认 profile、纯分类器和候选读取；下一实现任务为 Task53.3。Task53U 仍需等待 Task53.3/53.4 DTO 与错误码冻结以及本地视觉审阅稿。

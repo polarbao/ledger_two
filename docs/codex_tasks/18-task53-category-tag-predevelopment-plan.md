@@ -1,8 +1,8 @@
 # Task53 分类、标签与导入智能归类专项准备计划
 
-状态：Task53P.1-P.6 准备包已关闭；Task53.1 已完成，下一任务为 Task53.2<br>
+状态：Task53P.1-P.6 准备包已关闭；Task53.1-Task53.2 已完成，下一任务为 Task53.3<br>
 创建日期：2026-07-16<br>
-当前准入：Task53.1 已按 TDD 落地 schema 22 与默认元数据；Task53.2 纯分类器准备完整<br>
+当前准入：Task53.1 已落地 schema 22 与默认元数据；Task53.2 已按 TDD 完成纯分类器、候选读取和默认关闭开关；Task53.3 准备完整<br>
 环境边界：只在临时测试数据库执行 migration 022；不得升级现有 WSL/NAS 数据库
 
 ## 1. Goal
@@ -155,7 +155,7 @@ IMAGE_TAG=task53-dev-<commit>
 2. OpenAPI YAML 可解析且 `$ref` 无悬空项。
 3. 默认 profile system_key 唯一、支出/收入兜底各一项。
 4. PRD 与 Tech 对 apply/suggest/fallback/learn 定义一致。
-5. Task50 与 Task53.1 已关闭、Task53.2 已具备准入、Task51/Task52 门禁保持一致。
+5. Task50、Task53.1 和 Task53.2 已关闭，Task53.3 已具备开发准入；Task51/Task52 门禁保持一致。
 6. `git diff --check`、真实数据/数据库/密钥审计。
 
 ## 8. Rollback
@@ -172,4 +172,4 @@ IMAGE_TAG=task53-dev-<commit>
 4. 标签上限 8 个是否接受。
 5. Task53 完成后是否继续 Task51P.1 证据评审，仍由届时证据决定。
 
-详细原子开发计划已经形成，下一任务为 Task53.2；不得跳过 classifier failing tests、匿名 Fixture 误命中评审或独立环境边界。
+详细原子开发计划已经形成，下一任务为 Task53.3；不得跳过 DTO/持久化 snapshot failing tests、commit 不重分类证明或独立环境边界。后续准备细则见 `../tech/28-v1.3-task53-post-classifier-readiness.md`。

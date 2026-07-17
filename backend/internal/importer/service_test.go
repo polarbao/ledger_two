@@ -65,6 +65,19 @@ func TestPreviewCSVCreatesReadyBatchWithoutTransactions(t *testing.T) {
 	}
 }
 
+func TestTask532ClassificationModeDefaultsOffAndSupportsInjection(t *testing.T) {
+	database := openImporterTestDB(t)
+	defaultService := NewService(NewRepository(database))
+	if defaultService.classificationMode != "off" {
+		t.Fatalf("default classification mode = %q, want off", defaultService.classificationMode)
+	}
+
+	suggestService := NewService(NewRepository(database), WithClassificationMode("suggest"))
+	if suggestService.classificationMode != "suggest" {
+		t.Fatalf("injected classification mode = %q, want suggest", suggestService.classificationMode)
+	}
+}
+
 func TestPreviewFileStoresXLSXParserMetadataWithoutTransactions(t *testing.T) {
 	t.Parallel()
 

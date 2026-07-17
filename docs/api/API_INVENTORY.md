@@ -1,12 +1,12 @@
 ﻿# API Inventory
 
-状态：Task50.6 正式契约已冻结；Task53.1 默认元数据接口已落地
+状态：Task50.6 正式契约已冻结；Task53.1 默认元数据接口与 Task53.2 内部分类基础已落地
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
 更新时间：2026-07-17
 
-> Task53.1 已实现 schema 22、默认 profile 查询/预览/应用和初始化/新账本默认元数据。`openapi-v1.3-category-tag-draft.yaml` 中导入归类、批量调整、学习和重分类路径仍是后续 Task53.2-Task53.4 草案，不得描述为已上线。
+> Task53.1 已实现 schema 22、默认 profile 查询/预览/应用和初始化/新账本默认元数据。Task53.2 已实现内部纯分类器、规则/元数据候选读取和默认关闭开关，但没有新增业务路径，也没有接入 preview/commit；`openapi-v1.3-category-tag-draft.yaml` 中批量调整、学习和重分类路径仍是 Task53.3-Task53.4 草案，不得描述为已上线。
 
 ## 1. 总体约定
 

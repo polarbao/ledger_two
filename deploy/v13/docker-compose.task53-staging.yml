@@ -1,17 +1,17 @@
 services:
-  ledger-two-v13:
-    image: "${CANDIDATE_IMAGE:?CANDIDATE_IMAGE must be a fixed v1.3 tag}"
-    container_name: "${CONTAINER_NAME:-ledger-two-v13-staging}"
+  ledger-two-v13-task53:
+    image: "${CANDIDATE_IMAGE:?CANDIDATE_IMAGE must be a fixed Task53 tag}"
+    container_name: "${CONTAINER_NAME:-ledger-two-v13-task53-staging}"
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-38091}:8080"
+      - "${APP_PORT:-38092}:8080"
     environment:
       APP_ENV: production
       DEPLOYMENT_CHANNEL: staging
       IMPORT_XLSX_ENABLED: "true"
       IMPORT_CLASSIFICATION_MODE: "${IMPORT_CLASSIFICATION_MODE:-off}"
       HTTP_ADDR: ":8080"
-      APP_BASE_URL: "${APP_BASE_URL:-http://localhost:38091}"
+      APP_BASE_URL: "${APP_BASE_URL:-http://localhost:38092}"
       DB_DSN: /app/data/ledger.db
       BACKUP_DIR: /app/backups
       UPLOAD_DIR: /app/uploads
@@ -32,6 +32,6 @@ services:
       retries: 12
       start_period: 10s
     labels:
-      com.ledgertwo.release: "v1.3.0-rc"
+      com.ledgertwo.release: "v1.3.0-rc-task53"
       com.ledgertwo.channel: "staging"
-      com.ledgertwo.schema: "21"
+      com.ledgertwo.schema: "22"

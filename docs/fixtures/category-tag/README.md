@@ -1,6 +1,6 @@
 # Task53 分类、标签与自动归类 Fixture 规格
 
-状态：Task53 匿名 Fixture 基线；Task53.1 默认 profile/migration 用例已落地，不包含真实账单<br>
+状态：Task53 匿名 Fixture 基线；Task53.1 profile/migration 与 Task53.2 pure classifier 用例已落地，不包含真实账单<br>
 创建日期：2026-07-16<br>
 适用：Task53 classifier、migration、API、前端状态和浏览器验收
 
@@ -121,7 +121,7 @@ docs/fixtures/category-tag/expected/conflict.json
 docs/fixtures/category-tag/expected/profile-preview.json
 ```
 
-4 个 JSON 已生成并纳入 OpenAPI/Tech 静态校验。`profile-preview.json` 已与 `basic_cn_v1` 的 27 个冻结 system key、图标和颜色对齐；其余分类 expected 将从 Task53.2 起作为 pure classifier 与 API 快照依据。DTO 变化必须联合更新 OpenAPI 和 expected。
+4 个 JSON 已生成并纳入 OpenAPI/Tech 静态校验。`profile-preview.json` 已与 `basic_cn_v1` 的 27 个冻结 system key、图标和颜色对齐；分类 expected 已作为 Task53.2 pure classifier 用例依据，并在 Task53.3 继续作为 API/持久化快照输入。DTO 变化必须联合更新 OpenAPI 和 expected。
 
 ## 10. Acceptance matrix
 

@@ -6,7 +6,7 @@
 目标版本基路径：`/api/v1`，尚未实现 alias  
 更新时间：2026-07-17
 
-> Task53.1-Task53.3 已实现 schema 22、默认 profile、确定性分类器、preview 分类快照/summary 和 reclassify。`bulk-adjust`、`learn`、规则扩展和兜底替代只在 `openapi-v1.3-category-tag-draft.yaml` 完成 Task53.4 冻结，当前不得描述为已上线。
+> Task53.1-Task53.3 已实现 schema 22、默认 profile、确定性分类器、preview 分类快照/summary 和 reclassify；Task53.4A 已实现 `bulk-adjust`。`learn`、规则扩展和兜底替代仍只在 `openapi-v1.3-category-tag-draft.yaml` 冻结，当前不得描述为已上线。
 
 ## 1. 总体约定
 
@@ -126,6 +126,7 @@
 | GET | `/api/imports/{batchID}` | yes | required | stable | `importer.HandleGetBatch` | Owner 读取导入批次、行级预览、classification 快照和服务端重算 summary。 |
 | PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | stable | `importer.HandleUpdateRow` | v1.2 Owner 调整导入行状态、目标类型、分类、账户、标签和可见性。 |
 | POST | `/api/imports/{batchID}/reclassify` | yes | required | stable | `importer.HandleReclassify` | Owner 对 ready/未过期批次重算 eligible 非 manual/bulk 行；默认 dry-run，执行写脱敏审计但不创建 transaction。 |
+| POST | `/api/imports/{batchID}/rows/bulk-adjust` | yes | required | stable | `importer.HandleBulkAdjust` | Owner 对 ready/未过期批次按持久化建议或完整显式值批量调整；部分成功返回行级结果，单事务写一条脱敏审计，不创建 transaction/learned rule。 |
 | POST | `/api/imports/{batchID}/commit` | yes | required | stable | `importer.HandleCommit` | v1.2 Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
 | POST | `/api/imports/{batchID}/discard` | yes | required | stable | `importer.HandleDiscardBatch` | Owner 显式放弃 ready 批次；收敛为 expired，保留行/hash，不创建 transaction。 |
 | POST | `/api/import-rules/` | yes | required | stable | `importer.HandleCreateRule` | v1.2 Owner 创建导入规则，规则只产生建议。 |

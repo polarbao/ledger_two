@@ -148,6 +148,36 @@ export interface ImportReclassifyResult {
   changes: ImportReclassifyRowChange[];
 }
 
+export type ImportBulkClassificationPayload =
+  | {
+      row_ids: string[];
+      action: 'accept_suggestions';
+    }
+  | {
+      row_ids: string[];
+      action: 'apply_values';
+      category_id: string;
+      account_id: string | null;
+      tag_ids: string[];
+    };
+
+export interface ImportClassificationRowError {
+  row_id: string;
+  code: string;
+  message: string;
+}
+
+export interface ImportBulkClassificationResult {
+  affected_rows: number;
+  skipped_rows: number;
+  conflict_rows: number;
+  updated_row_ids: string[];
+  skipped_row_ids: string[];
+  conflict_row_ids: string[];
+  errors: ImportClassificationRowError[];
+  summary: ImportClassificationSummary;
+}
+
 export interface ImportCommitResult {
   batch_id: string;
   status: 'committed';

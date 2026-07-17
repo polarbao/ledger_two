@@ -344,7 +344,7 @@ func (r *Repository) UpdatePreviewRow(ctx context.Context, batch *PreviewBatch, 
 	}
 	defer tx.Rollback()
 
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now().UTC().Format(time.RFC3339Nano)
 	adjustmentJSON, err := json.Marshal(adjustment)
 	if err != nil {
 		return nil, err

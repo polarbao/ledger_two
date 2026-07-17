@@ -103,4 +103,9 @@ const (
 	ErrCodeImportRowRequiresConfirmation = "IMPORT_ROW_REQUIRES_CONFIRMATION"
 	ErrCodeImportCommitConflict          = "IMPORT_COMMIT_CONFLICT"
 	ErrCodeImportReclassifyConflict      = "IMPORT_RECLASSIFY_CONFLICT"
+	ErrCodeImportBulkAdjustConflict      = "IMPORT_BULK_ADJUST_CONFLICT"
+	ErrCodeCategoryTypeMismatch          = "CATEGORY_TYPE_MISMATCH"
+	ErrCodeTagLimitExceeded              = "TAG_LIMIT_EXCEEDED"
+	ErrCodeClassificationConflict        = "CLASSIFICATION_CONFLICT"
+	ErrCodeClassificationRuleStale       = "CLASSIFICATION_RULE_STALE"
 )

@@ -220,6 +220,7 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/preview", importHandler.HandlePreview)
 					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Get("/{batchID}", importHandler.HandleGetBatch)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Patch("/{batchID}/rows/{rowID}", importHandler.HandleUpdateRow)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/rows/bulk-adjust", importHandler.HandleBulkAdjust)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/reclassify", importHandler.HandleReclassify)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/commit", importHandler.HandleCommit)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationDiscardImportBatch)).Post("/{batchID}/discard", importHandler.HandleDiscardBatch)

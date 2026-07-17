@@ -1,5 +1,7 @@
 import { api } from './client';
 import type {
+  ImportBulkClassificationPayload,
+  ImportBulkClassificationResult,
   ImportCommitResult,
   ImportDiscardResult,
   ImportPreviewBatch,
@@ -32,6 +34,9 @@ export const importsApi = {
 
   reclassify: (batchId: string, dryRun = true) =>
     api.post<ImportReclassifyResult>(`/api/imports/${batchId}/reclassify`, { dry_run: dryRun }),
+
+  bulkAdjust: (batchId: string, payload: ImportBulkClassificationPayload) =>
+    api.post<ImportBulkClassificationResult>(`/api/imports/${batchId}/rows/bulk-adjust`, payload),
 
   listRules: (
     status: 'active' | 'archived' | 'all' = 'all',

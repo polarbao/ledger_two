@@ -2,6 +2,7 @@ package importer
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"ledger_two/internal/importer/tabular"
 	"ledger_two/internal/ledger"
@@ -48,6 +49,9 @@ const (
 	ClassificationStatusBulk         = "bulk"
 	ClassificationStatusConflict     = "conflict"
 	ClassificationStatusUnresolved   = "unresolved"
+
+	BulkAdjustActionAcceptSuggestions = "accept_suggestions"
+	BulkAdjustActionApplyValues       = "apply_values"
 )
 
 type Classification struct {
@@ -163,6 +167,58 @@ type ReclassifyResult struct {
 	ConflictRows        int                   `json:"conflict_rows"`
 	Summary             ClassificationSummary `json:"summary"`
 	Changes             []ReclassifyRowChange `json:"changes"`
+}
+
+// NullableString records whether a nullable JSON field was present. Task53.4A
+// distinguishes omitted fields from explicit null values in its action union.
+type NullableString struct {
+	Set   bool
+	Value *string
+}
+
+func (value *NullableString) UnmarshalJSON(data []byte) error {
+	value.Set = true
+	if string(data) == "null" {
+		value.Value = nil
+		return nil
+	}
+	var decoded string
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	value.Value = &decoded
+	return nil
+}
+
+type BulkClassificationRequest struct {
+	RowIDs     []string       `json:"row_ids"`
+	Action     string         `json:"action"`
+	CategoryID NullableString `json:"category_id"`
+	AccountID  NullableString `json:"account_id"`
+	TagIDs     *[]string      `json:"tag_ids,omitempty"`
+}
+
+type BulkAdjustCommand struct {
+	LedgerContext ledger.LedgerContext
+	BatchID       string
+	Request       BulkClassificationRequest
+}
+
+type ClassificationRowError struct {
+	RowID   string `json:"row_id"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type BulkClassificationResult struct {
+	AffectedRows   int                      `json:"affected_rows"`
+	SkippedRows    int                      `json:"skipped_rows"`
+	ConflictRows   int                      `json:"conflict_rows"`
+	UpdatedRowIDs  []string                 `json:"updated_row_ids"`
+	SkippedRowIDs  []string                 `json:"skipped_row_ids"`
+	ConflictRowIDs []string                 `json:"conflict_row_ids"`
+	Errors         []ClassificationRowError `json:"errors"`
+	Summary        ClassificationSummary    `json:"summary"`
 }
 
 type RowError struct {

@@ -5,7 +5,7 @@ info:
   description: |
     Task53 分类、标签、默认元数据和导入分级自动化增量契约。
     Task53.1-Task53.3 的 schema 22、default-profile、分类器、预览持久化和 reclassify 已实现。
-    bulk-adjust、显式学习、规则扩展和兜底替代已完成 Task53.4 契约冻结，但在 Task53.4 提交前仍是草案；现状以 API_INVENTORY.md 为准。
+    bulk-adjust 已在 Task53.4A 实现并同步正式 OpenAPI；显式学习、规则扩展和兜底替代仍是 Task53.4B/C 草案，现状以 API_INVENTORY.md 为准。
 servers:
   - url: /api
 tags:
@@ -725,7 +725,6 @@ components:
           description: accept_suggestions accepts each row's persisted suggestion; apply_values writes the shared category, account and tags below.
         category_id:
           type: string
-          nullable: true
           description: Required only when action=apply_values.
         account_id:
           type: string

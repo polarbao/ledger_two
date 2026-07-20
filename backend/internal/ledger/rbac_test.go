@@ -25,6 +25,7 @@ func TestRolePolicyOwnerPermissions(t *testing.T) {
 		OperationViewReports,
 		OperationExportData,
 		OperationManageMetadata,
+		OperationUseImports,
 		OperationManageImports,
 		OperationDiscardImportBatch,
 	}
@@ -58,6 +59,8 @@ func TestRolePolicyEditorPermissions(t *testing.T) {
 		OperationViewReports,
 		OperationExportData,
 		OperationLeaveLedger,
+		OperationUseImports,
+		OperationDiscardImportBatch,
 	}
 	for _, operation := range allowed {
 		if !policy.Can(RoleEditor, operation) {
@@ -71,7 +74,6 @@ func TestRolePolicyEditorPermissions(t *testing.T) {
 		OperationEditAnyTransaction,
 		OperationManageMetadata,
 		OperationManageImports,
-		OperationDiscardImportBatch,
 		OperationArchiveLedger,
 		OperationRestoreLedger,
 		OperationTransferLedgerOwner,
@@ -105,6 +107,7 @@ func TestRolePolicyViewerPermissions(t *testing.T) {
 		OperationCreateSharedExpense,
 		OperationCreateSettlement,
 		OperationExportData,
+		OperationUseImports,
 		OperationManageImports,
 		OperationDiscardImportBatch,
 		OperationManageMetadata,

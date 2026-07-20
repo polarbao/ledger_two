@@ -24,6 +24,7 @@ interface ImportRowEditorProps {
   categories: MetadataItem[];
   accounts: MetadataItem[];
   tags: MetadataItem[];
+  canLearnMerchant: boolean;
   saving: boolean;
   onSave: (
     payload: UpdateImportRowPayload,
@@ -37,6 +38,7 @@ export default function ImportRowEditor({
   categories,
   accounts,
   tags,
+  canLearnMerchant,
   saving,
   onSave,
   onClose,
@@ -50,7 +52,9 @@ export default function ImportRowEditor({
   const [rememberMerchant, setRememberMerchant] = useState(false);
   const [sourceScope, setSourceScope] = useState<ImportLearnSourceScope>('current_source');
   const selectedTags = new Set(draft.tagIds);
-  const canRemember = canRememberImportMerchant(row) && draft.targetTransactionType !== 'skipped';
+  const canRemember = canLearnMerchant
+    && canRememberImportMerchant(row)
+    && draft.targetTransactionType !== 'skipped';
 
   const toggleTag = (tagId: string) => {
     setDraft((current) => ({
@@ -75,10 +79,10 @@ export default function ImportRowEditor({
             variant="primary"
             startIcon={<SlidersHorizontal size={17} />}
             isLoading={saving}
-            onClick={() => onSave(buildImportRowUpdatePayload(draft), {
-              remember: rememberMerchant,
-              sourceScope,
-            })}
+            onClick={() => onSave(
+              buildImportRowUpdatePayload(draft),
+              canLearnMerchant ? { remember: rememberMerchant, sourceScope } : undefined,
+            )}
           >
             保存调整
           </Button>

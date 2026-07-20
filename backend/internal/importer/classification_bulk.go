@@ -2,7 +2,6 @@ package importer
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
@@ -10,7 +9,6 @@ import (
 
 	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/importer/classifier"
-	"ledger_two/internal/ledger"
 )
 
 const maxBulkAdjustRows = 500
@@ -21,20 +19,23 @@ type bulkRowUpdate struct {
 }
 
 func (s *Service) BulkAdjustPreviewRows(ctx context.Context, cmd BulkAdjustCommand) (*BulkClassificationResult, error) {
-	if cmd.LedgerContext.Role != ledger.RoleOwner {
-		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可批量调整导入预览")
+	if err := requireImportBatchRole(cmd.LedgerContext); err != nil {
+		return nil, err
 	}
 	request, err := validateBulkClassificationRequest(cmd.BatchID, cmd.Request)
 	if err != nil {
 		return nil, err
 	}
+	if _, err := s.requireOwnedImportBatch(ctx, cmd.LedgerContext, cmd.BatchID); err != nil {
+		return nil, err
+	}
 
 	batch, err := s.repo.GetPreviewBatch(ctx, cmd.LedgerContext.LedgerID, cmd.BatchID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
-		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
+	}
+	if err := requireImportBatchAccess(cmd.LedgerContext, batch); err != nil {
+		return nil, err
 	}
 	if !isReadyForReclassify(batch, time.Now()) {
 		return nil, bulkAdjustConflict("仅有效的待确认导入批次可以批量调整")

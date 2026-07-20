@@ -15,7 +15,7 @@ describe('UI-FL-07 settings page contract', () => {
     const source = readPageFile('./SettingsPage.tsx');
 
     expect(source).toContain("import ConfirmDialog from '../components/ui/ConfirmDialog'");
-    expect(source).toContain("const canImportData = useHasLedgerRole(['owner'])");
+    expect(source).toContain("const canImportData = useHasLedgerRole(['owner', 'editor'])");
     expect(source).toContain("const canExportData = useHasLedgerRole(['owner', 'editor'])");
 		expect(source).toContain('const canManageSafety = Boolean(currentUser?.instance_admin)');
     expect(source).toContain('preview 不会写入正式账单');

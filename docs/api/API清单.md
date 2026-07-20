@@ -122,14 +122,14 @@
 | POST | `/api/transactions/import/parse` | yes | required | transitional | `transaction.HandleParseCSV` | 解析 CSV 文件。 |
 | POST | `/api/transactions/import/analyze` | yes | required | transitional | `transaction.HandleAnalyzeImport` | 预览、匹配规则和重复检测。 |
 | POST | `/api/transactions/import/commit` | yes | required | transitional | `transaction.HandleCommitImport` | 提交导入批次。 |
-| POST | `/api/imports/preview` | yes | required | stable | `importer.HandlePreview` | Owner 上传 CSV/受支持 XLSX 并生成预览批次，不写正式账单；Task53 模式非 off 时持久化分类解释和 summary。 |
-| GET | `/api/imports/{batchID}` | yes | required | stable | `importer.HandleGetBatch` | Owner 读取导入批次、行级预览、classification 快照和服务端重算 summary。 |
-| PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | stable | `importer.HandleUpdateRow` | v1.2 Owner 调整导入行状态、目标类型、分类、账户、标签和可见性。 |
-| POST | `/api/imports/{batchID}/reclassify` | yes | required | stable | `importer.HandleReclassify` | Owner 对 ready/未过期批次重算 eligible 非 manual/bulk 行；默认 dry-run，执行写脱敏审计但不创建 transaction。 |
-| POST | `/api/imports/{batchID}/rows/bulk-adjust` | yes | required | stable | `importer.HandleBulkAdjust` | Owner 对 ready/未过期批次按持久化建议或完整显式值批量调整；部分成功返回行级结果，单事务写一条脱敏审计，不创建 transaction/learned rule。 |
+| POST | `/api/imports/preview` | yes | required | stable | `importer.HandlePreview` | Owner/Editor 上传 CSV/受支持 XLSX 并生成本人预览批次，不写正式账单；Task53 模式非 off 时持久化分类解释和 summary。 |
+| GET | `/api/imports/{batchID}` | yes | required | stable | `importer.HandleGetBatch` | Owner/Editor 读取本人创建的导入批次、行级预览、classification 快照和服务端重算 summary。 |
+| PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | stable | `importer.HandleUpdateRow` | Owner/Editor 调整本人批次的行状态、目标类型、分类、账户、标签和可见性。 |
+| POST | `/api/imports/{batchID}/reclassify` | yes | required | stable | `importer.HandleReclassify` | Owner/Editor 对本人 ready/未过期批次重算 eligible 非 manual/bulk 行；默认 dry-run，执行写脱敏审计但不创建 transaction。 |
+| POST | `/api/imports/{batchID}/rows/bulk-adjust` | yes | required | stable | `importer.HandleBulkAdjust` | Owner/Editor 对本人 ready/未过期批次按持久化建议或完整显式值批量调整；部分成功返回行级结果，单事务写一条脱敏审计，不创建 transaction/learned rule。 |
 | POST | `/api/imports/{batchID}/rows/{rowID}/learn` | yes | required | stable | `importer.HandleLearnMerchant` | Owner 从已另行保存的 manual/bulk 行读取最终分类与完整标签，按账本/来源范围/规范化商户 UUIDv5 幂等创建、更新或恢复 learned rule；不学习账户、可见性或账单原文。 |
-| POST | `/api/imports/{batchID}/commit` | yes | required | stable | `importer.HandleCommit` | v1.2 Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
-| POST | `/api/imports/{batchID}/discard` | yes | required | stable | `importer.HandleDiscardBatch` | Owner 显式放弃 ready 批次；收敛为 expired，保留行/hash，不创建 transaction。 |
+| POST | `/api/imports/{batchID}/commit` | yes | required | stable | `importer.HandleCommit` | Owner/Editor 提交本人创建的 ready 批次，事务写入正式账单和导入去重映射。 |
+| POST | `/api/imports/{batchID}/discard` | yes | required | stable | `importer.HandleDiscardBatch` | Owner/Editor 显式放弃本人 ready 批次；收敛为 expired，保留行/hash，不创建 transaction。 |
 | POST | `/api/import-rules/` | yes | required | stable | `importer.HandleCreateRule` | Owner 创建 `origin=manual` 规则，可设置来源范围与 auto/suggest，confidence 由服务端固定 high。 |
 | GET | `/api/import-rules/` | yes | required | stable | `importer.HandleListRules` | Owner 列出当前账本 manual/learned 规则及 origin/source/apply/confidence、stale 引用和 committed/imported 命中指标，支持 `status=active/archived/all`。 |
 | PATCH | `/api/import-rules/{ruleID}` | yes | required | stable | `importer.HandleUpdateRule` | Owner 更新规则；learned 的来源、merchant_equals 和规范化 pattern 不可修改。 |

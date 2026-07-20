@@ -3,12 +3,14 @@ import { ApiError } from '../api/client';
 import type { ImportPreviewBatch, ImportPreviewRow } from '../types/imports';
 import {
   buildImportCommitSummary,
+  canUseImportWorkspace,
   defaultImportRowFilter,
   filterImportRowsByClassification,
   filterImportRows,
   getImportFileAccept,
   getImportSourceDescription,
   resolveImportErrorMessage,
+  normalizeImportList,
   selectableImportRows,
   validateImportFile,
 } from './importPageState';
@@ -56,6 +58,19 @@ const createBatch = (rows: ImportPreviewRow[]): ImportPreviewBatch => ({
 });
 
 describe('import page state', () => {
+  it('allows owners and editors to import while keeping viewers read-only', () => {
+    expect(canUseImportWorkspace('owner')).toBe(true);
+    expect(canUseImportWorkspace('editor')).toBe(true);
+    expect(canUseImportWorkspace('viewer')).toBe(false);
+    expect(canUseImportWorkspace(null)).toBe(false);
+  });
+
+  it('normalizes empty API collections before rendering import controls', () => {
+    expect(normalizeImportList(null)).toEqual([]);
+    expect(normalizeImportList(undefined)).toEqual([]);
+    expect(normalizeImportList([{ id: 'category-1' }])).toEqual([{ id: 'category-1' }]);
+  });
+
   it('blocks commit until suspicious and invalid rows are handled', () => {
     const summary = buildImportCommitSummary(createBatch([
       createRow(),

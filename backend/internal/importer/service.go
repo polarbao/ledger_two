@@ -62,8 +62,8 @@ func (s *Service) PreviewCSV(ctx context.Context, req PreviewFileRequest) (*Prev
 }
 
 func (s *Service) PreviewFile(ctx context.Context, req PreviewFileRequest) (*PreviewBatch, error) {
-	if req.LedgerContext.Role != ledger.RoleOwner {
-		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可导入账单")
+	if err := requireImportBatchRole(req.LedgerContext); err != nil {
+		return nil, err
 	}
 	if !isSupportedSourceType(req.SourceType) {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "不支持的导入来源")
@@ -111,11 +111,14 @@ func (s *Service) PreviewFile(ctx context.Context, req PreviewFileRequest) (*Pre
 }
 
 func (s *Service) GetPreviewBatch(ctx context.Context, lc ledger.LedgerContext, batchID string) (*PreviewBatch, error) {
-	if lc.Role != ledger.RoleOwner {
-		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可查看导入批次")
+	if err := requireImportBatchRole(lc); err != nil {
+		return nil, err
 	}
 	if batchID == "" {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 不能为空")
+	}
+	if _, err := s.requireOwnedImportBatch(ctx, lc, batchID); err != nil {
+		return nil, err
 	}
 	batch, err := s.repo.GetPreviewBatch(ctx, lc.LedgerID, batchID)
 	if err != nil {
@@ -123,6 +126,9 @@ func (s *Service) GetPreviewBatch(ctx context.Context, lc ledger.LedgerContext, 
 			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
+	}
+	if err := requireImportBatchAccess(lc, batch); err != nil {
+		return nil, err
 	}
 	return batch, nil
 }
@@ -135,11 +141,14 @@ type UpdateRowCommand struct {
 }
 
 func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*PreviewBatch, error) {
-	if cmd.LedgerContext.Role != ledger.RoleOwner {
-		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可调整导入预览")
+	if err := requireImportBatchRole(cmd.LedgerContext); err != nil {
+		return nil, err
 	}
 	if cmd.BatchID == "" || cmd.RowID == "" {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 和行 ID 不能为空")
+	}
+	if _, err := s.requireOwnedImportBatch(ctx, cmd.LedgerContext, cmd.BatchID); err != nil {
+		return nil, err
 	}
 
 	batch, row, err := s.repo.GetPreviewRow(ctx, cmd.LedgerContext.LedgerID, cmd.BatchID, cmd.RowID)
@@ -148,6 +157,9 @@ func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*
 			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入预览行不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入预览行失败")
+	}
+	if err := requireImportBatchAccess(cmd.LedgerContext, batch); err != nil {
+		return nil, err
 	}
 	if batch.Status == "committed" {
 		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeConflict, "已提交的导入批次不可调整")
@@ -232,11 +244,14 @@ func (s *Service) UpdatePreviewRow(ctx context.Context, cmd UpdateRowCommand) (*
 }
 
 func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContext, batchID string) (*CommitResult, error) {
-	if lc.Role != ledger.RoleOwner {
-		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可提交导入批次")
+	if err := requireImportBatchRole(lc); err != nil {
+		return nil, err
 	}
 	if batchID == "" {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 不能为空")
+	}
+	if _, err := s.requireOwnedImportBatch(ctx, lc, batchID); err != nil {
+		return nil, err
 	}
 
 	batch, err := s.repo.GetPreviewBatch(ctx, lc.LedgerID, batchID)
@@ -245,6 +260,9 @@ func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContex
 			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
+	}
+	if err := requireImportBatchAccess(lc, batch); err != nil {
+		return nil, err
 	}
 	if batch.Status != "ready" {
 		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "当前导入批次状态不允许提交")
@@ -281,8 +299,8 @@ func (s *Service) CommitPreviewBatch(ctx context.Context, lc ledger.LedgerContex
 }
 
 func (s *Service) DiscardPreviewBatch(ctx context.Context, lc ledger.LedgerContext, batchID string, req DiscardImportBatchRequest) (*DiscardImportBatchResult, error) {
-	if lc.Role != ledger.RoleOwner {
-		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeLedgerAccessDenied, "仅账本 Owner 可放弃导入批次")
+	if err := requireImportBatchRole(lc); err != nil {
+		return nil, err
 	}
 	if strings.TrimSpace(batchID) == "" {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 不能为空")
@@ -291,12 +309,9 @@ func (s *Service) DiscardPreviewBatch(ctx context.Context, lc ledger.LedgerConte
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "放弃原因无效")
 	}
 
-	status, err := s.repo.GetPreviewBatchStatus(ctx, lc.LedgerID, batchID)
+	status, err := s.requireOwnedImportBatch(ctx, lc, batchID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
-		}
-		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
+		return nil, err
 	}
 	if status != batchStatusReady {
 		return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeImportCommitConflict, "仅待确认导入批次可以放弃")
@@ -310,6 +325,34 @@ func (s *Service) DiscardPreviewBatch(ctx context.Context, lc ledger.LedgerConte
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "放弃导入批次失败")
 	}
 	return result, nil
+}
+
+func requireImportBatchRole(lc ledger.LedgerContext) error {
+	if lc.Role == ledger.RoleOwner || lc.Role == ledger.RoleEditor {
+		return nil
+	}
+	return appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "当前角色无权使用账单导入")
+}
+
+func requireImportBatchAccess(lc ledger.LedgerContext, batch *PreviewBatch) error {
+	if batch.CreatedByUserID != lc.UserID {
+		return appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前用户")
+	}
+	return nil
+}
+
+func (s *Service) requireOwnedImportBatch(ctx context.Context, lc ledger.LedgerContext, batchID string) (string, error) {
+	status, createdByUserID, err := s.repo.GetPreviewBatchAccessFacts(ctx, lc.LedgerID, batchID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
+		}
+		return "", appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
+	}
+	if err := requireImportBatchAccess(lc, &PreviewBatch{CreatedByUserID: createdByUserID}); err != nil {
+		return "", err
+	}
+	return status, nil
 }
 
 func (s *Service) CreateImportRule(ctx context.Context, lc ledger.LedgerContext, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {

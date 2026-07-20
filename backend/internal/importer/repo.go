@@ -244,14 +244,14 @@ func (r *Repository) GetPreviewBatch(ctx context.Context, ledgerID string, batch
 	return &batch, nil
 }
 
-func (r *Repository) GetPreviewBatchStatus(ctx context.Context, ledgerID, batchID string) (string, error) {
-	var status string
+func (r *Repository) GetPreviewBatchAccessFacts(ctx context.Context, ledgerID, batchID string) (string, string, error) {
+	var status, createdByUserID string
 	err := r.db.QueryRowContext(ctx, `
-		SELECT status
+		SELECT status, created_by_user_id
 		FROM import_batches
 		WHERE id = ? AND ledger_id = ?
-	`, batchID, ledgerID).Scan(&status)
-	return status, err
+	`, batchID, ledgerID).Scan(&status, &createdByUserID)
+	return status, createdByUserID, err
 }
 
 func (r *Repository) ExistingImportedHashes(ctx context.Context, ledgerID string, hashes []string) (map[string]bool, error) {

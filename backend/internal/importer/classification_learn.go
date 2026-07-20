@@ -24,6 +24,7 @@ var learnedRuleNamespace = uuid.MustParse("d96c24c9-4ba8-5e56-9f30-f52ddcf8a94a"
 
 type learnMerchantSnapshot struct {
 	BatchID              string
+	BatchCreatedByUserID string
 	BatchStatus          string
 	BatchSourceType      string
 	BatchUpdatedAt       string
@@ -65,6 +66,9 @@ func (s *Service) LearnMerchantRule(ctx context.Context, cmd LearnMerchantComman
 	if cmd.Request.SourceScope != LearnSourceScopeCurrent && cmd.Request.SourceScope != LearnSourceScopeAll {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "学习规则来源范围无效")
 	}
+	if _, err := s.requireOwnedImportBatch(ctx, cmd.LedgerContext, cmd.BatchID); err != nil {
+		return nil, err
+	}
 
 	snapshot, err := s.repo.LoadLearnMerchantSnapshot(ctx, cmd.LedgerContext.LedgerID, cmd.BatchID, cmd.RowID)
 	if err != nil {
@@ -72,6 +76,9 @@ func (s *Service) LearnMerchantRule(ctx context.Context, cmd LearnMerchantComman
 			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入预览行不存在或不属于当前账本")
 		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取学习规则来源行失败")
+	}
+	if snapshot.BatchCreatedByUserID != cmd.LedgerContext.UserID {
+		return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入预览行不存在或不属于当前用户")
 	}
 	if err := s.validateLearnMerchantSnapshot(ctx, cmd.LedgerContext.LedgerID, snapshot); err != nil {
 		return nil, err
@@ -291,7 +298,7 @@ func loadLearnMerchantSnapshot(ctx context.Context, queryer learnRowQueryer, led
 	var snapshot learnMerchantSnapshot
 	var expiresAt, classificationSource, categoryID, tagIDsJSON sql.NullString
 	err := queryer.QueryRowContext(ctx, `
-		SELECT batch.id, batch.status, batch.source_type, COALESCE(batch.updated_at, ''), batch.expires_at,
+		SELECT batch.id, batch.created_by_user_id, batch.status, batch.source_type, COALESCE(batch.updated_at, ''), batch.expires_at,
 		       item.id, COALESCE(item.merchant, ''), item.target_transaction_type,
 		       item.duplicate_status, item.row_status, item.classification_status,
 		       item.classification_source, item.selected_category_id, item.selected_tag_ids_json
@@ -299,7 +306,7 @@ func loadLearnMerchantSnapshot(ctx context.Context, queryer learnRowQueryer, led
 		JOIN import_items AS item ON item.batch_id = batch.id
 		WHERE batch.id = ? AND batch.ledger_id = ? AND item.id = ?
 	`, batchID, ledgerID, rowID).Scan(
-		&snapshot.BatchID, &snapshot.BatchStatus, &snapshot.BatchSourceType, &snapshot.BatchUpdatedAt, &expiresAt,
+		&snapshot.BatchID, &snapshot.BatchCreatedByUserID, &snapshot.BatchStatus, &snapshot.BatchSourceType, &snapshot.BatchUpdatedAt, &expiresAt,
 		&snapshot.RowID, &snapshot.Merchant, &snapshot.TargetType, &snapshot.DuplicateStatus,
 		&snapshot.RowStatus, &snapshot.ClassificationStatus, &classificationSource, &categoryID, &tagIDsJSON,
 	)
@@ -407,7 +414,7 @@ func isLearnIneligibleRow(snapshot learnMerchantSnapshot) bool {
 }
 
 func learnMerchantSnapshotsEqual(left learnMerchantSnapshot, right learnMerchantSnapshot) bool {
-	return left.BatchID == right.BatchID && left.BatchStatus == right.BatchStatus &&
+	return left.BatchID == right.BatchID && left.BatchCreatedByUserID == right.BatchCreatedByUserID && left.BatchStatus == right.BatchStatus &&
 		left.BatchSourceType == right.BatchSourceType && left.BatchUpdatedAt == right.BatchUpdatedAt &&
 		left.BatchExpiresAt == right.BatchExpiresAt && left.RowID == right.RowID && left.Merchant == right.Merchant &&
 		left.TargetType == right.TargetType && left.DuplicateStatus == right.DuplicateStatus &&

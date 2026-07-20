@@ -45,6 +45,7 @@ import type {
 } from '../types/imports';
 import {
   buildImportCommitSummary,
+  canUseImportWorkspace,
   defaultImportRowFilter,
   filterImportRowsByClassification,
   filterImportRows,
@@ -52,6 +53,7 @@ import {
   getImportSourceDescription,
   IMPORT_CLASSIFICATION_FILTER_LABELS,
   IMPORT_ROW_FILTER_LABELS,
+  normalizeImportList,
   resolveImportErrorMessage,
   selectableImportRows,
   type ImportClassificationFilter,
@@ -111,6 +113,7 @@ function ImportWorkspace({
   const [bulkValuesOpen, setBulkValuesOpen] = useState(false);
   const [bulkValues, setBulkValues] = useState({ categoryId: '', accountId: '', tagIds: [] as string[] });
   const isOwner = activeRole === 'owner';
+  const canImport = canUseImportWorkspace(activeRole);
 
   const { data: health } = useQuery({
     queryKey: queryKeys.system.health,
@@ -119,26 +122,30 @@ function ImportWorkspace({
   });
   const xlsxEnabled = health?.import_xlsx_enabled ?? false;
 
-  const { data: importRules = [] } = useQuery({
+  const { data: importRulesData } = useQuery({
     queryKey: queryKeys.importRules(activeLedgerId),
     queryFn: ({ signal }) => importsApi.listRules('all', signal),
     enabled: isOwner && Boolean(activeLedgerId),
   });
-  const { data: categories = [] } = useQuery({
+  const { data: categoryData } = useQuery({
     queryKey: queryKeys.metadata.list(activeLedgerId, 'categories'),
     queryFn: ({ signal }) => metadataApi.list('categories', true, signal),
-    enabled: isOwner && Boolean(activeLedgerId),
+    enabled: canImport && Boolean(activeLedgerId),
   });
-  const { data: accounts = [] } = useQuery({
+  const { data: accountData } = useQuery({
     queryKey: queryKeys.metadata.list(activeLedgerId, 'accounts'),
     queryFn: ({ signal }) => metadataApi.list('accounts', true, signal),
-    enabled: isOwner && Boolean(activeLedgerId),
+    enabled: canImport && Boolean(activeLedgerId),
   });
-  const { data: tags = [] } = useQuery({
+  const { data: tagData } = useQuery({
     queryKey: queryKeys.metadata.list(activeLedgerId, 'tags'),
     queryFn: ({ signal }) => metadataApi.list('tags', true, signal),
-    enabled: isOwner && Boolean(activeLedgerId),
+    enabled: canImport && Boolean(activeLedgerId),
   });
+  const importRules = normalizeImportList(importRulesData);
+  const categories = normalizeImportList(categoryData);
+  const accounts = normalizeImportList(accountData);
+  const tags = normalizeImportList(tagData);
 
   const summary = useMemo(() => buildSummary(batch), [batch]);
   const commitSummary = useMemo(() => buildImportCommitSummary(batch), [batch]);
@@ -146,7 +153,7 @@ function ImportWorkspace({
     filterImportRows(batch?.rows || [], rowFilter),
     classificationFilter,
   ), [batch?.rows, classificationFilter, rowFilter]);
-  const canOpenCommit = isOwner && Boolean(batch) && batch?.status === 'ready';
+  const canOpenCommit = canImport && Boolean(batch) && batch?.status === 'ready';
 
   const previewMutation = useMutation({
     mutationFn: (file: File) => importsApi.preview({ file, sourceType }),
@@ -177,7 +184,7 @@ function ImportWorkspace({
       learning?: { remember: boolean; sourceScope: ImportLearnSourceScope };
     }) => {
       const updatedBatch = await importsApi.updateRow(batch?.id || '', row.id, payload);
-      if (!learning?.remember) return { updatedBatch, learnResult: null, learnError: null as unknown };
+      if (!isOwner || !learning?.remember) return { updatedBatch, learnResult: null, learnError: null as unknown };
       try {
         const learnResult = await importsApi.learnMerchant(updatedBatch.id, row.id, { source_scope: learning.sourceScope });
         return { updatedBatch, learnResult, learnError: null as unknown };
@@ -478,7 +485,7 @@ function ImportWorkspace({
           : sameMerchantRow.suggested_tag_ids || [],
       },
       message: `已应用到商户“${sameMerchantRow.merchant.trim()}”`,
-      learnRow: sameMerchantRemember ? sameMerchantRow : undefined,
+      learnRow: isOwner && sameMerchantRemember ? sameMerchantRow : undefined,
     });
   };
 
@@ -494,7 +501,9 @@ function ImportWorkspace({
           <p>先审阅预览批次，再确认写入当前账本。</p>
         </div>
         <div className="import-page-header__status">
-          <StatusChip tone={isOwner ? 'success' : 'neutral'}>{isOwner ? 'Owner 可操作' : '当前角色只读'}</StatusChip>
+          <StatusChip tone={canImport ? 'success' : 'neutral'}>
+            {isOwner ? 'Owner 可操作' : canImport ? '协作者可导入' : '当前角色只读'}
+          </StatusChip>
           <StatusChip tone="info">Preview 不写正式账单</StatusChip>
         </div>
       </header>
@@ -540,13 +549,13 @@ function ImportWorkspace({
             description="选择或创建账本后才能生成导入预览。"
           />
         </section>
-      ) : !isOwner ? (
+      ) : !canImport ? (
         <section className="import-panel">
           <StatePanel
             tone="warning"
             icon={<ShieldCheck size={38} />}
             title="当前角色不可导入"
-            description="导入是批量写入操作，仅账本 Owner 可以创建、调整和提交预览批次。"
+            description="账本 Owner 和 Editor 可以导入自己的账单，Viewer 保持只读。"
           />
         </section>
       ) : (
@@ -829,26 +838,28 @@ function ImportWorkspace({
             )}
           </section>
 
-          <ImportRuleManager
-            rules={importRules}
-            categories={categories}
-            accounts={accounts}
-            tags={tags}
-            form={ruleForm}
-            creating={createRuleMutation.isPending}
-            updating={updateRuleMutation.isPending}
-            archiving={archiveRuleMutation.isPending}
-            restoring={restoreRuleMutation.isPending}
-            editingRuleId={editingRuleId}
-            statusFilter={ruleStatusFilter}
-            onFormChange={setRuleForm}
-            onSubmit={handleSubmitRule}
-            onCancelEdit={handleCancelRuleEdit}
-            onEdit={handleEditRule}
-            onStatusFilterChange={setRuleStatusFilter}
-            onArchive={setRuleToArchive}
-            onRestore={(ruleId) => restoreRuleMutation.mutate(ruleId)}
-          />
+          {isOwner ? (
+            <ImportRuleManager
+              rules={importRules}
+              categories={categories}
+              accounts={accounts}
+              tags={tags}
+              form={ruleForm}
+              creating={createRuleMutation.isPending}
+              updating={updateRuleMutation.isPending}
+              archiving={archiveRuleMutation.isPending}
+              restoring={restoreRuleMutation.isPending}
+              editingRuleId={editingRuleId}
+              statusFilter={ruleStatusFilter}
+              onFormChange={setRuleForm}
+              onSubmit={handleSubmitRule}
+              onCancelEdit={handleCancelRuleEdit}
+              onEdit={handleEditRule}
+              onStatusFilterChange={setRuleStatusFilter}
+              onArchive={setRuleToArchive}
+              onRestore={(ruleId) => restoreRuleMutation.mutate(ruleId)}
+            />
+          ) : null}
         </>
       )}
 
@@ -920,14 +931,16 @@ function ImportWorkspace({
           setSameMerchantRemember(false);
         }}
       >
-        <label className="import-remember-confirm">
-          <input
-            type="checkbox"
-            checked={sameMerchantRemember}
-            onChange={(event) => setSameMerchantRemember(event.target.checked)}
-          />
-          <span>同时记住此商户，用于以后导入</span>
-        </label>
+        {isOwner ? (
+          <label className="import-remember-confirm">
+            <input
+              type="checkbox"
+              checked={sameMerchantRemember}
+              onChange={(event) => setSameMerchantRemember(event.target.checked)}
+            />
+            <span>同时记住此商户，用于以后导入</span>
+          </label>
+        ) : null}
       </ConfirmDialog>
 
       <ConfirmDialog
@@ -1016,6 +1029,7 @@ function ImportWorkspace({
           categories={categories}
           accounts={accounts}
           tags={tags}
+          canLearnMerchant={isOwner}
           saving={updateRowMutation.isPending}
           onSave={(payload, learning) => updateRowMutation.mutate({ row: editingRow, payload, learning })}
           onClose={() => setEditingRow(null)}

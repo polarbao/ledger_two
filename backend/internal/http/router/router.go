@@ -217,13 +217,13 @@ func New(dbConn *sql.DB, cfg *config.Config) http.Handler {
 				})
 
 				r.Route("/imports", func(r chi.Router) {
-					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/preview", importHandler.HandlePreview)
-					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Get("/{batchID}", importHandler.HandleGetBatch)
-					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Patch("/{batchID}/rows/{rowID}", importHandler.HandleUpdateRow)
-					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/rows/bulk-adjust", importHandler.HandleBulkAdjust)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationUseImports)).Post("/preview", importHandler.HandlePreview)
+					r.With(ledger.RequireOperation(rolePolicy, ledger.OperationUseImports)).Get("/{batchID}", importHandler.HandleGetBatch)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationUseImports)).Patch("/{batchID}/rows/{rowID}", importHandler.HandleUpdateRow)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationUseImports)).Post("/{batchID}/rows/bulk-adjust", importHandler.HandleBulkAdjust)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/rows/{rowID}/learn", importHandler.HandleLearnMerchant)
-					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/reclassify", importHandler.HandleReclassify)
-					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationManageImports)).Post("/{batchID}/commit", importHandler.HandleCommit)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationUseImports)).Post("/{batchID}/reclassify", importHandler.HandleReclassify)
+					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationUseImports)).Post("/{batchID}/commit", importHandler.HandleCommit)
 					r.With(ledger.RequireWritableLedger, ledger.RequireOperation(rolePolicy, ledger.OperationDiscardImportBatch)).Post("/{batchID}/discard", importHandler.HandleDiscardBatch)
 				})
 

@@ -110,7 +110,7 @@ paths:
       summary: Apply an explicit classification adjustment to selected preview rows
       operationId: bulkAdjustImportClassifications
       description: |
-        Owner-only and ready-batch-only. accept_suggestions consumes only persisted
+        Owner and Editor may adjust only their own ready batch. accept_suggestions consumes only persisted
         suggestions. apply_values uses the explicit category/account/tag values from
         this request. Neither action creates a learned rule or a transaction.
       security:
@@ -148,6 +148,7 @@ paths:
       summary: Create or update an explicit learned merchant rule
       operationId: learnImportMerchantRule
       description: |
+        Owner-only and restricted to a batch created by the current Owner.
         Uses the already-saved final category and tags on this row. The preview row
         adjustment is a separate request, so learning failure must not roll it back.
         Accounts and visibility are never copied into learned rules.
@@ -186,7 +187,7 @@ paths:
       tags: [import-classification]
       summary: Re-run current rules for eligible rows in a ready batch
       operationId: reclassifyImportBatch
-      description: Manual and bulk-adjusted rows are never overwritten.
+      description: Owner and Editor may reclassify only their own batch. Manual and bulk-adjusted rows are never overwritten.
       security:
         - cookieAuth: []
       parameters:

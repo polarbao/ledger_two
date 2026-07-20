@@ -255,6 +255,22 @@ func TestTask534BLearnEnforcesLedgerEligibilityMerchantAndMetadata(t *testing.T)
 	}
 }
 
+func TestTask534BLearnRejectsAnotherMembersBatch(t *testing.T) {
+	database, service, batch, row := newTask534BLearnFixture(t)
+	if _, err := database.Exec(`UPDATE import_batches SET created_by_user_id = 'editor-user' WHERE id = ?`, batch.ID); err != nil {
+		t.Fatalf("change batch creator: %v", err)
+	}
+
+	_, err := service.LearnMerchantRule(context.Background(), LearnMerchantCommand{
+		LedgerContext: ownerLedgerContext(), BatchID: batch.ID, RowID: row.ID,
+		Request: LearnMerchantRequest{SourceScope: LearnSourceScopeCurrent},
+	})
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
+	if countWhere(t, database, "import_rules", "origin = 'learned'") != 0 {
+		t.Fatalf("cross-member learn created a rule")
+	}
+}
+
 func TestTask534BLearnRejectsCategoryMismatchAndTagOverflow(t *testing.T) {
 	t.Run("category mismatch", func(t *testing.T) {
 		database, service, batch, row := newTask534BLearnFixture(t)

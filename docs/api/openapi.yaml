@@ -772,7 +772,7 @@ paths:
     post:
       tags: [import]
       summary: Create a CSV or WeChat XLSX preview batch
-      description: Owner only. Preview does not create formal transactions.
+      description: Owner/Editor may create their own batch. Preview does not create formal transactions.
       security:
         - cookieAuth: []
       parameters:
@@ -804,6 +804,7 @@ paths:
     get:
       tags: [import]
       summary: Get a preview batch and rows
+      description: Owner/Editor may read only a batch created by the current user.
       security:
         - cookieAuth: []
       parameters:
@@ -822,6 +823,7 @@ paths:
     patch:
       tags: [import]
       summary: Adjust one preview row
+      description: Owner/Editor may adjust only a batch created by the current user.
       security:
         - cookieAuth: []
       parameters:
@@ -849,7 +851,7 @@ paths:
       tags: [import]
       summary: Bulk-adjust classifications on selected preview rows
       description: |
-        Owner-only and ready-batch-only. accept_suggestions consumes only each row's
+        Owner/Editor own-batch-only and ready-batch-only. accept_suggestions consumes only each row's
         persisted suggestion. apply_values explicitly applies one category, nullable
         account and complete tag set. Partial row outcomes return HTTP 200; this
         operation creates neither transactions nor learned rules.
@@ -884,7 +886,7 @@ paths:
       tags: [import]
       summary: Learn an exact merchant classification rule from a saved preview row
       description: |
-        Owner-only and ready-batch-only. The server reads the final category and
+        Owner-only, own-batch-only and ready-batch-only. The server reads the final category and
         complete tag set from a separately saved manual or bulk-adjusted row.
         Account, visibility, amount and source text are not copied into the rule or audit.
       security:
@@ -918,6 +920,7 @@ paths:
     post:
       tags: [import]
       summary: Commit a ready preview batch atomically
+      description: Owner/Editor may commit only a batch created by the current user.
       security:
         - cookieAuth: []
       parameters:
@@ -932,6 +935,7 @@ paths:
     post:
       tags: [import]
       summary: Discard a ready preview batch without creating transactions
+      description: Owner/Editor may discard only a batch created by the current user.
       security:
         - cookieAuth: []
       parameters:
@@ -958,7 +962,7 @@ paths:
       tags: [import]
       summary: Reclassify eligible rows in a ready preview batch
       description: |
-        Owner only. Defaults to dry-run. Manual and bulk-adjusted rows are protected,
+        Owner/Editor own-batch-only. Defaults to dry-run. Manual and bulk-adjusted rows are protected,
         and this operation never creates formal transactions.
       security:
         - cookieAuth: []

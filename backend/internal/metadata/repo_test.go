@@ -91,6 +91,24 @@ func TestRepositoryListUsageCounts(t *testing.T) {
 	assertUsageCount(t, repo, KindTag, "ledger-1", tag.ID, 1)
 }
 
+func TestRepositoryListEmptyReturnsNonNilSlice(t *testing.T) {
+	database := openMetadataTestDB(t)
+	repo := NewRepository(database)
+
+	for _, kind := range []Kind{KindCategory, KindAccount, KindTag} {
+		items, err := repo.List(context.Background(), kind, "empty-ledger", true)
+		if err != nil {
+			t.Fatalf("list empty %s: %v", kind, err)
+		}
+		if items == nil {
+			t.Fatalf("empty %s list must serialize as [] instead of null", kind)
+		}
+		if len(items) != 0 {
+			t.Fatalf("empty %s list length = %d, want 0", kind, len(items))
+		}
+	}
+}
+
 func assertUsageCount(t *testing.T, repo *Repository, kind Kind, ledgerID string, id string, expected int) {
 	t.Helper()
 

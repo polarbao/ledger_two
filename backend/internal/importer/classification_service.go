@@ -2,7 +2,6 @@ package importer
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"net/http"
 	"reflect"
@@ -10,7 +9,6 @@ import (
 
 	appErrors "ledger_two/internal/errors"
 	"ledger_two/internal/importer/classifier"
-	"ledger_two/internal/ledger"
 )
 
 func (s *Service) applyClassifications(ctx context.Context, batch *PreviewBatch) error {
@@ -189,8 +187,8 @@ func normalizeClassification(value *Classification) {
 }
 
 func (s *Service) ReclassifyPreviewBatch(ctx context.Context, cmd ReclassifyCommand) (*ReclassifyResult, error) {
-	if cmd.LedgerContext.Role != ledger.RoleOwner {
-		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可重新分类导入预览")
+	if err := requireImportBatchRole(cmd.LedgerContext); err != nil {
+		return nil, err
 	}
 	if cmd.BatchID == "" {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入批次 ID 不能为空")
@@ -198,13 +196,16 @@ func (s *Service) ReclassifyPreviewBatch(ctx context.Context, cmd ReclassifyComm
 	if s.classificationMode == ClassificationModeOff {
 		return nil, reclassifyConflict("当前环境未开启 Task53 分类器")
 	}
+	if _, err := s.requireOwnedImportBatch(ctx, cmd.LedgerContext, cmd.BatchID); err != nil {
+		return nil, err
+	}
 
 	batch, err := s.repo.GetPreviewBatch(ctx, cmd.LedgerContext.LedgerID, cmd.BatchID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入批次不存在或不属于当前账本")
-		}
 		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入批次失败")
+	}
+	if err := requireImportBatchAccess(cmd.LedgerContext, batch); err != nil {
+		return nil, err
 	}
 	if !isReadyForReclassify(batch, time.Now()) {
 		return nil, reclassifyConflict("仅有效的待确认导入批次可以重新分类")

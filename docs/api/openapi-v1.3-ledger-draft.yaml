@@ -457,7 +457,7 @@ paths:
       tags: [imports]
       summary: Explicitly discard a ready import batch
       description: |
-        Owner only. 将 ready 批次置为 expired，保留行、hash 与审计，不创建 transaction。
+        Owner/Editor 仅可放弃本人创建的 ready 批次。将批次置为 expired，保留行、hash 与审计，不创建 transaction。
         archived 账本不允许执行；必须在归档前完成。
       security:
         - cookieAuth: []

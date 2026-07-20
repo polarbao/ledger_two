@@ -30,6 +30,7 @@ const (
 	OperationViewReports            Operation = "view_reports"
 	OperationExportData             Operation = "export_data"
 	OperationManageMetadata         Operation = "manage_metadata"
+	OperationUseImports             Operation = "use_imports"
 	OperationManageImports          Operation = "manage_imports"
 	OperationDiscardImportBatch     Operation = "discard_import_batch"
 	OperationManualDatabaseBackup   Operation = "manual_database_backup"
@@ -70,6 +71,7 @@ func NewRolePolicy() RolePolicy {
 				OperationViewReports:          true,
 				OperationExportData:           true,
 				OperationManageMetadata:       true,
+				OperationUseImports:           true,
 				OperationManageImports:        true,
 				OperationDiscardImportBatch:   true,
 			},
@@ -84,6 +86,8 @@ func NewRolePolicy() RolePolicy {
 				OperationViewReports:          true,
 				OperationExportData:           true,
 				OperationLeaveLedger:          true,
+				OperationUseImports:           true,
+				OperationDiscardImportBatch:   true,
 			},
 			RoleViewer: {
 				OperationViewLedger:  true,

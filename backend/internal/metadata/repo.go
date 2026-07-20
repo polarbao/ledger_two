@@ -93,7 +93,7 @@ func (r *Repository) list(ctx context.Context, query string, ledgerID string) ([
 	}
 	defer rows.Close()
 
-	var items []Item
+	items := make([]Item, 0)
 	for rows.Next() {
 		var item Item
 		var isArchived int

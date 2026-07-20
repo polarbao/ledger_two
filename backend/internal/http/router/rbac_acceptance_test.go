@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -65,7 +66,7 @@ func TestRBACAcceptanceViewerCannotCreateTransaction(t *testing.T) {
 	}
 }
 
-func TestRBACAcceptanceImportManagementOwnerOnly(t *testing.T) {
+func TestRBACAcceptanceImportRuleManagementOwnerOnly(t *testing.T) {
 	database := setupRBACRouterDB(t)
 	router := New(database, rbacRouterConfig(t))
 
@@ -89,7 +90,6 @@ func TestRBACAcceptanceImportManagementOwnerOnly(t *testing.T) {
 		{method: http.MethodPost, path: "/api/import-rules/missing-rule/archive"},
 		{method: http.MethodPost, path: "/api/import-rules/missing-rule/restore"},
 		{method: http.MethodDelete, path: "/api/import-rules/missing-rule"},
-		{method: http.MethodGet, path: "/api/imports/missing-batch"},
 		{method: http.MethodPost, path: "/api/imports/missing-batch/rows/missing-row/learn", body: []byte(`{"source_scope":"current_source"}`)},
 	}
 
@@ -118,6 +118,114 @@ func TestRBACAcceptanceImportManagementOwnerOnly(t *testing.T) {
 	}
 	if ruleCount != 0 {
 		t.Fatalf("forbidden import management requests must not create rules, got %d", ruleCount)
+	}
+}
+
+func TestRBACAcceptanceEditorCanUseImportBatchesButViewerCannot(t *testing.T) {
+	database := setupRBACRouterDB(t)
+	router := New(database, rbacRouterConfig(t))
+	fixture := seedRBACLedger(t, database)
+
+	setRBACMemberRole(t, database, fixture.LedgerID, fixture.UserBID, "editor")
+	editorReq := httptest.NewRequest(http.MethodGet, "/api/imports/missing-batch", nil)
+	editorReq.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	editorReq.AddCookie(authCookie(t, fixture.UserBID))
+	editorRecorder := httptest.NewRecorder()
+	router.ServeHTTP(editorRecorder, editorReq)
+	assertRouterError(t, editorRecorder, http.StatusNotFound, "LEDGER_OBJECT_NOT_FOUND")
+
+	setRBACMemberRole(t, database, fixture.LedgerID, fixture.UserBID, "viewer")
+	viewerReq := httptest.NewRequest(http.MethodGet, "/api/imports/missing-batch", nil)
+	viewerReq.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	viewerReq.AddCookie(authCookie(t, fixture.UserBID))
+	viewerRecorder := httptest.NewRecorder()
+	router.ServeHTTP(viewerRecorder, viewerReq)
+	assertRouterError(t, viewerRecorder, http.StatusForbidden, "LEDGER_ACCESS_DENIED")
+}
+
+func TestRBACAcceptanceInitializedEditorCanCompleteOwnImport(t *testing.T) {
+	database := setupRBACRouterDB(t)
+	router := New(database, rbacRouterConfig(t))
+	fixture := seedRBACLedger(t, database)
+
+	requestBody, contentType := importMultipartBody(t, "generic-basic.csv", "generic", []byte(
+		"occurred_at,title,merchant,description,amount_cents,direction,source_account,external_order_id\n"+
+			"2026-07-20T10:00:00+08:00,早餐,早餐店,协作者导入,1800,expense,wechat,editor-import-1\n",
+	))
+	previewRequest := httptest.NewRequest(http.MethodPost, "/api/imports/preview", requestBody)
+	previewRequest.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	previewRequest.Header.Set("Content-Type", contentType)
+	previewRequest.AddCookie(authCookie(t, fixture.UserBID))
+	previewRecorder := httptest.NewRecorder()
+	router.ServeHTTP(previewRecorder, previewRequest)
+	if previewRecorder.Code != http.StatusCreated {
+		t.Fatalf("initialized editor preview = %d, want 201; body: %s", previewRecorder.Code, previewRecorder.Body.String())
+	}
+
+	var previewResponse struct {
+		Data struct {
+			ID              string `json:"id"`
+			CreatedByUserID string `json:"created_by_user_id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(previewRecorder.Body.Bytes(), &previewResponse); err != nil {
+		t.Fatalf("decode editor preview response: %v", err)
+	}
+	if previewResponse.Data.ID == "" || previewResponse.Data.CreatedByUserID != fixture.UserBID {
+		t.Fatalf("unexpected editor preview batch: %+v", previewResponse.Data)
+	}
+
+	ownerRead := httptest.NewRequest(http.MethodGet, "/api/imports/"+previewResponse.Data.ID, nil)
+	ownerRead.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	ownerRead.AddCookie(authCookie(t, fixture.UserAID))
+	ownerReadRecorder := httptest.NewRecorder()
+	router.ServeHTTP(ownerReadRecorder, ownerRead)
+	assertRouterError(t, ownerReadRecorder, http.StatusNotFound, "LEDGER_OBJECT_NOT_FOUND")
+
+	editorRead := httptest.NewRequest(http.MethodGet, "/api/imports/"+previewResponse.Data.ID, nil)
+	editorRead.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	editorRead.AddCookie(authCookie(t, fixture.UserBID))
+	editorReadRecorder := httptest.NewRecorder()
+	router.ServeHTTP(editorReadRecorder, editorRead)
+	if editorReadRecorder.Code != http.StatusOK {
+		t.Fatalf("editor read own batch = %d, want 200; body: %s", editorReadRecorder.Code, editorReadRecorder.Body.String())
+	}
+
+	commitRequest := httptest.NewRequest(http.MethodPost, "/api/imports/"+previewResponse.Data.ID+"/commit", nil)
+	commitRequest.Header.Set("X-Ledger-Id", fixture.LedgerID)
+	commitRequest.AddCookie(authCookie(t, fixture.UserBID))
+	commitRecorder := httptest.NewRecorder()
+	router.ServeHTTP(commitRecorder, commitRequest)
+	if commitRecorder.Code != http.StatusOK {
+		t.Fatalf("editor commit own batch = %d, want 200; body: %s", commitRecorder.Code, commitRecorder.Body.String())
+	}
+	if got := countTransactions(t, database); got != 1 {
+		t.Fatalf("editor import created %d transactions, want 1", got)
+	}
+}
+
+func TestRBACAcceptanceLegacyImportEndpointsRemainOwnerOnly(t *testing.T) {
+	database := setupRBACRouterDB(t)
+	router := New(database, rbacRouterConfig(t))
+	fixture := seedRBACLedger(t, database)
+
+	for _, role := range []string{"editor", "viewer"} {
+		setRBACMemberRole(t, database, fixture.LedgerID, fixture.UserBID, role)
+		for _, path := range []string{
+			"/api/transactions/import/parse",
+			"/api/transactions/import/analyze",
+			"/api/transactions/import/commit",
+		} {
+			t.Run(role+" "+path, func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodPost, path, strings.NewReader("{}"))
+				req.Header.Set("X-Ledger-Id", fixture.LedgerID)
+				req.Header.Set("Content-Type", "application/json")
+				req.AddCookie(authCookie(t, fixture.UserBID))
+				recorder := httptest.NewRecorder()
+				router.ServeHTTP(recorder, req)
+				assertRouterError(t, recorder, http.StatusForbidden, "LEDGER_ACCESS_DENIED")
+			})
+		}
 	}
 }
 
@@ -490,4 +598,25 @@ func authCookie(t *testing.T, userID string) *http.Cookie {
 		t.Fatalf("sign auth token: %v", err)
 	}
 	return &http.Cookie{Name: "token", Value: tokenString}
+}
+
+func importMultipartBody(t *testing.T, filename string, sourceType string, content []byte) (*bytes.Buffer, string) {
+	t.Helper()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	if err := writer.WriteField("source_type", sourceType); err != nil {
+		t.Fatalf("write import source type: %v", err)
+	}
+	filePart, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatalf("create import file part: %v", err)
+	}
+	if _, err := filePart.Write(content); err != nil {
+		t.Fatalf("write import file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close import multipart body: %v", err)
+	}
+	return body, writer.FormDataContentType()
 }

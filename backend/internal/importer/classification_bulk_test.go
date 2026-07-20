@@ -229,12 +229,13 @@ func TestTask534ABulkAdjustRejectsUnauthorizedUnavailableAndConcurrentBatches(t 
 	database, service, batch := newTask534ABulkFixture(t)
 	row := findPreviewRowByNumber(t, batch, 1)
 	editor := ownerLedgerContext()
+	editor.UserID = "editor-user"
 	editor.Role = ledger.RoleEditor
 	_, err := service.BulkAdjustPreviewRows(context.Background(), BulkAdjustCommand{
 		LedgerContext: editor, BatchID: batch.ID,
 		Request: BulkClassificationRequest{RowIDs: []string{row.ID}, Action: BulkAdjustActionAcceptSuggestions},
 	})
-	assertAppError(t, err, http.StatusForbidden, appErrors.ErrCodeForbidden)
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
 
 	foreign := ownerLedgerContext()
 	foreign.LedgerID = "ledger-two"

@@ -9,6 +9,14 @@ import type {
 export type ImportRowFilter = 'all' | 'new' | 'duplicate' | 'needs_attention' | 'invalid' | 'suspicious' | 'skipped';
 export type ImportClassificationFilter = 'all' | ImportClassificationStatus;
 
+export function canUseImportWorkspace(role: string | null | undefined) {
+  return role === 'owner' || role === 'editor';
+}
+
+export function normalizeImportList<T>(items: T[] | null | undefined): T[] {
+  return items ?? [];
+}
+
 export const IMPORT_ROW_FILTER_LABELS: Record<ImportRowFilter, string> = {
   all: '全部流水',
   new: '新增流水',

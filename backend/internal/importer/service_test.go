@@ -156,28 +156,42 @@ func TestPreviewFileRejectsAlipayXLSXWithoutCreatingBatch(t *testing.T) {
 	}
 }
 
-func TestPreviewCSVRequiresOwner(t *testing.T) {
+func TestPreviewCSVAllowsEditorAndRejectsViewer(t *testing.T) {
 	t.Parallel()
 
 	database := openImporterTestDB(t)
 	service := NewService(NewRepository(database))
-
-	_, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
-		LedgerContext: ledger.LedgerContext{
-			UserID:   "editor-user",
-			LedgerID: "ledger-one",
-			Role:     ledger.RoleEditor,
-		},
-		Filename:   "generic-basic.csv",
-		SourceType: SourceTypeGeneric,
-		Content:    readImportFixture(t, "generic-basic.csv"),
-	})
-	if err == nil {
-		t.Fatalf("expected forbidden error for editor preview")
+	editor := ledger.LedgerContext{
+		UserID:   "editor-user",
+		LedgerID: "ledger-one",
+		Role:     ledger.RoleEditor,
 	}
+
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: editor,
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("editor preview returned error: %v", err)
+	}
+	if batch.CreatedByUserID != editor.UserID {
+		t.Fatalf("batch creator = %s, want %s", batch.CreatedByUserID, editor.UserID)
+	}
+
+	viewer := editor
+	viewer.Role = ledger.RoleViewer
+	_, err = service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: viewer,
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	assertAppError(t, err, http.StatusForbidden, appErrors.ErrCodeForbidden)
 }
 
-func TestGetPreviewBatchRequiresOwner(t *testing.T) {
+func TestGetPreviewBatchScopesMembersToOwnBatch(t *testing.T) {
 	t.Parallel()
 
 	database := openImporterTestDB(t)
@@ -192,14 +206,94 @@ func TestGetPreviewBatchRequiresOwner(t *testing.T) {
 		t.Fatalf("PreviewCSV returned error: %v", err)
 	}
 
-	_, err = service.GetPreviewBatch(context.Background(), ledger.LedgerContext{
+	editor := ledger.LedgerContext{
 		UserID:   "editor-user",
 		LedgerID: "ledger-one",
 		Role:     ledger.RoleEditor,
-	}, batch.ID)
-	if err == nil {
-		t.Fatalf("expected editor batch read to be rejected")
 	}
+	_, err = service.GetPreviewBatch(context.Background(), editor, batch.ID)
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
+
+	editorBatch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: editor,
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("editor preview returned error: %v", err)
+	}
+	if _, err := service.GetPreviewBatch(context.Background(), editor, editorBatch.ID); err != nil {
+		t.Fatalf("editor own batch read returned error: %v", err)
+	}
+	_, err = service.GetPreviewBatch(context.Background(), ownerLedgerContext(), editorBatch.ID)
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
+}
+
+func TestImportBatchMutationsRejectAnotherMembersBatch(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database), WithClassificationMode(ClassificationModeSuggest))
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("owner preview returned error: %v", err)
+	}
+	editor := ownerLedgerContext()
+	editor.UserID = "editor-user"
+	editor.Role = ledger.RoleEditor
+	skipped := RowStatusSkipped
+
+	_, err = service.UpdatePreviewRow(context.Background(), UpdateRowCommand{
+		LedgerContext: editor,
+		BatchID:       batch.ID,
+		RowID:         batch.Rows[0].ID,
+		Patch:         UpdateRowRequest{RowStatus: &skipped},
+	})
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
+
+	_, err = service.ReclassifyPreviewBatch(context.Background(), ReclassifyCommand{
+		LedgerContext: editor,
+		BatchID:       batch.ID,
+		DryRun:        true,
+	})
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
+
+	_, err = service.CommitPreviewBatch(context.Background(), editor, batch.ID)
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
+	if countRows(t, database, "transactions") != 0 {
+		t.Fatalf("cross-member batch mutations created transactions")
+	}
+}
+
+func TestCrossMemberBatchIsHiddenBeforeRawRowsAreDecoded(t *testing.T) {
+	t.Parallel()
+
+	database := openImporterTestDB(t)
+	service := NewService(NewRepository(database))
+	batch, err := service.PreviewCSV(context.Background(), PreviewFileRequest{
+		LedgerContext: ownerLedgerContext(),
+		Filename:      "generic-basic.csv",
+		SourceType:    SourceTypeGeneric,
+		Content:       readImportFixture(t, "generic-basic.csv"),
+	})
+	if err != nil {
+		t.Fatalf("owner preview returned error: %v", err)
+	}
+	if _, err := database.Exec(`UPDATE import_items SET normalized_json = '{' WHERE batch_id = ?`, batch.ID); err != nil {
+		t.Fatalf("corrupt protected raw row fixture: %v", err)
+	}
+	editor := ownerLedgerContext()
+	editor.UserID = "editor-user"
+	editor.Role = ledger.RoleEditor
+
+	_, err = service.GetPreviewBatch(context.Background(), editor, batch.ID)
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
 }
 
 func TestUpdatePreviewRowPersistsUserAdjustment(t *testing.T) {
@@ -986,6 +1080,7 @@ func TestTask503ADiscardBatchValidatesReasonRoleLedgerAndReadyState(t *testing.T
 		INSERT INTO import_batches (id, ledger_id, filename, created_by_user_id, status, created_at)
 		VALUES
 			('ready-one', 'ledger-one', 'one.csv', 'owner-user', 'ready', '2026-07-01T00:00:00Z'),
+			('ready-editor', 'ledger-one', 'editor.csv', 'editor-user', 'ready', '2026-07-01T00:00:00Z'),
 			('committed-one', 'ledger-one', 'done.csv', 'owner-user', 'committed', '2026-07-01T00:00:00Z'),
 			('ready-two', 'ledger-two', 'two.csv', 'owner-user', 'ready', '2026-07-01T00:00:00Z');
 	`); err != nil {
@@ -1000,7 +1095,11 @@ func TestTask503ADiscardBatchValidatesReasonRoleLedgerAndReadyState(t *testing.T
 	editorContext.UserID = "editor-user"
 	editorContext.Role = ledger.RoleEditor
 	_, err = service.DiscardPreviewBatch(context.Background(), editorContext, "ready-one", DiscardImportBatchRequest{Reason: "user_requested"})
-	assertAppError(t, err, http.StatusForbidden, appErrors.ErrCodeLedgerAccessDenied)
+	assertAppError(t, err, http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound)
+
+	if _, err = service.DiscardPreviewBatch(context.Background(), editorContext, "ready-editor", DiscardImportBatchRequest{Reason: "user_requested"}); err != nil {
+		t.Fatalf("editor discard own batch: %v", err)
+	}
 
 	_, err = service.DiscardPreviewBatch(context.Background(), ownerLedgerContext(), "committed-one", DiscardImportBatchRequest{Reason: "user_requested"})
 	assertAppError(t, err, http.StatusConflict, appErrors.ErrCodeImportCommitConflict)

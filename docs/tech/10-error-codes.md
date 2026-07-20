@@ -125,7 +125,7 @@ docs/api/API_CONVENTIONS.md
 | IMPORT_COMMIT_CONFLICT | 409 | 导入批次状态不允许提交、已提交或已过期 |
 | IMPORT_RECLASSIFY_CONFLICT | 409 | 分类器关闭、批次非 ready/已过期或重新分类期间发生并发变化 |
 
-Task53.4 已冻结、尚未实现的错误码如下；只有对应代码提交后才进入运行时事实源：
+Task53.4 已实现并进入运行时事实源的错误码如下：
 
 | 错误码 | HTTP 状态 | 说明 |
 |---|---:|---|

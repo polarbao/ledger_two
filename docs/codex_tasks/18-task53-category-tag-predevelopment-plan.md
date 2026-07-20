@@ -1,6 +1,6 @@
 # Task53 分类、标签与导入智能归类专项准备计划
 
-状态：Task53P.1-P.6 准备包已关闭；Task53.1-Task53.4C 已完成，Task53U 源码已实现并等待视觉门禁，随后执行 Task53.5<br>
+状态：Task53P.1-P.6、Task53.1-Task53U 和 Task53.5 WSL2 验收已完成；结论 `pass_with_suggest_only`，NAS staging 待 sudo<br>
 创建日期：2026-07-16<br>
 当前准入：Task53.1 已落地 schema 22 与默认元数据；Task53.2 已按 TDD 完成纯分类器、候选读取和默认关闭开关；Task53.3 准备完整<br>
 环境边界：只在临时测试数据库执行 migration 022；不得升级现有 WSL/NAS 数据库
@@ -85,7 +85,7 @@ Task53P 准备完成
 
 完成标准：375/390/430/1440 覆盖自动、建议、兜底、手工、冲突、学习、批量接受和基础包流程。
 
-当前状态：交互规格、Frame Manifest 和组件状态矩阵已建立；视觉审阅稿与线上 Figma 同步仍未验证，Task53U 前补证据。
+当前状态：交互规格、Frame Manifest、组件状态矩阵和真实页面视觉审阅稿均已完成；线上 Figma 同步仍为 `not_verified`，不影响本地 Task53U 关闭。
 
 ### Task53P.6：Detailed implementation readiness
 
@@ -172,4 +172,4 @@ IMAGE_TAG=task53-dev-<commit>
 4. 标签上限 8 个是否接受。
 5. Task53 完成后是否继续 Task51P.1 证据评审，仍由届时证据决定。
 
-详细原子开发计划已经形成，下一任务为 Task53.3；不得跳过 DTO/持久化 snapshot failing tests、commit 不重分类证明或独立环境边界。后续准备细则见 `../tech/28-v1.3-task53-post-classifier-readiness.md`。
+详细原子开发计划已执行完成，Task53.5 WSL2 结论为 `pass_with_suggest_only`；运行证据见 `../releases/v1.3.0-task53-rc-acceptance.md`。下一主线为 Task51P.1 真实证据评审，NAS staging 启动保持独立部署尾项。

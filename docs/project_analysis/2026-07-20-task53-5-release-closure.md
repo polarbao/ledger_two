@@ -1,0 +1,37 @@
+# Task53.5 发布收口结论
+
+日期：2026-07-20<br>
+结论：Task53.5 本机 WSL2 验收完成，`pass_with_suggest_only`；NAS staging 已就绪但未启动
+
+## 1. Closed scope
+
+1. 固定候选镜像、revision 和 schema 22 label 已核对。
+2. 匿名 schema 21 副本完成 21 -> 22 守恒升级，quick_check、外键、数量、金额和 import hash 通过。
+3. `off/suggest/graded/suggest/off` 模式循环没有改写账务或导入哈希。
+4. schema 22 候选已成对回滚到固定 schema 21 + Task50.6 镜像，并再次向前验证。
+5. Task53U 375/390/430/1440、双主题和关键业务流程通过真实浏览器验收。
+6. backend、frontend、OpenAPI 和仓库文本门禁通过。
+
+正式证据与决策见 `../releases/v1.3.0-task53-rc-acceptance.md`。
+
+## 2. Release posture
+
+learned auto 的合格提交样本为 0，低于 10 条最低门槛。因此：
+
+1. WSL2 38092 保持 `suggest`，不以 0% 修正率误判为 auto 可发布。
+2. Task53 业务实现和本机验收完成，但 graded 生产行为未获授权。
+3. 新样本必须来自 committed/imported learned-rule match，不能用 suggest 预览、Fixture 或刷新次数填充。
+
+## 3. Deployment status
+
+| Environment | Status | Boundary |
+|---|---|---|
+| WSL2 Task53 staging | running/pass | `http://127.0.0.1:38092`，schema 22，suggest |
+| NAS Task53 staging | prepared/not running | `/volume1/docker/ledger-two-task53-staging`，等待交互式 sudo |
+| NAS production | unchanged | 不在本轮范围 |
+
+NAS staging 包的 tar 和数据库 SHA-256 已在远端匹配，失败点仅是 Docker sudo 权限；没有覆盖 `/volume1/docker/ledger-two` 或既有 staging。
+
+## 4. Next work
+
+Task53.5 之后不新增 Task53.6。产品与开发主线返回 Task51P.1 的真实场景证据评审；当前计数仍为 0/0，Task51P.2-P.6 和代码不准入。NAS 启动与健康复核作为独立外部部署动作继续跟踪。

@@ -213,7 +213,7 @@
 
 ### Task51：多人分摊体验增强
 
-状态：不具备直接开发条件。Task50 技术门禁已满足，但 Task51P.1 有效真实证据仍为 0；正式 P2-P6、范围/版本冻结和代码开发等待 `continue/narrow` 结论，不得直接解除 schema 21 的最多两名成员约束。入口为 `../prd/33-task51-scenario-evidence-and-scope-questions.md` 与 `17-task51-predevelopment-plan.md`。
+状态：不具备直接开发条件。Task50/Task53 WSL2 技术门禁和 Task51P.1 内部准备已完成，但有效真实小组/完整回放仍为 0/0；正式 P2-P6、范围/版本冻结和代码开发等待 `continue/narrow` 结论，不得直接解除现有最多两名成员约束。入口为 `../prd/33-task51-scenario-evidence-and-scope-questions.md`、`17-task51-predevelopment-plan.md` 与 `../project_analysis/2026-07-20-task51-p1-entry-review.md`。
 
 目标：
 

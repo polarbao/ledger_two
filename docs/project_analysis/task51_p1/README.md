@@ -2,7 +2,7 @@
 
 状态：进行中，尚无有效真实小组证据<br>
 启动日期：2026-07-16<br>
-正式 Gate：Task50 技术门禁已满足；Task53 完成后重新评审，仍等待真实证据形成 `continue/narrow/defer`
+正式 Gate：Task50 与 Task53 WSL2 技术门禁已满足；P.1 内部准备完整，当前只等待真实证据形成 `continue/narrow/defer`
 
 ## Purpose
 
@@ -26,6 +26,8 @@
 | `interview-and-replay-runbook.md` | 招募、同意、访谈、匿名化与工作流回放执行手册 |
 | `p1-decision-review-template.md` | Gate 计数、质量审查和 continue/narrow/defer 决策模板 |
 
+进入执行阶段的完整性评审见 `../2026-07-20-task51-p1-entry-review.md`。评审确认无需继续创建平行模板；下一步是按 runbook 取得真实、匿名、经同意的证据。
+
 ## Guardrails
 
 1. 禁止记录真实姓名、用户名、联系方式、商户、订单号、账单备注、附件或可识别金额明细。
@@ -45,3 +47,5 @@ research_runbook=ready
 decision_review_template=ready
 decision=pending
 ```
+
+当前允许执行访谈和原型回放，但不得提前创建 P.2 PRD、ADR、OpenAPI、migration 或业务代码。NAS Task53 staging 尾项与本研究工作区相互独立。

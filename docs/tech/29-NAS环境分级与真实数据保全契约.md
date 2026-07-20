@@ -17,7 +17,7 @@
 
 ## 2. Domain fact
 
-规范域名为 `nas.polarrrr.top`：公共 DNS 返回 `101.71.237.198`。2026-07-20 使用外部多地区 HTTP 节点验证，38088 和 38092 各 5/5 节点返回 HTTP 200。
+规范域名为 `nas.polarrrr.top`：公共 DNS 返回 `101.71.237.198`。2026-07-20 NAS-R1 重建后再次使用外部多地区 HTTP 节点验证：38088 为 5/5 HTTP 200；38092 首轮 4/5 HTTP 200、1 个节点超时，立即复验为 5/5 HTTP 200。
 
 `nas.polarrr.top` 少一个 `r`，公共 DNS 状态为 NXDOMAIN；当前主机经本地代理访问时返回 502。文档、环境变量和验收记录不得使用该拼写。
 
@@ -52,9 +52,23 @@
 3. CSV/XLSX 上传、附件、导出或备份下载。
 4. 管理员诊断、恢复和任何包含个人数据的接口。
 
-## 6. Source of truth
+## 6. Current deployment baseline
+
+| Item | 38088 production | 38092 staging |
+|---|---|---|
+| image | `ledger-two:1.3.0-rc-task53-98c3b14` | `ledger-two:1.3.0-rc-task53-98c3b14` |
+| runtime root | `/volume1/docker/ledger-two` | `/volume1/docker/ledger-two-development` |
+| container | `ledger-two-v13-production` | `ledger-two-v13-development` |
+| health | schema 22 / suggest / db ok | schema 22 / suggest / db ok |
+| initialization | `true`，真实数据保全已生效 | `false`，保持空 QA 环境 |
+| permissions | root 0700，env/db 0600 | root 0700，env/db 0600 |
+
+旧 38089 和旧 Task53 staging runtime 已下线并删除。38088 已完成 LAN 初始化并建立 NAS 内外 schema 22 基线备份，本契约第 3 节的数据保全规则已经生效；38092 仍保持未初始化的可重建 QA 环境。
+
+## 7. Source of truth
 
 1. 当前环境与数据保全：本文。
 2. 一次性清库换代：`../codex_tasks/20-NAS-R1真实体验发布与数据保全计划.md`。
 3. Task53 staging 证据：`../project_analysis/2026-07-20-Task53-NAS预发布部署与权限加固.md`。
 4. 发布升级与回滚：`../releases/v1.3.0-rc-升级与回滚指南.md`。
+5. NAS-R1 实际执行记录：`../project_analysis/2026-07-20-NAS-R1双环境重建与真实数据入口.md`。

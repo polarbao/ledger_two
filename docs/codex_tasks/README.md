@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task50 已完成；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53.1-Task53U 与 Task53.5 的 WSL2/NAS staging 验收已完成，发布决策为 `pass_with_suggest_only`；当前插入 NAS-R1 真实体验 production 清库换代与数据保全专项，破坏性执行等待用户确认，随后返回 Task51P.1
+适用阶段：Task01-Task50 已完成；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53.1-Task53U 与 Task53.5 的 WSL2/NAS staging 验收已完成，发布决策为 `pass_with_suggest_only`；NAS-R1 双环境重建和 production 基线备份已完成，当前仅待用户确认两个真实账号均可从 LAN 登录，随后返回 Task51P.1
 
 ## 1. 目标
 

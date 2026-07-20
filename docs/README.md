@@ -112,6 +112,8 @@ docs/
 
 2026-07-17 更新：Task50.1-Task50.6 已完成，独立本机 v1.3/schema 21 staging、回滚和浏览器证据已闭环，NAS 未部署。Task53.1-Task53.3 已在本地完成 schema 22、默认元数据、确定性分类器、preview 分类快照和 reclassify；Task53.4 准备关闭，下一实现切片为 Task53.4A；Task51P.1 真实证据仍为 0，Task52 继续保持调研门禁。
 
+2026-07-20 更新：Task53.1-Task53U 与 Task53.5 已关闭，决策为 `pass_with_suggest_only`。NAS-R1 已把 38088 重建为 schema 22 production、把 38092 重建为 schema 22 staging，并下线旧 38089。38088 已初始化且 NAS 内外基线备份通过校验，真实数据保全规则已生效；当前仅待用户确认两个账号均可从 LAN 登录。事实源为 `docs/codex_tasks/20-NAS-R1真实体验发布与数据保全计划.md`、`docs/tech/29-NAS环境分级与真实数据保全契约.md` 和最新 NAS-R1 执行记录。
+
 ## AI 开发使用方式
 
 让 AI 编码时，不要让它一次性实现全项目。推荐提示：

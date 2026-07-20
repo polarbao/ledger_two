@@ -34,7 +34,7 @@
 5. v1.3 前应重新评审多账本、多成员、多人分摊的数据模型、权限矩阵和 migration 策略。
 6. UI-FL-10、Task50P.1-P.6、Task50.1-Task50.6 与 Task53.1-Task53U 已完成；Task53 包含 schema 22、默认元数据、确定性 preview/reclassify、bulk-adjust、explicit learn、规则生命周期、metadata safeguard 和双主题 UI。
 7. Task53 migration、OpenAPI、Fixture、浏览器和发布门禁已形成闭环；commit 固定读取持久化快照且不重分类，WSL2 结论为 `pass_with_suggest_only`。
-8. WSL 38091 保留 Task50 schema 21 候选，WSL/NAS 38092 分别独立运行 Task53 schema 22/suggest；NAS LAN health 与私有权限已验证，production 未变。
+8. WSL 38091 保留 Task50 schema 21 候选；NAS-R1 已把固定 Task53 schema 22/suggest 候选分别部署到 NAS 38088 production 和 38092 staging。38088 已初始化并建立 NAS 内外基线备份，数据保全规则已生效；38092 保持未初始化的可重建 QA 环境。
 
 当前已知技术债：
 

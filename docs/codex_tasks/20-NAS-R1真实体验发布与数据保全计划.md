@@ -1,6 +1,6 @@
 # NAS-R1：真实体验发布与数据保全专项计划
 
-状态：环境分级、域名和删除范围已确认；NAS-R1 破坏性执行已获授权<br>
+状态：NAS-R1.1 至 NAS-R1.5、NAS-R1.7 已完成；38088 已初始化，等待用户确认两个账号登录以关闭 NAS-R1.6<br>
 创建日期：2026-07-20<br>
 优先级：插入 Task51P.1 之前执行<br>
 
@@ -23,7 +23,7 @@
 3. 本专项只验证现有公网 DNS/HTTP，不配置 TLS 或反向代理。
 4. 真实账号不通过公网明文 HTTP 初始化；用户只从 LAN `/init` 输入密码。
 
-## 4. Current state
+## 4. Pre-reset state
 
 版本性质以 `DEPLOYMENT_CHANNEL`、端口、runtime root 和数据责任共同判定，不能仅凭版本字符串是否带 `rc` 判断。
 
@@ -37,6 +37,18 @@
 当前不存在 v1.3 stable tag 或已发布的 v1.3 production。建议把固定镜像 `ledger-two:1.3.0-rc-task53-98c3b14` 作为“真实体验 production 候选”切换到 38088，但发布文档仍保持 RC 口径。
 
 环境角色已冻结：38088 是发布/真实体验 production；38092 是开发联调/验收 staging。规范公网域名是 `nas.polarrrr.top`，不是 `nas.polarrr.top`。公共 DNS 返回 `101.71.237.198`，两个端口均已由 5 个外部 HTTP 节点验证为 200。
+
+### 4.1 Post-reset state
+
+2026-07-20 已按确认范围完成一次性重建：
+
+1. 38088 运行固定镜像 `ledger-two:1.3.0-rc-task53-98c3b14`，health 为 production/schema 22/suggest/db ok；部署后初始为 `initialized=false`，现已变为 `initialized=true`。
+2. 38092 使用同一固定镜像和独立 secret，health 为 staging/schema 22/suggest/db ok，`initialized=false`。
+3. 旧 38089、旧 Task53 runtime 和带回车符的误建目录已删除；38089 已下线。
+4. production 与 staging runtime 均为 0700，`.env` 与 `ledger.db` 均为 0600；数据库、密钥和目录互不复用。
+5. 旧 production 已保存到 NAS 外的 `E:\__Project_Data\ledger_two_nas_backups\pre-real-experience-20260720-170801`，数据库 quick_check 为 ok，SHA-256 已记录。
+6. 公网 health 复验通过，但入口仍是明文 HTTP；初始化已完成，真实登录和账单操作仍只能走 LAN。
+7. 初始化后基线备份 `nas-r1-real-experience-baseline-20260720-180104` 已保存到 NAS 内外，quick_check/外键/SHA-256 均通过。
 
 ## 5. Proposed approach
 
@@ -78,11 +90,11 @@
 |---|---|---|
 | NAS-R1.1 | 盘点版本、目录、端口、schema 和数量 | 已完成，本文件记录与 health 一致 |
 | NAS-R1.2 | 用户确认精确删除和 production 切换范围 | 已完成；授权按推荐口径执行 |
-| NAS-R1.3 | 旧 production NAS 外备份与停机 | quick_check=ok，SHA-256 可复核 |
-| NAS-R1.4 | 清理旧 runtime，部署空 v1.3 RC production | 38088 health 正确，init=false |
-| NAS-R1.5 | 清理/重建 staging 和误建目录 | 38089 下线，38092 空库且 init=false |
-| NAS-R1.6 | 用户自行初始化 production | 用户确认可登录，账号不写入文档/日志 |
-| NAS-R1.7 | 建立首份真实 production 基线备份 | 备份 hash、health、核心数量记录完整 |
+| NAS-R1.3 | 旧 production NAS 外备份与停机 | 已完成；quick_check=ok，数据库与配置 SHA-256 可复核 |
+| NAS-R1.4 | 清理旧 runtime，部署空 v1.3 RC production | 已完成；38088 production/schema 22/suggest，init=false |
+| NAS-R1.5 | 清理/重建 staging 和误建目录 | 已完成；38089 下线，38092 staging/schema 22/suggest，init=false |
+| NAS-R1.6 | 用户自行初始化 production | 系统已观测 init=true；待用户确认两个账号均可从 LAN 登录 |
+| NAS-R1.7 | 建立首份真实 production 基线备份 | 已完成；NAS 内外各一份，quick_check/外键/hash 与业务基线已记录 |
 
 ## 8. Risks
 
@@ -108,7 +120,7 @@
 
 ## 10. Rollback
 
-在用户完成新 production 初始化前，如新候选启动或 init 失败，停止新容器，恢复旧 `1.2.0-rc` 固定镜像、旧 `.env` 和 NAS 外一致性备份。用户完成真实初始化并确认后，旧演示数据不再回灌；后续回滚只能使用新 production 的版本化备份。
+初始化前如新候选启动或 init 失败，原计划允许恢复旧 `1.2.0-rc` 固定镜像、旧 `.env` 和 NAS 外一致性备份。当前 38088 已初始化且已建立 schema 22 基线，旧演示数据从此不得回灌；后续回滚只能使用新 production 的版本化备份。
 
 ## 11. Confirmation gate
 

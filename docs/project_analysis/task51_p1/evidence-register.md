@@ -24,6 +24,8 @@
 | 5 人匿名原型回放 | 1 个假设 Fixture | 1 | 准备完成，不算真实证据 |
 | 不做通知仍愿意使用 | 未知 | 至少 2 个独立来源 | 未满足 |
 
+执行手册和决策评审模板已经就绪，但它们只提升收集一致性，不增加真实证据计数。访谈应按 `interview-and-replay-runbook.md` 执行，达到最低材料后再使用 `p1-decision-review-template.md`。
+
 ## 3. Decision log
 
 P1 评审时填写：

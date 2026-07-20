@@ -23,6 +23,8 @@
 | `evidence-register.md` | 只登记匿名证据状态和评审结论 |
 | `evidence-record-template.md` | 访谈、同意和工作流回放模板 |
 | `prototype-replay-fixtures.md` | 3/5 人假设原型 Fixture，不算真实需求证据 |
+| `interview-and-replay-runbook.md` | 招募、同意、访谈、匿名化与工作流回放执行手册 |
+| `p1-decision-review-template.md` | Gate 计数、质量审查和 continue/narrow/defer 决策模板 |
 
 ## Guardrails
 
@@ -39,5 +41,7 @@ valid_group_records=0
 complete_workflow_replays=0
 three_person_prototype_fixture=ready
 five_person_prototype_fixture=ready
+research_runbook=ready
+decision_review_template=ready
 decision=pending
 ```

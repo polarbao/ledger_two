@@ -1,12 +1,12 @@
 ﻿# API Inventory
 
-状态：Task50.6 正式契约已冻结；Task53.1-Task53.3、Task53.4A/B 已落地，Task53.4C 契约已准备
+状态：Task50.6 正式契约已冻结；Task53.1-Task53.4C 已落地，下一阶段为 Task53U
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
 更新时间：2026-07-20
 
-> Task53.1-Task53.3 已实现 schema 22、默认 profile、确定性分类器、preview 分类快照/summary 和 reclassify；Task53.4A/B 已实现 `bulk-adjust`、`learn` 与规则 origin/source/apply/confidence 生命周期。stale/命中指标和兜底替代仍只在 `openapi-v1.3-category-tag-draft.yaml` 冻结，当前不得描述为已上线。
+> Task53.1-Task53.4C 已实现 schema 22、默认 profile、确定性 preview/reclassify、bulk-adjust、learn、规则生命周期、stale/reference/committed-hit 指标与兜底分类原子替代。Task53U 页面和 Task53.5 隔离 staging 尚未执行。
 
 ## 1. 总体约定
 
@@ -91,11 +91,11 @@
 |---|---|---:|---|---|---|---|
 | GET | `/api/categories` | yes | required | transitional | `transaction.HandleListCategories` | 列出当前账本分类；默认仅未归档，`include_archived=true` 用于历史账单展示归档分类名称。 |
 | GET | `/api/accounts` | yes | required | transitional | `transaction.HandleListAccounts` | 列出当前账本支付账户。 |
-| GET | `/api/metadata/{kind}/` | yes | required | transitional | `metadata.List` | 元数据列表，kind 为 categories/tags/accounts，支持 include_archived，返回 `sort_order`、`usage_count`；分类/标签可返回 `system_key`。 |
+| GET | `/api/metadata/{kind}/` | yes | required | transitional | `metadata.List` | 元数据列表，kind 为 categories/tags/accounts，支持 include_archived，返回 `sort_order`、`usage_count` 和当前账本 active rule 的 `rule_reference_count`；分类/标签可返回 `system_key`。 |
 | POST | `/api/metadata/{kind}/` | yes | required | transitional | `metadata.Create` | 创建分类、标签或账户，仅 owner。 |
 | POST | `/api/metadata/{kind}/reorder` | yes | required | transitional | `metadata.Reorder` | 调整分类、标签或账户排序，仅 owner。 |
 | PATCH | `/api/metadata/{kind}/{id}` | yes | required | transitional | `metadata.Update` | 更新分类、标签或账户，仅 owner。 |
-| POST | `/api/metadata/{kind}/{id}/archive` | yes | required | transitional | `metadata.Archive` | 归档分类、标签或账户，仅 owner。 |
+| POST | `/api/metadata/{kind}/{id}/archive` | yes | required | transitional | `metadata.Archive` | 归档分类、标签或账户，仅 owner；归档 expense_other/income_other 必须提交同账本、active、同类型且无 system_key 的 replacement_category_id，转移与归档同事务。 |
 | POST | `/api/metadata/{kind}/{id}/restore` | yes | required | transitional | `metadata.Restore` | 恢复归档分类、标签或账户，仅 owner。 |
 | GET | `/api/metadata/default-profile` | yes | required | transitional | `metadata.GetDefaultProfile` | 读取 `basic_cn_v1` 或 `empty` 定义及当前账本解析结果；只读。 |
 | POST | `/api/metadata/default-profile/preview` | yes | required | transitional | `metadata.PreviewDefaultProfile` | 预览创建、已存在和同名冲突，不写元数据或绑定 `system_key`。 |
@@ -131,10 +131,10 @@
 | POST | `/api/imports/{batchID}/commit` | yes | required | stable | `importer.HandleCommit` | v1.2 Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
 | POST | `/api/imports/{batchID}/discard` | yes | required | stable | `importer.HandleDiscardBatch` | Owner 显式放弃 ready 批次；收敛为 expired，保留行/hash，不创建 transaction。 |
 | POST | `/api/import-rules/` | yes | required | stable | `importer.HandleCreateRule` | Owner 创建 `origin=manual` 规则，可设置来源范围与 auto/suggest，confidence 由服务端固定 high。 |
-| GET | `/api/import-rules/` | yes | required | stable | `importer.HandleListRules` | Owner 列出当前账本 manual/learned 规则及 origin/source/apply/confidence，支持 `status=active/archived/all`。 |
+| GET | `/api/import-rules/` | yes | required | stable | `importer.HandleListRules` | Owner 列出当前账本 manual/learned 规则及 origin/source/apply/confidence、stale 引用和 committed/imported 命中指标，支持 `status=active/archived/all`。 |
 | PATCH | `/api/import-rules/{ruleID}` | yes | required | stable | `importer.HandleUpdateRule` | Owner 更新规则；learned 的来源、merchant_equals 和规范化 pattern 不可修改。 |
 | POST | `/api/import-rules/{ruleID}/archive` | yes | required | stable | `importer.HandleArchiveRule` | v1.2 Owner 归档导入规则。 |
-| POST | `/api/import-rules/{ruleID}/restore` | yes | required | stable | `importer.HandleRestoreRule` | Owner 恢复导入规则；learned rule 与同范围 active manual 商户精确规则冲突时拒绝恢复。 |
+| POST | `/api/import-rules/{ruleID}/restore` | yes | required | stable | `importer.HandleRestoreRule` | Owner 恢复导入规则；任何 stale rule 均拒绝恢复，learned rule 与同范围 active manual 商户精确规则冲突时同样拒绝。 |
 | DELETE | `/api/import-rules/{ruleID}` | yes | required | transitional | `importer.HandleArchiveRule` | Owner 兼容旧删除入口，实际执行归档。 |
 
 ## 8. Templates 与周期账单

@@ -3,9 +3,17 @@ package metadata
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+)
+
+var (
+	errFallbackReplacementRequired = errors.New("fallback replacement category is required")
+	errFallbackReplacementInvalid  = errors.New("fallback replacement category is invalid")
 )
 
 type Repository struct {
@@ -21,6 +29,10 @@ func (r *Repository) BeginTx(ctx context.Context) (*sql.Tx, error) {
 }
 
 func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, includeArchived bool) ([]Item, error) {
+	var (
+		items []Item
+		err   error
+	)
 	switch kind {
 	case KindCategory:
 		query := `
@@ -33,7 +45,7 @@ func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, inclu
 			query += " AND is_archived = 0"
 		}
 		query += " ORDER BY sort_order ASC, name ASC"
-		return r.list(ctx, query, ledgerID)
+		items, err = r.list(ctx, query, ledgerID)
 	case KindTag:
 		query := `
 			SELECT id, ledger_id, COALESCE(system_key, ''), name, '', '', COALESCE(color, ''), sort_order,
@@ -45,7 +57,7 @@ func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, inclu
 			query += " AND is_archived = 0"
 		}
 		query += " ORDER BY sort_order ASC, name ASC"
-		return r.list(ctx, query, ledgerID)
+		items, err = r.list(ctx, query, ledgerID)
 	case KindAccount:
 		query := `
 			SELECT id, ledger_id, '', name, type, '', '', sort_order,
@@ -57,10 +69,21 @@ func (r *Repository) List(ctx context.Context, kind Kind, ledgerID string, inclu
 			query += " AND is_archived = 0"
 		}
 		query += " ORDER BY sort_order ASC, name ASC"
-		return r.list(ctx, query, ledgerID)
+		items, err = r.list(ctx, query, ledgerID)
 	default:
 		return nil, sql.ErrNoRows
 	}
+	if err != nil {
+		return nil, err
+	}
+	counts, err := r.activeRuleReferenceCounts(ctx, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	for index := range items {
+		items[index].RuleReferenceCount = counts[items[index].ID]
+	}
+	return items, nil
 }
 
 func (r *Repository) list(ctx context.Context, query string, ledgerID string) ([]Item, error) {
@@ -206,6 +229,109 @@ func (r *Repository) SetArchived(ctx context.Context, kind Kind, ledgerID string
 	return err
 }
 
+func (r *Repository) ArchiveCategory(
+	ctx context.Context,
+	ledgerID string,
+	actorUserID string,
+	id string,
+	replacementCategoryID string,
+) (*ArchiveResult, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var categoryType, systemKey string
+	var isArchived int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT type, COALESCE(system_key, ''), is_archived
+		FROM categories
+		WHERE id = ? AND ledger_id = ?
+	`, id, ledgerID).Scan(&categoryType, &systemKey, &isArchived); err != nil {
+		return nil, err
+	}
+
+	result := &ArchiveResult{ArchivedID: id}
+	if systemKey != "expense_other" && systemKey != "income_other" {
+		if err := execRequireRows(tx.ExecContext(ctx, `
+			UPDATE categories SET is_archived = 1, updated_at = ?
+			WHERE id = ? AND ledger_id = ?
+		`, time.Now().UTC().Format(time.RFC3339Nano), id, ledgerID)); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+	if replacementCategoryID == "" {
+		return nil, errFallbackReplacementRequired
+	}
+
+	var replacementType, replacementSystemKey string
+	var replacementArchived int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT type, COALESCE(system_key, ''), is_archived
+		FROM categories
+		WHERE id = ? AND ledger_id = ?
+	`, replacementCategoryID, ledgerID).Scan(&replacementType, &replacementSystemKey, &replacementArchived); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errFallbackReplacementInvalid
+		}
+		return nil, err
+	}
+	if replacementCategoryID == id || replacementType != categoryType || replacementArchived != 0 || replacementSystemKey != "" {
+		return nil, errFallbackReplacementInvalid
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if err := execRequireRows(tx.ExecContext(ctx, `
+		UPDATE categories SET system_key = NULL, updated_at = ?
+		WHERE id = ? AND ledger_id = ? AND system_key = ?
+	`, now, id, ledgerID, systemKey)); err != nil {
+		return nil, errFallbackReplacementInvalid
+	}
+	if err := execRequireRows(tx.ExecContext(ctx, `
+		UPDATE categories SET system_key = ?, updated_at = ?
+		WHERE id = ? AND ledger_id = ? AND is_archived = 0 AND type = ? AND system_key IS NULL
+	`, systemKey, now, replacementCategoryID, ledgerID, categoryType)); err != nil {
+		return nil, errFallbackReplacementInvalid
+	}
+	if err := execRequireRows(tx.ExecContext(ctx, `
+		UPDATE categories SET is_archived = 1, updated_at = ?
+		WHERE id = ? AND ledger_id = ? AND system_key IS NULL
+	`, now, id, ledgerID)); err != nil {
+		return nil, err
+	}
+
+	result.FallbackReplaced = true
+	result.TransferredSystemKey = systemKey
+	result.ReplacementCategoryID = replacementCategoryID
+	beforeJSON, err := json.Marshal(map[string]any{
+		"archived_id": id, "system_key": systemKey, "is_archived": isArchived == 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	afterJSON, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO audit_logs (
+			id, ledger_id, actor_user_id, actor_role, action, entity_type,
+			entity_id, before_json, after_json, created_at
+		) VALUES (?, ?, ?, 'owner', 'metadata_fallback_replace', 'category', ?, ?, ?, ?)
+	`, uuid.NewString(), ledgerID, actorUserID, id, string(beforeJSON), string(afterJSON), now); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func (r *Repository) Reorder(ctx context.Context, kind Kind, ledgerID string, orderedIDs []string) error {
 	table, err := tableName(kind)
 	if err != nil {
@@ -242,6 +368,46 @@ func (r *Repository) nextSortOrder(ctx context.Context, kind Kind, ledgerID stri
 	var next int
 	err = r.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM "+table+" WHERE ledger_id = ?", ledgerID).Scan(&next)
 	return next, err
+}
+
+func (r *Repository) activeRuleReferenceCounts(ctx context.Context, ledgerID string) (map[string]int, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, COALESCE(result_json, '{}')
+		FROM import_rules
+		WHERE ledger_id = ? AND COALESCE(status, 'active') = 'active'
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[string]int{}
+	for rows.Next() {
+		var ruleID, resultJSON string
+		if err := rows.Scan(&ruleID, &resultJSON); err != nil {
+			return nil, err
+		}
+		var result struct {
+			CategoryID string   `json:"category_id"`
+			AccountID  string   `json:"account_id"`
+			TagIDs     []string `json:"tag_ids"`
+		}
+		if err := json.Unmarshal([]byte(resultJSON), &result); err != nil {
+			return nil, fmt.Errorf("import rule %s has invalid result_json: %w", ruleID, err)
+		}
+		seen := map[string]struct{}{}
+		for _, referenceID := range append([]string{result.CategoryID, result.AccountID}, result.TagIDs...) {
+			if referenceID == "" {
+				continue
+			}
+			if _, exists := seen[referenceID]; exists {
+				continue
+			}
+			seen[referenceID] = struct{}{}
+			counts[referenceID]++
+		}
+	}
+	return counts, rows.Err()
 }
 
 type profileStateItem struct {

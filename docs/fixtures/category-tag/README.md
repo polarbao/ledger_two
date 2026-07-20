@@ -1,6 +1,6 @@
 # Task53 分类、标签与自动归类 Fixture 规格
 
-状态：Task53 匿名 Fixture 基线；Task53.1-Task53.3 profile/migration/classifier/API 快照已落地，不包含真实账单<br>
+状态：Task53 匿名 Fixture 基线；Task53.1-Task53.4C profile/migration/classifier/API/metadata safeguard 快照已落地，不包含真实账单<br>
 创建日期：2026-07-16<br>
 适用：Task53 classifier、migration、API、前端状态和浏览器验收
 
@@ -122,9 +122,11 @@ docs/fixtures/category-tag/expected/suggested.json
 docs/fixtures/category-tag/expected/conflict.json
 docs/fixtures/category-tag/expected/profile-preview.json
 docs/fixtures/category-tag/expected/learn-created.json
+docs/fixtures/category-tag/expected/rule-stale.json
+docs/fixtures/category-tag/expected/fallback-replaced.json
 ```
 
-5 个 JSON 已生成并纳入 OpenAPI/Tech 静态校验。`profile-preview.json` 已与 `basic_cn_v1` 的 27 个冻结 system key、图标和颜色对齐；分类 expected 已与 Task53.3 实际 reason code/text 和持久化 DTO 对齐；`learn-created.json` 固定 Task53.4B UUIDv5/current-source 响应。Task53.4C DTO 变化必须联合更新 OpenAPI、前端类型和 expected。
+7 个 JSON 已生成并纳入 OpenAPI/Tech 静态校验。`profile-preview.json` 已与 `basic_cn_v1` 的 27 个冻结 system key、图标和颜色对齐；分类 expected 已与 Task53.3 实际 reason code/text 和持久化 DTO 对齐；`learn-created.json` 固定 Task53.4B UUIDv5/current-source 响应；`rule-stale.json` 与 `fallback-replaced.json` 固定 Task53.4C 的规则健康指标和兜底替代响应。
 
 ## 10. Acceptance matrix
 

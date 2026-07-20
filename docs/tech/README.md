@@ -31,8 +31,8 @@
 3. v1.2 RC 的关键技术门禁是 schema 19 staging、XLSX 开关、备份链、health 校验和回滚脚本。
 4. Fresh Light 属于前端体验专项，不应改变后端金额、权限、导入、结算或 migration 契约。
 5. v1.3 前应重新评审多账本、多成员、多人分摊的数据模型、权限矩阵和 migration 策略。
-6. UI-FL-10、Task50P.1-P.6 与 Task50.1-Task50.6 已完成；Task53.1-Task53.3、Task53.4A/B 已完成 schema 22、默认元数据、确定性 preview/reclassify、bulk-adjust、explicit learn 和规则生命周期；下一实现切片为 Task53.4C。
-7. Task53 migration、OpenAPI、Fixture 和详细实施基线已形成；classifier 已接入 preview，commit 固定读取持久化快照且不重分类，Task53.4C 与 Task53U 尚未实现。
+6. UI-FL-10、Task50P.1-P.6 与 Task50.1-Task50.6 已完成；Task53.1-Task53.4C 已完成 schema 22、默认元数据、确定性 preview/reclassify、bulk-adjust、explicit learn、规则生命周期和 metadata safeguard；下一实现切片为 Task53U。
+7. Task53 migration、OpenAPI、Fixture 和详细实施基线已形成；classifier 已接入 preview，commit 固定读取持久化快照且不重分类，Task53U 结构准备完整，Task53.5 发布资产已齐但未执行。
 8. WSL 38091 已固定为 Task50 schema 21 候选；Task53 必须使用独立 38092/runtime root，migration 022 未进入 WSL/NAS/真实数据库。
 
 当前已知技术债：

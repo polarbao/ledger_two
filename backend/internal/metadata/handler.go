@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -140,7 +141,23 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
-	h.setArchived(w, r, true)
+	userID := middleware.GetUserIDFromContext(r.Context())
+	kind, ok := ParseKind(chi.URLParam(r, "kind"))
+	if !ok {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "不支持的元数据类型"))
+		return
+	}
+	var req ArchiveRequest
+	if err := decodeOptionalJSON(r, &req); err != nil {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求参数解析失败"))
+		return
+	}
+	result, err := h.service.Archive(r.Context(), userID, kind, chi.URLParam(r, "id"), req)
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, result)
 }
 
 func (h *Handler) Restore(w http.ResponseWriter, r *http.Request) {
@@ -178,4 +195,24 @@ func (h *Handler) setArchived(w http.ResponseWriter, r *http.Request, archived b
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+func decodeOptionalJSON(r *http.Request, target any) error {
+	decoder := json.NewDecoder(r.Body)
+	var raw json.RawMessage
+	if err := decoder.Decode(&raw); err != nil {
+		if err == io.EOF {
+			return nil
+		}
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体只能包含一个 JSON 对象")
+	}
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体必须是 JSON 对象")
+	}
+	payloadDecoder := json.NewDecoder(bytes.NewReader(raw))
+	payloadDecoder.DisallowUnknownFields()
+	return payloadDecoder.Decode(target)
 }

@@ -174,7 +174,7 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (item: MetadataItem) => item.is_archived
+    mutationFn: (item: MetadataItem): Promise<unknown> => item.is_archived
       ? metadataApi.restore(kind, item.id)
       : metadataApi.archive(kind, item.id),
     onSuccess: (_, item) => {

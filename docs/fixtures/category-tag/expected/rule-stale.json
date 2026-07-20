@@ -1,0 +1,7 @@
+{
+  "id": "rule-stale",
+  "is_stale": true,
+  "stale_reference_ids": ["account-missing", "cat-archived", "tag-missing"],
+  "committed_hit_count": 0,
+  "last_committed_hit_at": null
+}

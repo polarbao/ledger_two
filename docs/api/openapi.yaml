@@ -419,7 +419,7 @@ paths:
       - $ref: "#/components/parameters/LedgerIdHeaderRequired"
     get:
       tags: [metadata]
-      summary: List metadata items
+      summary: List metadata items with active-rule reference counts
       security:
         - cookieAuth: []
       parameters:
@@ -431,7 +431,11 @@ paths:
             default: false
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Current-ledger metadata items and active import-rule reference counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataItemListResponse"
         "403":
           $ref: "#/components/responses/Forbidden"
     post:
@@ -510,20 +514,38 @@ paths:
     post:
       tags: [metadata]
       summary: Archive metadata item
-      description: Owner only. Archived items are hidden from create/edit selectors but remain available for historical records.
+      description: |
+        Owner only. Archived items remain available for historical records.
+        Archiving expense_other or income_other requires a same-ledger, active,
+        same-type replacement category without another system_key. The system_key
+        transfer and archive are atomic and do not rewrite historical transactions or rules.
       security:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/MetadataKindPath"
         - $ref: "#/components/parameters/GenericIdPath"
         - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataArchiveRequest"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Metadata item archived, with fallback transfer details when applicable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataArchiveResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
         "403":
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /metadata/{kind}/{id}/restore:
     post:
       tags: [metadata]
@@ -2079,7 +2101,7 @@ components:
           $ref: "#/components/schemas/ImportRuleResult"
     ImportRule:
       type: object
-      required: [id, name, match_type, pattern, priority, status, origin, source_type, apply_mode, confidence, result, created_by_user_id, created_at, updated_at]
+      required: [id, name, match_type, pattern, priority, status, origin, source_type, apply_mode, confidence, result, is_stale, stale_reference_ids, committed_hit_count, last_committed_hit_at, created_by_user_id, created_at, updated_at]
       properties:
         id:
           type: string
@@ -2116,6 +2138,20 @@ components:
           enum: [high]
         result:
           $ref: "#/components/schemas/ImportRuleResult"
+        is_stale:
+          type: boolean
+        stale_reference_ids:
+          type: array
+          items:
+            type: string
+        committed_hit_count:
+          type: integer
+          minimum: 0
+          description: Imported rows in committed current-ledger batches whose persisted matched rule IDs contain this rule.
+        last_committed_hit_at:
+          type: string
+          format: date-time
+          nullable: true
         created_by_user_id:
           type: string
         created_at:
@@ -2664,3 +2700,72 @@ components:
           minItems: 1
           items:
             type: string
+    MetadataItem:
+      type: object
+      required: [id, ledger_id, name, sort_order, usage_count, rule_reference_count, is_archived]
+      properties:
+        id:
+          type: string
+        ledger_id:
+          type: string
+        system_key:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        icon:
+          type: string
+        color:
+          type: string
+        sort_order:
+          type: integer
+        usage_count:
+          type: integer
+          minimum: 0
+        rule_reference_count:
+          type: integer
+          minimum: 0
+          description: Active current-ledger import rules whose result references this metadata item.
+        is_archived:
+          type: boolean
+    MetadataItemListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetadataItem"
+    MetadataArchiveRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        replacement_category_id:
+          type: string
+          description: Required when archiving expense_other or income_other.
+    MetadataArchiveResult:
+      type: object
+      required: [archived_id, fallback_replaced]
+      properties:
+        archived_id:
+          type: string
+        fallback_replaced:
+          type: boolean
+        transferred_system_key:
+          type: string
+          enum: [expense_other, income_other]
+        replacement_category_id:
+          type: string
+    MetadataArchiveResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/MetadataArchiveResult"

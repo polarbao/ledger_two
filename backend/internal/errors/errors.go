@@ -77,12 +77,14 @@ const (
 	ErrCodeSettlementNotFound         = "SETTLEMENT_NOT_FOUND"
 
 	// 分类、标签、账户
-	ErrCodeCategoryNotFound        = "CATEGORY_NOT_FOUND"
-	ErrCodeCategoryArchived        = "CATEGORY_ARCHIVED"
-	ErrCodeTagNotFound             = "TAG_NOT_FOUND"
-	ErrCodeAccountNotFound         = "ACCOUNT_NOT_FOUND"
-	ErrCodeDuplicateName           = "DUPLICATE_NAME"
-	ErrCodeMetadataProfileConflict = "METADATA_PROFILE_CONFLICT"
+	ErrCodeCategoryNotFound                   = "CATEGORY_NOT_FOUND"
+	ErrCodeCategoryArchived                   = "CATEGORY_ARCHIVED"
+	ErrCodeTagNotFound                        = "TAG_NOT_FOUND"
+	ErrCodeAccountNotFound                    = "ACCOUNT_NOT_FOUND"
+	ErrCodeDuplicateName                      = "DUPLICATE_NAME"
+	ErrCodeMetadataProfileConflict            = "METADATA_PROFILE_CONFLICT"
+	ErrCodeCategoryFallbackRequired           = "CATEGORY_FALLBACK_REQUIRED"
+	ErrCodeCategoryFallbackReplacementInvalid = "CATEGORY_FALLBACK_REPLACEMENT_INVALID"
 
 	// 导入、导出、备份
 	ErrCodeExportFailed                   = "EXPORT_FAILED"

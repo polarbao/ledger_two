@@ -232,6 +232,10 @@ export interface ImportRule {
   apply_mode: ImportRuleApplyMode;
   confidence: 'high';
   result: ImportRuleResult;
+  is_stale: boolean;
+  stale_reference_ids: string[];
+  committed_hit_count: number;
+  last_committed_hit_at: string | null;
   created_by_user_id: string;
   created_at: string;
   updated_at: string;

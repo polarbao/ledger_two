@@ -9,16 +9,17 @@ const (
 )
 
 type Item struct {
-	ID         string `json:"id"`
-	LedgerID   string `json:"ledger_id"`
-	SystemKey  string `json:"system_key,omitempty"`
-	Name       string `json:"name"`
-	Type       string `json:"type,omitempty"`
-	Icon       string `json:"icon,omitempty"`
-	Color      string `json:"color,omitempty"`
-	SortOrder  int    `json:"sort_order"`
-	UsageCount int    `json:"usage_count"`
-	IsArchived bool   `json:"is_archived"`
+	ID                 string `json:"id"`
+	LedgerID           string `json:"ledger_id"`
+	SystemKey          string `json:"system_key,omitempty"`
+	Name               string `json:"name"`
+	Type               string `json:"type,omitempty"`
+	Icon               string `json:"icon,omitempty"`
+	Color              string `json:"color,omitempty"`
+	SortOrder          int    `json:"sort_order"`
+	UsageCount         int    `json:"usage_count"`
+	RuleReferenceCount int    `json:"rule_reference_count"`
+	IsArchived         bool   `json:"is_archived"`
 }
 
 type UpsertRequest struct {
@@ -30,6 +31,17 @@ type UpsertRequest struct {
 
 type ReorderRequest struct {
 	OrderedIDs []string `json:"ordered_ids"`
+}
+
+type ArchiveRequest struct {
+	ReplacementCategoryID string `json:"replacement_category_id,omitempty"`
+}
+
+type ArchiveResult struct {
+	ArchivedID            string `json:"archived_id"`
+	FallbackReplaced      bool   `json:"fallback_replaced"`
+	TransferredSystemKey  string `json:"transferred_system_key,omitempty"`
+	ReplacementCategoryID string `json:"replacement_category_id,omitempty"`
 }
 
 type ProfileAction string

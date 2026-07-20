@@ -288,10 +288,10 @@ POST  /api/metadata/{kind}/{id}/restore
 
 ## 12. Task53 分类标签智能化增量契约
 
-Task53.1-Task53.4B 已进入 router、正式 OpenAPI 与当前实现清单；Task53.4C 的 stale/命中指标/兜底替代仍以 `openapi-v1.3-category-tag-draft.yaml` 为开发前草案：
+Task53.1-Task53.4C 已进入 router、正式 OpenAPI 与当前实现清单；`openapi-v1.3-category-tag-draft.yaml` 继续作为 Task53U/Task53.5 验收契约：
 
 1. 默认元数据模板只允许 Owner 应用；preview 必须只读，apply 必须幂等并在单事务内完成。
 2. 批量调整、显式学习和重新分类必须使用 `X-Ledger-Id`，且只能操作同账本、同批次、仍可编辑的预览行。
 3. 人工选择优先于所有规则；既有 Task49 规则迁移后保持 `suggest`，不得因升级自动改写选中值。
 4. 已实现错误码：`CATEGORY_TYPE_MISMATCH`、`TAG_LIMIT_EXCEEDED`、`CLASSIFICATION_CONFLICT`、`CLASSIFICATION_RULE_STALE`、`CLASSIFICATION_MERCHANT_REQUIRED`、`METADATA_PROFILE_CONFLICT`、`IMPORT_RECLASSIFY_CONFLICT`、`IMPORT_BULK_ADJUST_CONFLICT`。
-5. `CATEGORY_FALLBACK_REQUIRED` 与 `CATEGORY_FALLBACK_REPLACEMENT_INVALID` 保持 Task53.4C 候选，只有实现、正式 OpenAPI 和 `docs/tech/10-error-codes.md` 同步后才可标记稳定。
+5. `CATEGORY_FALLBACK_REQUIRED` 与 `CATEGORY_FALLBACK_REPLACEMENT_INVALID` 已随 Task53.4C 实现、正式 OpenAPI 和 `docs/tech/10-error-codes.md` 同步为稳定错误码。

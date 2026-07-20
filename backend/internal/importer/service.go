@@ -387,22 +387,27 @@ func (s *Service) setImportRuleStatus(ctx context.Context, lc ledger.LedgerConte
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则 ID 不能为空")
 	}
 	if status == "active" {
-		existing, err := s.repo.GetImportRule(ctx, lc.LedgerID, ruleID)
+		rule, err := s.repo.RestoreImportRule(ctx, lc.LedgerID, lc.UserID, ruleID)
+		var staleErr *staleImportRuleRestoreError
+		if errors.As(err, &staleErr) {
+			return nil, appErrors.NewAppErrorWithDetails(
+				http.StatusConflict,
+				appErrors.ErrCodeClassificationRuleStale,
+				"导入规则仍引用不可用的分类、账户或标签",
+				map[string]any{"rule_id": staleErr.RuleID, "stale_reference_ids": copyStrings(staleErr.ReferenceIDs)},
+			)
+		}
+		var conflictErr *manualImportRuleRestoreConflictError
+		if errors.As(err, &conflictErr) {
+			return nil, appErrors.NewAppErrorWithDetails(http.StatusConflict, appErrors.ErrCodeClassificationConflict, "同一来源范围已存在显式商户规则", map[string]string{"rule_id": conflictErr.RuleID})
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入规则不存在或不属于当前账本")
+		}
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入规则不存在或不属于当前账本")
-			}
-			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入规则失败")
+			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "恢复导入规则失败")
 		}
-		if existing.Origin == string(classifier.OriginLearned) && existing.MatchType == string(classifier.MatchMerchantEquals) {
-			conflictID, err := s.repo.FindActiveManualMerchantConflict(ctx, lc.LedgerID, existing.SourceType, classifier.NormalizeText(existing.Pattern))
-			if err != nil {
-				return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "校验学习规则冲突失败")
-			}
-			if conflictID != "" {
-				return nil, appErrors.NewAppErrorWithDetails(http.StatusConflict, appErrors.ErrCodeClassificationConflict, "同一来源范围已存在显式商户规则", map[string]string{"rule_id": conflictID})
-			}
-		}
+		return rule, nil
 	}
 	rule, err := s.repo.SetImportRuleStatus(ctx, lc.LedgerID, ruleID, status)
 	if err != nil {

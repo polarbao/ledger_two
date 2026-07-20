@@ -309,23 +309,27 @@ type ImportRuleUpsertRequest struct {
 }
 
 type ImportRuleResponse struct {
-	ID              string           `json:"id"`
-	Name            string           `json:"name"`
-	MatchType       string           `json:"match_type"`
-	Pattern         string           `json:"pattern"`
-	AmountMinCents  *int64           `json:"amount_min_cents,omitempty"`
-	AmountMaxCents  *int64           `json:"amount_max_cents,omitempty"`
-	Priority        int              `json:"priority"`
-	Status          string           `json:"status"`
-	Origin          string           `json:"origin"`
-	SourceType      *string          `json:"source_type"`
-	ApplyMode       string           `json:"apply_mode"`
-	Confidence      string           `json:"confidence"`
-	Result          ImportRuleResult `json:"result"`
-	CreatedByUserID string           `json:"created_by_user_id"`
-	CreatedAt       string           `json:"created_at"`
-	UpdatedAt       string           `json:"updated_at"`
-	ArchivedAt      string           `json:"archived_at,omitempty"`
+	ID                 string           `json:"id"`
+	Name               string           `json:"name"`
+	MatchType          string           `json:"match_type"`
+	Pattern            string           `json:"pattern"`
+	AmountMinCents     *int64           `json:"amount_min_cents,omitempty"`
+	AmountMaxCents     *int64           `json:"amount_max_cents,omitempty"`
+	Priority           int              `json:"priority"`
+	Status             string           `json:"status"`
+	Origin             string           `json:"origin"`
+	SourceType         *string          `json:"source_type"`
+	ApplyMode          string           `json:"apply_mode"`
+	Confidence         string           `json:"confidence"`
+	Result             ImportRuleResult `json:"result"`
+	IsStale            bool             `json:"is_stale"`
+	StaleReferenceIDs  []string         `json:"stale_reference_ids"`
+	CommittedHitCount  int              `json:"committed_hit_count"`
+	LastCommittedHitAt *string          `json:"last_committed_hit_at"`
+	CreatedByUserID    string           `json:"created_by_user_id"`
+	CreatedAt          string           `json:"created_at"`
+	UpdatedAt          string           `json:"updated_at"`
+	ArchivedAt         string           `json:"archived_at,omitempty"`
 }
 
 type importRuleRecord struct {

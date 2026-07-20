@@ -4,8 +4,8 @@ info:
   version: 1.3.0-task53-draft
   description: |
     Task53 分类、标签、默认元数据和导入分级自动化增量契约。
-    Task53.1-Task53.3、Task53.4A/B 的 schema 22、default-profile、分类器、预览持久化、reclassify、bulk-adjust 和 explicit learn 已实现。
-    bulk-adjust 与显式学习、规则 origin/source/apply/confidence 扩展已在 Task53.4A/B 实现并同步正式 OpenAPI；stale/命中指标和兜底替代仍是 Task53.4C 草案，现状以 API_INVENTORY.md 为准。
+    Task53.1-Task53.3、Task53.4A-C 的 schema 22、default-profile、分类器、预览持久化、reclassify、bulk-adjust、explicit learn 和 metadata safeguard 已实现。
+    规则 stale/reference/committed-hit 与兜底分类原子替代已同步正式 OpenAPI；本文件继续作为 Task53U 与 Task53.5 验收契约，现状以 API_INVENTORY.md 为准。
 servers:
   - url: /api
 tags:
@@ -840,7 +840,7 @@ components:
 
     ImportRule:
       type: object
-      required: [id, name, match_type, pattern, priority, status, origin, apply_mode, confidence, result, is_stale, stale_reference_ids, committed_hit_count, created_by_user_id, created_at, updated_at]
+      required: [id, name, match_type, pattern, priority, status, origin, source_type, apply_mode, confidence, result, is_stale, stale_reference_ids, committed_hit_count, last_committed_hit_at, created_by_user_id, created_at, updated_at]
       properties:
         id:
           type: string
@@ -971,6 +971,7 @@ components:
 
     MetadataArchiveRequest:
       type: object
+      additionalProperties: false
       properties:
         replacement_category_id:
           type: string

@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
+	"ledger_two/internal/importer/classifier"
 	"ledger_two/internal/ledger"
 )
 
@@ -24,6 +26,27 @@ const (
 
 type Repository struct {
 	db *sql.DB
+}
+
+type staleImportRuleRestoreError struct {
+	RuleID       string
+	ReferenceIDs []string
+}
+
+func (e *staleImportRuleRestoreError) Error() string {
+	return "import rule restore references inactive metadata"
+}
+
+type manualImportRuleRestoreConflictError struct {
+	RuleID string
+}
+
+func (e *manualImportRuleRestoreConflictError) Error() string {
+	return "import rule restore conflicts with active manual rule"
+}
+
+type importRuleAuditExecer interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
 func NewRepository(db *sql.DB) *Repository {
@@ -874,7 +897,16 @@ func (r *Repository) ListImportRules(ctx context.Context, ledgerID string, statu
 		}
 		list = append(list, resp)
 	}
-	return list, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := r.enrichImportRuleResponses(ctx, ledgerID, list); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 func (r *Repository) GetImportRule(ctx context.Context, ledgerID string, ruleID string) (*ImportRuleResponse, error) {
@@ -914,7 +946,11 @@ func (r *Repository) GetImportRule(ctx context.Context, ledgerID string, ruleID 
 	if err != nil {
 		return nil, err
 	}
-	return &resp, nil
+	list := []ImportRuleResponse{resp}
+	if err := r.enrichImportRuleResponses(ctx, ledgerID, list); err != nil {
+		return nil, err
+	}
+	return &list[0], nil
 }
 
 func (r *Repository) SetImportRuleStatus(ctx context.Context, ledgerID string, ruleID string, status string) (*ImportRuleResponse, error) {
@@ -941,13 +977,103 @@ func (r *Repository) SetImportRuleStatus(ctx context.Context, ledgerID string, r
 	return r.GetImportRule(ctx, ledgerID, ruleID)
 }
 
+func (r *Repository) RestoreImportRule(ctx context.Context, ledgerID string, userID string, ruleID string) (*ImportRuleResponse, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	now := time.Now().Format(time.RFC3339)
+	result, err := tx.ExecContext(ctx, `
+		UPDATE import_rules
+		SET status = 'active', archived_at = NULL, updated_at = ?
+		WHERE id = ? AND ledger_id = ?
+	`, now, ruleID, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return nil, err
+	} else if affected == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	var record importRuleRecord
+	if err := tx.QueryRowContext(ctx, `
+		SELECT id, ledger_id, COALESCE(name, ''), COALESCE(match_type, ''), COALESCE(pattern, keyword),
+		       amount_min_cents, amount_max_cents, priority, COALESCE(result_json, '{}'),
+		       COALESCE(status, 'active'), COALESCE(origin, 'manual'), source_type,
+		       COALESCE(apply_mode, 'suggest'), COALESCE(confidence, 'high'),
+		       created_by_user_id, created_at, updated_at, COALESCE(archived_at, '')
+		FROM import_rules
+		WHERE id = ? AND ledger_id = ?
+	`, ruleID, ledgerID).Scan(
+		&record.ID,
+		&record.LedgerID,
+		&record.Name,
+		&record.MatchType,
+		&record.Pattern,
+		&record.AmountMinCents,
+		&record.AmountMaxCents,
+		&record.Priority,
+		&record.ResultJSON,
+		&record.Status,
+		&record.Origin,
+		&record.SourceType,
+		&record.ApplyMode,
+		&record.Confidence,
+		&record.CreatedByUserID,
+		&record.CreatedAt,
+		&record.UpdatedAt,
+		&record.ArchivedAt,
+	); err != nil {
+		return nil, err
+	}
+	rule, err := importRuleRecordToResponse(record)
+	if err != nil {
+		return nil, err
+	}
+	rules := []ImportRuleResponse{rule}
+	if err := enrichImportRuleResponses(ctx, tx, ledgerID, rules); err != nil {
+		return nil, err
+	}
+	rule = rules[0]
+	if rule.IsStale {
+		return nil, &staleImportRuleRestoreError{
+			RuleID:       rule.ID,
+			ReferenceIDs: append([]string(nil), rule.StaleReferenceIDs...),
+		}
+	}
+	if rule.Origin == "learned" && rule.MatchType == "merchant_equals" {
+		conflictID, err := findActiveManualMerchantConflict(ctx, tx, ledgerID, rule.SourceType, classifier.NormalizeText(rule.Pattern))
+		if err != nil {
+			return nil, err
+		}
+		if conflictID != "" {
+			return nil, &manualImportRuleRestoreConflictError{RuleID: conflictID}
+		}
+	}
+	if err := createImportRuleAudit(ctx, tx, ledgerID, userID, "import_rule_restore", rule.ID, rule); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &rule, nil
+}
+
 func (r *Repository) CreateImportRuleAudit(ctx context.Context, ledgerID string, userID string, action string, ruleID string, after any) error {
+	return createImportRuleAudit(ctx, r.db, ledgerID, userID, action, ruleID, after)
+}
+
+func createImportRuleAudit(ctx context.Context, execer importRuleAuditExecer, ledgerID string, userID string, action string, ruleID string, after any) error {
 	now := time.Now().Format(time.RFC3339)
 	afterJSON, err := json.Marshal(after)
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, `
+	_, err = execer.ExecContext(ctx, `
 		INSERT INTO audit_logs (id, ledger_id, actor_user_id, action, entity_type, entity_id, before_json, after_json, created_at)
 		VALUES (?, ?, ?, ?, 'import_rule', ?, NULL, ?, ?)
 	`, uuid.NewString(), ledgerID, userID, action, ruleID, string(afterJSON), now)
@@ -1005,21 +1131,22 @@ func importRuleRecordToResponse(record importRuleRecord) (ImportRuleResponse, er
 		}
 	}
 	resp := ImportRuleResponse{
-		ID:              record.ID,
-		Name:            record.Name,
-		MatchType:       record.MatchType,
-		Pattern:         record.Pattern,
-		Priority:        record.Priority,
-		Status:          record.Status,
-		Origin:          record.Origin,
-		SourceType:      nullableStringPointer(record.SourceType),
-		ApplyMode:       record.ApplyMode,
-		Confidence:      record.Confidence,
-		Result:          result,
-		CreatedByUserID: record.CreatedByUserID,
-		CreatedAt:       record.CreatedAt,
-		UpdatedAt:       record.UpdatedAt,
-		ArchivedAt:      record.ArchivedAt,
+		ID:                record.ID,
+		Name:              record.Name,
+		MatchType:         record.MatchType,
+		Pattern:           record.Pattern,
+		Priority:          record.Priority,
+		Status:            record.Status,
+		Origin:            record.Origin,
+		SourceType:        nullableStringPointer(record.SourceType),
+		ApplyMode:         record.ApplyMode,
+		Confidence:        record.Confidence,
+		Result:            result,
+		StaleReferenceIDs: []string{},
+		CreatedByUserID:   record.CreatedByUserID,
+		CreatedAt:         record.CreatedAt,
+		UpdatedAt:         record.UpdatedAt,
+		ArchivedAt:        record.ArchivedAt,
 	}
 	if record.AmountMinCents.Valid {
 		value := record.AmountMinCents.Int64
@@ -1030,6 +1157,139 @@ func importRuleRecordToResponse(record importRuleRecord) (ImportRuleResponse, er
 		resp.AmountMaxCents = &value
 	}
 	return resp, nil
+}
+
+type importRuleMetric struct {
+	CommittedHitCount  int
+	LastCommittedHitAt *string
+}
+
+func (r *Repository) enrichImportRuleResponses(ctx context.Context, ledgerID string, rules []ImportRuleResponse) error {
+	return enrichImportRuleResponses(ctx, r.db, ledgerID, rules)
+}
+
+func enrichImportRuleResponses(ctx context.Context, queryer learnRuleQueryer, ledgerID string, rules []ImportRuleResponse) error {
+	activeMetadata, err := loadActiveImportRuleMetadata(ctx, queryer, ledgerID)
+	if err != nil {
+		return err
+	}
+	metrics, err := loadCommittedImportRuleMetrics(ctx, queryer, ledgerID)
+	if err != nil {
+		return err
+	}
+	for index := range rules {
+		rule := &rules[index]
+		rule.StaleReferenceIDs = staleImportRuleReferences(rule.Result, activeMetadata)
+		rule.IsStale = len(rule.StaleReferenceIDs) > 0
+		metric := metrics[rule.ID]
+		rule.CommittedHitCount = metric.CommittedHitCount
+		rule.LastCommittedHitAt = cloneStringPointer(metric.LastCommittedHitAt)
+	}
+	return nil
+}
+
+func loadActiveImportRuleMetadata(ctx context.Context, queryer learnRuleQueryer, ledgerID string) (map[string]struct{}, error) {
+	rows, err := queryer.QueryContext(ctx, `
+		SELECT 'category', id FROM categories WHERE ledger_id = ? AND COALESCE(is_archived, 0) = 0
+		UNION ALL
+		SELECT 'account', id FROM accounts WHERE ledger_id = ? AND COALESCE(is_archived, 0) = 0
+		UNION ALL
+		SELECT 'tag', id FROM tags WHERE ledger_id = ? AND COALESCE(is_archived, 0) = 0
+	`, ledgerID, ledgerID, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := map[string]struct{}{}
+	for rows.Next() {
+		var kind, id string
+		if err := rows.Scan(&kind, &id); err != nil {
+			return nil, err
+		}
+		result[kind+"\x00"+id] = struct{}{}
+	}
+	return result, rows.Err()
+}
+
+func staleImportRuleReferences(result ImportRuleResult, activeMetadata map[string]struct{}) []string {
+	stale := map[string]struct{}{}
+	check := func(kind string, id string) {
+		if id == "" {
+			return
+		}
+		if _, exists := activeMetadata[kind+"\x00"+id]; !exists {
+			stale[id] = struct{}{}
+		}
+	}
+	check("category", result.CategoryID)
+	check("account", result.AccountID)
+	for _, tagID := range result.TagIDs {
+		check("tag", tagID)
+	}
+	resultIDs := make([]string, 0, len(stale))
+	for id := range stale {
+		resultIDs = append(resultIDs, id)
+	}
+	sort.Strings(resultIDs)
+	return resultIDs
+}
+
+func loadCommittedImportRuleMetrics(ctx context.Context, queryer learnRuleQueryer, ledgerID string) (map[string]importRuleMetric, error) {
+	rows, err := queryer.QueryContext(ctx, `
+		SELECT item.id, COALESCE(item.matched_rule_ids_json, '[]'), COALESCE(batch.committed_at, '')
+		FROM import_items AS item
+		JOIN import_batches AS batch ON batch.id = item.batch_id
+		WHERE batch.ledger_id = ? AND batch.status = 'committed' AND item.status = 'imported'
+	`, ledgerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	metrics := map[string]importRuleMetric{}
+	for rows.Next() {
+		var itemID, matchedRuleIDsJSON, committedAt string
+		if err := rows.Scan(&itemID, &matchedRuleIDsJSON, &committedAt); err != nil {
+			return nil, err
+		}
+		var matchedRuleIDs []string
+		if err := json.Unmarshal([]byte(matchedRuleIDsJSON), &matchedRuleIDs); err != nil {
+			return nil, fmt.Errorf("import item %s has invalid matched_rule_ids_json: %w", itemID, err)
+		}
+		seen := map[string]struct{}{}
+		for _, ruleID := range matchedRuleIDs {
+			if ruleID == "" {
+				continue
+			}
+			if _, duplicate := seen[ruleID]; duplicate {
+				continue
+			}
+			seen[ruleID] = struct{}{}
+			metric := metrics[ruleID]
+			metric.CommittedHitCount++
+			if committedAt != "" {
+				candidateTime, err := time.Parse(time.RFC3339Nano, committedAt)
+				if err != nil {
+					return nil, fmt.Errorf("import item %s has invalid committed_at: %w", itemID, err)
+				}
+				if metric.LastCommittedHitAt == nil {
+					value := committedAt
+					metric.LastCommittedHitAt = &value
+				} else {
+					currentTime, err := time.Parse(time.RFC3339Nano, *metric.LastCommittedHitAt)
+					if err != nil {
+						return nil, fmt.Errorf("import rule %s has invalid last committed hit time: %w", ruleID, err)
+					}
+					if candidateTime.After(currentTime) {
+						value := committedAt
+						metric.LastCommittedHitAt = &value
+					}
+				}
+			}
+			metrics[ruleID] = metric
+		}
+	}
+	return metrics, rows.Err()
 }
 
 func nullableStringPointer(value sql.NullString) *string {

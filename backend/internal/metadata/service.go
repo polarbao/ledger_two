@@ -95,6 +95,10 @@ func (s *Service) Update(ctx context.Context, currentUserID string, kind Kind, i
 }
 
 func (s *Service) SetArchived(ctx context.Context, currentUserID string, kind Kind, id string, archived bool) error {
+	if archived {
+		_, err := s.Archive(ctx, currentUserID, kind, id, ArchiveRequest{})
+		return err
+	}
 	ledgerID, role, err := s.resolveLedger(ctx, currentUserID)
 	if err != nil {
 		return err
@@ -109,6 +113,38 @@ func (s *Service) SetArchived(ctx context.Context, currentUserID string, kind Ki
 		return mapNotFound(err, kind)
 	}
 	return nil
+}
+
+func (s *Service) Archive(ctx context.Context, currentUserID string, kind Kind, id string, req ArchiveRequest) (*ArchiveResult, error) {
+	ledgerID, role, err := s.resolveLedger(ctx, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !CanManage(role) {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅 Owner 可管理元数据")
+	}
+	id = strings.TrimSpace(id)
+	req.ReplacementCategoryID = strings.TrimSpace(req.ReplacementCategoryID)
+	if id == "" {
+		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "元数据 ID 不能为空")
+	}
+	if kind == KindCategory {
+		result, err := s.repo.ArchiveCategory(ctx, ledgerID, currentUserID, id, req.ReplacementCategoryID)
+		switch {
+		case errors.Is(err, errFallbackReplacementRequired):
+			return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeCategoryFallbackRequired, "归档兜底分类前必须指定同类型替代分类")
+		case errors.Is(err, errFallbackReplacementInvalid):
+			return nil, appErrors.NewAppError(http.StatusConflict, appErrors.ErrCodeCategoryFallbackReplacementInvalid, "兜底替代分类无效或状态已变化")
+		case err != nil:
+			return nil, mapNotFound(err, kind)
+		default:
+			return result, nil
+		}
+	}
+	if err := s.repo.SetArchived(ctx, kind, ledgerID, id, true); err != nil {
+		return nil, mapNotFound(err, kind)
+	}
+	return &ArchiveResult{ArchivedID: id}, nil
 }
 
 func (s *Service) Reorder(ctx context.Context, currentUserID string, kind Kind, req ReorderRequest) error {

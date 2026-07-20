@@ -1,0 +1,6 @@
+{
+  "archived_id": "fallback-expense",
+  "fallback_replaced": true,
+  "transferred_system_key": "expense_other",
+  "replacement_category_id": "replacement-expense"
+}

@@ -1,6 +1,6 @@
 # LedgerTwo 发布文档入口
 
-状态：Task50 `v1.3.0-rc/schema 21` 与 Task53 `schema 22/suggest` 独立 WSL2 staging 已通过；Task53 NAS staging 已准备但未启动，现有 v1.2 和 production 发布线保持独立
+状态：Task50 `v1.3.0-rc/schema 21` 与 Task53 `schema 22/suggest` 独立 WSL2 staging 已通过；Task53 NAS staging 已通过 LAN 验收，现有 v1.2 和 production 发布线保持独立
 
 本目录只维护当前发布候选的用户可见变化、升级回滚步骤和验收记录。产品范围与实现细节仍分别以 `docs/prd/`、`docs/tech/` 和 `docs/codex_tasks/` 为事实源。
 
@@ -23,4 +23,4 @@
 5. 正式版确认后再把候选文档复制为稳定版本记录并创建对应 Git tag。
 6. 本机 schema 19 可用于受控 CSV/XLSX preview；NAS schema 18 仍只能按 CSV 能力验收，不得把本机结果视为 NAS 已发布。
 7. preview 只创建导入批次，不等于正式同步；任何真实账单 commit 仍需逐批用户确认。
-8. Task53 WSL2 候选通过不等于 NAS 已部署；NAS staging 和 production 仍需分别确认。
+8. Task53 WSL2/NAS staging 候选通过不等于 production 已部署；生产升级仍需单独确认。

@@ -2,7 +2,7 @@
 
 状态：Task51P.1 内部准备完整并进入非约束性证据执行；Task50/Task53 WSL2 技术门禁已满足，但真实证据 Gate 未满足
 创建日期：2026-07-16
-前置任务：Task50.1-Task50.6 与 Task53 WSL2 发布验收已完成；Task53 NAS staging 为独立部署尾项
+前置任务：Task50.1-Task50.6 与 Task53 WSL2/NAS staging 验收已完成；production 保持独立发布线
 禁止事项：不得实现 Task51 代码、解除两人约束或冻结 migration/版本号
 
 调度说明：Task53.1-Task53U 与 Task53.5 WSL2 验收已完成，结论 `pass_with_suggest_only`；冻结任务树没有 Task53.6。Task51P.1 的匿名证据模板、登记、3/5 人假设原型、访谈执行手册和决策模板已经完整，可进入真实证据执行；有效真实目标小组/完整回放仍为 0/0，P2-P6、代码和冻结性产物继续等待 `continue/narrow` 决策。

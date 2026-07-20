@@ -1,6 +1,6 @@
 # Task53 分类、标签与导入智能归类专项准备计划
 
-状态：Task53P.1-P.6、Task53.1-Task53U 和 Task53.5 WSL2 验收已完成；结论 `pass_with_suggest_only`，NAS staging 待 sudo<br>
+状态：Task53P.1-P.6、Task53.1-Task53U 和 Task53.5 WSL2/NAS staging 验收已完成；结论 `pass_with_suggest_only`，production 未变<br>
 创建日期：2026-07-16<br>
 当前准入：Task53.1 已落地 schema 22 与默认元数据；Task53.2 已按 TDD 完成纯分类器、候选读取和默认关闭开关；Task53.3 准备完整<br>
 环境边界：只在临时测试数据库执行 migration 022；不得升级现有 WSL/NAS 数据库
@@ -172,4 +172,4 @@ IMAGE_TAG=task53-dev-<commit>
 4. 标签上限 8 个是否接受。
 5. Task53 完成后是否继续 Task51P.1 证据评审，仍由届时证据决定。
 
-详细原子开发计划已执行完成，Task53.5 WSL2 结论为 `pass_with_suggest_only`；运行证据见 `../releases/v1.3.0-task53-rc-acceptance.md`。下一主线为 Task51P.1 真实证据评审，NAS staging 启动保持独立部署尾项。
+详细原子开发计划已执行完成，Task53.5 WSL2/NAS staging 结论为 `pass_with_suggest_only`；运行证据见 `../releases/v1.3.0-task53-rc-acceptance.md`。下一主线为 Task51P.1 真实证据评审，NAS production 保持独立发布线。

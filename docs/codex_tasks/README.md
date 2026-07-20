@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task50 已完成；Task49X/NAS 发布线独立维护；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53.1-Task53U 与 Task53.5 的 WSL2 验收已完成，发布决策为 `pass_with_suggest_only`；NAS staging 等待交互式 sudo，冻结任务树没有 Task53.6，当前回到 Task51P.1 证据评审
+适用阶段：Task01-Task50 已完成；Task49X/NAS 发布线独立维护；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53.1-Task53U 与 Task53.5 的 WSL2/NAS staging 验收已完成，发布决策为 `pass_with_suggest_only`，production 未变；冻结任务树没有 Task53.6，当前回到 Task51P.1 证据评审
 
 ## 1. 目标
 

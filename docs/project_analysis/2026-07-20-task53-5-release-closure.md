@@ -1,7 +1,7 @@
 # Task53.5 发布收口结论
 
 日期：2026-07-20<br>
-结论：Task53.5 本机 WSL2 验收完成，`pass_with_suggest_only`；NAS staging 已就绪但未启动
+结论：Task53.5 WSL2 与 NAS staging 验收完成，`pass_with_suggest_only`；production 未变
 
 ## 1. Closed scope
 
@@ -27,11 +27,11 @@ learned auto 的合格提交样本为 0，低于 10 条最低门槛。因此：
 | Environment | Status | Boundary |
 |---|---|---|
 | WSL2 Task53 staging | running/pass | `http://127.0.0.1:38092`，schema 22，suggest |
-| NAS Task53 staging | prepared/not running | `/volume1/docker/ledger-two-task53-staging`，等待交互式 sudo |
+| NAS Task53 staging | running/pass | `http://192.168.0.115:38092`，schema 22，suggest |
 | NAS production | unchanged | 不在本轮范围 |
 
-NAS staging 包的 tar 和数据库 SHA-256 已在远端匹配，失败点仅是 Docker sudo 权限；没有覆盖 `/volume1/docker/ledger-two` 或既有 staging。
+NAS staging 的 tar/数据库 SHA-256、quick_check、外键、守恒 diff 和 LAN health 已通过；运行目录和敏感文件权限已收紧。没有覆盖 `/volume1/docker/ledger-two` 或既有 staging。详细记录见 `2026-07-20-task53-nas-staging-deployment.md`。
 
 ## 4. Next work
 
-Task53.5 之后不新增 Task53.6。产品与开发主线返回 Task51P.1 的真实场景证据评审；当前计数仍为 0/0，Task51P.2-P.6 和代码不准入。NAS 启动与健康复核作为独立外部部署动作继续跟踪。
+Task53.5 之后不新增 Task53.6。产品与开发主线返回 Task51P.1 的真实场景证据评审；当前计数仍为 0/0，Task51P.2-P.6 和代码不准入。NAS production 继续作为独立发布线。

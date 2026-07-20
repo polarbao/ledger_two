@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -eu
+umask 077
 
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 compose_file="${COMPOSE_FILE:-$script_dir/docker-compose.task53-staging.yml}"

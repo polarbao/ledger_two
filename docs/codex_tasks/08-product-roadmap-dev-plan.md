@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-20）：Task41-Task50、Fresh Light UI-FL-01 至 UI-FL-10、Task53.1-Task53U 和 Task53.5 的 WSL2 发布验收已完成。Task53 候选为 schema 22、`suggest`，结论 `pass_with_suggest_only`；NAS 隔离 staging 已准备但等待交互式 sudo，production 未变。冻结任务树没有 Task53.6；当前回到 Task51P.1 证据评审，有效真实小组证据仍为 0。
+> 执行更新（2026-07-20）：Task41-Task50、Fresh Light UI-FL-01 至 UI-FL-10、Task53.1-Task53U 和 Task53.5 的 WSL2/NAS staging 验收已完成。Task53 候选为 schema 22、`suggest`，结论 `pass_with_suggest_only`；LAN 38092 可访问，production 未变。冻结任务树没有 Task53.6；当前回到 Task51P.1 证据评审，有效真实小组证据仍为 0。
 
 ## 1. 使用说明
 
@@ -193,7 +193,7 @@
 
 ### Task53：分类、标签与导入分级自动化
 
-状态：Task53P.1-P.6、Task53.1-Task53U 与 Task53.5 WSL2 验收已完成；发布决策为 `pass_with_suggest_only`，NAS staging 待 sudo 启动。入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 和 `docs/releases/v1.3.0-task53-rc-acceptance.md`。
+状态：Task53P.1-P.6、Task53.1-Task53U 与 Task53.5 WSL2/NAS staging 验收已完成；发布决策为 `pass_with_suggest_only`，production 未变。入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 和 `docs/releases/v1.3.0-task53-rc-acceptance.md`。
 
 目标：
 
@@ -209,7 +209,7 @@
 2. 冻结 OpenAPI、migration 022、错误码、Fixture expected JSON 和 UI/Figma handoff。
 3. 已形成 Task53.1-Task53.5/Task53U 详细开发计划、文件所有权、TDD 清单、环境和回滚门禁。
 
-当前顺序：`Task50 complete -> Task53.1-Task53U complete -> Task53.5 WSL complete/pass_with_suggest_only -> Task51P.1 evidence review`。NAS staging 是独立部署尾项，不新增 Task53.6；Task51 只有得出 `continue/narrow` 才进入 P2-P6，Task52 不提前。
+当前顺序：`Task50 complete -> Task53.1-Task53U complete -> Task53.5 WSL/NAS staging complete/pass_with_suggest_only -> Task51P.1 evidence review`。NAS production 保持独立发布线，不新增 Task53.6；Task51 只有得出 `continue/narrow` 才进入 P2-P6，Task52 不提前。
 
 ### Task51：多人分摊体验增强
 

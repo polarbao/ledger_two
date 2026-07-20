@@ -11,15 +11,15 @@
 
 | 层级 | 文件 | 作用 |
 |---|---|---|
-| 当前架构总览 | `00-current-architecture-after-task30.md` | Task30 后后端、前端、数据库、部署和风险总览 |
-| 短中期架构切片 | `18-short-mid-architecture-slices.md` | v1.1/v1.2 后端、前端、数据模型、API、服务层和测试切片 |
-| 实施就绪评审 | `19-short-mid-implementation-readiness.md` | 判断文档充分性、执行顺序和不建议启动的任务 |
-| 导入实施契约 | `20-v1.2-import-implementation-contract.md` | v1.2 导入 API、状态机、DTO、权限、数据模型和回滚策略 |
-| 部署隔离总览 | `23-v1.2-deployment-environment-isolation.md` | development/staging/production 物理隔离、发布顺序和运行开关 |
-| XLSX 专项方案 | `24-v1.2-xlsx-import-implementation-plan.md` | Task49X reader、migration 019、安全、测试和回滚 |
-| Task50 技术契约 | `25-v1.3-multi-ledger-implementation-contract.md` | 多账本 lifecycle、LedgerContext、实例管理员、migration 020/021 和回滚 |
-| Task53 技术契约 | `26-v1.3-category-tag-intelligence-contract.md`、`27-v1.3-category-tag-migration-review.md`、`28-v1.3-task53-post-classifier-readiness.md` | 分级自动化、schema 22、后续 DTO/事务、隔离 staging 和回滚 |
-| NAS 环境与数据 | `29-nas-environment-classification-and-data-retention.md` | 38088/38092 分级、公网边界与 production 数据保全 |
+| 当前架构总览 | `00-Task30后当前架构.md` | Task30 后后端、前端、数据库、部署和风险总览 |
+| 短中期架构切片 | `18-短中期模块架构切片.md` | v1.1/v1.2 后端、前端、数据模型、API、服务层和测试切片 |
+| 实施就绪评审 | `19-短中期实施就绪评审.md` | 判断文档充分性、执行顺序和不建议启动的任务 |
+| 导入实施契约 | `20-v1.2导入模块实施契约.md` | v1.2 导入 API、状态机、DTO、权限、数据模型和回滚策略 |
+| 部署隔离总览 | `23-v1.2部署环境与数据库隔离.md` | development/staging/production 物理隔离、发布顺序和运行开关 |
+| XLSX 专项方案 | `24-v1.2-XLSX导入专项实施方案.md` | Task49X reader、migration 019、安全、测试和回滚 |
+| Task50 技术契约 | `25-v1.3-Task50多账本实施契约.md` | 多账本 lifecycle、LedgerContext、实例管理员、migration 020/021 和回滚 |
+| Task53 技术契约 | `26-v1.3-Task53分类标签智能化实施契约.md`、`27-Task53-Schema22迁移评审.md`、`28-Task53.3至Task53.5开发与发布准备契约.md` | 分级自动化、schema 22、后续 DTO/事务、隔离 staging 和回滚 |
+| NAS 环境与数据 | `29-NAS环境分级与真实数据保全契约.md` | 38088/38092 分级、公网边界与 production 数据保全 |
 
 后续技术规划应优先更新这些总览和契约。只有当 v1.3 新能力完成 PRD 范围冻结，且现有总览无法承载新的架构边界时，才新增独立技术总览或 ADR。
 
@@ -46,32 +46,32 @@
 ## 文件列表
 
 ```text
-01-architecture-stack.md       总体架构与技术选型
-02-backend-modules.md          后端模块设计
-03-frontend-modules.md         前端模块设计
-04-database-api.md             数据库与 API 设计
-05-settlement-algorithm.md     分摊与结算算法
-06-import-export-backup.md     导入、导出、备份恢复
-07-cross-platform-tech.md      跨端技术方案
-08-nas-deployment.md           NAS 部署方案
-23-v1.2-deployment-environment-isolation.md v1.2 staging/production 与数据库物理隔离
-09-test-quality.md             测试与质量保障
-13-foundation-framework-before-v1.1.md Foundation before v1.1 技术方案
-14-configuration-security-deployment.md 配置、安全与部署
-15-ledger-context-rbac.md      LedgerContext 与 RBAC
-16-api-contract-openapi-error.md API 契约、OpenAPI 与错误码
-17-data-migration-test-quality.md 数据迁移、测试与质量门禁
-18-short-mid-architecture-slices.md 短中期模块架构切片
-19-short-mid-implementation-readiness.md 短中期实施就绪评审
-20-v1.2-import-implementation-contract.md v1.2 导入模块实施契约
-21-v1.2-import-migration-review.md v1.2 导入模块 Migration 评审
-22-v1.2-import-task47-implementation-plan.md v1.2 Task47 导入预览实施计划
-24-v1.2-xlsx-import-implementation-plan.md v1.2 Task49X XLSX 导入专项实施方案
-25-v1.3-multi-ledger-implementation-contract.md v1.3 Task50 多账本技术与 Migration 冻结契约
-26-v1.3-category-tag-intelligence-contract.md Task53 分类/标签/导入智能归类技术契约
-27-v1.3-category-tag-migration-review.md Task53 schema 21 -> 22 Migration 评审
-28-v1.3-task53-post-classifier-readiness.md Task53.3-Task53.5 flag、DTO、事务、UI 与隔离 staging 准备契约
-29-nas-environment-classification-and-data-retention.md NAS 38088/38092 环境角色、公网测试与 production 数据保全
+01-总体架构与技术选型.md       总体架构与技术选型
+02-后端模块设计.md          后端模块设计
+03-前端模块设计.md         前端模块设计
+04-数据库与API设计.md             数据库与 API 设计
+05-分摊与结算算法.md     分摊与结算算法
+06-导入导出与备份恢复.md     导入、导出、备份恢复
+07-跨端技术方案.md      跨端技术方案
+08-NAS部署方案.md           NAS 部署方案
+23-v1.2部署环境与数据库隔离.md v1.2 staging/production 与数据库物理隔离
+09-测试与质量保障.md             测试与质量保障
+13-v1.1前基础框架总览.md Foundation before v1.1 技术方案
+14-配置安全与部署一致性.md 配置、安全与部署
+15-账本上下文与RBAC权限框架.md      LedgerContext 与 RBAC
+16-API契约OpenAPI与错误码规范.md API 契约、OpenAPI 与错误码
+17-数据迁移测试与质量门禁.md 数据迁移、测试与质量门禁
+18-短中期模块架构切片.md 短中期模块架构切片
+19-短中期实施就绪评审.md 短中期实施就绪评审
+20-v1.2导入模块实施契约.md v1.2 导入模块实施契约
+21-v1.2导入模块迁移评审.md v1.2 导入模块 Migration 评审
+22-v1.2-Task47导入预览实施计划.md v1.2 Task47 导入预览实施计划
+24-v1.2-XLSX导入专项实施方案.md v1.2 Task49X XLSX 导入专项实施方案
+25-v1.3-Task50多账本实施契约.md v1.3 Task50 多账本技术与 Migration 冻结契约
+26-v1.3-Task53分类标签智能化实施契约.md Task53 分类/标签/导入智能归类技术契约
+27-Task53-Schema22迁移评审.md Task53 schema 21 -> 22 Migration 评审
+28-Task53.3至Task53.5开发与发布准备契约.md Task53.3-Task53.5 flag、DTO、事务、UI 与隔离 staging 准备契约
+29-NAS环境分级与真实数据保全契约.md NAS 38088/38092 环境角色、公网测试与 production 数据保全
 ```
 
 ## 技术原则
@@ -100,14 +100,14 @@
 
 Task30 后的技术规划建议优先阅读：
 
-1. `00-current-architecture-after-task30.md`
-2. `13-foundation-framework-before-v1.1.md`
-3. `18-short-mid-architecture-slices.md`
-4. `19-short-mid-implementation-readiness.md`
-5. `20-v1.2-import-implementation-contract.md`（进入 Task47-Task49 前必读）
-6. `21-v1.2-import-migration-review.md`（进入 Task47-Task49 前用于确认 migration 切片）
-7. `22-v1.2-import-task47-implementation-plan.md`（Task47 开工时用于确认 parser、repository、service、handler 和前端切片）
-8. `../prd/29-prd-v1.2-module-business-service-breakdown.md`（进入 Task47-Task49 前用于确认业务对象、服务边界和 UI 工作台）
-9. `24-v1.2-xlsx-import-implementation-plan.md`（Task49X 开发前用于确认依赖、reader、migration 019、安全和测试边界）
-10. `25-v1.3-multi-ledger-implementation-contract.md`（Task50 开发前用于确认 lifecycle、实例管理员、migration 020/021 和回滚）
-11. `26-v1.3-category-tag-intelligence-contract.md`、`27-v1.3-category-tag-migration-review.md` 与 `28-v1.3-task53-post-classifier-readiness.md`（当前 Task53 技术评审入口）
+1. `00-Task30后当前架构.md`
+2. `13-v1.1前基础框架总览.md`
+3. `18-短中期模块架构切片.md`
+4. `19-短中期实施就绪评审.md`
+5. `20-v1.2导入模块实施契约.md`（进入 Task47-Task49 前必读）
+6. `21-v1.2导入模块迁移评审.md`（进入 Task47-Task49 前用于确认 migration 切片）
+7. `22-v1.2-Task47导入预览实施计划.md`（Task47 开工时用于确认 parser、repository、service、handler 和前端切片）
+8. `../prd/29-v1.2导入模块业务与服务细分.md`（进入 Task47-Task49 前用于确认业务对象、服务边界和 UI 工作台）
+9. `24-v1.2-XLSX导入专项实施方案.md`（Task49X 开发前用于确认依赖、reader、migration 019、安全和测试边界）
+10. `25-v1.3-Task50多账本实施契约.md`（Task50 开发前用于确认 lifecycle、实例管理员、migration 020/021 和回滚）
+11. `26-v1.3-Task53分类标签智能化实施契约.md`、`27-Task53-Schema22迁移评审.md` 与 `28-Task53.3至Task53.5开发与发布准备契约.md`（当前 Task53 技术评审入口）

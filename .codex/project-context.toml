@@ -8,7 +8,7 @@ current_branch_or_ref = "main"
 formal_docs = "docs"
 codex_tasks = "docs/codex_tasks"
 archive_docs = "docs/project_analysis/extracted_archives and ai_workspace"
-current_task_file = "docs/codex_tasks/05-foundation-task-plan.md"
+current_task_file = "docs/codex_tasks/05-Foundation任务计划.md"
 language = "zh-CN"
 role = "senior full-stack architect with product and data-safety judgment"
 
@@ -21,7 +21,7 @@ primary_paths = [
   "backend; frontend",
   "docs",
   "docs/codex_tasks",
-  "docs/codex_tasks/05-foundation-task-plan.md",
+  "docs/codex_tasks/05-Foundation任务计划.md",
 ]
 historical_reference_paths = [
   "docs/project_analysis/extracted_archives and ai_workspace",

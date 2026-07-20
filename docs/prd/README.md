@@ -11,11 +11,12 @@
 
 | 层级 | 文件 | 作用 |
 |---|---|---|
-| 产品总览 | `00-product-roadmap.md` | 当前产品定位、版本状态、路线、优先级和边界 |
-| 产品复盘 | `20-product-retrospective-and-positioning.md` | 从产品经理视角重整定位、用户场景和不做事项 |
-| 版本路线 | `21-roadmap-short-mid-long.md` | Foundation、v1.1、v1.2、Fresh Light、v1.3+ 路线 |
-| 优先级决策 | `23-feature-priority-and-deferral-decisions.md` | 必做、应做但不急、延后和不做功能 |
-| 验收口径 | `27-acceptance-case-matrix.md`、`28-transaction-caliber-supplement.md` | 关键业务验收样例和交易/账户口径 |
+| 产品总览 | `00-产品定位与版本路线.md` | 当前产品定位、版本状态、路线、优先级和边界 |
+| 产品复盘 | `20-产品复盘与定位重整.md` | 从产品经理视角重整定位、用户场景和不做事项 |
+| 版本路线 | `21-短中长期产品路线图.md` | Foundation、v1.1、v1.2、Fresh Light、v1.3+ 路线 |
+| 优先级决策 | `23-功能优先级与延后决策.md` | 必做、应做但不急、延后和不做功能 |
+| 验收口径 | `27-v1.1至v1.2验收样例矩阵.md`、`28-交易与账户口径补充.md` | 关键业务验收样例和交易/账户口径 |
+| 中长期规划输入 | `35-竞品分析需求补足与中长期计划.md` | 竞品能力、需求补足、受众判断和架构优化方向 |
 
 后续产品规划应优先更新以上总览，而不是新增重复 PRD。只有新版本或新模块已经完成范围冻结，才新增独立 PRD。
 
@@ -43,33 +44,34 @@
 ## 模块列表
 
 ```text
-00-product-roadmap.md        产品定位、版本路线、优先级
-01-ledger-member.md          账本、成员、权限
-02-transaction.md            普通账单、收入、退款、转账扩展
-03-shared-split-settlement.md 共同支出、分摊、结算
-04-category-tag-account.md   分类、标签、账户
-05-analytics-report.md       统计分析与报表
-06-import-export.md          导入、导出、规则自动化
-07-attachment-receipt.md     附件、小票、OCR 预留
-08-budget-reminder.md        预算、提醒、周期账单
-09-cross-platform.md         跨端、PWA、移动端、同步策略
-11-foundation-framework-before-v1.1.md Foundation before v1.1 基础框架 PRD
-12-current-progress-gap-analysis.md    当前进度与缺口分析
-20-product-retrospective-and-positioning.md 产品复盘与定位重整
-21-roadmap-short-mid-long.md            短期、中期、长期产品路线图
-22-prd-v1.1-trust-and-daily-use.md      v1.1 可信赖与高频记账版 PRD
-23-feature-priority-and-deferral-decisions.md 功能优先级与延后决策
-24-short-mid-module-breakdown.md        短中期模块拆解总表
-25-prd-v1.1-module-specs.md             v1.1 模块级需求规格
-26-prd-v1.2-import-module-specs.md      v1.2 导入与省时间模块规格
-27-acceptance-case-matrix.md            v1.1-v1.2 验收样例矩阵
-28-transaction-caliber-supplement.md    交易与账户口径补充
-29-prd-v1.2-module-business-service-breakdown.md v1.2 导入模块业务与服务细分
-30-prd-v1.2-xlsx-import-special.md    v1.2 微信 XLSX/支付宝 CSV 导入专项 PRD
-31-prd-v1.3-multi-ledger.md           v1.3 Task50 多账本正式化冻结 PRD
-32-v1.3-task50-acceptance-fixtures.md Task50 匿名 Fixture、跨账本隔离与验收矩阵
-33-task51-scenario-evidence-and-scope-questions.md Task51 多人分摊场景证据模板、隐私边界与范围问题
-34-prd-v1.3-category-tag-intelligence.md Task53 分类、标签、默认元数据与导入智能归类 PRD
+00-产品定位与版本路线.md        产品定位、版本路线、优先级
+01-账本成员与权限.md          账本、成员、权限
+02-账单系统.md            普通账单、收入、退款、转账扩展
+03-共同支出分摊与结算.md 共同支出、分摊、结算
+04-分类标签与账户.md   分类、标签、账户
+05-统计分析与报表.md       统计分析与报表
+06-导入导出与规则自动化.md          导入、导出、规则自动化
+07-附件小票与OCR预留.md     附件、小票、OCR 预留
+08-预算提醒与周期账单.md        预算、提醒、周期账单
+09-跨端PWA与同步策略.md         跨端、PWA、移动端、同步策略
+11-v1.1前基础框架补齐.md Foundation before v1.1 基础框架 PRD
+12-当前开发进展与文档差异.md    当前进度与缺口分析
+20-产品复盘与定位重整.md 产品复盘与定位重整
+21-短中长期产品路线图.md            短期、中期、长期产品路线图
+22-v1.1可信赖与高频记账.md      v1.1 可信赖与高频记账版 PRD
+23-功能优先级与延后决策.md 功能优先级与延后决策
+24-短中期模块拆解.md        短中期模块拆解总表
+25-v1.1模块需求规格.md             v1.1 模块级需求规格
+26-v1.2导入与省时模块规格.md      v1.2 导入与省时间模块规格
+27-v1.1至v1.2验收样例矩阵.md            v1.1-v1.2 验收样例矩阵
+28-交易与账户口径补充.md    交易与账户口径补充
+29-v1.2导入模块业务与服务细分.md v1.2 导入模块业务与服务细分
+30-v1.2微信XLSX与支付宝CSV导入专项.md    v1.2 微信 XLSX/支付宝 CSV 导入专项 PRD
+31-v1.3-Task50多账本正式化.md           v1.3 Task50 多账本正式化冻结 PRD
+32-v1.3-Task50验收样例矩阵.md Task50 匿名 Fixture、跨账本隔离与验收矩阵
+33-Task51多人分摊场景证据与范围问题.md Task51 多人分摊场景证据模板、隐私边界与范围问题
+34-v1.3-Task53分类标签与导入智能归类.md Task53 分类、标签、默认元数据与导入智能归类 PRD
+35-竞品分析需求补足与中长期计划.md 竞品分析、需求补足与中长期产品计划
 ```
 
 ## 使用方式
@@ -84,7 +86,7 @@
 发生冲突时，优先级为：
 
 1. 当前代码、迁移、测试和已验收发布记录。
-2. `00-product-roadmap.md`、`20-30` 当前 PRD。
+2. `00-产品定位与版本路线.md`、`20-30` 当前 PRD。
 3. `docs/tech/` 和 `docs/ui/` 当前契约。
 4. `docs/codex_tasks/` 任务卡。
 5. 早期 `01-09` 模块 PRD 和根目录 Demo 文档。
@@ -93,19 +95,20 @@
 
 Task30 后的产品规划建议优先阅读：
 
-1. `00-product-roadmap.md`
-2. `20-product-retrospective-and-positioning.md`
-3. `21-roadmap-short-mid-long.md`
-4. `22-prd-v1.1-trust-and-daily-use.md`
-5. `23-feature-priority-and-deferral-decisions.md`
-6. `24-short-mid-module-breakdown.md`
-7. `25-prd-v1.1-module-specs.md`
-8. `26-prd-v1.2-import-module-specs.md`
-9. `29-prd-v1.2-module-business-service-breakdown.md`
-10. `27-acceptance-case-matrix.md`
-11. `28-transaction-caliber-supplement.md`
-12. `30-prd-v1.2-xlsx-import-special.md`（Task49X 开发前必读）
-13. `31-prd-v1.3-multi-ledger.md`（Task50 准备与开发前必读）
-14. `32-v1.3-task50-acceptance-fixtures.md`（Task50 测试、Migration 与验收必读）
-15. `33-task51-scenario-evidence-and-scope-questions.md`（Task51P.1 非约束性发现进行中；有效真实证据仍为 0，不代表开发准入）
-16. `34-prd-v1.3-category-tag-intelligence.md`（当前 Task53 产品评审入口）
+1. `00-产品定位与版本路线.md`
+2. `20-产品复盘与定位重整.md`
+3. `21-短中长期产品路线图.md`
+4. `22-v1.1可信赖与高频记账.md`
+5. `23-功能优先级与延后决策.md`
+6. `24-短中期模块拆解.md`
+7. `25-v1.1模块需求规格.md`
+8. `26-v1.2导入与省时模块规格.md`
+9. `29-v1.2导入模块业务与服务细分.md`
+10. `27-v1.1至v1.2验收样例矩阵.md`
+11. `28-交易与账户口径补充.md`
+12. `30-v1.2微信XLSX与支付宝CSV导入专项.md`（Task49X 开发前必读）
+13. `31-v1.3-Task50多账本正式化.md`（Task50 准备与开发前必读）
+14. `32-v1.3-Task50验收样例矩阵.md`（Task50 测试、Migration 与验收必读）
+15. `33-Task51多人分摊场景证据与范围问题.md`（Task51P.1 非约束性发现进行中；有效真实证据仍为 0，不代表开发准入）
+16. `34-v1.3-Task53分类标签与导入智能归类.md`（当前 Task53 产品评审入口）
+17. `35-竞品分析需求补足与中长期计划.md`（中长期产品规划和竞品能力输入）

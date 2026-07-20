@@ -7,11 +7,11 @@
   "figma_file_url": null,
   "verified_node_ids": [],
   "source_reference": [
-    "docs/prd/31-prd-v1.3-multi-ledger.md",
-    "docs/tech/25-v1.3-multi-ledger-implementation-contract.md",
+    "docs/prd/31-v1.3-Task50多账本正式化.md",
+    "docs/tech/25-v1.3-Task50多账本实施契约.md",
     "docs/api/openapi-v1.3-ledger-draft.yaml",
-    "docs/prd/32-v1.3-task50-acceptance-fixtures.md",
-    "docs/ui/16-v1.3-multi-ledger-flows.md"
+    "docs/prd/32-v1.3-Task50验收样例矩阵.md",
+    "docs/ui/16-v1.3-Task50多账本交互流程.md"
   ],
   "figma_page": "07 v1.3 Multi-ledger",
   "frames": [

@@ -2,7 +2,7 @@
 
 日期：2026-07-14
 
-任务：`docs/codex_tasks/13-fresh-light-ui-interaction-plan.md` / UI-FL-04
+任务：`docs/codex_tasks/13-Fresh-Light界面交互协同开发计划.md` / UI-FL-04
 
 ## 1. 验收结论
 

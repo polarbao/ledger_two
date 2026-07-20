@@ -23,7 +23,7 @@ For Codex task-card based work:
 Current task entry placeholder:
 
 ```text
-docs/codex_tasks/05-foundation-task-plan.md
+docs/codex_tasks/05-Foundation任务计划.md
 ```
 
 ## Routing

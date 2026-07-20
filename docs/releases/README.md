@@ -6,12 +6,12 @@
 
 ## 当前文件
 
-1. `v1.3.0-rc-release-notes.md`：Task50 与 Task53 已验收能力、suggest-only 和 NAS 边界。
-2. `v1.3.0-rc-upgrade-guide.md`：schema 19 -> 21 与 Task53 schema 21 -> 22 路径、NAS 边界。
-3. `v1.3.0-rc-checklist.md`：Task50.6 和 Task53 已执行门禁。
-4. `v1.3.0-task53-rc-acceptance.md`：Task53 schema 22 自动化、浏览器、指标、回滚和 `pass_with_suggest_only` 记录。
-5. `v1.3.0-task53-rc-acceptance-template.md`：后续 Task53 复验模板，不代表当前实际状态。
-6. `../project_analysis/2026-07-17-task50-6-release-closure.md`：Task50 全模块、升级、回滚和浏览器证据。
+1. `v1.3.0-rc-发布说明.md`：Task50 与 Task53 已验收能力、suggest-only 和 NAS 边界。
+2. `v1.3.0-rc-升级与回滚指南.md`：schema 19 -> 21 与 Task53 schema 21 -> 22 路径、NAS 边界。
+3. `v1.3.0-rc-验收清单.md`：Task50.6 和 Task53 已执行门禁。
+4. `v1.3.0-Task53-RC验收记录.md`：Task53 schema 22 自动化、浏览器、指标、回滚和 `pass_with_suggest_only` 记录。
+5. `v1.3.0-Task53-RC验收记录模板.md`：后续 Task53 复验模板，不代表当前实际状态。
+6. `../project_analysis/2026-07-17-Task50.6全模块与发布收口验收.md`：Task50 全模块、升级、回滚和浏览器证据。
 7. `v1.2.0-rc-*`：继续保留 v1.2/NAS schema 18/19 历史发布线，不与 v1.3 staging 混用。
 
 ## 状态规则

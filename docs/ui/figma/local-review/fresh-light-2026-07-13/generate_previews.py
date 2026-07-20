@@ -16,7 +16,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-HTML = ROOT / "fresh-light-preview.html"
+HTML = ROOT / "Fresh-Light预览.html"
 SVG = ROOT / "fresh-light-all-frames.svg"
 PNG = ROOT / "fresh-light-all-frames.png"
 PDF = ROOT / "fresh-light-preview.pdf"

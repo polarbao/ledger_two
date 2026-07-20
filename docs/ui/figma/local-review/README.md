@@ -23,9 +23,9 @@
 
 | 类型 | 当前文件 | 使用方式 |
 |---|---|---|
-| 人工审阅记录 | `2026-07-13-fresh-light-design-consistency-review.md` | 记录一致性判断、缺口和后续动作 |
+| 人工审阅记录 | `2026-07-13-Fresh-Light设计一致性审阅.md` | 记录一致性判断、缺口和后续动作 |
 | Figma 参考生成的审阅包 | `fresh-light-2026-07-13/` | 参照当前 Fresh Light Figma 版本和仓库规范构建，用于视觉与覆盖范围审阅 |
-| 生成审阅文件 | `fresh-light-preview.html`、`fresh-light-all-frames.svg`、`fresh-light-preview-manifest.json` | 只作为当前审阅快照，不直接驱动业务实现 |
+| 生成审阅文件 | `Fresh-Light预览.html`、`fresh-light-all-frames.svg`、`fresh-light-preview-manifest.json` | 只作为当前审阅快照，不直接驱动业务实现 |
 | 审阅工具 | `generate_previews.py` | 将已有 HTML/SVG 渲染为 PNG/PDF，不负责生成或同步 Figma 节点 |
 | 目录治理 | `README.md`、`.gitignore` | 约束命名、隐私、提交和审阅流程 |
 
@@ -34,10 +34,10 @@
 ## 3. 当前 Fresh Light 要求来源
 
 ```text
-../ledger-two-fresh-light-implementation-spec-2026-07-13.md
-2026-07-13-fresh-light-design-consistency-review.md
-../ledger-two-design-system-brief.md
-../v1.1-v1.2-ui-draft-spec.md
+../2026-07-13-Fresh-Light界面实施规范.md
+2026-07-13-Fresh-Light设计一致性审阅.md
+../LedgerTwo设计系统方向说明.md
+../v1.1至v1.2与Fresh-Light界面设计稿规范.md
 ../ledger-two-frame-manifest.json
 ../ledger-two.design-tokens.json
 ../ledger-two.figma-variables.json
@@ -49,7 +49,7 @@
 
 ```text
 local-review/
-  2026-07-13-fresh-light-design-consistency-review.md
+  2026-07-13-Fresh-Light设计一致性审阅.md
   fresh-light-2026-07-13/
     00-foundations.pdf
     01-components.pdf

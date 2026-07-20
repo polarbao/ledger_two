@@ -5,7 +5,7 @@ info:
   description: |
     Task53 分类、标签、默认元数据和导入分级自动化增量契约。
     Task53.1-Task53.3、Task53.4A-C 的 schema 22、default-profile、分类器、预览持久化、reclassify、bulk-adjust、explicit learn 和 metadata safeguard 已实现。
-    规则 stale/reference/committed-hit 与兜底分类原子替代已同步正式 OpenAPI；本文件继续作为 Task53U 与 Task53.5 验收契约，现状以 API_INVENTORY.md 为准。
+    规则 stale/reference/committed-hit 与兜底分类原子替代已同步正式 OpenAPI；本文件继续作为 Task53U 与 Task53.5 验收契约，现状以 API清单.md 为准。
 servers:
   - url: /api
 tags:

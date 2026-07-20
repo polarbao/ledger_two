@@ -6,7 +6,7 @@
     "url": "https://www.figma.com/design/Xsw1qqEkPraqVJCIGkl41Y"
   },
   "source_requirements": [
-    "../../ledger-two-fresh-light-implementation-spec-2026-07-13.md",
+    "../../2026-07-13-Fresh-Light界面实施规范.md",
     "../../ledger-two-frame-manifest.json"
   ],
   "generation_note": "基于当前 Figma 工作版本和仓库规范构建的审阅快照，不是原始 Figma 节点导出或线上同步完成证明。",
@@ -20,7 +20,7 @@
   "privacy": "synthetic-demo-data-only",
   "frame_count": 29,
   "artifacts": [
-    "fresh-light-preview.html",
+    "Fresh-Light预览.html",
     "fresh-light-all-frames.svg",
     "generate_previews.py"
   ],

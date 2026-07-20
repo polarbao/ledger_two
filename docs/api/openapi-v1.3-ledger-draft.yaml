@@ -4,7 +4,7 @@ info:
   version: 1.3.0-draft
   description: |
     Task50P.4 冻结契约，仅描述 v1.3 多账本正式化新增或改变的接口。
-    本文件不是当前 router 已上线清单；现网事实仍以 API_INVENTORY.md 为准。
+    本文件不是当前 router 已上线清单；现网事实仍以 API清单.md 为准。
     账本内既有业务接口继续由 openapi.yaml 与 v1.2 导入补充契约约束。
     所有金额均为整数分，所有失败响应使用统一 error envelope。
 servers:

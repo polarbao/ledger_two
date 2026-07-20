@@ -20,7 +20,7 @@ import (
 	"ledger_two/internal/transaction"
 )
 
-// TestStatisticsAndSettlementCaliber 验证 docs/tech/12-statistics-caliber.md 规定的统计口径核心业务逻辑
+// TestStatisticsAndSettlementCaliber 验证 docs/tech/12-统计口径与报表计算规则.md 规定的统计口径核心业务逻辑
 func TestStatisticsAndSettlementCaliber(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

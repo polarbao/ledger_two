@@ -4,13 +4,13 @@
 生成日期：2026-07-13<br>
 来源分支：`docs/fresh-light-ui-localization-20260713`<br>
 Figma 参考：`Ledger Two｜双人记账 Web UI Redesign`（`https://www.figma.com/design/Xsw1qqEkPraqVJCIGkl41Y`）<br>
-规范参考：`../../ledger-two-fresh-light-implementation-spec-2026-07-13.md` 与 `../../ledger-two-frame-manifest.json`
+规范参考：`../../2026-07-13-Fresh-Light界面实施规范.md` 与 `../../ledger-two-frame-manifest.json`
 
 本目录依据当前 Fresh Light Figma 工作版本的设计方向，并结合仓库内实施规格和 Frame Manifest 构建。它是便于 Git、浏览器和 Codex 查阅的本地审阅包，不是原始 `.fig` 文件、Figma 节点全量导出或线上同步完成证明。
 
 ## 文件
 
-- `fresh-light-preview.html`：生成审阅文件，提供浏览器入口和 29 个 Frame 清单。
+- `Fresh-Light预览.html`：生成审阅文件，提供浏览器入口和 29 个 Frame 清单。
 - `fresh-light-all-frames.svg`：生成审阅文件，可直接在 GitHub 或浏览器查看全套预览画板。
 - `fresh-light-preview-manifest.json`：生成审阅元数据，记录来源、Frame、尺寸、用途和隐私声明。
 - `generate_previews.py`：审阅工具，在本地生成 PNG、PDF 和 SHA-256 清单；不负责生成 Figma 节点。

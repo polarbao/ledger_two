@@ -39,7 +39,7 @@ marked as the final stable release.
 - OCR, bank synchronization, automatic suspicious-row submission, direct
   payment notifications, and import-batch undo are not part of v1.2.
 - Upgrade and rollback instructions are documented in
-  `docs/releases/v1.2.0-rc-upgrade-guide.md`.
+  `docs/releases/v1.2.0-rc-升级与回滚指南.md`.
 
 ## [v1.0.0] - 2026-06-16
 
@@ -71,7 +71,7 @@ LedgerTwo is a localized, privacy-first, shared accounting Web tool built specif
 
 #### 📚 Documentation
 - Comprehensive documentation covering Product Requirements (PRD), UI Specs, Technical Implementations, and NAS Deployment.
-- Upgrading and Rollback procedures outlined in `docs/tech/08-nas-deployment.md`.
+- Upgrading and Rollback procedures outlined in `docs/tech/08-NAS部署方案.md`.
 
 ---
 *Note: This version is restricted to a maximum of 2 users per ledger as per the MVP scope.*

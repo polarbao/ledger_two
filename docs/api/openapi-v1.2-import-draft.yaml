@@ -4,7 +4,7 @@ info:
   version: 1.2.0-rc
   description: |
     v1.2 账单导入模块已实现 CSV 契约，Task49X 仅增加微信 XLSX 输入；支付宝当前保持 CSV。
-    本文件是 openapi.yaml 的 v1.2 导入补充；实际 router 路径记录在 API_INVENTORY.md。
+    本文件是 openapi.yaml 的 v1.2 导入补充；实际 router 路径记录在 API清单.md。
 servers:
   - url: /api
     description: Current compatibility API root

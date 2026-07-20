@@ -12,17 +12,17 @@
 |---|---|---|
 | `README.md` | 设计要求 | 范围、组件、状态、同步和审阅规则 |
 | `task50-frame-manifest.json` | 设计要求 | Page/Frame/视口/状态/代码映射清单 |
-| `component-state-matrix.md` | 设计要求 | 组件变体、权限、状态和文案边界 |
+| `组件状态矩阵.md` | 设计要求 | 组件变体、权限、状态和文案边界 |
 
 未来生成的 PNG/SVG/PDF/HTML 必须放到 `../local-review/task50-v1.3-<date>/`，并标注为生成审阅证据，不能与本目录要求混为“已同步 Figma”。
 
 ## 2. 事实源优先级
 
-1. `../../../prd/31-prd-v1.3-multi-ledger.md`
-2. `../../../tech/25-v1.3-multi-ledger-implementation-contract.md`
+1. `../../../prd/31-v1.3-Task50多账本正式化.md`
+2. `../../../tech/25-v1.3-Task50多账本实施契约.md`
 3. `../../../api/openapi-v1.3-ledger-draft.yaml`
-4. `../../../prd/32-v1.3-task50-acceptance-fixtures.md`
-5. `../../16-v1.3-multi-ledger-flows.md`
+4. `../../../prd/32-v1.3-Task50验收样例矩阵.md`
+5. `../../16-v1.3-Task50多账本交互流程.md`
 6. Fresh Light Token、组件库与本 Frame Manifest
 7. 线上 Figma、截图和本地生成预览
 

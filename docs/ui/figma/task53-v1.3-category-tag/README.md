@@ -12,18 +12,18 @@
 |---|---|---|
 | `README.md` | requirement | 范围、事实源、Page、组件和同步规则 |
 | `task53-frame-manifest.json` | requirement | required Frame、视口、状态、路由和验收映射 |
-| `component-state-matrix.md` | requirement | 状态变体、文案、可访问性和禁止行为 |
-| `reuse-evidence.md` | requirement / reuse evidence | required Frame 与现有 React/UI foundation 的复用映射 |
+| `组件状态矩阵.md` | requirement | 状态变体、文案、可访问性和禁止行为 |
+| `Figma画板复用证据.md` | requirement / reuse evidence | required Frame 与现有 React/UI foundation 的复用映射 |
 
 本地真实页面审阅稿已生成到 `../local-review/task53-v1.3-2026-07-20/`，并标注为 generated review artifact。后续审阅稿继续使用日期目录，不能写成“线上 Figma 已同步”。
 
 ## 2. Source priority
 
-1. `../../../prd/34-prd-v1.3-category-tag-intelligence.md`
-2. `../../../tech/26-v1.3-category-tag-intelligence-contract.md`
+1. `../../../prd/34-v1.3-Task53分类标签与导入智能归类.md`
+2. `../../../tech/26-v1.3-Task53分类标签智能化实施契约.md`
 3. `../../../api/openapi-v1.3-category-tag-draft.yaml`
 4. `../../../fixtures/category-tag/README.md`
-5. `../../17-v1.3-category-tag-intelligence-flows.md`
+5. `../../17-v1.3分类标签与导入智能归类流程.md`
 6. Fresh Light token、现有 UI foundation 与本 manifest
 7. 线上 Figma、截图和本地生成预览
 

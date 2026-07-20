@@ -20,13 +20,13 @@
 
 | 文件 | 用途 |
 |---|---|
-| `evidence-register.md` | 只登记匿名证据状态和评审结论 |
-| `evidence-record-template.md` | 访谈、同意和工作流回放模板 |
-| `prototype-replay-fixtures.md` | 3/5 人假设原型 Fixture，不算真实需求证据 |
-| `interview-and-replay-runbook.md` | 招募、同意、访谈、匿名化与工作流回放执行手册 |
-| `p1-decision-review-template.md` | Gate 计数、质量审查和 continue/narrow/defer 决策模板 |
+| `证据登记表.md` | 只登记匿名证据状态和评审结论 |
+| `证据记录模板.md` | 访谈、同意和工作流回放模板 |
+| `三至五人假设原型回放样例.md` | 3/5 人假设原型 Fixture，不算真实需求证据 |
+| `访谈与工作流回放手册.md` | 招募、同意、访谈、匿名化与工作流回放执行手册 |
+| `决策评审模板.md` | Gate 计数、质量审查和 continue/narrow/defer 决策模板 |
 
-进入执行阶段的完整性评审见 `../2026-07-20-task51-p1-entry-review.md`。评审确认无需继续创建平行模板；下一步是按 runbook 取得真实、匿名、经同意的证据。
+进入执行阶段的完整性评审见 `../2026-07-20-Task51P.1证据执行阶段准入评审.md`。评审确认无需继续创建平行模板；下一步是按 runbook 取得真实、匿名、经同意的证据。
 
 ## Guardrails
 

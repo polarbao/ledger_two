@@ -1,7 +1,7 @@
 # Task53 NAS staging 部署与权限加固记录
 
 日期：2026-07-20<br>
-结论：Task53 独立 NAS staging 部署成功；LAN health 通过，production 未变
+结论：Task53 独立 NAS staging 部署成功；LAN 与公网 HTTP health 通过，production 未变
 
 ## 1. Deployment
 
@@ -21,10 +21,11 @@ NAS evidence `task53-20260720-161837` 记录 `before_schema=22`、`after_schema=
 
 ## 2. Access boundary
 
-1. 已验证：`http://192.168.0.115:38092` 可从当前局域网访问。
-2. 未验证：公网域名没有在本轮配置。
-3. Tailscale 地址 `http://100.68.103.94:38092` 从当前主机返回 HTTP 502，因此不能声明可用；SSH alias `nas` 仍可通过 Tailscale 管理。
-4. classification mode 固定为 suggest；合格 learned-rule 样本不足时不得改为 graded。
+1. LAN：`http://192.168.0.115:38092` 已验证。
+2. 公网 HTTP：`http://nas.polarrrr.top:38092` 已由 5 个外部节点验证为 200，公共 DNS 指向 `101.71.237.198`。
+3. 错误拼写 `nas.polarrr.top` 公共 DNS 为 NXDOMAIN，不得进入配置或文档。
+4. 当前没有 HTTPS；只允许公网 health/静态页测试，不允许用真实凭据登录或上传账单。
+5. classification mode 固定为 suggest；合格 learned-rule 样本不足时不得改为 graded。
 
 ## 3. Permission finding and fix
 

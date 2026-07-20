@@ -1,6 +1,6 @@
 # LedgerTwo 发布文档入口
 
-状态：Task50 `v1.3.0-rc/schema 21` 与 Task53 `schema 22/suggest` 独立 WSL2 staging 已通过；Task53 NAS staging 已通过 LAN 验收，现有 v1.2 和 production 发布线保持独立
+状态：NAS 38088 已冻结为发布/真实体验 production，38092 已冻结为开发联调/验收 staging；NAS-R1 正在执行一次性清库换代，后续 production 数据永久保全
 
 本目录只维护当前发布候选的用户可见变化、升级回滚步骤和验收记录。产品范围与实现细节仍分别以 `docs/prd/`、`docs/tech/` 和 `docs/codex_tasks/` 为事实源。
 
@@ -24,3 +24,4 @@
 6. 本机 schema 19 可用于受控 CSV/XLSX preview；NAS schema 18 仍只能按 CSV 能力验收，不得把本机结果视为 NAS 已发布。
 7. preview 只创建导入批次，不等于正式同步；任何真实账单 commit 仍需逐批用户确认。
 8. Task53 WSL2/NAS staging 候选通过不等于 production 已部署；生产升级仍需单独确认。
+9. NAS 环境固定为 38088 production、38092 staging；规范公网域名为 `nas.polarrrr.top`。HTTPS 完成前，真实凭据和账单只能经 LAN 使用。

@@ -1,6 +1,6 @@
 # NAS-R1：真实体验发布与数据保全专项计划
 
-状态：只读盘点与方案已完成；破坏性执行等待用户确认<br>
+状态：环境分级、域名和删除范围已确认；NAS-R1 破坏性执行已获授权<br>
 创建日期：2026-07-20<br>
 优先级：插入 Task51P.1 之前执行<br>
 
@@ -20,8 +20,8 @@
 
 1. 本专项不替用户创建账号、设置密码或导入真实账单。
 2. 不把 `1.3.0-rc` 宣称为稳定版；它是当前最新、已通过 WSL2/NAS staging 的固定候选。
-3. 不配置公网域名、TLS、反向代理或 Tailscale HTTP 入口。
-4. 不在用户确认前停止容器、删除数据库、删除目录或切换 38088。
+3. 本专项只验证现有公网 DNS/HTTP，不配置 TLS 或反向代理。
+4. 真实账号不通过公网明文 HTTP 初始化；用户只从 LAN `/init` 输入密码。
 
 ## 4. Current state
 
@@ -35,6 +35,8 @@
 | `/volume1/docker/ledger-two\r` | 无服务、无数据库 | 空 | 历史误建目录 | 可删除 |
 
 当前不存在 v1.3 stable tag 或已发布的 v1.3 production。建议把固定镜像 `ledger-two:1.3.0-rc-task53-98c3b14` 作为“真实体验 production 候选”切换到 38088，但发布文档仍保持 RC 口径。
+
+环境角色已冻结：38088 是发布/真实体验 production；38092 是开发联调/验收 staging。规范公网域名是 `nas.polarrrr.top`，不是 `nas.polarrr.top`。公共 DNS 返回 `101.71.237.198`，两个端口均已由 5 个外部 HTTP 节点验证为 200。
 
 ## 5. Proposed approach
 
@@ -75,7 +77,7 @@
 | Step | Action | Completion gate |
 |---|---|---|
 | NAS-R1.1 | 盘点版本、目录、端口、schema 和数量 | 已完成，本文件记录与 health 一致 |
-| NAS-R1.2 | 用户确认精确删除和 production 切换范围 | 尚未完成，阻断后续步骤 |
+| NAS-R1.2 | 用户确认精确删除和 production 切换范围 | 已完成；授权按推荐口径执行 |
 | NAS-R1.3 | 旧 production NAS 外备份与停机 | quick_check=ok，SHA-256 可复核 |
 | NAS-R1.4 | 清理旧 runtime，部署空 v1.3 RC production | 38088 health 正确，init=false |
 | NAS-R1.5 | 清理/重建 staging 和误建目录 | 38089 下线，38092 空库且 init=false |
@@ -102,6 +104,7 @@
 5. production/staging 的数据库 inode、路径和 SHA-256 不同。
 6. production runtime 目录为 0700，`.env`/数据库/备份为 0600。
 7. 新初始化后的基线备份 quick_check、外键和恢复抽检通过。
+8. 公网 `nas.polarrrr.top:38088/38092` health 可达；真实账号只从 LAN 初始化。
 
 ## 10. Rollback
 
@@ -109,7 +112,7 @@
 
 ## 11. Confirmation gate
 
-以下操作具有破坏性，未确认前不得执行：
+用户已确认在完成环境和域名标识后执行以下破坏性范围：
 
 1. 停止并替换 38088 当前 production。
 2. 删除 NAS 上旧 production 活跃数据和历史部署目录。
@@ -117,4 +120,4 @@
 4. 删除并重建 38092 staging 数据库。
 5. 删除带回车符的误建空目录。
 
-推荐确认口径：同意把最新固定 `v1.3.0-rc-task53-98c3b14` 切换为 38088 真实体验 production；旧 production 先备份到 NAS 外再从 NAS 删除；两个 staging 和误建目录按本计划清理。
+执行口径：把最新固定 `v1.3.0-rc-task53-98c3b14` 切换为 38088 真实体验 production；旧 production 先备份到 NAS 外再从 NAS 删除；删除旧 38089、重建 38092，并删除误建空目录。用户凭据由用户在 LAN `/init` 页面设置。

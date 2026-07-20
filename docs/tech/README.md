@@ -19,6 +19,7 @@
 | XLSX 专项方案 | `24-v1.2-xlsx-import-implementation-plan.md` | Task49X reader、migration 019、安全、测试和回滚 |
 | Task50 技术契约 | `25-v1.3-multi-ledger-implementation-contract.md` | 多账本 lifecycle、LedgerContext、实例管理员、migration 020/021 和回滚 |
 | Task53 技术契约 | `26-v1.3-category-tag-intelligence-contract.md`、`27-v1.3-category-tag-migration-review.md`、`28-v1.3-task53-post-classifier-readiness.md` | 分级自动化、schema 22、后续 DTO/事务、隔离 staging 和回滚 |
+| NAS 环境与数据 | `29-nas-environment-classification-and-data-retention.md` | 38088/38092 分级、公网边界与 production 数据保全 |
 
 后续技术规划应优先更新这些总览和契约。只有当 v1.3 新能力完成 PRD 范围冻结，且现有总览无法承载新的架构边界时，才新增独立技术总览或 ADR。
 
@@ -70,6 +71,7 @@
 26-v1.3-category-tag-intelligence-contract.md Task53 分类/标签/导入智能归类技术契约
 27-v1.3-category-tag-migration-review.md Task53 schema 21 -> 22 Migration 评审
 28-v1.3-task53-post-classifier-readiness.md Task53.3-Task53.5 flag、DTO、事务、UI 与隔离 staging 准备契约
+29-nas-environment-classification-and-data-retention.md NAS 38088/38092 环境角色、公网测试与 production 数据保全
 ```
 
 ## 技术原则

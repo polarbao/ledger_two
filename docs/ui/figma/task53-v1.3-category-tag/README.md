@@ -1,6 +1,6 @@
 # Task53 v1.3 分类标签智能化 Figma Handoff
 
-状态：本地设计要求与代码复用证据已冻结；视觉审阅稿和线上 Figma 同步未验证<br>
+状态：本地设计要求、代码复用证据与真实页面视觉审阅稿已完成；线上 Figma 同步未验证<br>
 冻结日期：2026-07-16<br>
 关联任务：Task53P.5、未来 Task53U
 
@@ -15,7 +15,7 @@
 | `component-state-matrix.md` | requirement | 状态变体、文案、可访问性和禁止行为 |
 | `reuse-evidence.md` | requirement / reuse evidence | required Frame 与现有 React/UI foundation 的复用映射 |
 
-未来 PNG/SVG/PDF/HTML 审阅稿放到 `../local-review/task53-v1.3-<date>/`，并标注为 generated review artifact，不能写成“线上 Figma 已同步”。
+本地真实页面审阅稿已生成到 `../local-review/task53-v1.3-2026-07-20/`，并标注为 generated review artifact。后续审阅稿继续使用日期目录，不能写成“线上 Figma 已同步”。
 
 ## 2. Source priority
 
@@ -73,9 +73,9 @@ verified_node_ids=[]
 
 ## 6. UI entry gate
 
-Task53U 开始前必须满足：
+Task53U 入口与关闭状态：
 
-1. Task53.3/53.4 DTO 与错误码冻结。
-2. required Frame 有本地审阅稿或明确复用证据。
-3. component-state-matrix 无未决业务冲突。
-4. online Figma 未同步时继续标注 `not_verified`，但不阻断本地代码实现。
+1. Task53.3/53.4 DTO 与错误码已冻结。
+2. required Frame 已有复用证据和 375/390/430/1440 双主题真实页面截图。
+3. component-state-matrix 无未决业务冲突，键盘、`aria-live` 和横向溢出门禁已通过。
+4. online Figma 继续标注 `not_verified`，不阻断本地 Task53U 关闭。

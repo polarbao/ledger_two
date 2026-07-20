@@ -12,7 +12,7 @@ API_INVENTORY.md  当前 router 实际暴露接口清单、认证要求、账本
 openapi.yaml      OpenAPI 草案，覆盖当前核心 API 路径、通用响应和主要请求 DTO
 openapi-v1.2-import-draft.yaml v1.2 导入模块已实现补充契约；文件名保留 draft 以避免破坏既有引用
 openapi-v1.3-ledger-draft.yaml Task50 多账本生命周期、成员、实例运维与 Task53.1 新账本 profile 补充契约；已实现部分以 inventory 为准
-openapi-v1.3-category-tag-draft.yaml Task53 分类、标签、默认元数据与导入分级自动化契约；默认 profile 与内部分类基础已实现，导入归类业务路径仍是草案
+openapi-v1.3-category-tag-draft.yaml Task53 分类、标签、默认元数据与导入分级自动化契约；Task53.1-Task53.4B 已实现，Task53.4C stale/命中指标/兜底替代仍是草案
 API_CONVENTIONS.md 错误码、分页、筛选、排序、金额、时间和 Ledger Context 规范
 ```
 

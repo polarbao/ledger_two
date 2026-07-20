@@ -109,6 +109,8 @@ ASCII 示例应大小写不敏感：
 4. 不勾选记住时只更新当前行。
 5. 存在显式用户规则冲突时，本行保存成功、learn 返回冲突。
 6. 归档 learned rule 后恢复为 built-in suggestion/fallback。
+7. 重复学习使用固定 namespace `d96c24c9-4ba8-5e56-9f30-f52ddcf8a94a` 对 ledger/source scope/规范化商户生成 UUIDv5，只更新分类和完整标签。
+8. learned rule 不复制账户或可见性；同范围 active manual `merchant_equals` 阻断学习，且不回滚已完成的行保存。
 
 ## 9. API snapshots
 
@@ -119,9 +121,10 @@ docs/fixtures/category-tag/expected/auto-selected.json
 docs/fixtures/category-tag/expected/suggested.json
 docs/fixtures/category-tag/expected/conflict.json
 docs/fixtures/category-tag/expected/profile-preview.json
+docs/fixtures/category-tag/expected/learn-created.json
 ```
 
-4 个 JSON 已生成并纳入 OpenAPI/Tech 静态校验。`profile-preview.json` 已与 `basic_cn_v1` 的 27 个冻结 system key、图标和颜色对齐；分类 expected 已与 Task53.3 实际 reason code/text 和持久化 DTO 对齐。Task53.4 DTO 变化必须联合更新 OpenAPI、前端类型和 expected。
+5 个 JSON 已生成并纳入 OpenAPI/Tech 静态校验。`profile-preview.json` 已与 `basic_cn_v1` 的 27 个冻结 system key、图标和颜色对齐；分类 expected 已与 Task53.3 实际 reason code/text 和持久化 DTO 对齐；`learn-created.json` 固定 Task53.4B UUIDv5/current-source 响应。Task53.4C DTO 变化必须联合更新 OpenAPI、前端类型和 expected。
 
 ## 10. Acceptance matrix
 

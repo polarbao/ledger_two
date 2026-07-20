@@ -4,8 +4,8 @@ info:
   version: 1.3.0-task53-draft
   description: |
     Task53 分类、标签、默认元数据和导入分级自动化增量契约。
-    Task53.1-Task53.3 的 schema 22、default-profile、分类器、预览持久化和 reclassify 已实现。
-    bulk-adjust 已在 Task53.4A 实现并同步正式 OpenAPI；显式学习、规则扩展和兜底替代仍是 Task53.4B/C 草案，现状以 API_INVENTORY.md 为准。
+    Task53.1-Task53.3、Task53.4A/B 的 schema 22、default-profile、分类器、预览持久化、reclassify、bulk-adjust 和 explicit learn 已实现。
+    bulk-adjust 与显式学习、规则 origin/source/apply/confidence 扩展已在 Task53.4A/B 实现并同步正式 OpenAPI；stale/命中指标和兜底替代仍是 Task53.4C 草案，现状以 API_INVENTORY.md 为准。
 servers:
   - url: /api
 tags:
@@ -1001,6 +1001,7 @@ components:
     LearnMerchantRequest:
       type: object
       required: [source_scope]
+      additionalProperties: false
       properties:
         source_scope:
           type: string
@@ -1015,7 +1016,7 @@ components:
           properties:
             data:
               type: object
-              required: [rule_id, action, normalized_merchant, source_scope]
+              required: [rule_id, action, normalized_merchant, source_scope, source_type]
               properties:
                 rule_id:
                   type: string

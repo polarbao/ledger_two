@@ -792,6 +792,41 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /imports/{batchID}/rows/{rowID}/learn:
+    post:
+      tags: [import]
+      summary: Learn an exact merchant classification rule from a saved preview row
+      description: |
+        Owner-only and ready-batch-only. The server reads the final category and
+        complete tag set from a separately saved manual or bulk-adjusted row.
+        Account, visibility, amount and source text are not copied into the rule or audit.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - $ref: "#/components/parameters/BatchIdPath"
+        - $ref: "#/components/parameters/RowIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportLearnMerchantRequest"
+      responses:
+        "200":
+          description: The deterministic learned rule was created, updated or restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportLearnMerchantResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /imports/{batchID}/commit:
     post:
       tags: [import]
@@ -879,7 +914,11 @@ paths:
         - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Current-ledger manual and learned rules.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleListResponse"
     post:
       tags: [import]
       summary: Create import rule
@@ -887,9 +926,19 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportRuleUpsertRequest"
       responses:
         "201":
-          $ref: "#/components/responses/Success"
+          description: Manual rule created with server-owned origin and confidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
   /import-rules/{ruleID}:
     patch:
       tags: [import]
@@ -899,9 +948,19 @@ paths:
       parameters:
         - $ref: "#/components/parameters/RuleIdPath"
         - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportRuleUpsertRequest"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Rule updated. Learned identity fields remain immutable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
     delete:
       tags: [import]
       summary: Archive import rule (deprecated compatibility alias)
@@ -913,7 +972,11 @@ paths:
         - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Import rule archived through the compatibility alias.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
   /import-rules/{ruleID}/archive:
     post:
       tags: [import]
@@ -925,7 +988,11 @@ paths:
         - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Import rule archived.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
   /import-rules/{ruleID}/restore:
     post:
       tags: [import]
@@ -937,7 +1004,11 @@ paths:
         - $ref: "#/components/parameters/LedgerIdHeaderRequired"
       responses:
         "200":
-          $ref: "#/components/responses/Success"
+          description: Import rule restored when no active manual merchant conflict exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportRuleResponse"
 
   /transaction-templates/:
     get:
@@ -1922,6 +1993,161 @@ components:
           enum: [true]
         data:
           $ref: "#/components/schemas/ImportBulkClassificationResult"
+    ImportLearnMerchantRequest:
+      type: object
+      required: [source_scope]
+      additionalProperties: false
+      properties:
+        source_scope:
+          type: string
+          enum: [current_source, all_sources]
+    ImportLearnMerchantResult:
+      type: object
+      required: [rule_id, action, normalized_merchant, source_scope, source_type]
+      properties:
+        rule_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum: [created, updated, restored]
+        normalized_merchant:
+          type: string
+        source_scope:
+          type: string
+          enum: [current_source, all_sources]
+        source_type:
+          type: string
+          nullable: true
+          enum: [wechat, alipay, generic]
+    ImportLearnMerchantResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/ImportLearnMerchantResult"
+    ImportRuleResult:
+      type: object
+      properties:
+        category_id:
+          type: string
+        account_id:
+          type: string
+          deprecated: true
+          description: Manual-rule compatibility field; learned rules never copy an account.
+        tag_ids:
+          type: array
+          maxItems: 8
+          uniqueItems: true
+          items:
+            type: string
+        visibility:
+          type: string
+          deprecated: true
+          description: Legacy Task49 compatibility field; Task53 classification never changes visibility.
+    ImportRuleUpsertRequest:
+      type: object
+      required: [match_type, pattern, result]
+      properties:
+        name:
+          type: string
+        match_type:
+          type: string
+          enum: [merchant_equals, merchant_contains, description_contains, source_account, amount_range]
+        pattern:
+          type: string
+        amount_min_cents:
+          type: integer
+          format: int64
+        amount_max_cents:
+          type: integer
+          format: int64
+        priority:
+          type: integer
+          minimum: 0
+        source_type:
+          type: string
+          nullable: true
+          enum: [wechat, alipay, generic]
+        apply_mode:
+          type: string
+          enum: [auto, suggest]
+        result:
+          $ref: "#/components/schemas/ImportRuleResult"
+    ImportRule:
+      type: object
+      required: [id, name, match_type, pattern, priority, status, origin, source_type, apply_mode, confidence, result, created_by_user_id, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        match_type:
+          type: string
+          enum: [merchant_equals, merchant_contains, description_contains, source_account, amount_range]
+        pattern:
+          type: string
+        amount_min_cents:
+          type: integer
+          format: int64
+        amount_max_cents:
+          type: integer
+          format: int64
+        priority:
+          type: integer
+        status:
+          type: string
+          enum: [active, archived]
+        origin:
+          type: string
+          enum: [manual, learned]
+        source_type:
+          type: string
+          nullable: true
+          enum: [wechat, alipay, generic]
+        apply_mode:
+          type: string
+          enum: [auto, suggest]
+        confidence:
+          type: string
+          enum: [high]
+        result:
+          $ref: "#/components/schemas/ImportRuleResult"
+        created_by_user_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+    ImportRuleResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: "#/components/schemas/ImportRule"
+    ImportRuleListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportRule"
     ImportReclassifyRowChange:
       type: object
       required: [row_id, old_status, new_status, old_tag_ids, new_tag_ids]

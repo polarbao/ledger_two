@@ -1,12 +1,12 @@
 ﻿# API Inventory
 
-状态：Task50.6 正式契约已冻结；Task53.1-Task53.3 已落地，Task53.4 契约已准备但未实现
+状态：Task50.6 正式契约已冻结；Task53.1-Task53.3、Task53.4A/B 已落地，Task53.4C 契约已准备
 来源：`backend/internal/http/router/router.go`  
 当前实现基路径：`/api`  
 目标版本基路径：`/api/v1`，尚未实现 alias  
-更新时间：2026-07-17
+更新时间：2026-07-20
 
-> Task53.1-Task53.3 已实现 schema 22、默认 profile、确定性分类器、preview 分类快照/summary 和 reclassify；Task53.4A 已实现 `bulk-adjust`。`learn`、规则扩展和兜底替代仍只在 `openapi-v1.3-category-tag-draft.yaml` 冻结，当前不得描述为已上线。
+> Task53.1-Task53.3 已实现 schema 22、默认 profile、确定性分类器、preview 分类快照/summary 和 reclassify；Task53.4A/B 已实现 `bulk-adjust`、`learn` 与规则 origin/source/apply/confidence 生命周期。stale/命中指标和兜底替代仍只在 `openapi-v1.3-category-tag-draft.yaml` 冻结，当前不得描述为已上线。
 
 ## 1. 总体约定
 
@@ -127,13 +127,14 @@
 | PATCH | `/api/imports/{batchID}/rows/{rowID}` | yes | required | stable | `importer.HandleUpdateRow` | v1.2 Owner 调整导入行状态、目标类型、分类、账户、标签和可见性。 |
 | POST | `/api/imports/{batchID}/reclassify` | yes | required | stable | `importer.HandleReclassify` | Owner 对 ready/未过期批次重算 eligible 非 manual/bulk 行；默认 dry-run，执行写脱敏审计但不创建 transaction。 |
 | POST | `/api/imports/{batchID}/rows/bulk-adjust` | yes | required | stable | `importer.HandleBulkAdjust` | Owner 对 ready/未过期批次按持久化建议或完整显式值批量调整；部分成功返回行级结果，单事务写一条脱敏审计，不创建 transaction/learned rule。 |
+| POST | `/api/imports/{batchID}/rows/{rowID}/learn` | yes | required | stable | `importer.HandleLearnMerchant` | Owner 从已另行保存的 manual/bulk 行读取最终分类与完整标签，按账本/来源范围/规范化商户 UUIDv5 幂等创建、更新或恢复 learned rule；不学习账户、可见性或账单原文。 |
 | POST | `/api/imports/{batchID}/commit` | yes | required | stable | `importer.HandleCommit` | v1.2 Owner 提交 ready 批次，事务写入正式账单和导入去重映射。 |
 | POST | `/api/imports/{batchID}/discard` | yes | required | stable | `importer.HandleDiscardBatch` | Owner 显式放弃 ready 批次；收敛为 expired，保留行/hash，不创建 transaction。 |
-| POST | `/api/import-rules/` | yes | required | stable | `importer.HandleCreateRule` | v1.2 Owner 创建导入规则，规则只产生建议。 |
-| GET | `/api/import-rules/` | yes | required | stable | `importer.HandleListRules` | v1.2 Owner 列出导入规则，支持 `status=active/archived/all`。 |
-| PATCH | `/api/import-rules/{ruleID}` | yes | required | stable | `importer.HandleUpdateRule` | v1.2 Owner 更新导入规则。 |
+| POST | `/api/import-rules/` | yes | required | stable | `importer.HandleCreateRule` | Owner 创建 `origin=manual` 规则，可设置来源范围与 auto/suggest，confidence 由服务端固定 high。 |
+| GET | `/api/import-rules/` | yes | required | stable | `importer.HandleListRules` | Owner 列出当前账本 manual/learned 规则及 origin/source/apply/confidence，支持 `status=active/archived/all`。 |
+| PATCH | `/api/import-rules/{ruleID}` | yes | required | stable | `importer.HandleUpdateRule` | Owner 更新规则；learned 的来源、merchant_equals 和规范化 pattern 不可修改。 |
 | POST | `/api/import-rules/{ruleID}/archive` | yes | required | stable | `importer.HandleArchiveRule` | v1.2 Owner 归档导入规则。 |
-| POST | `/api/import-rules/{ruleID}/restore` | yes | required | stable | `importer.HandleRestoreRule` | v1.2 Owner 恢复导入规则。 |
+| POST | `/api/import-rules/{ruleID}/restore` | yes | required | stable | `importer.HandleRestoreRule` | Owner 恢复导入规则；learned rule 与同范围 active manual 商户精确规则冲突时拒绝恢复。 |
 | DELETE | `/api/import-rules/{ruleID}` | yes | required | transitional | `importer.HandleArchiveRule` | Owner 兼容旧删除入口，实际执行归档。 |
 
 ## 8. Templates 与周期账单

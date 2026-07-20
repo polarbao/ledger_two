@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	appErrors "ledger_two/internal/errors"
+	"ledger_two/internal/importer/classifier"
 	"ledger_two/internal/importer/tabular"
 	"ledger_two/internal/ledger"
 )
@@ -86,7 +87,7 @@ func (s *Service) PreviewFile(ctx context.Context, req PreviewFileRequest) (*Pre
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, fmt.Sprintf("单批导入最多支持 %d 行", MaxPreviewRows))
 	}
 	if s.classificationMode == ClassificationModeOff {
-		if err := s.applyImportRules(ctx, req.LedgerContext.LedgerID, preview.Rows); err != nil {
+		if err := s.applyImportRules(ctx, req.LedgerContext.LedgerID, req.SourceType, preview.Rows); err != nil {
 			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "应用导入规则失败")
 		}
 	}
@@ -312,7 +313,7 @@ func (s *Service) DiscardPreviewBatch(ctx context.Context, lc ledger.LedgerConte
 }
 
 func (s *Service) CreateImportRule(ctx context.Context, lc ledger.LedgerContext, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {
-	if err := s.validateRuleWrite(ctx, lc, &req); err != nil {
+	if err := s.prepareRuleWrite(ctx, lc, &req, nil); err != nil {
 		return nil, err
 	}
 	ruleID := uuid.NewString()
@@ -327,10 +328,20 @@ func (s *Service) CreateImportRule(ctx context.Context, lc ledger.LedgerContext,
 }
 
 func (s *Service) UpdateImportRule(ctx context.Context, lc ledger.LedgerContext, ruleID string, req ImportRuleUpsertRequest) (*ImportRuleResponse, error) {
+	if lc.Role != ledger.RoleOwner {
+		return nil, appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可管理导入规则")
+	}
 	if ruleID == "" {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则 ID 不能为空")
 	}
-	if err := s.validateRuleWrite(ctx, lc, &req); err != nil {
+	existing, err := s.repo.GetImportRule(ctx, lc.LedgerID, ruleID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入规则不存在或不属于当前账本")
+		}
+		return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入规则失败")
+	}
+	if err := s.prepareRuleWrite(ctx, lc, &req, existing); err != nil {
 		return nil, err
 	}
 	rule, err := s.repo.UpdateImportRule(ctx, lc.LedgerID, ruleID, req)
@@ -375,6 +386,24 @@ func (s *Service) setImportRuleStatus(ctx context.Context, lc ledger.LedgerConte
 	if ruleID == "" {
 		return nil, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则 ID 不能为空")
 	}
+	if status == "active" {
+		existing, err := s.repo.GetImportRule(ctx, lc.LedgerID, ruleID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, appErrors.NewAppError(http.StatusNotFound, appErrors.ErrCodeLedgerObjectNotFound, "导入规则不存在或不属于当前账本")
+			}
+			return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "读取导入规则失败")
+		}
+		if existing.Origin == string(classifier.OriginLearned) && existing.MatchType == string(classifier.MatchMerchantEquals) {
+			conflictID, err := s.repo.FindActiveManualMerchantConflict(ctx, lc.LedgerID, existing.SourceType, classifier.NormalizeText(existing.Pattern))
+			if err != nil {
+				return nil, appErrors.NewAppError(http.StatusInternalServerError, appErrors.ErrCodeInternalError, "校验学习规则冲突失败")
+			}
+			if conflictID != "" {
+				return nil, appErrors.NewAppErrorWithDetails(http.StatusConflict, appErrors.ErrCodeClassificationConflict, "同一来源范围已存在显式商户规则", map[string]string{"rule_id": conflictID})
+			}
+		}
+	}
 	rule, err := s.repo.SetImportRuleStatus(ctx, lc.LedgerID, ruleID, status)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -388,14 +417,55 @@ func (s *Service) setImportRuleStatus(ctx context.Context, lc ledger.LedgerConte
 	return rule, nil
 }
 
-func (s *Service) validateRuleWrite(ctx context.Context, lc ledger.LedgerContext, req *ImportRuleUpsertRequest) error {
+func (s *Service) prepareRuleWrite(ctx context.Context, lc ledger.LedgerContext, req *ImportRuleUpsertRequest, existing *ImportRuleResponse) error {
 	if lc.Role != ledger.RoleOwner {
 		return appErrors.NewAppError(http.StatusForbidden, appErrors.ErrCodeForbidden, "仅账本 Owner 可管理导入规则")
 	}
 	req.Name = strings.TrimSpace(req.Name)
 	req.MatchType = strings.TrimSpace(req.MatchType)
 	req.Pattern = strings.TrimSpace(req.Pattern)
-	req.Result.Visibility = defaultVisibility(req.Result.Visibility)
+	if existing != nil {
+		if !req.SourceType.Set {
+			req.SourceType = nullableStringFromPointer(existing.SourceType)
+		}
+		if req.ApplyMode == nil {
+			req.ApplyMode = cloneStringPointer(&existing.ApplyMode)
+		}
+	} else {
+		if !req.SourceType.Set {
+			req.SourceType = NullableString{Set: true}
+		}
+		if req.ApplyMode == nil {
+			value := string(classifier.ApplyModeSuggest)
+			req.ApplyMode = &value
+		}
+	}
+	if req.SourceType.Value != nil {
+		sourceType := strings.TrimSpace(*req.SourceType.Value)
+		if !isValidImportSourceType(sourceType) {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则来源类型无效")
+		}
+		req.SourceType.Value = cloneStringPointer(&sourceType)
+	}
+	if req.ApplyMode == nil || (*req.ApplyMode != string(classifier.ApplyModeAuto) && *req.ApplyMode != string(classifier.ApplyModeSuggest)) {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则应用方式无效")
+	}
+	if existing != nil && existing.Origin == string(classifier.OriginLearned) {
+		if req.MatchType != existing.MatchType || classifier.NormalizeText(req.Pattern) != existing.Pattern ||
+			pointerValue(req.SourceType.Value) != pointerValue(existing.SourceType) ||
+			req.AmountMinCents != nil || req.AmountMaxCents != nil {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "学习规则的来源、匹配类型和规范化商户不可修改")
+		}
+		if req.Result.AccountID != "" {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "学习规则不可保存账户")
+		}
+		req.MatchType = existing.MatchType
+		req.Pattern = existing.Pattern
+		req.Result.AccountID = ""
+		req.Result.Visibility = ""
+	} else {
+		req.Result.Visibility = defaultVisibility(req.Result.Visibility)
+	}
 	if !isValidImportRuleMatchType(req.MatchType) {
 		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则匹配类型无效")
 	}
@@ -415,15 +485,36 @@ func (s *Service) validateRuleWrite(ctx context.Context, lc ledger.LedgerContext
 		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "金额下限不能大于上限")
 	}
 	if !isValidVisibility(req.Result.Visibility) {
-		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则可见性无效")
+		if existing == nil || existing.Origin != string(classifier.OriginLearned) {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则可见性无效")
+		}
 	}
 	if req.Result.CategoryID == "" && req.Result.AccountID == "" && len(req.Result.TagIDs) == 0 {
 		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则至少需要配置分类、账户或标签")
+	}
+	if len(req.Result.TagIDs) > 8 {
+		return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeTagLimitExceeded, "单条规则最多选择 8 个标签")
+	}
+	seenTags := make(map[string]struct{}, len(req.Result.TagIDs))
+	for index, tagID := range req.Result.TagIDs {
+		tagID = strings.TrimSpace(tagID)
+		if tagID == "" {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则标签 ID 无效")
+		}
+		if _, exists := seenTags[tagID]; exists {
+			return appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeValidationError, "导入规则标签 ID 不可重复")
+		}
+		seenTags[tagID] = struct{}{}
+		req.Result.TagIDs[index] = tagID
 	}
 	if err := s.validateRuleMetadata(ctx, lc.LedgerID, req.Result); err != nil {
 		return err
 	}
 	return nil
+}
+
+func nullableStringFromPointer(value *string) NullableString {
+	return NullableString{Set: true, Value: cloneStringPointer(value)}
 }
 
 func (s *Service) validateRuleMetadata(ctx context.Context, ledgerID string, result ImportRuleResult) error {
@@ -534,7 +625,7 @@ func (s *Service) applyExistingDuplicates(ctx context.Context, batch *PreviewBat
 	return nil
 }
 
-func (s *Service) applyImportRules(ctx context.Context, ledgerID string, rows []PreviewRow) error {
+func (s *Service) applyImportRules(ctx context.Context, ledgerID string, sourceType string, rows []PreviewRow) error {
 	rules, err := s.repo.ListImportRules(ctx, ledgerID, "active")
 	if err != nil {
 		return err
@@ -545,6 +636,9 @@ func (s *Service) applyImportRules(ctx context.Context, ledgerID string, rows []
 
 	applicableRules := make([]ImportRuleResponse, 0, len(rules))
 	for _, rule := range rules {
+		if rule.Origin != string(classifier.OriginManual) || (rule.SourceType != nil && *rule.SourceType != sourceType) {
+			continue
+		}
 		active, err := s.importRuleMetadataActive(ctx, ledgerID, rule.Result)
 		if err != nil {
 			return err
@@ -756,7 +850,7 @@ func isValidVisibility(value string) bool {
 
 func isValidImportRuleMatchType(value string) bool {
 	switch value {
-	case "merchant_contains", "description_contains", "source_account", "amount_range":
+	case "merchant_equals", "merchant_contains", "description_contains", "source_account", "amount_range":
 		return true
 	default:
 		return false

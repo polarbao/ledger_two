@@ -52,6 +52,13 @@ const (
 
 	BulkAdjustActionAcceptSuggestions = "accept_suggestions"
 	BulkAdjustActionApplyValues       = "apply_values"
+
+	LearnSourceScopeCurrent = "current_source"
+	LearnSourceScopeAll     = "all_sources"
+
+	LearnActionCreated  = "created"
+	LearnActionUpdated  = "updated"
+	LearnActionRestored = "restored"
 )
 
 type Classification struct {
@@ -221,6 +228,25 @@ type BulkClassificationResult struct {
 	Summary        ClassificationSummary    `json:"summary"`
 }
 
+type LearnMerchantRequest struct {
+	SourceScope string `json:"source_scope"`
+}
+
+type LearnMerchantCommand struct {
+	LedgerContext ledger.LedgerContext
+	BatchID       string
+	RowID         string
+	Request       LearnMerchantRequest
+}
+
+type LearnMerchantResult struct {
+	RuleID             string  `json:"rule_id"`
+	Action             string  `json:"action"`
+	NormalizedMerchant string  `json:"normalized_merchant"`
+	SourceScope        string  `json:"source_scope"`
+	SourceType         *string `json:"source_type"`
+}
+
 type RowError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
@@ -277,6 +303,8 @@ type ImportRuleUpsertRequest struct {
 	AmountMinCents *int64           `json:"amount_min_cents,omitempty"`
 	AmountMaxCents *int64           `json:"amount_max_cents,omitempty"`
 	Priority       *int             `json:"priority,omitempty"`
+	SourceType     NullableString   `json:"source_type"`
+	ApplyMode      *string          `json:"apply_mode,omitempty"`
 	Result         ImportRuleResult `json:"result"`
 }
 
@@ -289,6 +317,10 @@ type ImportRuleResponse struct {
 	AmountMaxCents  *int64           `json:"amount_max_cents,omitempty"`
 	Priority        int              `json:"priority"`
 	Status          string           `json:"status"`
+	Origin          string           `json:"origin"`
+	SourceType      *string          `json:"source_type"`
+	ApplyMode       string           `json:"apply_mode"`
+	Confidence      string           `json:"confidence"`
 	Result          ImportRuleResult `json:"result"`
 	CreatedByUserID string           `json:"created_by_user_id"`
 	CreatedAt       string           `json:"created_at"`
@@ -307,6 +339,10 @@ type importRuleRecord struct {
 	Priority        int
 	ResultJSON      string
 	Status          string
+	Origin          string
+	SourceType      sql.NullString
+	ApplyMode       string
+	Confidence      string
 	CreatedByUserID string
 	CreatedAt       string
 	UpdatedAt       string

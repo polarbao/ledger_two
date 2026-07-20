@@ -4,6 +4,8 @@ import type {
   ImportBulkClassificationResult,
   ImportCommitResult,
   ImportDiscardResult,
+  ImportLearnMerchantPayload,
+  ImportLearnMerchantResult,
   ImportPreviewBatch,
   ImportReclassifyResult,
   ImportRule,
@@ -37,6 +39,9 @@ export const importsApi = {
 
   bulkAdjust: (batchId: string, payload: ImportBulkClassificationPayload) =>
     api.post<ImportBulkClassificationResult>(`/api/imports/${batchId}/rows/bulk-adjust`, payload),
+
+  learnMerchant: (batchId: string, rowId: string, payload: ImportLearnMerchantPayload) =>
+    api.post<ImportLearnMerchantResult>(`/api/imports/${batchId}/rows/${rowId}/learn`, payload),
 
   listRules: (
     status: 'active' | 'archived' | 'all' = 'all',

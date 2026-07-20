@@ -748,8 +748,8 @@ func (r *Repository) CreateImportRule(ctx context.Context, ledgerID string, user
 			id, ledger_id, keyword, category_id, tag_names, account_id,
 			created_by_user_id, created_at, updated_at,
 			name, match_type, pattern, amount_min_cents, amount_max_cents,
-			priority, result_json, status
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+			priority, result_json, status, origin, source_type, apply_mode, confidence
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'manual', ?, ?, 'high')
 	`,
 		ruleID,
 		ledgerID,
@@ -767,6 +767,8 @@ func (r *Repository) CreateImportRule(ctx context.Context, ledgerID string, user
 		nullInt64(req.AmountMaxCents),
 		priority,
 		string(resultJSON),
+		nullableSourceType(req.SourceType.Value),
+		importRuleApplyMode(req.ApplyMode),
 	)
 	if err != nil {
 		return nil, err
@@ -797,11 +799,15 @@ func (r *Repository) UpdateImportRule(ctx context.Context, ledgerID string, rule
 		    amount_max_cents = ?,
 		    priority = ?,
 		    result_json = ?,
+		    source_type = ?,
+		    apply_mode = ?,
+		    confidence = 'high',
 		    updated_at = ?
 		WHERE id = ? AND ledger_id = ?
 	`, req.Pattern, nullString(req.Result.CategoryID), nullString(strings.Join(req.Result.TagIDs, ",")),
 		nullString(req.Result.AccountID), name, req.MatchType, req.Pattern, nullInt64(req.AmountMinCents),
-		nullInt64(req.AmountMaxCents), priority, string(resultJSON), now, ruleID, ledgerID)
+		nullInt64(req.AmountMaxCents), priority, string(resultJSON), nullableSourceType(req.SourceType.Value),
+		importRuleApplyMode(req.ApplyMode), now, ruleID, ledgerID)
 	if err != nil {
 		return nil, err
 	}
@@ -818,7 +824,9 @@ func (r *Repository) ListImportRules(ctx context.Context, ledgerID string, statu
 	query := `
 		SELECT id, ledger_id, COALESCE(name, ''), COALESCE(match_type, ''), COALESCE(pattern, keyword),
 		       amount_min_cents, amount_max_cents, priority, COALESCE(result_json, '{}'),
-		       COALESCE(status, 'active'), created_by_user_id, created_at, updated_at, COALESCE(archived_at, '')
+		       COALESCE(status, 'active'), COALESCE(origin, 'manual'), source_type,
+		       COALESCE(apply_mode, 'suggest'), COALESCE(confidence, 'high'),
+		       created_by_user_id, created_at, updated_at, COALESCE(archived_at, '')
 		FROM import_rules
 		WHERE ledger_id = ?
 	`
@@ -849,6 +857,10 @@ func (r *Repository) ListImportRules(ctx context.Context, ledgerID string, statu
 			&record.Priority,
 			&record.ResultJSON,
 			&record.Status,
+			&record.Origin,
+			&record.SourceType,
+			&record.ApplyMode,
+			&record.Confidence,
 			&record.CreatedByUserID,
 			&record.CreatedAt,
 			&record.UpdatedAt,
@@ -870,7 +882,9 @@ func (r *Repository) GetImportRule(ctx context.Context, ledgerID string, ruleID 
 	err := r.db.QueryRowContext(ctx, `
 		SELECT id, ledger_id, COALESCE(name, ''), COALESCE(match_type, ''), COALESCE(pattern, keyword),
 		       amount_min_cents, amount_max_cents, priority, COALESCE(result_json, '{}'),
-		       COALESCE(status, 'active'), created_by_user_id, created_at, updated_at, COALESCE(archived_at, '')
+		       COALESCE(status, 'active'), COALESCE(origin, 'manual'), source_type,
+		       COALESCE(apply_mode, 'suggest'), COALESCE(confidence, 'high'),
+		       created_by_user_id, created_at, updated_at, COALESCE(archived_at, '')
 		FROM import_rules
 		WHERE id = ? AND ledger_id = ?
 	`, ruleID, ledgerID).Scan(
@@ -884,6 +898,10 @@ func (r *Repository) GetImportRule(ctx context.Context, ledgerID string, ruleID 
 		&record.Priority,
 		&record.ResultJSON,
 		&record.Status,
+		&record.Origin,
+		&record.SourceType,
+		&record.ApplyMode,
+		&record.Confidence,
 		&record.CreatedByUserID,
 		&record.CreatedAt,
 		&record.UpdatedAt,
@@ -964,6 +982,13 @@ func importRulePriority(value *int) int {
 	return *value
 }
 
+func importRuleApplyMode(value *string) string {
+	if value == nil || *value == "" {
+		return "suggest"
+	}
+	return *value
+}
+
 func importRuleName(name string, pattern string) string {
 	name = strings.TrimSpace(name)
 	if name != "" {
@@ -986,6 +1011,10 @@ func importRuleRecordToResponse(record importRuleRecord) (ImportRuleResponse, er
 		Pattern:         record.Pattern,
 		Priority:        record.Priority,
 		Status:          record.Status,
+		Origin:          record.Origin,
+		SourceType:      nullableStringPointer(record.SourceType),
+		ApplyMode:       record.ApplyMode,
+		Confidence:      record.Confidence,
 		Result:          result,
 		CreatedByUserID: record.CreatedByUserID,
 		CreatedAt:       record.CreatedAt,
@@ -1001,6 +1030,14 @@ func importRuleRecordToResponse(record importRuleRecord) (ImportRuleResponse, er
 		resp.AmountMaxCents = &value
 	}
 	return resp, nil
+}
+
+func nullableStringPointer(value sql.NullString) *string {
+	if !value.Valid {
+		return nil
+	}
+	result := value.String
+	return &result
 }
 
 func valueOf(value sql.NullString) string {

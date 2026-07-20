@@ -32,4 +32,5 @@ data/
 backups/
 uploads/
 .runtime/
+.tmp/
 #*.sh

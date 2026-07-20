@@ -1,6 +1,6 @@
 # PRD：v1.3 分类、标签与导入智能归类专项
 
-状态：产品基线已冻结；Task53.1-Task53.3、Task53.4A 已完成，下一实现切片为 Task53.4B<br>
+状态：产品基线已冻结；Task53.1-Task53.3、Task53.4A/B 已完成，下一实现切片为 Task53.4C<br>
 任务编号：Task53<br>
 创建日期：2026-07-16<br>
 优先级：Task53.3 预览持久化、解释与重分类<br>
@@ -266,4 +266,4 @@ Task53 不扩大当前导入权限。
 
 ## 11. Release boundary
 
-Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 与 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。Task53.1-Task53.3、Task53.4A 已落地 schema 22、默认 profile、确定性 preview/reclassify 和 bulk-adjust；Task53.4B/C 的 learn/rule/兜底替代契约与 TDD 输入已冻结，下一实现切片为 Task53.4B。Task53U 仍按顺序等待 Task53.4B/C 完成后统一实现。
+Task53 的 Tech、OpenAPI、Fixture、UI/Figma、migration 评审和详细原子开发计划已形成，入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 与 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。Task53.1-Task53.3、Task53.4A/B 已落地 schema 22、默认 profile、确定性 preview/reclassify、bulk-adjust、显式学习和学习规则生命周期；Task53.4C 的 stale/reference count/committed hit 与兜底替代契约、TDD 输入已冻结，下一实现切片为 Task53.4C。Task53U 仍按顺序等待 Task53.4C 完成后统一实现。

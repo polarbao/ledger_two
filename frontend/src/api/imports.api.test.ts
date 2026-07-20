@@ -64,4 +64,33 @@ describe('import batch mutation API', () => {
       headers: expect.objectContaining({ 'X-Ledger-Id': 'ledger-a' }),
     }));
   });
+
+  it('learns a merchant rule only from the already-saved preview row', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        success: true,
+        data: {
+          rule_id: 'rule-v5',
+          action: 'created',
+          normalized_merchant: '园区餐厅',
+          source_scope: 'current_source',
+          source_type: 'generic',
+        },
+      }),
+    } as Response);
+
+    const result = await importsApi.learnMerchant('batch-a', 'row-a', {
+      source_scope: 'current_source',
+    });
+
+    expect(result.action).toBe('created');
+    expect(fetch).toHaveBeenCalledWith('/api/imports/batch-a/rows/row-a/learn', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ source_scope: 'current_source' }),
+      headers: expect.objectContaining({ 'X-Ledger-Id': 'ledger-a' }),
+    }));
+  });
+
 });

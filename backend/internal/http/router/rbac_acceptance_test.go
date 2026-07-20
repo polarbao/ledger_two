@@ -90,6 +90,7 @@ func TestRBACAcceptanceImportManagementOwnerOnly(t *testing.T) {
 		{method: http.MethodPost, path: "/api/import-rules/missing-rule/restore"},
 		{method: http.MethodDelete, path: "/api/import-rules/missing-rule"},
 		{method: http.MethodGet, path: "/api/imports/missing-batch"},
+		{method: http.MethodPost, path: "/api/imports/missing-batch/rows/missing-row/learn", body: []byte(`{"source_scope":"current_source"}`)},
 	}
 
 	for _, role := range []string{"editor", "viewer"} {

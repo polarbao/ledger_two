@@ -69,6 +69,7 @@ func TestTask50ArchivedLedgerRejectsBusinessWritesBeforeHandlers(t *testing.T) {
 		{name: "shared expense", method: http.MethodPost, path: "/api/shared-expenses"},
 		{name: "settlement", method: http.MethodPost, path: "/api/settlements"},
 		{name: "import preview", method: http.MethodPost, path: "/api/imports/preview"},
+		{name: "import learn", method: http.MethodPost, path: "/api/imports/missing-batch/rows/missing-row/learn"},
 		{name: "import rule", method: http.MethodPost, path: "/api/import-rules"},
 		{name: "legacy import", method: http.MethodPost, path: "/api/transactions/import/commit"},
 		{name: "attachment upload", method: http.MethodPost, path: "/api/attachments"},

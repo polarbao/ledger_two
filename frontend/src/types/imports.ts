@@ -25,6 +25,10 @@ export type ImportRuleMatchType = 'merchant_equals' | 'merchant_contains' | 'des
 
 export type ImportRuleStatus = 'active' | 'archived';
 
+export type ImportRuleOrigin = 'manual' | 'learned';
+
+export type ImportRuleApplyMode = 'auto' | 'suggest';
+
 export interface ImportRowError {
   code: string;
   message: string;
@@ -178,6 +182,20 @@ export interface ImportBulkClassificationResult {
   summary: ImportClassificationSummary;
 }
 
+export type ImportLearnSourceScope = 'current_source' | 'all_sources';
+
+export interface ImportLearnMerchantPayload {
+  source_scope: ImportLearnSourceScope;
+}
+
+export interface ImportLearnMerchantResult {
+  rule_id: string;
+  action: 'created' | 'updated' | 'restored';
+  normalized_merchant: string;
+  source_scope: ImportLearnSourceScope;
+  source_type: ImportSourceType | null;
+}
+
 export interface ImportCommitResult {
   batch_id: string;
   status: 'committed';
@@ -209,6 +227,10 @@ export interface ImportRule {
   amount_max_cents?: number;
   priority: number;
   status: ImportRuleStatus;
+  origin: ImportRuleOrigin;
+  source_type: ImportSourceType | null;
+  apply_mode: ImportRuleApplyMode;
+  confidence: 'high';
   result: ImportRuleResult;
   created_by_user_id: string;
   created_at: string;
@@ -223,6 +245,8 @@ export interface ImportRuleUpsertPayload {
   amount_min_cents?: number;
   amount_max_cents?: number;
   priority?: number;
+  source_type?: ImportSourceType | null;
+  apply_mode?: ImportRuleApplyMode;
   result: ImportRuleResult;
 }
 

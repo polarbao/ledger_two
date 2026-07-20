@@ -206,6 +206,37 @@ func (h *Handler) HandleBulkAdjust(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, result)
 }
 
+func (h *Handler) HandleLearnMerchant(w http.ResponseWriter, r *http.Request) {
+	lc, ok := h.requireLedgerContext(w, r)
+	if !ok {
+		return
+	}
+
+	var req LearnMerchantRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体格式无效"))
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		response.WriteError(w, appErrors.NewAppError(http.StatusBadRequest, appErrors.ErrCodeBadRequest, "请求体只能包含一个 JSON 对象"))
+		return
+	}
+
+	result, err := h.service.LearnMerchantRule(r.Context(), LearnMerchantCommand{
+		LedgerContext: lc,
+		BatchID:       chi.URLParam(r, "batchID"),
+		RowID:         chi.URLParam(r, "rowID"),
+		Request:       req,
+	})
+	if err != nil {
+		response.WriteError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, result)
+}
+
 func (h *Handler) HandleDiscardBatch(w http.ResponseWriter, r *http.Request) {
 	lc, ok := h.requireLedgerContext(w, r)
 	if !ok {

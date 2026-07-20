@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-20）：Task41-Task50、Fresh Light UI-FL-01 至 UI-FL-10、Task53.1-Task53U 和 Task53.5 的 WSL2/NAS staging 验收已完成。Task53 候选为 schema 22、`suggest`，结论 `pass_with_suggest_only`；LAN 38092 可访问，production 未变。冻结任务树没有 Task53.6；当前回到 Task51P.1 证据评审，有效真实小组证据仍为 0。
+> 执行更新（2026-07-20）：Task41-Task50、Fresh Light UI-FL-01 至 UI-FL-10、Task53.1-Task53U 和 Task53.5 的 WSL2/NAS staging 验收已完成。当前插入 NAS-R1：把 38088 从旧 v1.2 RC 演示 production 一次性切换为最新 v1.3 RC 真实体验 production，并清理两个 staging；破坏性执行等待确认。完成后返回 Task51P.1，当前真实证据仍为 0。
 
 ## 1. 使用说明
 
@@ -209,7 +209,15 @@
 2. 冻结 OpenAPI、migration 022、错误码、Fixture expected JSON 和 UI/Figma handoff。
 3. 已形成 Task53.1-Task53.5/Task53U 详细开发计划、文件所有权、TDD 清单、环境和回滚门禁。
 
-当前顺序：`Task50 complete -> Task53.1-Task53U complete -> Task53.5 WSL/NAS staging complete/pass_with_suggest_only -> Task51P.1 evidence review`。NAS production 保持独立发布线，不新增 Task53.6；Task51 只有得出 `continue/narrow` 才进入 P2-P6，Task52 不提前。
+当前顺序：`Task50 complete -> Task53.1-Task53U complete -> Task53.5 WSL/NAS staging complete/pass_with_suggest_only -> NAS-R1 -> Task51P.1 evidence review`。不新增 Task53.6；Task51 只有得出 `continue/narrow` 才进入 P2-P6，Task52 不提前。
+
+### NAS-R1：真实体验 production 与数据保全
+
+状态：只读盘点和执行方案已完成，破坏性步骤等待用户确认。入口为 `20-nas-release-data-lifecycle-plan.md`。
+
+本专项先于 Task51P.1 后续执行，目标是把当前 38088 旧 v1.2 RC 演示 production 一次性替换为最新固定 v1.3 RC 空库，由用户自行初始化真实账号；同时删除旧 38089 staging、重置 38092 匿名 staging，并冻结以后 production 升级必须保留用户数据库的规则。
+
+当前顺序调整为：`Task53.5 complete -> NAS-R1 confirmation/reset/user init/baseline backup -> Task51P.1 evidence execution`。任何删除前必须完成 NAS 外一致性备份和精确目标确认。
 
 ### Task51：多人分摊体验增强
 

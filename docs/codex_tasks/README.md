@@ -1,7 +1,7 @@
 # Codex / Gemini 开发任务入口
 
 状态：当前任务入口
-适用阶段：Task01-Task50 已完成；Task49X/NAS 发布线独立维护；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53.1-Task53U 与 Task53.5 的 WSL2/NAS staging 验收已完成，发布决策为 `pass_with_suggest_only`，production 未变；冻结任务树没有 Task53.6，当前回到 Task51P.1 证据评审
+适用阶段：Task01-Task50 已完成；Fresh Light UI-FL-01 至 UI-FL-10 已完成；Task53.1-Task53U 与 Task53.5 的 WSL2/NAS staging 验收已完成，发布决策为 `pass_with_suggest_only`；当前插入 NAS-R1 真实体验 production 清库换代与数据保全专项，破坏性执行等待用户确认，随后返回 Task51P.1
 
 ## 1. 目标
 
@@ -32,6 +32,7 @@
 17-task51-predevelopment-plan.md Task51P.1-P.6 开发前准备顺序与正式门禁
 18-task53-category-tag-predevelopment-plan.md Task53P 分类、标签、默认元数据与分级自动化准备门禁
 19-v1.3-task53-detailed-implementation-plan.md Task53.1-Task53.5/Task53U 详细实施、TDD、环境、回滚与提交计划
+20-nas-release-data-lifecycle-plan.md NAS-R1 真实体验 production 一次性重置、staging 清理与长期数据保全计划
 ../tech/28-v1.3-task53-post-classifier-readiness.md Task53.3-Task53.5 flag、DTO、事务、UI 与隔离 staging 准备契约
 ../prd/31-prd-v1.3-multi-ledger.md v1.3 Task50 多账本正式化冻结 PRD
 ../prd/32-v1.3-task50-acceptance-fixtures.md v1.3 Task50 匿名 Fixture 与验收矩阵

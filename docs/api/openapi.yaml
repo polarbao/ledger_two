@@ -413,6 +413,71 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Success"
+  /metadata/default-profile:
+    get:
+      tags: [metadata]
+      summary: Get the built-in metadata profile resolved against the current ledger
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+        - name: profile
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/MetadataProfileKey"
+      responses:
+        "200":
+          $ref: "#/components/responses/MetadataProfile"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /metadata/default-profile/preview:
+    post:
+      tags: [metadata]
+      summary: Preview applying a built-in metadata profile without writing
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataProfilePreviewRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/MetadataProfilePreview"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /metadata/default-profile/apply:
+    post:
+      tags: [metadata]
+      summary: Apply a built-in metadata profile atomically
+      description: Owner only. Every conflict requires an explicit reuse or skip resolution.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LedgerIdHeaderRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataProfileApplyRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/MetadataProfileApply"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /metadata/{kind}/:
     parameters:
       - $ref: "#/components/parameters/MetadataKindPath"
@@ -1629,6 +1694,45 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    MetadataProfile:
+      description: Resolved metadata profile definition
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [success, data]
+            properties:
+              success:
+                type: boolean
+                enum: [true]
+              data:
+                $ref: "#/components/schemas/MetadataDefaultProfile"
+    MetadataProfilePreview:
+      description: Read-only metadata profile preview
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [success, data]
+            properties:
+              success:
+                type: boolean
+                enum: [true]
+              data:
+                $ref: "#/components/schemas/MetadataProfilePreviewResult"
+    MetadataProfileApply:
+      description: Metadata profile apply result
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [success, data]
+            properties:
+              success:
+                type: boolean
+                enum: [true]
+              data:
+                $ref: "#/components/schemas/MetadataProfileApplyResult"
 
   schemas:
     SuccessResponse:
@@ -2475,6 +2579,8 @@ components:
       properties:
         name:
           type: string
+        metadata_profile:
+          $ref: "#/components/schemas/MetadataProfileKey"
     AddMemberRequest:
       type: object
       required: [username, role, acknowledge_history_visibility]
@@ -2769,3 +2875,103 @@ components:
           enum: [true]
         data:
           $ref: "#/components/schemas/MetadataArchiveResult"
+    MetadataProfileKey:
+      type: string
+      enum: [basic_cn_v1, empty]
+      default: basic_cn_v1
+    MetadataProfileItem:
+      type: object
+      required: [system_key, kind, name, action]
+      properties:
+        system_key:
+          type: string
+        kind:
+          type: string
+          enum: [expense_category, income_category, tag]
+        name:
+          type: string
+        icon:
+          type: string
+        color:
+          type: string
+        action:
+          type: string
+          enum: [create, reuse, skip, conflict, existing]
+        existing_id:
+          type: string
+    MetadataDefaultProfile:
+      type: object
+      required: [key, version, items]
+      properties:
+        key:
+          $ref: "#/components/schemas/MetadataProfileKey"
+        version:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetadataProfileItem"
+    MetadataProfilePreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [profile]
+      properties:
+        profile:
+          $ref: "#/components/schemas/MetadataProfileKey"
+    MetadataProfilePreviewResult:
+      type: object
+      required: [profile, create_count, reuse_count, conflict_count]
+      properties:
+        profile:
+          $ref: "#/components/schemas/MetadataDefaultProfile"
+        create_count:
+          type: integer
+          minimum: 0
+        reuse_count:
+          type: integer
+          minimum: 0
+        conflict_count:
+          type: integer
+          minimum: 0
+    MetadataProfileConflictResolution:
+      type: object
+      additionalProperties: false
+      required: [system_key, action]
+      properties:
+        system_key:
+          type: string
+        action:
+          type: string
+          enum: [reuse, skip]
+        existing_id:
+          type: string
+    MetadataProfileApplyRequest:
+      type: object
+      additionalProperties: false
+      required: [profile, resolutions]
+      properties:
+        profile:
+          $ref: "#/components/schemas/MetadataProfileKey"
+        resolutions:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetadataProfileConflictResolution"
+    MetadataProfileApplyResult:
+      type: object
+      required: [profile, created_count, reused_count, skipped_count, metadata_profile_version]
+      properties:
+        profile:
+          $ref: "#/components/schemas/MetadataProfileKey"
+        created_count:
+          type: integer
+          minimum: 0
+        reused_count:
+          type: integer
+          minimum: 0
+        skipped_count:
+          type: integer
+          minimum: 0
+        metadata_profile_version:
+          type: integer
+          minimum: 0

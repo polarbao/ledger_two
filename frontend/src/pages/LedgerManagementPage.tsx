@@ -34,6 +34,7 @@ import StatusChip from '../components/ui/StatusChip';
 import { useLedgerStore } from '../stores/ledger.store';
 import { useUIStore } from '../stores/ui.store';
 import { formatDate } from '../utils/date';
+import type { MetadataProfileKey } from '../types/metadata';
 import './LedgerManagementPage.css';
 
 type ManagementStatus = Extract<LedgerListStatus, 'active' | 'archived'>;
@@ -63,6 +64,7 @@ export default function LedgerManagementPage() {
   const exitArchivedLedgerView = useLedgerStore((state) => state.exitArchivedLedgerView);
   const isOffline = useUIStore((state) => state.isOffline);
   const [createOpen, setCreateOpen] = useState(false);
+  const [metadataProfile, setMetadataProfile] = useState<MetadataProfileKey>('basic_cn_v1');
   const [leaveTarget, setLeaveTarget] = useState<LedgerWithRole | null>(null);
   const requestedStatus = searchParams.get('status');
   const status: ManagementStatus = requestedStatus === 'archived' ? 'archived' : 'active';
@@ -125,7 +127,10 @@ export default function LedgerManagementPage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (values: LedgerNameValues) => ledgerApi.createLedger(values),
+    mutationFn: (values: LedgerNameValues) => ledgerApi.createLedger({
+      ...values,
+      metadata_profile: metadataProfile,
+    }),
     onSuccess: async (ledger) => {
       syncLedger(ledger);
       await switchActiveLedgerContext({
@@ -135,6 +140,7 @@ export default function LedgerManagementPage() {
         commit: (nextLedger) => setActiveLedger(nextLedger.id, nextLedger.role),
       });
       reset();
+      setMetadataProfile('basic_cn_v1');
       setCreateOpen(false);
       navigate('/');
     },
@@ -321,6 +327,7 @@ export default function LedgerManagementPage() {
           disabled={isOffline}
           onClick={() => {
             createMutation.reset();
+            setMetadataProfile('basic_cn_v1');
             setCreateOpen(true);
           }}
         >
@@ -404,6 +411,7 @@ export default function LedgerManagementPage() {
         onClose={() => {
           if (createMutation.isPending) return;
           createMutation.reset();
+          setMetadataProfile('basic_cn_v1');
           setCreateOpen(false);
         }}
         onConfirm={() => void handleSubmit((values) => createMutation.mutate(values))()}
@@ -424,6 +432,24 @@ export default function LedgerManagementPage() {
             />
             {errors.name ? <small role="alert">{errors.name.message}</small> : null}
           </label>
+          <fieldset className="ledger-create-profile">
+            <legend>初始分类与标签</legend>
+            <SegmentedControl
+              ariaLabel="新账本初始分类与标签"
+              value={metadataProfile}
+              onChange={setMetadataProfile}
+              options={[
+                { value: 'basic_cn_v1', label: '基础分类与标签' },
+                { value: 'empty', label: '空白账本' },
+              ]}
+              fullWidth
+            />
+            <small>
+              {metadataProfile === 'basic_cn_v1'
+                ? '创建常用收支分类、兜底分类和 8 个基础标签，之后可在设置中修改。'
+                : '不创建分类和标签；导入前需要自行补充至少一个支出和收入分类。'}
+            </small>
+          </fieldset>
           {createError ? (
             <div className="ledger-action-feedback ledger-action-feedback--error" role="alert">
               {createError.message}

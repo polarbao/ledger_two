@@ -3,7 +3,7 @@
 状态：当前任务入口，持续维护<br>
 适用阶段：Foundation before v1.1 之后
 
-> 执行更新（2026-07-20）：Task41-Task50 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53.1-Task53.4C 已完成 schema 22、默认元数据、确定性 preview/reclassify、bulk-adjust、explicit learn、规则生命周期和 metadata safeguard；下一实现切片为 Task53U，Task53.5 准备完整但未执行。冻结任务树没有 Task53.6；Task53 关闭后回到 Task51P.1 证据评审，当前有效真实小组证据为 0。
+> 执行更新（2026-07-20）：Task41-Task50 与 Fresh Light UI-FL-01 至 UI-FL-10 已完成。Task53.1-Task53.4C 已完成 schema 22、默认元数据、确定性 preview/reclassify、bulk-adjust、explicit learn、规则生命周期和 metadata safeguard；Task53U 源码/契约完成并等待隔离 schema 22 视觉门禁，Task53.5 准备完整但未执行。冻结任务树没有 Task53.6；Task53 关闭后回到 Task51P.1 证据评审，当前有效真实小组证据为 0。
 
 ## 1. 使用说明
 
@@ -193,7 +193,7 @@
 
 ### Task53：分类、标签与导入分级自动化
 
-状态：Task53P.1-P.6、Task53.1-Task53.4C 已完成；下一实现切片为 Task53U，Task53.5 准备资产完整但尚未执行。入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 和 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。
+状态：Task53P.1-P.6、Task53.1-Task53.4C 已完成；Task53U 源码/契约完成并等待视觉门禁，Task53.5 准备资产完整但尚未执行。入口为 `docs/codex_tasks/19-v1.3-task53-detailed-implementation-plan.md` 和 `docs/tech/28-v1.3-task53-post-classifier-readiness.md`。
 
 目标：
 

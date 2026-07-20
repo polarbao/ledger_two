@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ImportPreviewRow } from '../../types/imports';
 import type { MetadataItem } from '../../types/metadata';
-import { buildImportRowUpdatePayload, createImportRowEditorDraft } from './importRowEditorModel';
+import {
+  buildImportRowUpdatePayload,
+  canRememberImportMerchant,
+  createImportRowEditorDraft,
+  toggleImportTag,
+} from './importRowEditorModel';
 
 const metadata = (id: string, isArchived = false): MetadataItem => ({
   id,
@@ -76,5 +81,20 @@ describe('import row editor model', () => {
       selected_tag_ids: [],
       visibility: 'private',
     });
+  });
+
+  it('caps interactive tag selection at eight without silently dropping existing values', () => {
+    const existing = Array.from({ length: 8 }, (_, index) => `tag-${index + 1}`);
+
+    expect(toggleImportTag(existing, 'tag-9')).toEqual(existing);
+    expect(toggleImportTag(existing, 'tag-3')).toEqual(existing.filter((id) => id !== 'tag-3'));
+    expect(toggleImportTag(existing.slice(0, 7), 'tag-8')).toHaveLength(8);
+  });
+
+  it('offers merchant learning only for mutable recognized merchant rows', () => {
+    expect(canRememberImportMerchant(row())).toBe(true);
+    expect(canRememberImportMerchant(row({ merchant: '  ' }))).toBe(false);
+    expect(canRememberImportMerchant(row({ row_status: 'imported' }))).toBe(false);
+    expect(canRememberImportMerchant(row({ duplicate_status: 'invalid' }))).toBe(false);
   });
 });

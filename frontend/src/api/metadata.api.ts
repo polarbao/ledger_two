@@ -4,6 +4,10 @@ import type {
   MetadataArchiveResult,
   MetadataItem,
   MetadataKind,
+  MetadataProfileApplyResult,
+  MetadataProfileConflictResolution,
+  MetadataProfileKey,
+  MetadataProfilePreviewResult,
   MetadataUpsertPayload,
 } from '../types/metadata';
 
@@ -28,4 +32,15 @@ export const metadataApi = {
 
   reorder: (kind: MetadataKind, orderedIds: string[]) =>
     api.post<{ success: boolean }>(`/api/metadata/${kind}/reorder`, { ordered_ids: orderedIds }),
+
+  previewDefaultProfile: (profile: MetadataProfileKey = 'basic_cn_v1') =>
+    api.post<MetadataProfilePreviewResult>('/api/metadata/default-profile/preview', { profile }),
+
+  applyDefaultProfile: (
+    profile: MetadataProfileKey,
+    resolutions: MetadataProfileConflictResolution[],
+  ) => api.post<MetadataProfileApplyResult>('/api/metadata/default-profile/apply', {
+    profile,
+    resolutions,
+  }),
 };

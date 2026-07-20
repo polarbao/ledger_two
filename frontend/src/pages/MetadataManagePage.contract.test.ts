@@ -17,7 +17,11 @@ describe('UI-FL-07 metadata management contract', () => {
 
     expect(source).toContain("import ConfirmDialog from '../components/ui/ConfirmDialog'");
     expect(source).toContain("import SegmentedControl from '../components/ui/SegmentedControl'");
-    expect(source).toContain('metadataApi.archive(kind, item.id)');
+    expect(source).toContain('metadataApi.archive(kind, item.id, replacementId ? { replacement_category_id: replacementId } : {})');
+    expect(source).toContain("metadataApi.previewDefaultProfile('basic_cn_v1')");
+    expect(source).toContain('metadataApi.applyDefaultProfile(');
+    expect(source).toContain('规则引用 {item.rule_reference_count || 0} 条');
+    expect(source).toContain('选择新的');
     expect(source).toContain('历史引用仍保留原名称');
     expect(source).not.toContain('window.confirm');
     expect(source).not.toContain('style={{');

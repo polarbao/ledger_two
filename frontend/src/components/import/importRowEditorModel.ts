@@ -14,6 +14,8 @@ export interface ImportRowEditorDraft {
   visibility: Exclude<ImportVisibility, 'shared'>;
 }
 
+export const IMPORT_TAG_LIMIT = 8;
+
 export function createImportRowEditorDraft(
   row: ImportPreviewRow,
   categories: MetadataItem[],
@@ -63,4 +65,20 @@ function resolveActiveTagIds(
 ) {
   const activeIds = new Set(tags.filter((tag) => !tag.is_archived).map((tag) => tag.id));
   return Array.from(new Set((selectedIds || suggestedIds || []).filter((id) => activeIds.has(id))));
+}
+
+export function toggleImportTag(currentTagIds: string[], tagId: string, limit = IMPORT_TAG_LIMIT) {
+  if (currentTagIds.includes(tagId)) {
+    return currentTagIds.filter((id) => id !== tagId);
+  }
+  if (currentTagIds.length >= limit) return currentTagIds;
+  return [...currentTagIds, tagId];
+}
+
+export function canRememberImportMerchant(row: ImportPreviewRow) {
+  return Boolean(row.merchant.trim())
+    && row.row_status !== 'imported'
+    && row.row_status !== 'skipped'
+    && row.duplicate_status !== 'invalid'
+    && row.duplicate_status !== 'duplicate';
 }

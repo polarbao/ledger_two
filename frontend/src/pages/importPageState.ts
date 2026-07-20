@@ -1,7 +1,13 @@
 import { ApiError } from '../api/client';
-import type { ImportPreviewBatch, ImportPreviewRow, ImportSourceType } from '../types/imports';
+import type {
+  ImportClassificationStatus,
+  ImportPreviewBatch,
+  ImportPreviewRow,
+  ImportSourceType,
+} from '../types/imports';
 
 export type ImportRowFilter = 'all' | 'new' | 'duplicate' | 'needs_attention' | 'invalid' | 'suspicious' | 'skipped';
+export type ImportClassificationFilter = 'all' | ImportClassificationStatus;
 
 export const IMPORT_ROW_FILTER_LABELS: Record<ImportRowFilter, string> = {
   all: '全部流水',
@@ -11,6 +17,17 @@ export const IMPORT_ROW_FILTER_LABELS: Record<ImportRowFilter, string> = {
   invalid: '无效行',
   suspicious: '疑似重复',
   skipped: '已跳过',
+};
+
+export const IMPORT_CLASSIFICATION_FILTER_LABELS: Record<ImportClassificationFilter, string> = {
+  all: '全部分类状态',
+  auto_selected: '已自动选择',
+  suggested: '待接受建议',
+  fallback: '兜底分类',
+  manual: '手工调整',
+  bulk: '批量调整',
+  conflict: '规则冲突',
+  unresolved: '未识别',
 };
 
 export function validateImportFile(sourceType: ImportSourceType, filename: string, xlsxEnabled = true) {
@@ -107,6 +124,23 @@ export function importRowMatchesFilter(row: ImportPreviewRow, filter: ImportRowF
 
 export function filterImportRows(rows: ImportPreviewRow[], filter: ImportRowFilter) {
   return rows.filter((row) => importRowMatchesFilter(row, filter));
+}
+
+export function filterImportRowsByClassification(
+  rows: ImportPreviewRow[],
+  filter: ImportClassificationFilter,
+) {
+  if (filter === 'all') return rows;
+  return rows.filter((row) => row.classification?.status === filter);
+}
+
+export function selectableImportRows(rows: ImportPreviewRow[]) {
+  return rows.filter((row) => (
+    row.row_status !== 'imported'
+    && row.row_status !== 'skipped'
+    && row.duplicate_status !== 'duplicate'
+    && row.duplicate_status !== 'invalid'
+  ));
 }
 
 export function defaultImportRowFilter(rows: ImportPreviewRow[]): ImportRowFilter {

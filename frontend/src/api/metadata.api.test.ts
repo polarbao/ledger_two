@@ -33,4 +33,36 @@ describe('Task53.4C metadata API', () => {
       headers: expect.objectContaining({ 'X-Ledger-Id': 'ledger-a' }),
     }));
   });
+
+  it('previews and applies the basic profile with explicit conflict resolutions', async () => {
+    await metadataApi.previewDefaultProfile('basic_cn_v1');
+    await metadataApi.applyDefaultProfile('basic_cn_v1', [{
+      system_key: 'expense_food',
+      action: 'reuse',
+      existing_id: 'category-food',
+    }]);
+
+    const calls = vi.mocked(fetch).mock.calls;
+    expect(calls[0]).toEqual([
+      '/api/metadata/default-profile/preview',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ profile: 'basic_cn_v1' }),
+      }),
+    ]);
+    expect(calls[1]).toEqual([
+      '/api/metadata/default-profile/apply',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          profile: 'basic_cn_v1',
+          resolutions: [{
+            system_key: 'expense_food',
+            action: 'reuse',
+            existing_id: 'category-food',
+          }],
+        }),
+      }),
+    ]);
+  });
 });

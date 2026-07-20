@@ -1,6 +1,11 @@
-import { Archive, Loader2, RotateCcw, Save, Sparkles, X } from 'lucide-react';
-import type { FormEvent } from 'react';
-import type { ImportRule, ImportRuleMatchType } from '../../types/imports';
+import { Archive, Brain, Loader2, RotateCcw, Save, ShieldAlert, Sparkles, X } from 'lucide-react';
+import { Fragment, type FormEvent } from 'react';
+import type {
+  ImportRule,
+  ImportRuleApplyMode,
+  ImportRuleMatchType,
+  ImportSourceType,
+} from '../../types/imports';
 import type { MetadataItem } from '../../types/metadata';
 import Button from '../ui/Button';
 import SegmentedControl from '../ui/SegmentedControl';
@@ -8,6 +13,7 @@ import StatusChip from '../ui/StatusChip';
 import type { ImportRuleForm, ImportRuleStatusFilter } from './importRuleModel';
 
 const matchTypeOptions: Array<{ value: ImportRuleMatchType; label: string }> = [
+  { value: 'merchant_equals', label: '商户精确匹配' },
   { value: 'merchant_contains', label: '商户包含' },
   { value: 'description_contains', label: '描述包含' },
   { value: 'source_account', label: '来源账户' },
@@ -58,6 +64,9 @@ export default function ImportRuleManager({
   const activeRules = rules.filter((rule) => rule.status === 'active');
   const archivedRules = rules.filter((rule) => rule.status === 'archived');
   const visibleRules = rules.filter((rule) => statusFilter === 'all' || rule.status === statusFilter);
+  const orderedRules = [...visibleRules].sort((left, right) => (
+    left.origin === right.origin ? right.priority - left.priority : left.origin === 'manual' ? -1 : 1
+  ));
   const activeCategories = categories.filter((item) => !item.is_archived);
   const activeAccounts = accounts.filter((item) => !item.is_archived);
   const activeTags = tags.filter((item) => !item.is_archived);
@@ -79,7 +88,7 @@ export default function ImportRuleManager({
         <div>
           <span className="import-panel__eyebrow">自动推荐</span>
           <h2 id="import-rule-title">导入规则</h2>
-          <p>规则只填充分类、账户和标签建议，不会自动提交账单。</p>
+          <p>自动选择与仅建议都只影响预览，不会自动提交账单。</p>
         </div>
         <StatusChip tone="success">{activeRules.length} 条启用</StatusChip>
       </header>
@@ -155,6 +164,34 @@ export default function ImportRuleManager({
             onChange={(event) => onFormChange({ ...form, priority: event.target.value })}
           />
         </label>
+        <label className="import-field">
+          <span>适用来源</span>
+          <select
+            value={form.source_type}
+            onChange={(event) => onFormChange({
+              ...form,
+              source_type: event.target.value as ImportSourceType | 'all',
+            })}
+          >
+            <option value="all">所有账单来源</option>
+            <option value="wechat">微信账单</option>
+            <option value="alipay">支付宝账单</option>
+            <option value="generic">通用模板</option>
+          </select>
+        </label>
+        <label className="import-field">
+          <span>命中行为</span>
+          <select
+            value={form.apply_mode}
+            onChange={(event) => onFormChange({
+              ...form,
+              apply_mode: event.target.value as ImportRuleApplyMode,
+            })}
+          >
+            <option value="suggest">仅提供建议</option>
+            <option value="auto">自动选择</option>
+          </select>
+        </label>
         <fieldset className="import-rule-tag-options">
           <legend>推荐标签</legend>
           {activeTags.length === 0 ? (
@@ -193,20 +230,45 @@ export default function ImportRuleManager({
       </form>
 
       <div className="import-rule-list">
-        {visibleRules.map((rule) => {
+        {orderedRules.map((rule, index) => {
           const metadataWarning = describeRuleMetadataWarning(rule, categories, accounts, tags);
+          const showGroupHeading = index === 0 || orderedRules[index - 1].origin !== rule.origin;
           return (
-            <article key={rule.id} className={`import-rule-card ${rule.status === 'archived' ? 'is-archived' : ''}`}>
+            <Fragment key={rule.id}>
+              {showGroupHeading ? (
+                <div className="import-rule-group-heading">
+                  {rule.origin === 'learned' ? <Brain size={17} /> : <Sparkles size={17} />}
+                  <strong>{rule.origin === 'learned' ? '系统为你记住的规则' : '用户创建的规则'}</strong>
+                </div>
+              ) : null}
+              <article className={`import-rule-card ${rule.status === 'archived' ? 'is-archived' : ''} ${rule.is_stale ? 'is-stale' : ''}`}>
               <div className="import-rule-card__copy">
                 <div className="import-rule-card__title">
                   <strong>{rule.name || rule.pattern}</strong>
                   <StatusChip tone={rule.status === 'active' ? 'success' : 'neutral'}>
                     {rule.status === 'active' ? '启用' : '已归档'}
                   </StatusChip>
+                  <StatusChip tone={rule.apply_mode === 'auto' ? 'success' : 'info'}>
+                    {rule.apply_mode === 'auto' ? '自动选择' : '仅建议'}
+                  </StatusChip>
+                  <StatusChip tone={rule.origin === 'learned' ? 'accent' : 'neutral'}>
+                    {rule.origin === 'learned' ? '学习规则' : '用户规则'}
+                  </StatusChip>
                 </div>
-                <span>{matchTypeLabel(rule.match_type)}「{rule.pattern}」 · 优先级 {rule.priority}</span>
+                <span>
+                  {matchTypeLabel(rule.match_type)}「{rule.pattern}」 · {sourceTypeLabel(rule.source_type)} · 优先级 {rule.priority}
+                </span>
                 <small>{describeRuleResult(rule, categories, accounts, tags)}</small>
-                {metadataWarning ? <small className="import-rule-warning">需处理：{metadataWarning}</small> : null}
+                <small>
+                  已提交命中 {rule.committed_hit_count} 次
+                  {rule.last_committed_hit_at ? ` · 最近 ${formatRuleTime(rule.last_committed_hit_at)}` : ''}
+                </small>
+                {metadataWarning || rule.is_stale ? (
+                  <small className="import-rule-warning">
+                    <ShieldAlert size={14} />
+                    需处理：{metadataWarning || `存在 ${rule.stale_reference_ids.length} 个失效引用`}
+                  </small>
+                ) : null}
               </div>
               <div className="import-rule-card__actions">
                 <Button variant="ghost" onClick={() => onEdit(rule)} disabled={busy}>编辑</Button>
@@ -230,7 +292,8 @@ export default function ImportRuleManager({
                   </Button>
                 )}
               </div>
-            </article>
+              </article>
+            </Fragment>
           );
         })}
         {visibleRules.length === 0 ? (
@@ -246,6 +309,15 @@ export default function ImportRuleManager({
 
 function matchTypeLabel(matchType: ImportRuleMatchType) {
   return matchTypeOptions.find((option) => option.value === matchType)?.label || matchType;
+}
+
+function sourceTypeLabel(sourceType: ImportRule['source_type']) {
+  if (!sourceType) return '所有来源';
+  return { wechat: '微信', alipay: '支付宝', generic: '通用模板' }[sourceType];
+}
+
+function formatRuleTime(value: string) {
+  return value.replace('T', ' ').slice(0, 16);
 }
 
 function describeRuleResult(

@@ -29,6 +29,9 @@ describe('Task50.5 ledger management UI contract', () => {
 
     expect(management).toContain('SegmentedControl');
     expect(management).toContain('ResponsiveDataList');
+    expect(management).toContain('metadata_profile: metadataProfile');
+    expect(management).toContain('基础分类与标签');
+    expect(management).toContain('空白账本');
     expect(lifecycle).toContain('ledgerApi.getArchivePreflight');
     expect(lifecycle).toContain('ledgerApi.archiveLedger');
     expect(lifecycle).toContain('ledgerApi.restoreLedger');

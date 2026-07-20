@@ -5,8 +5,11 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   FileWarning,
+  Layers3,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
+  Tags,
   Upload,
   X,
 } from 'lucide-react';
@@ -31,6 +34,8 @@ import StatusChip, { type StatusChipTone } from '../components/ui/StatusChip';
 import { useLedgerStore } from '../stores/ledger.store';
 import type {
   ImportCommitResult,
+  ImportBulkClassificationPayload,
+  ImportLearnSourceScope,
   ImportPreviewBatch,
   ImportPreviewRow,
   ImportRule,
@@ -41,11 +46,15 @@ import type {
 import {
   buildImportCommitSummary,
   defaultImportRowFilter,
+  filterImportRowsByClassification,
   filterImportRows,
   getImportFileAccept,
   getImportSourceDescription,
+  IMPORT_CLASSIFICATION_FILTER_LABELS,
   IMPORT_ROW_FILTER_LABELS,
   resolveImportErrorMessage,
+  selectableImportRows,
+  type ImportClassificationFilter,
   type ImportRowFilter,
   validateImportFile,
 } from './importPageState';
@@ -93,6 +102,14 @@ function ImportWorkspace({
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleStatusFilter, setRuleStatusFilter] = useState<ImportRuleStatusFilter>('all');
   const [rowFilter, setRowFilter] = useState<ImportRowFilter>('all');
+  const [classificationFilter, setClassificationFilter] = useState<ImportClassificationFilter>('all');
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [reclassifyPreview, setReclassifyPreview] = useState<Awaited<ReturnType<typeof importsApi.reclassify>> | null>(null);
+  const [sameMerchantRow, setSameMerchantRow] = useState<ImportPreviewRow | null>(null);
+  const [sameMerchantRemember, setSameMerchantRemember] = useState(false);
+  const [bulkValuesOpen, setBulkValuesOpen] = useState(false);
+  const [bulkValues, setBulkValues] = useState({ categoryId: '', accountId: '', tagIds: [] as string[] });
   const isOwner = activeRole === 'owner';
 
   const { data: health } = useQuery({
@@ -125,7 +142,10 @@ function ImportWorkspace({
 
   const summary = useMemo(() => buildSummary(batch), [batch]);
   const commitSummary = useMemo(() => buildImportCommitSummary(batch), [batch]);
-  const visibleRows = useMemo(() => filterImportRows(batch?.rows || [], rowFilter), [batch?.rows, rowFilter]);
+  const visibleRows = useMemo(() => filterImportRowsByClassification(
+    filterImportRows(batch?.rows || [], rowFilter),
+    classificationFilter,
+  ), [batch?.rows, classificationFilter, rowFilter]);
   const canOpenCommit = isOwner && Boolean(batch) && batch?.status === 'ready';
 
   const previewMutation = useMutation({
@@ -133,7 +153,10 @@ function ImportWorkspace({
     onSuccess: (data) => {
       setBatch(data);
       setRowFilter(defaultImportRowFilter(data.rows));
+      setClassificationFilter('all');
+      setSelectedRowIds(new Set());
       setCommitResult(null);
+      setActionMessage(null);
       setErrorMsg(null);
       window.requestAnimationFrame(() => rowListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     },
@@ -144,16 +167,108 @@ function ImportWorkspace({
   });
 
   const updateRowMutation = useMutation({
-    mutationFn: ({ row, payload }: { row: ImportPreviewRow; payload: UpdateImportRowPayload }) => (
-      importsApi.updateRow(batch?.id || '', row.id, payload)
-    ),
-    onSuccess: (data) => {
-      setBatch(data);
+    mutationFn: async ({
+      row,
+      payload,
+      learning,
+    }: {
+      row: ImportPreviewRow;
+      payload: UpdateImportRowPayload;
+      learning?: { remember: boolean; sourceScope: ImportLearnSourceScope };
+    }) => {
+      const updatedBatch = await importsApi.updateRow(batch?.id || '', row.id, payload);
+      if (!learning?.remember) return { updatedBatch, learnResult: null, learnError: null as unknown };
+      try {
+        const learnResult = await importsApi.learnMerchant(updatedBatch.id, row.id, { source_scope: learning.sourceScope });
+        return { updatedBatch, learnResult, learnError: null as unknown };
+      } catch (learnError) {
+        return { updatedBatch, learnResult: null, learnError };
+      }
+    },
+    onSuccess: ({ updatedBatch, learnResult, learnError }) => {
+      setBatch(updatedBatch);
       setEditingRow(null);
       setErrorMsg(null);
+      setActionMessage(learnError
+        ? `本行已保存，长期规则未创建：${resolveImportErrorMessage(learnError, '请稍后重试')}`
+        : learnResult
+          ? `本行已保存，已${learnResult.action === 'created' ? '创建' : learnResult.action === 'restored' ? '恢复' : '更新'}商户规则。`
+          : '本行调整已保存。');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
     },
     onError: (err: unknown) => {
       setErrorMsg(resolveImportErrorMessage(err, '更新预览行失败'));
+    },
+  });
+
+  const bulkAdjustMutation = useMutation({
+    mutationFn: async ({
+      payload,
+      message,
+      learnRow,
+      sourceScope = 'current_source',
+    }: {
+      payload: ImportBulkClassificationPayload;
+      message: string;
+      learnRow?: ImportPreviewRow;
+      sourceScope?: ImportLearnSourceScope;
+    }) => {
+      if (!batch) throw new Error('missing batch');
+      const result = await importsApi.bulkAdjust(batch.id, payload);
+      let learnError: unknown = null;
+      if (learnRow) {
+        try {
+          await importsApi.learnMerchant(batch.id, learnRow.id, { source_scope: sourceScope });
+        } catch (error) {
+          learnError = error;
+        }
+      }
+      const latestBatch = await importsApi.getBatch(batch.id);
+      return { result, latestBatch, message, learnError };
+    },
+    onSuccess: ({ result, latestBatch, message, learnError }) => {
+      setBatch(latestBatch);
+      setSelectedRowIds(new Set());
+      setBulkValuesOpen(false);
+      setSameMerchantRow(null);
+      setSameMerchantRemember(false);
+      setErrorMsg(null);
+      setActionMessage(
+        `${message}：已更新 ${result.affected_rows} 条，跳过 ${result.skipped_rows} 条，冲突 ${result.conflict_rows} 条。`
+        + (learnError ? ` 本批次已更新，但长期规则未创建：${resolveImportErrorMessage(learnError, '请稍后重试')}` : ''),
+      );
+      void queryClient.invalidateQueries({ queryKey: queryKeys.importRules(activeLedgerId) });
+    },
+    onError: (err: unknown) => {
+      setErrorMsg(resolveImportErrorMessage(err, '批量分类调整失败'));
+    },
+  });
+
+  const reclassifyDryRunMutation = useMutation({
+    mutationFn: () => importsApi.reclassify(batch?.id || '', true),
+    onSuccess: (result) => {
+      setReclassifyPreview(result);
+      setErrorMsg(null);
+    },
+    onError: (err: unknown) => setErrorMsg(resolveImportErrorMessage(err, '重新分类预检失败')),
+  });
+
+  const reclassifyMutation = useMutation({
+    mutationFn: async () => {
+      if (!batch) throw new Error('missing batch');
+      const result = await importsApi.reclassify(batch.id, false);
+      const latestBatch = await importsApi.getBatch(batch.id);
+      return { result, latestBatch };
+    },
+    onSuccess: ({ result, latestBatch }) => {
+      setBatch(latestBatch);
+      setReclassifyPreview(null);
+      setActionMessage(`重新分类完成：变化 ${result.changed_rows} 条，保留手工/批量调整 ${result.protected_manual_rows + result.protected_bulk_rows} 条。`);
+      setErrorMsg(null);
+    },
+    onError: (err: unknown) => {
+      setReclassifyPreview(null);
+      setErrorMsg(resolveImportErrorMessage(err, '重新分类失败'));
     },
   });
 
@@ -252,6 +367,8 @@ function ImportWorkspace({
     }
     setSelectedFile(file);
     setBatch(null);
+    setClassificationFilter('all');
+    setSelectedRowIds(new Set());
     setRowFilter('all');
     previewMutation.mutate(file);
   };
@@ -261,6 +378,7 @@ function ImportWorkspace({
     setBatch(null);
     setCommitResult(null);
     setErrorMsg(null);
+    setActionMessage(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -304,6 +422,8 @@ function ImportWorkspace({
       account_id: rule.result.account_id || '',
       tag_ids: rule.result.tag_ids || [],
       priority: String(rule.priority),
+      source_type: rule.source_type || 'all',
+      apply_mode: rule.apply_mode,
     });
   };
 
@@ -311,6 +431,58 @@ function ImportWorkspace({
     setEditingRuleId(null);
     setRuleForm(createDefaultImportRuleForm());
   };
+
+  const handleToggleRowSelection = (row: ImportPreviewRow) => {
+    setSelectedRowIds((current) => {
+      const next = new Set(current);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.add(row.id);
+      return next;
+    });
+  };
+
+  const handleAcceptSuggestions = (rows: ImportPreviewRow[]) => {
+    const rowIds = rows
+      .filter((row) => row.classification?.status === 'suggested')
+      .map((row) => row.id);
+    if (rowIds.length === 0) {
+      setErrorMsg('所选流水中没有可接受的分类建议');
+      return;
+    }
+    bulkAdjustMutation.mutate({
+      payload: { row_ids: rowIds, action: 'accept_suggestions' },
+      message: '已接受分类建议，尚未提交导入批次',
+    });
+  };
+
+  const handleApplySameMerchant = () => {
+    if (!batch || !sameMerchantRow) return;
+    const categoryId = sameMerchantRow.selected_category_id || sameMerchantRow.suggested_category_id || '';
+    if (!categoryId) {
+      setErrorMsg('请先为该行选择分类，再应用到相同商户');
+      setSameMerchantRow(null);
+      return;
+    }
+    const merchant = normalizeMerchant(sameMerchantRow.merchant);
+    const rowIds = selectableImportRows(batch.rows)
+      .filter((row) => normalizeMerchant(row.merchant) === merchant)
+      .map((row) => row.id);
+    bulkAdjustMutation.mutate({
+      payload: {
+        row_ids: rowIds,
+        action: 'apply_values',
+        category_id: categoryId,
+        account_id: sameMerchantRow.selected_account_id || sameMerchantRow.suggested_account_id || null,
+        tag_ids: sameMerchantRow.selected_tag_ids?.length
+          ? sameMerchantRow.selected_tag_ids
+          : sameMerchantRow.suggested_tag_ids || [],
+      },
+      message: `已应用到商户“${sameMerchantRow.merchant.trim()}”`,
+      learnRow: sameMerchantRemember ? sameMerchantRow : undefined,
+    });
+  };
+
+  const selectedRows = batch?.rows.filter((row) => selectedRowIds.has(row.id)) || [];
 
   return (
     <div className="page-content animate-fade-in import-workbench">
@@ -337,6 +509,22 @@ function ImportWorkspace({
             aria-label="关闭错误提示"
             title="关闭错误提示"
             onClick={() => setErrorMsg(null)}
+          >
+            <X size={18} />
+          </Button>
+        </div>
+      ) : null}
+
+      {actionMessage ? (
+        <div className="import-workbench__notice is-success" role="status" aria-live="polite">
+          <CheckCircle2 size={18} />
+          <span>{actionMessage}</span>
+          <Button
+            variant="ghost"
+            iconOnly
+            aria-label="关闭操作结果"
+            title="关闭操作结果"
+            onClick={() => setActionMessage(null)}
           >
             <X size={18} />
           </Button>
@@ -473,12 +661,51 @@ function ImportWorkspace({
                   ))}
                 </div>
 
+                <div className="import-classification-summary" aria-label="自动分类摘要">
+                  <div className="import-classification-summary__heading">
+                    <div>
+                      <Layers3 size={18} />
+                      <strong>分类结果</strong>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      startIcon={<RefreshCw size={16} />}
+                      onClick={() => reclassifyDryRunMutation.mutate()}
+                      isLoading={reclassifyDryRunMutation.isPending}
+                      disabled={batch.status !== 'ready' || bulkAdjustMutation.isPending}
+                    >
+                      重新分类
+                    </Button>
+                  </div>
+                  <div className="import-classification-summary__items">
+                    {buildClassificationSummary(batch).map((item) => (
+                      <button
+                        key={item.filter}
+                        type="button"
+                        aria-pressed={classificationFilter === item.filter}
+                        onClick={() => setClassificationFilter(item.filter)}
+                      >
+                        <span>{item.label}</span>
+                        <strong>{item.value}</strong>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <SegmentedControl
                   className="import-row-filter"
                   ariaLabel="导入行状态筛选"
                   value={rowFilter}
                   onChange={setRowFilter}
                   options={buildRowFilterOptions(batch)}
+                />
+
+                <SegmentedControl
+                  className="import-row-filter import-classification-filter"
+                  ariaLabel="自动分类状态筛选"
+                  value={classificationFilter}
+                  onChange={setClassificationFilter}
+                  options={buildClassificationFilterOptions(batch)}
                 />
 
                 {commitResult ? (
@@ -496,11 +723,51 @@ function ImportWorkspace({
                     <div>
                       <strong>{IMPORT_ROW_FILTER_LABELS[rowFilter]}</strong>
                       <span>显示 {visibleRows.length} / {batch.rows.length} 条</span>
+                      {classificationFilter !== 'all' ? (
+                        <small>{IMPORT_CLASSIFICATION_FILTER_LABELS[classificationFilter]}</small>
+                      ) : null}
                     </div>
-                    {rowFilter !== 'all' ? (
-                      <Button variant="ghost" onClick={() => setRowFilter('all')}>显示全部</Button>
+                    {rowFilter !== 'all' || classificationFilter !== 'all' ? (
+                      <Button variant="ghost" onClick={() => {
+                        setRowFilter('all');
+                        setClassificationFilter('all');
+                      }}>清除筛选</Button>
                     ) : null}
                   </div>
+                  {selectedRows.length > 0 ? (
+                    <div className="import-bulk-bar" role="region" aria-label="批量分类操作">
+                      <div>
+                        <Tags size={17} />
+                        <strong>已选择 {selectedRows.length} 条</strong>
+                        <span>批量调整只修改预览，不会提交账单。</span>
+                      </div>
+                      <div>
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleAcceptSuggestions(selectedRows)}
+                          disabled={bulkAdjustMutation.isPending}
+                        >
+                          接受建议
+                        </Button>
+                        <Button
+                          variant="primary"
+                          onClick={() => {
+                            const first = selectedRows[0];
+                            setBulkValues({
+                              categoryId: first.selected_category_id || first.suggested_category_id || '',
+                              accountId: first.selected_account_id || first.suggested_account_id || '',
+                              tagIds: first.selected_tag_ids?.length ? first.selected_tag_ids : first.suggested_tag_ids || [],
+                            });
+                            setBulkValuesOpen(true);
+                          }}
+                          disabled={bulkAdjustMutation.isPending}
+                        >
+                          应用相同值
+                        </Button>
+                        <Button variant="ghost" onClick={() => setSelectedRowIds(new Set())}>取消选择</Button>
+                      </div>
+                    </div>
+                  ) : null}
                   {visibleRows.length === 0 ? (
                     <div className="import-filter-empty"><CheckCircle2 size={20} /><span>当前筛选下没有流水</span></div>
                   ) : (
@@ -510,6 +777,13 @@ function ImportWorkspace({
                       accounts={accounts}
                       tags={tags}
                       disabled={updateRowMutation.isPending || batch.status === 'committed'}
+                      selectedRowIds={selectedRowIds}
+                      onToggleSelect={handleToggleRowSelection}
+                      onAcceptSuggestion={(row) => handleAcceptSuggestions([row])}
+                      onApplySameMerchant={(row) => {
+                        setSameMerchantRemember(false);
+                        setSameMerchantRow(row);
+                      }}
                       onSkip={(row) => updateRowMutation.mutate({ row, payload: { row_status: 'skipped' } })}
                       onRestore={(row) => updateRowMutation.mutate({ row, payload: { row_status: 'pending' } })}
                       onConfirmImport={(row) => updateRowMutation.mutate({ row, payload: { row_status: 'adjusted' } })}
@@ -612,6 +886,116 @@ function ImportWorkspace({
       />
 
       <ConfirmDialog
+        open={Boolean(reclassifyPreview)}
+        title="确认重新分类？"
+        description="仅重新计算仍可自动处理的预览行；手工和批量调整会受到保护。"
+        confirmLabel="执行重新分类"
+        cancelLabel="保留当前结果"
+        icon={<RefreshCw size={22} />}
+        isConfirming={reclassifyMutation.isPending}
+        onConfirm={() => reclassifyMutation.mutate()}
+        onClose={() => setReclassifyPreview(null)}
+      >
+        {reclassifyPreview ? (
+          <div className="import-confirm-summary">
+            <div><span>可处理</span><strong>{reclassifyPreview.eligible_rows}</strong></div>
+            <div><span>预计变化</span><strong>{reclassifyPreview.changed_rows}</strong></div>
+            <div><span>保护手工</span><strong>{reclassifyPreview.protected_manual_rows}</strong></div>
+            <div><span>保护批量</span><strong>{reclassifyPreview.protected_bulk_rows}</strong></div>
+          </div>
+        ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={Boolean(sameMerchantRow)}
+        title="应用到相同商户？"
+        description={`将当前分类和标签应用到本批次内商户“${sameMerchantRow?.merchant.trim() || ''}”的可处理流水。`}
+        confirmLabel="应用到本批次"
+        cancelLabel="取消"
+        icon={<Sparkles size={22} />}
+        isConfirming={bulkAdjustMutation.isPending}
+        onConfirm={handleApplySameMerchant}
+        onClose={() => {
+          setSameMerchantRow(null);
+          setSameMerchantRemember(false);
+        }}
+      >
+        <label className="import-remember-confirm">
+          <input
+            type="checkbox"
+            checked={sameMerchantRemember}
+            onChange={(event) => setSameMerchantRemember(event.target.checked)}
+          />
+          <span>同时记住此商户，用于以后导入</span>
+        </label>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={bulkValuesOpen}
+        title={`为 ${selectedRows.length} 条流水应用相同值`}
+        description="本操作只调整当前预览；分类为必填，标签最多选择 8 个。"
+        confirmLabel="应用相同值"
+        cancelLabel="取消"
+        icon={<Tags size={22} />}
+        isConfirming={bulkAdjustMutation.isPending}
+        confirmDisabled={!bulkValues.categoryId}
+        onConfirm={() => bulkAdjustMutation.mutate({
+          payload: {
+            row_ids: selectedRows.map((row) => row.id),
+            action: 'apply_values',
+            category_id: bulkValues.categoryId,
+            account_id: bulkValues.accountId || null,
+            tag_ids: bulkValues.tagIds,
+          },
+          message: '批量分类调整完成',
+        })}
+        onClose={() => setBulkValuesOpen(false)}
+      >
+        <div className="import-bulk-editor">
+          <label className="import-field">
+            <span>分类</span>
+            <select value={bulkValues.categoryId} onChange={(event) => setBulkValues({ ...bulkValues, categoryId: event.target.value })}>
+              <option value="">请选择分类</option>
+              {categories.filter((item) => !item.is_archived).map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="import-field">
+            <span>账户</span>
+            <select value={bulkValues.accountId} onChange={(event) => setBulkValues({ ...bulkValues, accountId: event.target.value })}>
+              <option value="">不指定账户</option>
+              {accounts.filter((item) => !item.is_archived).map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+          <fieldset className="import-rule-tag-options">
+            <legend>标签 {bulkValues.tagIds.length}/8</legend>
+            {tags.filter((item) => !item.is_archived).map((item) => {
+              const checked = bulkValues.tagIds.includes(item.id);
+              return (
+                <label key={item.id} className={checked ? 'is-selected' : ''}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={!checked && bulkValues.tagIds.length >= 8}
+                    onChange={() => setBulkValues({
+                      ...bulkValues,
+                      tagIds: checked
+                        ? bulkValues.tagIds.filter((id) => id !== item.id)
+                        : [...bulkValues.tagIds, item.id],
+                    })}
+                  />
+                  <span>{item.name}</span>
+                </label>
+              );
+            })}
+          </fieldset>
+        </div>
+      </ConfirmDialog>
+
+      <ConfirmDialog
         open={Boolean(ruleToArchive)}
         title={`归档规则“${ruleToArchive?.name || ruleToArchive?.pattern || ''}”？`}
         description="归档后该规则不再参与新预览推荐；已有预览、历史账单和手工调整不会改变。"
@@ -633,7 +1017,7 @@ function ImportWorkspace({
           accounts={accounts}
           tags={tags}
           saving={updateRowMutation.isPending}
-          onSave={(payload) => updateRowMutation.mutate({ row: editingRow, payload })}
+          onSave={(payload, learning) => updateRowMutation.mutate({ row: editingRow, payload, learning })}
           onClose={() => setEditingRow(null)}
         />
       ) : null}
@@ -663,6 +1047,37 @@ function buildRowFilterOptions(batch: ImportPreviewBatch) {
     { value: 'invalid' as const, label: '错误', count: batch.invalid_rows },
     { value: 'skipped' as const, label: '跳过', count: batch.skipped_rows },
   ];
+}
+
+function buildClassificationSummary(batch: ImportPreviewBatch) {
+  return [
+    { filter: 'auto_selected' as const, label: '自动选择', value: batch.classification_summary?.auto_selected ?? 0 },
+    { filter: 'suggested' as const, label: '待接受', value: batch.classification_summary?.suggested ?? 0 },
+    { filter: 'fallback' as const, label: '兜底', value: batch.classification_summary?.fallback ?? 0 },
+    { filter: 'manual' as const, label: '手工', value: batch.classification_summary?.manual ?? 0 },
+    { filter: 'bulk' as const, label: '批量', value: batch.classification_summary?.bulk ?? 0 },
+    { filter: 'conflict' as const, label: '冲突', value: batch.classification_summary?.conflict ?? 0 },
+  ];
+}
+
+function buildClassificationFilterOptions(batch: ImportPreviewBatch) {
+  return [
+    { value: 'all' as const, label: '全部', count: batch.rows.length },
+    ...buildClassificationSummary(batch).map((item) => ({
+      value: item.filter,
+      label: item.label,
+      count: item.value,
+    })),
+    {
+      value: 'unresolved' as const,
+      label: '未识别',
+      count: batch.classification_summary?.unresolved ?? 0,
+    },
+  ];
+}
+
+function normalizeMerchant(value: string) {
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 }
 
 function batchStatusLabel(status?: ImportPreviewBatch['status']) {

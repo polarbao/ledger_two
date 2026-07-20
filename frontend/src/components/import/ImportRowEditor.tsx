@@ -1,6 +1,10 @@
-import { AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { AlertTriangle, Brain, SlidersHorizontal } from 'lucide-react';
 import { useState } from 'react';
-import type { ImportPreviewRow, UpdateImportRowPayload } from '../../types/imports';
+import type {
+  ImportLearnSourceScope,
+  ImportPreviewRow,
+  UpdateImportRowPayload,
+} from '../../types/imports';
 import type { MetadataItem } from '../../types/metadata';
 import { centsToYuan } from '../../utils/money';
 import BottomSheet from '../ui/BottomSheet';
@@ -8,7 +12,10 @@ import Button from '../ui/Button';
 import StatusChip from '../ui/StatusChip';
 import {
   buildImportRowUpdatePayload,
+  canRememberImportMerchant,
   createImportRowEditorDraft,
+  IMPORT_TAG_LIMIT,
+  toggleImportTag,
   type ImportRowEditorDraft,
 } from './importRowEditorModel';
 
@@ -18,7 +25,10 @@ interface ImportRowEditorProps {
   accounts: MetadataItem[];
   tags: MetadataItem[];
   saving: boolean;
-  onSave: (payload: UpdateImportRowPayload) => void;
+  onSave: (
+    payload: UpdateImportRowPayload,
+    learning?: { remember: boolean; sourceScope: ImportLearnSourceScope },
+  ) => void;
   onClose: () => void;
 }
 
@@ -37,14 +47,17 @@ export default function ImportRowEditor({
   const [draft, setDraft] = useState<ImportRowEditorDraft>(() => (
     createImportRowEditorDraft(row, categories, accounts, tags)
   ));
+  const [rememberMerchant, setRememberMerchant] = useState(false);
+  const [sourceScope, setSourceScope] = useState<ImportLearnSourceScope>('current_source');
   const selectedTags = new Set(draft.tagIds);
+  const canRemember = canRememberImportMerchant(row) && draft.targetTransactionType !== 'skipped';
 
   const toggleTag = (tagId: string) => {
     setDraft((current) => ({
       ...current,
       tagIds: selectedTags.has(tagId)
         ? current.tagIds.filter((id) => id !== tagId)
-        : [...current.tagIds, tagId],
+        : toggleImportTag(current.tagIds, tagId),
     }));
   };
 
@@ -62,7 +75,10 @@ export default function ImportRowEditor({
             variant="primary"
             startIcon={<SlidersHorizontal size={17} />}
             isLoading={saving}
-            onClick={() => onSave(buildImportRowUpdatePayload(draft))}
+            onClick={() => onSave(buildImportRowUpdatePayload(draft), {
+              remember: rememberMerchant,
+              sourceScope,
+            })}
           >
             保存调整
           </Button>
@@ -156,7 +172,7 @@ export default function ImportRowEditor({
             </fieldset>
 
             <fieldset className="import-row-editor__tags">
-              <legend>标签</legend>
+              <legend>标签 <span>{draft.tagIds.length}/{IMPORT_TAG_LIMIT}</span></legend>
               {activeTags.length === 0 ? (
                 <span className="import-row-editor__empty-tags">暂无可用标签</span>
               ) : activeTags.map((tag) => (
@@ -164,12 +180,46 @@ export default function ImportRowEditor({
                   <input
                     type="checkbox"
                     checked={selectedTags.has(tag.id)}
+                    disabled={!selectedTags.has(tag.id) && draft.tagIds.length >= IMPORT_TAG_LIMIT}
                     onChange={() => toggleTag(tag.id)}
                   />
                   <span>{tag.name}</span>
                 </label>
               ))}
             </fieldset>
+
+            {canRemember ? (
+              <fieldset className="import-row-editor__remember">
+                <legend>长期规则</legend>
+                <label className={rememberMerchant ? 'is-selected' : ''}>
+                  <input
+                    type="checkbox"
+                    checked={rememberMerchant}
+                    onChange={(event) => setRememberMerchant(event.target.checked)}
+                  />
+                  <Brain size={17} aria-hidden="true" />
+                  <span>记住此商户，下次导入继续使用本次分类与标签</span>
+                </label>
+                {rememberMerchant ? (
+                  <div className="import-row-editor__learn-scope" role="group" aria-label="商户规则适用来源">
+                    <button
+                      type="button"
+                      aria-pressed={sourceScope === 'current_source'}
+                      onClick={() => setSourceScope('current_source')}
+                    >
+                      仅当前来源
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={sourceScope === 'all_sources'}
+                      onClick={() => setSourceScope('all_sources')}
+                    >
+                      所有账单来源
+                    </button>
+                  </div>
+                ) : null}
+              </fieldset>
+            ) : null}
           </>
         ) : (
           <StatusChip tone="warning">保存后该行计入跳过，不写入正式账单</StatusChip>

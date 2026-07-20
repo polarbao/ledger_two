@@ -1,4 +1,9 @@
-import type { ImportRuleMatchType, ImportRuleUpsertPayload } from '../../types/imports';
+import type {
+  ImportRuleApplyMode,
+  ImportRuleMatchType,
+  ImportRuleUpsertPayload,
+  ImportSourceType,
+} from '../../types/imports';
 
 export type ImportRuleStatusFilter = 'all' | 'active' | 'archived';
 
@@ -10,6 +15,8 @@ export interface ImportRuleForm {
   account_id: string;
   tag_ids: string[];
   priority: string;
+  source_type: ImportSourceType | 'all';
+  apply_mode: ImportRuleApplyMode;
 }
 
 export const createDefaultImportRuleForm = (): ImportRuleForm => ({
@@ -20,6 +27,8 @@ export const createDefaultImportRuleForm = (): ImportRuleForm => ({
   account_id: '',
   tag_ids: [],
   priority: '100',
+  source_type: 'all',
+  apply_mode: 'suggest',
 });
 
 export function buildImportRulePayload(form: ImportRuleForm): ImportRuleUpsertPayload | null {
@@ -34,6 +43,8 @@ export function buildImportRulePayload(form: ImportRuleForm): ImportRuleUpsertPa
     match_type: form.match_type,
     pattern,
     priority: Number.isFinite(priority) ? priority : 100,
+    source_type: form.source_type === 'all' ? null : form.source_type,
+    apply_mode: form.apply_mode,
     result: {
       category_id: form.category_id || undefined,
       account_id: form.account_id || undefined,

@@ -7,10 +7,12 @@ import {
   ArrowLeft,
   ArrowUp,
   FolderTree,
+  PackagePlus,
   Pencil,
   RotateCcw,
   Save,
   Search,
+  ShieldCheck,
   Tag,
   WalletCards,
   X,
@@ -25,7 +27,13 @@ import SegmentedControl from '../components/ui/SegmentedControl';
 import StatusChip from '../components/ui/StatusChip';
 import { useHasLedgerRole } from '../components/ledger/useLedgerPermission';
 import { useLedgerStore } from '../stores/ledger.store';
-import type { MetadataItem, MetadataKind, MetadataUpsertPayload } from '../types/metadata';
+import type {
+  MetadataItem,
+  MetadataKind,
+  MetadataProfileConflictResolution,
+  MetadataProfilePreviewResult,
+  MetadataUpsertPayload,
+} from '../types/metadata';
 import './MetadataManagePage.css';
 
 interface KindConfig {
@@ -126,6 +134,9 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [replacementCategoryId, setReplacementCategoryId] = useState('');
+  const [profilePreview, setProfilePreview] = useState<MetadataProfilePreviewResult | null>(null);
+  const [profileResolutions, setProfileResolutions] = useState<Record<string, MetadataProfileConflictResolution>>({});
   const config = KIND_CONFIG[kind];
 
   const itemsQuery = useQuery({
@@ -174,11 +185,12 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (item: MetadataItem): Promise<unknown> => item.is_archived
+    mutationFn: ({ item, replacementId }: { item: MetadataItem; replacementId?: string }): Promise<unknown> => item.is_archived
       ? metadataApi.restore(kind, item.id)
-      : metadataApi.archive(kind, item.id),
-    onSuccess: (_, item) => {
+      : metadataApi.archive(kind, item.id, replacementId ? { replacement_category_id: replacementId } : {}),
+    onSuccess: (_, { item }) => {
       setArchiveTarget(null);
+      setReplacementCategoryId('');
       setSuccessMsg(item.is_archived ? `${config.singular}已恢复` : `${config.singular}已归档`);
       setErrorMsg(null);
       invalidateMetadata();
@@ -186,6 +198,36 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
     onError: (error: unknown) => {
       setSuccessMsg(null);
       setErrorMsg(error instanceof ApiError ? error.message : '状态更新失败，请稍后重试');
+    },
+  });
+
+  const profilePreviewMutation = useMutation({
+    mutationFn: () => metadataApi.previewDefaultProfile('basic_cn_v1'),
+    onSuccess: (preview) => {
+      setProfilePreview(preview);
+      setProfileResolutions({});
+      setErrorMsg(null);
+    },
+    onError: (error: unknown) => {
+      setErrorMsg(error instanceof ApiError ? error.message : '基础分类与标签预览失败');
+    },
+  });
+
+  const profileApplyMutation = useMutation({
+    mutationFn: () => metadataApi.applyDefaultProfile(
+      'basic_cn_v1',
+      Object.values(profileResolutions),
+    ),
+    onSuccess: (result) => {
+      setProfilePreview(null);
+      setProfileResolutions({});
+      setSuccessMsg(`基础包已应用：新建 ${result.created_count} 项，复用 ${result.reused_count} 项，跳过 ${result.skipped_count} 项。`);
+      setErrorMsg(null);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.metadata.root(activeLedgerId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.categories(activeLedgerId) });
+    },
+    onError: (error: unknown) => {
+      setErrorMsg(error instanceof ApiError ? error.message : '应用基础分类与标签失败');
     },
   });
 
@@ -251,9 +293,17 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
               <strong>{item.name}</strong>
               {!item.is_archived ? <StatusChip>排序 {orderIndex + 1}</StatusChip> : null}
               {item.type ? <StatusChip tone="info">{typeLabels[item.type] || item.type}</StatusChip> : null}
+              {item.system_key ? (
+                <StatusChip tone={isFallbackCategory(item) ? 'warning' : 'success'} icon={<ShieldCheck size={13} />}>
+                  {isFallbackCategory(item) ? '导入兜底' : '系统基础'}
+                </StatusChip>
+              ) : null}
               {item.is_archived ? <StatusChip tone="warning">已归档</StatusChip> : null}
             </div>
-            <span>{item.icon ? `图标 ${item.icon} · ` : ''}历史引用 {item.usage_count || 0} 笔</span>
+            <span>
+              {item.icon ? `图标 ${item.icon} · ` : ''}
+              历史引用 {item.usage_count || 0} 笔 · 规则引用 {item.rule_reference_count || 0} 条
+            </span>
           </div>
         </div>
 
@@ -287,7 +337,10 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
             <Button
               variant={item.is_archived ? 'secondary' : 'danger'}
               startIcon={item.is_archived ? <RotateCcw size={14} /> : <Archive size={14} />}
-              onClick={() => setArchiveTarget(item)}
+              onClick={() => {
+                setReplacementCategoryId('');
+                setArchiveTarget(item);
+              }}
               disabled={archiveMutation.isPending}
             >
               {item.is_archived ? '恢复' : '归档'}
@@ -404,15 +457,27 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
         <section className="metadata-list-panel">
           <header className="metadata-panel-heading metadata-panel-heading--list">
             <div><h2>当前{config.singular}</h2><p>活跃 {activeItems.length} 个，已归档 {archivedItems.length} 个。</p></div>
-            <Button
-              variant="ghost"
-              iconOnly
-              aria-label="刷新列表"
-              title="刷新列表"
-              startIcon={<RotateCcw size={17} />}
-              onClick={() => void itemsQuery.refetch()}
-              disabled={itemsQuery.isFetching}
-            />
+            <div className="metadata-panel-heading__actions">
+              {canManage && kind !== 'accounts' ? (
+                <Button
+                  variant="secondary"
+                  startIcon={<PackagePlus size={16} />}
+                  onClick={() => profilePreviewMutation.mutate()}
+                  isLoading={profilePreviewMutation.isPending}
+                >
+                  补充基础分类与标签
+                </Button>
+              ) : null}
+              <Button
+                variant="ghost"
+                iconOnly
+                aria-label="刷新列表"
+                title="刷新列表"
+                startIcon={<RotateCcw size={17} />}
+                onClick={() => void itemsQuery.refetch()}
+                disabled={itemsQuery.isFetching}
+              />
+            </div>
           </header>
 
           <div className="metadata-toolbar">
@@ -471,9 +536,128 @@ function MetadataManageContent({ kind }: { kind: MetadataKind }) {
         tone={archiveTarget?.is_archived ? 'primary' : 'danger'}
         icon={archiveTarget?.is_archived ? <RotateCcw /> : <Archive />}
         isConfirming={archiveMutation.isPending}
+        confirmDisabled={Boolean(archiveTarget && isFallbackCategory(archiveTarget) && !archiveTarget.is_archived && !replacementCategoryId)}
         onClose={() => setArchiveTarget(null)}
-        onConfirm={() => archiveTarget && archiveMutation.mutate(archiveTarget)}
-      />
+        onConfirm={() => archiveTarget && archiveMutation.mutate({
+          item: archiveTarget,
+          replacementId: replacementCategoryId || undefined,
+        })}
+      >
+        {archiveTarget && isFallbackCategory(archiveTarget) && !archiveTarget.is_archived ? (
+          <label className="metadata-replacement-field">
+            <span>选择新的{archiveTarget.type === 'income' ? '收入' : '支出'}兜底分类</span>
+            <select
+              value={replacementCategoryId}
+              onChange={(event) => setReplacementCategoryId(event.target.value)}
+            >
+              <option value="">请选择替代分类</option>
+              {activeItems
+                .filter((item) => item.id !== archiveTarget.id && item.type === archiveTarget.type && !item.system_key)
+                .map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <small>只转移兜底职责，不改写历史账单或已有规则。</small>
+          </label>
+        ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={profilePreview !== null}
+        title="补充基础分类与标签"
+        description="先预览创建、复用和冲突项。冲突必须逐项选择复用或跳过，现有名称、颜色和排序不会被覆盖。"
+        confirmLabel="确认应用基础包"
+        cancelLabel="暂不应用"
+        icon={<PackagePlus />}
+        isConfirming={profileApplyMutation.isPending}
+        confirmDisabled={!profilePreview || !profileConflictsResolved(profilePreview, profileResolutions)}
+        onClose={() => {
+          setProfilePreview(null);
+          setProfileResolutions({});
+        }}
+        onConfirm={() => profileApplyMutation.mutate()}
+      >
+        {profilePreview ? (
+          <div className="metadata-profile-preview">
+            <dl>
+              <div><dt>将创建</dt><dd>{profilePreview.create_count}</dd></div>
+              <div><dt>将复用</dt><dd>{profilePreview.reuse_count}</dd></div>
+              <div><dt>待处理冲突</dt><dd>{profilePreview.conflict_count}</dd></div>
+            </dl>
+            <div className="metadata-profile-preview__items">
+              {profilePreview.profile.items.map((item) => (
+                <article key={item.system_key}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{profileKindLabel(item.kind)} · {profileActionLabel(item.action)}</span>
+                  </div>
+                  {item.action === 'conflict' ? (
+                    <select
+                      aria-label={`处理 ${item.name} 冲突`}
+                      value={serializeProfileResolution(profileResolutions[item.system_key])}
+                      onChange={(event) => setProfileResolutions((current) => {
+                        const next = { ...current };
+                        if (!event.target.value) delete next[item.system_key];
+                        else next[item.system_key] = parseProfileResolution(item.system_key, event.target.value);
+                        return next;
+                      })}
+                    >
+                      <option value="">请选择处理方式</option>
+                      {item.existing_id ? (
+                        <option value={`reuse:${item.existing_id}`}>复用现有“{item.name}”</option>
+                      ) : null}
+                      <option value="skip">跳过此项</option>
+                    </select>
+                  ) : (
+                    <StatusChip tone={item.action === 'create' ? 'success' : 'neutral'}>
+                      {profileActionLabel(item.action)}
+                    </StatusChip>
+                  )}
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </ConfirmDialog>
     </main>
   );
+}
+
+function isFallbackCategory(item: MetadataItem) {
+  return item.system_key === 'expense_other' || item.system_key === 'income_other';
+}
+
+function profileConflictsResolved(
+  preview: MetadataProfilePreviewResult,
+  resolutions: Record<string, MetadataProfileConflictResolution>,
+) {
+  return preview.profile.items
+    .filter((item) => item.action === 'conflict')
+    .every((item) => Boolean(resolutions[item.system_key]));
+}
+
+function parseProfileResolution(systemKey: string, value: string): MetadataProfileConflictResolution {
+  if (value === 'skip') return { system_key: systemKey, action: 'skip' };
+  return { system_key: systemKey, action: 'reuse', existing_id: value.replace(/^reuse:/, '') };
+}
+
+function serializeProfileResolution(resolution?: MetadataProfileConflictResolution) {
+  if (!resolution) return '';
+  return resolution.action === 'skip' ? 'skip' : `reuse:${resolution.existing_id}`;
+}
+
+function profileKindLabel(kind: MetadataProfilePreviewResult['profile']['items'][number]['kind']) {
+  return {
+    expense_category: '支出分类',
+    income_category: '收入分类',
+    tag: '标签',
+  }[kind];
+}
+
+function profileActionLabel(action: MetadataProfilePreviewResult['profile']['items'][number]['action']) {
+  return {
+    create: '将创建',
+    reuse: '将复用',
+    skip: '将跳过',
+    conflict: '需要处理',
+    existing: '已存在',
+  }[action];
 }

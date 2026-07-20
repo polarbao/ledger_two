@@ -1,4 +1,5 @@
 import { api, type ApiRequestOptions } from './client';
+import type { MetadataProfileKey } from '../types/metadata';
 
 export type LedgerRole = 'owner' | 'editor' | 'viewer';
 export type LedgerStatus = 'active' | 'archived';
@@ -78,7 +79,7 @@ export const ledgerApi = {
   listUserLedgers: (status: LedgerListStatus = 'active', signal?: AbortSignal) =>
     api.get<Ledger[]>(`/api/ledgers?status=${status}`, { ledgerScope: 'none', signal }),
 
-  createLedger: (data: { name: string }) =>
+  createLedger: (data: { name: string; metadata_profile?: MetadataProfileKey }) =>
     api.post<Ledger>('/api/ledgers', data, { ledgerScope: 'none' }),
 
   getLedger: (ledgerId: string, signal?: AbortSignal) =>

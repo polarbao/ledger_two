@@ -85,6 +85,16 @@ describe('Task50.3A ledger lifecycle API', () => {
       headers: expect.objectContaining({ 'X-Ledger-Id': 'ledger-a' }),
     }));
   });
+
+  it('creates a ledger with the explicitly selected metadata profile', async () => {
+    await ledgerApi.createLedger({ name: '旅行账本', metadata_profile: 'empty' });
+
+    expect(fetch).toHaveBeenCalledWith('/api/ledgers', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ name: '旅行账本', metadata_profile: 'empty' }),
+      headers: expect.not.objectContaining({ 'X-Ledger-Id': expect.anything() }),
+    }));
+  });
 });
 
 describe('Task50.3B ledger member API', () => {

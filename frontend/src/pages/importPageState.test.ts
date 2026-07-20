@@ -4,10 +4,12 @@ import type { ImportPreviewBatch, ImportPreviewRow } from '../types/imports';
 import {
   buildImportCommitSummary,
   defaultImportRowFilter,
+  filterImportRowsByClassification,
   filterImportRows,
   getImportFileAccept,
   getImportSourceDescription,
   resolveImportErrorMessage,
+  selectableImportRows,
   validateImportFile,
 } from './importPageState';
 
@@ -136,5 +138,54 @@ describe('import page state', () => {
     expect(getImportFileAccept('generic', true)).toBe('.csv');
     expect(getImportSourceDescription('alipay', true)).toContain('支付宝当前导出的 CSV');
     expect(getImportSourceDescription('wechat', false)).toContain('仅开放 CSV');
+  });
+
+  it('filters persisted classification states without replacing duplicate review filters', () => {
+    const rows = [
+      createRow({
+        classification: {
+          status: 'auto_selected',
+          confidence: 'high',
+          source: 'user_rule',
+          matched_rule_ids: ['rule-1'],
+          suggested_tag_ids: [],
+        },
+      }),
+      createRow({
+        id: 'row-2',
+        classification: {
+          status: 'suggested',
+          confidence: 'medium',
+          source: 'builtin',
+          matched_rule_ids: [],
+          suggested_category_id: 'category-1',
+          suggested_tag_ids: [],
+        },
+      }),
+      createRow({
+        id: 'row-3',
+        classification: {
+          status: 'conflict',
+          confidence: 'none',
+          matched_rule_ids: ['rule-1', 'rule-2'],
+          suggested_tag_ids: [],
+        },
+      }),
+    ];
+
+    expect(filterImportRowsByClassification(rows, 'suggested').map((row) => row.id)).toEqual(['row-2']);
+    expect(filterImportRowsByClassification(rows, 'conflict').map((row) => row.id)).toEqual(['row-3']);
+    expect(filterImportRowsByClassification(rows, 'all')).toHaveLength(3);
+  });
+
+  it('selects only mutable preview rows for explicit bulk actions', () => {
+    const rows = [
+      createRow({ classification: undefined }),
+      createRow({ id: 'row-2', row_status: 'imported' }),
+      createRow({ id: 'row-3', duplicate_status: 'duplicate', row_status: 'skipped' }),
+      createRow({ id: 'row-4', duplicate_status: 'invalid', row_status: 'failed' }),
+    ];
+
+    expect(selectableImportRows(rows).map((row) => row.id)).toEqual(['row-1']);
   });
 });

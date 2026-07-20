@@ -18,11 +18,15 @@ describe('import rule model', () => {
       category_id: 'category-1',
       tag_ids: ['tag-1', 'tag-1'],
       priority: '20',
+      source_type: 'alipay',
+      apply_mode: 'auto',
     })).toEqual({
       name: '咖啡',
       match_type: 'merchant_contains',
       pattern: '星巴克',
       priority: 20,
+      source_type: 'alipay',
+      apply_mode: 'auto',
       result: {
         category_id: 'category-1',
         account_id: undefined,
